@@ -682,10 +682,14 @@ async function initApp(user){
   const {data:prods}=await sb.from('products').select('*').eq('active',true);
   allProducts=prods||[];
 
+  // Load all profiles FIRST — needed for selects, Excel import, salary calc
+  await loadAllProfiles();
+
   if(profile.role==='manager'||profile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
 
+  // Now safe to render — curProfile and allProfiles both ready
   renderCheckinPage();renderAllLog();
 }
 
