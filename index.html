@@ -233,6 +233,51 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .emp-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
 .emp-bar label{font-size:12px;color:var(--text2)}
+
+/* ===== PRINT / PDF STYLES ===== */
+@media print {
+  body{background:#fff!important;color:#000!important;font-family:'Be Vietnam Pro',Arial,sans-serif}
+  .topbar,.nav,.upload-zone,#excel-preview-wrap,.btn-logout,.nav-btn,
+  .icon-btn,.btn-sm,.ci-btn,.mnbtn,.stat-grid,#all-log-list,
+  #my-log-today,.legend{display:none!important}
+  .content{padding:0!important;max-width:100%!important}
+  .page-content{display:block!important}
+  #page-salary{display:block!important}
+  .phieu-luong{display:block!important}
+  @page{size:A4;margin:15mm 15mm 15mm 15mm}
+}
+.phieu-luong{display:none}
+.phieu-luong.show{display:block}
+
+/* Phiếu lương styles */
+.pl-wrap{background:#fff;color:#000;font-family:'Be Vietnam Pro',Arial,sans-serif;font-size:12px;max-width:760px;margin:0 auto;padding:20px}
+.pl-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #c0392b}
+.pl-logo-name{font-size:20px;font-weight:700;color:#c0392b;letter-spacing:1px}
+.pl-logo-sub{font-size:11px;color:#666;margin-top:2px}
+.pl-title{font-size:16px;font-weight:700;text-align:center;color:#c0392b;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+.pl-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px}
+.pl-info-row{display:flex;gap:6px}
+.pl-info-label{color:#666;min-width:120px;font-weight:500}
+.pl-info-val{font-weight:600;color:#000}
+.pl-section{margin-bottom:10px}
+.pl-section-title{background:#2c3e50;color:#fff;padding:5px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:4px 4px 0 0;margin-bottom:0}
+.pl-table{width:100%;border-collapse:collapse;font-size:11px}
+.pl-table td{padding:5px 10px;border:0.5px solid #dee2e6;vertical-align:middle}
+.pl-table tr:nth-child(even) td{background:#f8f9fa}
+.pl-table .label{color:#333;width:55%}
+.pl-table .formula{color:#888;text-align:center;width:20%}
+.pl-table .amount{text-align:right;font-weight:500;width:25%;font-family:monospace}
+.pl-table .subtotal td{background:#e8f4fd!important;font-weight:600}
+.pl-table .total td{background:#e1f5ee!important;font-weight:700;font-size:13px}
+.pl-net{background:#c0392b;color:#fff;padding:10px 14px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.pl-net .net-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.pl-net .net-val{font-size:20px;font-weight:700;font-family:monospace}
+.pl-note{font-size:10px;color:#666;font-style:italic;margin-top:10px;padding:8px;border:0.5px solid #dee2e6;border-radius:4px;line-height:1.5}
+.pl-sign{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;font-size:11px}
+.pl-sign-box{border:0.5px solid #dee2e6;border-radius:4px;padding:10px;text-align:center}
+.pl-sign-title{font-weight:600;color:#333;margin-bottom:40px}
+.pl-sign-line{border-top:0.5px solid #999;margin-top:8px;padding-top:4px;color:#666;font-size:10px}
+.pl-confidential{background:#fff3cd;border:0.5px solid #ffc107;border-radius:4px;padding:6px 10px;font-size:10px;color:#856404;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -462,9 +507,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <button class="mnbtn" onclick="changeMonthSal(1)">›</button>
           </div>
           <button class="btn-sm btn-success" onclick="calcAndSaveSalary()">⚡ Tính lương</button>
+          <button class="btn-sm btn-primary" onclick="exportPhieuLuong()">🖨️ Xuất phiếu PDF</button>
         </div>
       </div>
       <div id="salary-display"></div>
+      <!-- Phiếu lương để print -->
+      <div class="phieu-luong" id="phieu-luong-print"></div>
     </div>
 
     <!-- NGHIỆM THU -->
@@ -1837,6 +1885,159 @@ async function renderSalary(){
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
     </div>`;
 }
+function vndFmt(n){return Math.round(n||0).toLocaleString('vi-VN')+'đ';}
+function usdFmt(n){return '$'+Number(n||0).toFixed(2);}
+
+async function exportPhieuLuong(){
+  const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
+  if(!empId){toast('Chọn nhân viên trước','error');return;}
+  const thang=monthStr(salYear,salMonth);
+  const emp=allProfiles.find(p=>p.id===empId)||curProfile;
+
+  // Load salary data
+  const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  if(!sal){toast('Chưa có bảng lương tháng này — bấm ⚡ Tính lương trước','error');return;}
+
+  // Load attendance summary
+  const from=`${salYear}-${String(salMonth+1).padStart(2,'0')}-01`;
+  const last=new Date(salYear,salMonth+1,0).getDate();
+  const to=`${salYear}-${String(salMonth+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+  const {data:attRows}=await sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to);
+
+  const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||25000));
+  const tongGross=sal.p1_thuc_te+sal.p2a+sal.p2b+sal.p2c+sal.p3b_chuyen_can+sal.p3c_kpi+p3aVnd;
+
+  const html=`
+  <div class="pl-wrap" id="pl-content">
+    <div class="pl-header">
+      <div>
+        <div class="pl-logo-name">C-SLIAN</div>
+        <div class="pl-logo-sub">Hệ thống quản lý nhân sự</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#666">
+        <div>Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}</div>
+        <div>Tháng lương: ${thang}</div>
+      </div>
+    </div>
+
+    <div class="pl-title">Phiếu lương tháng ${thang.slice(5)}/${thang.slice(0,4)}</div>
+
+    <div class="pl-confidential">🔒 Tài liệu bảo mật — Không chia sẻ với người khác</div>
+
+    <div class="pl-info-grid">
+      <div class="pl-info-row"><span class="pl-info-label">Mã nhân viên:</span><span class="pl-info-val">${emp.ma_nv||'—'}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Tháng lương:</span><span class="pl-info-val">${thang}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Họ và tên:</span><span class="pl-info-val">${emp.ho_ten||'—'}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Công chuẩn:</span><span class="pl-info-val">22 ngày</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Chức danh:</span><span class="pl-info-val">${{manager:'Manager',leader:'Leader',sale:'Sale'}[emp.role]||'—'}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Ngày công TT:</span><span class="pl-info-val">${sal.ngay_cong_thuc_te||0} ngày</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Lever:</span><span class="pl-info-val">Lever ${emp.lever||1}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Số lần đi trễ:</span><span class="pl-info-val">${sal.so_lan_tre||0} lần</span></div>
+    </div>
+
+    <div class="pl-section">
+      <div class="pl-section-title">A — Lương cơ bản & Phụ cấp</div>
+      <table class="pl-table">
+        <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
+        <tr><td class="label">P2A — Phụ cấp ăn uống, đi lại</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
+        <tr><td class="label">P2B — Phụ cấp chức năng</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
+        <tr><td class="label">P2C — Phụ cấp năng lực (Lever ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
+      </table>
+    </div>
+
+    <div class="pl-section">
+      <div class="pl-section-title">B — Bonus & Thưởng</div>
+      <table class="pl-table">
+        <tr><td class="label">P3B — Chuyên cần (${sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
+        <tr><td class="label">P3C — KPI tháng (${sal.p3c_kpi>0?'≥70 điểm':'<70 điểm'})</td><td class="formula">P3C</td><td class="amount">${vndFmt(sal.p3c_kpi)}</td></tr>
+        <tr><td class="label">P3A — Bonus Bolsa Headspa (${usdFmt(sal.p3a_bolsa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Bonus ONS/TSPA (${usdFmt(sal.p3a_ons_tspa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_ons_tspa_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Bonus chênh lệch giá (${usdFmt(sal.p3a_chenh_lech_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_chenh_lech_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Thưởng vượt target (${usdFmt(sal.p3a_vuot_target_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label" style="color:#888;font-size:10px">Tỷ lệ đạt target: ${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'} · Tỷ giá: ${(sal.ty_gia||25000).toLocaleString('vi-VN')} VNĐ/$</td><td class="formula"></td><td class="amount"></td></tr>
+        <tr class="subtotal"><td class="label">Tổng Bonus P3A</td><td class="formula">ΣP3A</td><td class="amount">${vndFmt(p3aVnd)}</td></tr>
+      </table>
+    </div>
+
+    <div class="pl-section">
+      <div class="pl-section-title">C — Tổng hợp</div>
+      <table class="pl-table">
+        <tr class="total"><td class="label">TỔNG LƯƠNG THỰC NHẬN</td><td class="formula">P1+P2+P3</td><td class="amount" style="color:#0e7c4a;font-size:14px">${vndFmt(sal.tong_luong_vnd)}</td></tr>
+      </table>
+    </div>
+
+    <div class="pl-net">
+      <span class="net-label">💰 Lương thực nhận tháng ${thang.slice(5)}/${thang.slice(0,4)}</span>
+      <span class="net-val">${vndFmt(sal.tong_luong_vnd)}</span>
+    </div>
+
+    <div class="pl-note">
+      ⚠️ Phiếu lương là tài liệu bảo mật. Đề nghị không chia sẻ với đồng nghiệp khác.
+      Mọi thắc mắc về lương vui lòng phản hồi trong vòng <strong>7 ngày</strong> kể từ ngày nhận phiếu.
+      Quá thời hạn sẽ không được giải quyết.
+    </div>
+
+    <div class="pl-sign">
+      <div class="pl-sign-box">
+        <div class="pl-sign-title">Nhân viên xác nhận<br><span style="font-weight:400;color:#666">(Ký và ghi rõ họ tên)</span></div>
+        <div class="pl-sign-line">Ngày nhận lương: ___/___/______</div>
+      </div>
+      <div class="pl-sign-box">
+        <div class="pl-sign-title">Quản lý duyệt<br><span style="font-weight:400;color:#666">(Ký và đóng dấu)</span></div>
+        <div class="pl-sign-line">Ngày: ___/___/______</div>
+      </div>
+    </div>
+  </div>`;
+
+  const printWin=window.open('','_blank','width=800,height:1000');
+  printWin.document.write(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<title>Phiếu lương — ${emp.ho_ten} — ${thang}</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',Arial,sans-serif;background:#fff;color:#000;font-size:12px}
+@page{size:A4;margin:15mm}
+
+.pl-wrap{max-width:100%;padding:10px}
+.pl-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #c0392b}
+.pl-logo-name{font-size:20px;font-weight:700;color:#c0392b;letter-spacing:1px}
+.pl-logo-sub{font-size:11px;color:#666;margin-top:2px}
+.pl-title{font-size:16px;font-weight:700;text-align:center;color:#c0392b;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+.pl-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px}
+.pl-info-row{display:flex;gap:6px}
+.pl-info-label{color:#666;min-width:120px;font-weight:500}
+.pl-info-val{font-weight:600;color:#000}
+.pl-section{margin-bottom:10px}
+.pl-section-title{background:#2c3e50;color:#fff;padding:5px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:4px 4px 0 0;margin-bottom:0}
+.pl-table{width:100%;border-collapse:collapse;font-size:11px}
+.pl-table td{padding:5px 10px;border:0.5px solid #dee2e6;vertical-align:middle}
+.pl-table tr:nth-child(even) td{background:#f8f9fa}
+.pl-table .label{color:#333;width:55%}
+.pl-table .formula{color:#888;text-align:center;width:20%}
+.pl-table .amount{text-align:right;font-weight:500;width:25%;font-family:monospace}
+.pl-table .subtotal td{background:#e8f4fd!important;font-weight:600}
+.pl-table .total td{background:#e1f5ee!important;font-weight:700;font-size:13px}
+.pl-net{background:#c0392b;color:#fff;padding:10px 14px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.pl-net .net-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.pl-net .net-val{font-size:20px;font-weight:700;font-family:monospace}
+.pl-note{font-size:10px;color:#666;font-style:italic;margin-top:10px;padding:8px;border:0.5px solid #dee2e6;border-radius:4px;line-height:1.5}
+.pl-sign{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;font-size:11px}
+.pl-sign-box{border:0.5px solid #dee2e6;border-radius:4px;padding:10px;text-align:center}
+.pl-sign-title{font-weight:600;color:#333;margin-bottom:40px}
+.pl-sign-line{border-top:0.5px solid #999;margin-top:8px;padding-top:4px;color:#666;font-size:10px}
+.pl-confidential{background:#fff3cd;border:0.5px solid #ffc107;border-radius:4px;padding:6px 10px;font-size:10px;color:#856404;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+</style>
+</head>
+<body>${html}
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  printWin.document.close();
+}
+
 function changeMonthSal(d){salMonth+=d;if(salMonth>11){salMonth=0;salYear++;}if(salMonth<0){salMonth=11;salYear--;}renderSalary();}
 
 // ============================================================
