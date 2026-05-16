@@ -1661,7 +1661,8 @@ async function saveKPI(){
 }
 
 async function renderKPI(){
-  const empId=document.getElementById('kpi-emp-sel').value;
+  const empId=document.getElementById('kpi-emp-sel').value||curProfile?.id;
+  if(!empId)return;
   document.getElementById('kpi-month-label').textContent=`Tháng ${kpiMonth+1}/${kpiYear}`;
   const thang=monthStr(kpiYear,kpiMonth);
   const {data:kpi}=await sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
@@ -1708,9 +1709,11 @@ function changeMonthKPI(d){kpiMonth+=d;if(kpiMonth>11){kpiMonth=0;kpiYear++;}if(
 // SALARY CALCULATION
 // ============================================================
 async function calcAndSaveSalary(){
-  const empId=document.getElementById('sal-emp-sel').value;
+  const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
+  if(!empId){toast('Vui lòng chọn nhân viên','error');return;}
   const thang=monthStr(salYear,salMonth);
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
+  if(!emp){toast('Không tìm thấy nhân viên','error');return;}
 
   // Get attendance data
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
@@ -1798,7 +1801,8 @@ async function calcAndSaveSalary(){
 }
 
 async function renderSalary(){
-  const empId=document.getElementById('sal-emp-sel').value;
+  const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
+  if(!empId)return;
   document.getElementById('sal-month-label').textContent=`Tháng ${salMonth+1}/${salYear}`;
   const thang=monthStr(salYear,salMonth);
   const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
