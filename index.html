@@ -671,7 +671,7 @@ async function initApp(user){
   document.getElementById('app').style.display='flex';
 
   // Topbar
-  const c=avColor(allProfiles.findIndex(p=>p.id===user.id)||0);
+  const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));)||0);
   const av=document.getElementById('tb-avatar');
   av.textContent=initials(profile.ho_ten);
   av.style.background=c.bg;av.style.color=c.color;
@@ -685,8 +685,6 @@ async function initApp(user){
   if(profile.role==='manager'||profile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
-  // Load all profiles synchronously
-  await loadAllProfiles();
 
   renderCheckinPage();renderAllLog();
 }
