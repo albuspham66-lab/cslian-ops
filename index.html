@@ -671,7 +671,7 @@ async function initApp(user){
   document.getElementById('app').style.display='flex';
 
   // Topbar
-  const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));)||0);
+  const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));
   const av=document.getElementById('tb-avatar');
   av.textContent=initials(profile.ho_ten);
   av.style.background=c.bg;av.style.color=c.color;
@@ -1515,11 +1515,7 @@ function cancelExcel(){
   resetUploadZone();
 }
 
-function resetUploadZone(){
-  var uz=document.getElementById('upload-zone');
-  uz.style.display='block';
-  uz.innerHTML='<div class="uz-icon">📊</div><div class="uz-title">Import Excel tổng hợp đơn hàng</div><div class="uz-sub">Click hoặc kéo thả file .xlsx vào đây</div>';
-}
+
 
 async function renderOrders(){
   const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
