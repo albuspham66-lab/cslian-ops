@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#20253a;
@@ -330,6 +331,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <button class="nav-btn nav-mgr" onclick="switchTab('kpi',this)" style="display:none">📊 KPI</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Bảng lương</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('reviews',this)" style="display:none">🏆 Nghiệm thu</button>
+    <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
+    <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
   </div>
 
@@ -529,6 +532,75 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="reviews-display"></div>
     </div>
 
+    <!-- DAILY TRACKING -->
+    <div id="page-daily" class="page-content">
+      <div class="page-header">
+        <div><h2>Daily Tracking</h2><div class="page-sub">Nhập chỉ số KPI hàng ngày cho từng Sale</div></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="date" id="daily-date" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none" onchange="renderDaily()"/>
+          <button class="btn-sm btn-primary" onclick="openDailyForm()">✏️ Nhập hôm nay</button>
+        </div>
+      </div>
+      <!-- Summary stats -->
+      <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
+      <!-- Team table -->
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Nhân viên</th>
+            <th style="text-align:center">Total Calls</th>
+            <th style="text-align:center">Gap Calls</th>
+            <th style="text-align:center">Potential</th>
+            <th style="text-align:center">Báo giá</th>
+            <th style="text-align:center">Talktime</th>
+            <th style="text-align:center">Gap Talk</th>
+            <th style="width:60px"></th>
+          </tr></thead>
+          <tbody id="daily-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><div class="page-sub" id="dash-sub">Kết quả so với Plan</div></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="date" id="dash-date" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none" onchange="renderDashboard()"/>
+          <select id="dash-period" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none">
+            <option value="month">Tháng này</option>
+            <option value="quarter">Quý này</option>
+            <option value="year">Năm này</option>
+          </select>
+          <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+        </div>
+      </div>
+
+      <!-- TEAM OVERVIEW CARDS -->
+      <div class="stat-grid" id="dash-overview" style="margin-bottom:20px"></div>
+
+      <!-- PROGRESS BARS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card" id="dash-chart-revenue">
+          <div class="card-title"><span class="dot"></span>Doanh số theo tháng</div>
+          <canvas id="chart-revenue" height="200"></canvas>
+        </div>
+        <div class="card" id="dash-chart-orders">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Đơn hàng theo tháng</div>
+          <canvas id="chart-orders" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div class="card" id="dash-leaderboard">
+        <div class="card-title"><span class="dot" style="background:var(--manager)"></span>Leaderboard — Kết quả từng Sale</div>
+        <div id="leaderboard-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
     <!-- NHÂN VIÊN -->
     <div id="page-team" class="page-content">
       <div class="page-header"><div><h2>Nhân viên</h2></div></div>
@@ -612,6 +684,46 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div class="mactions">
       <button class="btn-sm" onclick="closeModal('review-modal')">Huỷ</button>
       <button class="btn-sm btn-primary" onclick="saveReview()">💾 Lưu & Duyệt</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Daily input -->
+<div class="modal-bg" id="daily-modal">
+  <div class="modal-box" style="max-width:520px">
+    <h3>📋 Nhập Daily Tracking — <span id="daily-modal-date"></span></h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text2);font-weight:600;grid-column:1/-1;text-transform:uppercase;letter-spacing:.05em">Chọn nhân viên</div>
+      <div style="grid-column:1/-1">
+        <select id="daily-emp-sel" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none"></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-f"><label>Total Calls</label><input type="number" id="dt-total-calls" placeholder="0" min="0"/></div>
+      <div class="form-f"><label>Potential Calls</label><input type="number" id="dt-potential" placeholder="0" min="0"/></div>
+      <div class="form-f"><label>Số báo giá gửi</label><input type="number" id="dt-bao-gia" placeholder="0" min="0"/></div>
+      <div class="form-f"><label>Talktime (phút)</label><input type="number" id="dt-talktime" placeholder="0" min="0" step="0.5"/></div>
+    </div>
+    <div class="form-f" style="margin-top:10px"><label>Ghi chú</label><input type="text" id="dt-note" placeholder="Tuỳ chọn..."/></div>
+    <div class="mactions">
+      <button class="mbtn" onclick="closeModal('daily-modal')">Huỷ</button>
+      <button class="mbtn mbtn-p" onclick="saveDailyTracking()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Target setting -->
+<div class="modal-bg" id="target-modal">
+  <div class="modal-box">
+    <h3>🎯 Cài đặt Target</h3>
+    <div class="form-f"><label>Áp dụng từ tháng</label><input type="month" id="tgt-thang"/></div>
+    <div class="form-f"><label>Target doanh số / tháng ($)</label><input type="number" id="tgt-doanh-so" placeholder="23500" step="100"/></div>
+    <div class="form-f"><label>Target số đơn / tháng</label><input type="number" id="tgt-don-hang" placeholder="5"/></div>
+    <div class="form-f"><label>Target số báo giá / tháng</label><input type="number" id="tgt-bao-gia" placeholder="20"/></div>
+    <div class="form-f"><label>Ghi chú</label><input type="text" id="tgt-note" placeholder="VD: Q2 2026 điều chỉnh..."/></div>
+    <div class="mactions">
+      <button class="mbtn" onclick="closeModal('target-modal')">Huỷ</button>
+      <button class="mbtn mbtn-p" onclick="saveTarget()">💾 Lưu Target</button>
     </div>
   </div>
 </div>
@@ -2175,7 +2287,388 @@ function switchTab(name,el){
   else if(name==='kpi')renderKPI();
   else if(name==='salary')renderSalary();
   else if(name==='reviews')renderReviews();
+  else if(name==='daily'){document.getElementById('daily-date').value=new Date().toISOString().slice(0,10);renderDaily();}
+  else if(name==='dashboard'){document.getElementById('dash-date').value=new Date().toISOString().slice(0,10);renderDashboard();}
   else if(name==='team')renderEmpGrid();
+}
+
+
+// ============================================================
+// TARGETS
+// ============================================================
+var cachedTargets={};
+
+async function loadTargets(){
+  const {data}=await sb.from('targets').select('*').order('thang',{ascending:false});
+  (data||[]).forEach(t=>cachedTargets[t.thang]=t);
+  return cachedTargets;
+}
+
+async function getTarget(thang){
+  // Find closest target <= thang
+  await loadTargets();
+  const keys=Object.keys(cachedTargets).sort().reverse();
+  for(var i=0;i<keys.length;i++){
+    if(keys[i]<=thang)return cachedTargets[keys[i]];
+  }
+  return {target_doanh_so:23500,target_don_hang:5,target_bao_gia:20};
+}
+
+function openTargetForm(){
+  var now=new Date();
+  document.getElementById('tgt-thang').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('tgt-doanh-so').value=23500;
+  document.getElementById('tgt-don-hang').value=5;
+  document.getElementById('tgt-bao-gia').value=20;
+  document.getElementById('tgt-note').value='';
+  document.getElementById('target-modal').classList.add('open');
+}
+
+async function saveTarget(){
+  var thang=document.getElementById('tgt-thang').value;
+  var ds=parseFloat(document.getElementById('tgt-doanh-so').value)||23500;
+  var don=parseInt(document.getElementById('tgt-don-hang').value)||5;
+  var bq=parseInt(document.getElementById('tgt-bao-gia').value)||20;
+  var note=document.getElementById('tgt-note').value;
+  if(!thang){toast('Chọn tháng áp dụng','error');return;}
+  var {error}=await sb.from('targets').upsert({thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq,ghi_chu:note,created_by:curProfile.id},{onConflict:'thang'});
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  cachedTargets[thang]={thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq};
+  toast('Đã lưu Target tháng '+thang);
+  closeModal('target-modal');
+  renderDashboard();
+}
+
+// ============================================================
+// DAILY TRACKING
+// ============================================================
+function openDailyForm(){
+  var dateEl=document.getElementById('daily-date');
+  var today=new Date();
+  var dateVal=dateEl.value||today.toISOString().slice(0,10);
+  document.getElementById('daily-modal-date').textContent=dateVal;
+  // Populate emp select
+  var sel=document.getElementById('daily-emp-sel');
+  sel.innerHTML=allProfiles.filter(p=>p.role==='sale').map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
+  document.getElementById('dt-total-calls').value='';
+  document.getElementById('dt-potential').value='';
+  document.getElementById('dt-bao-gia').value='';
+  document.getElementById('dt-talktime').value='';
+  document.getElementById('dt-note').value='';
+  document.getElementById('daily-modal').classList.add('open');
+}
+
+async function saveDailyTracking(){
+  var empId=document.getElementById('daily-emp-sel').value;
+  var ngay=document.getElementById('daily-date').value||new Date().toISOString().slice(0,10);
+  var totalCalls=parseInt(document.getElementById('dt-total-calls').value)||0;
+  var potential=parseInt(document.getElementById('dt-potential').value)||0;
+  var baoGia=parseInt(document.getElementById('dt-bao-gia').value)||0;
+  var talktime=parseFloat(document.getElementById('dt-talktime').value)||0;
+  var note=document.getElementById('dt-note').value;
+  if(!empId){toast('Chọn nhân viên','error');return;}
+  var {error}=await sb.from('daily_tracking').upsert({
+    user_id:empId,ngay,total_calls:totalCalls,potential_calls:potential,
+    so_bao_gia:baoGia,talktime_phut:talktime,ghi_chu:note,nhap_boi:curProfile.id
+  },{onConflict:'user_id,ngay'});
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã lưu tracking cho '+ngay);
+  closeModal('daily-modal');
+  renderDaily();
+}
+
+async function renderDaily(){
+  var dateEl=document.getElementById('daily-date');
+  if(!dateEl.value){
+    var t=new Date();
+    dateEl.value=t.toISOString().slice(0,10);
+  }
+  var ngay=dateEl.value;
+  var thang=ngay.slice(0,7);
+  var target=await getTarget(thang);
+  
+  // Load all sale profiles
+  var sales=allProfiles.filter(p=>p.role==='sale');
+  if(sales.length===0){
+    document.getElementById('daily-tbody').innerHTML='<tr><td colspan="8" class="empty">Không có nhân viên Sale</td></tr>';
+    return;
+  }
+
+  // Load tracking data for this date
+  var {data:tracks}=await sb.from('daily_tracking').select('*').eq('ngay',ngay);
+  var trackMap={};
+  (tracks||[]).forEach(t=>trackMap[t.user_id]=t);
+
+  // Working days in month so far
+  var today=new Date(ngay);
+  var workDays=0;
+  for(var d=1;d<=today.getDate();d++){
+    var dow=new Date(today.getFullYear(),today.getMonth(),d).getDay();
+    if(dow!==0&&dow!==6)workDays++;
+  }
+  var totalWorkDays=22; // standard
+
+  // Targets per day
+  var dailyCallTarget=40;
+  var dailyTalkTarget=120;
+
+  var tbody='';
+  var totCalls=0,totPotential=0,totBaoGia=0,totTalktime=0;
+  var missing=0;
+
+  sales.forEach(function(emp,i){
+    var t=trackMap[emp.id];
+    var calls=t?t.total_calls:null;
+    var pot=t?t.potential_calls:null;
+    var bq=t?t.so_bao_gia:null;
+    var talk=t?t.talktime_phut:null;
+    var gapCalls=calls!==null?calls-dailyCallTarget:null;
+    var gapTalk=talk!==null?talk-dailyTalkTarget:null;
+    if(calls!==null){totCalls+=calls;totPotential+=pot||0;totBaoGia+=bq||0;totTalktime+=talk||0;}
+    else missing++;
+
+    var callColor=calls===null?'var(--text3)':(calls>=dailyCallTarget?'var(--success)':'var(--danger)');
+    var talkColor=talk===null?'var(--text3)':(talk>=dailyTalkTarget?'var(--success)':'var(--danger)');
+    var gapCallColor=gapCalls===null?'var(--text3)':(gapCalls>=0?'var(--success)':'var(--danger)');
+    var gapTalkColor=gapTalk===null?'var(--text3)':(gapTalk>=0?'var(--success)':'var(--danger)');
+
+    tbody+=`<tr>
+      <td style="font-weight:500">${emp.ho_ten}<br><span style="font-size:11px;color:var(--text2)">${emp.ma_nv}</span></td>
+      <td style="text-align:center;color:${callColor};font-weight:600">${calls!==null?calls:'—'}</td>
+      <td style="text-align:center;color:${gapCallColor};font-weight:600">${gapCalls!==null?(gapCalls>=0?'+'+gapCalls:gapCalls):'—'}</td>
+      <td style="text-align:center;color:var(--accent)">${pot!==null?pot:'—'}</td>
+      <td style="text-align:center;color:var(--warn)">${bq!==null?bq:'—'}</td>
+      <td style="text-align:center;color:${talkColor};font-weight:600">${talk!==null?talk+"'":' —'}</td>
+      <td style="text-align:center;color:${gapTalkColor};font-weight:600">${gapTalk!==null?(gapTalk>=0?'+'+gapTalk:gapTalk)+"'":' —'}</td>
+      <td><button class="icon-btn" onclick="editDailyFor('${emp.id}','${ngay}')" title="Nhập/Sửa">✏️</button></td>
+    </tr>`;
+  });
+
+  document.getElementById('daily-tbody').innerHTML=tbody;
+
+  // Summary stats
+  var entered=sales.length-missing;
+  document.getElementById('daily-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">📅 Ngày</div><div class="stat-val" style="color:var(--accent);font-size:18px">${ngay.slice(8)}/${ngay.slice(5,7)}</div><div class="stat-sub">Ngày làm thứ ${workDays}/${totalWorkDays}</div></div>
+    <div class="stat-card"><div class="stat-label">📊 Đã nhập</div><div class="stat-val" style="color:${entered===sales.length?'var(--success)':'var(--warn)'}">${entered}<span style="font-size:14px">/${sales.length}</span></div><div class="stat-sub">${missing>0?missing+' chưa nhập':' Đủ hết'}</div></div>
+    <div class="stat-card"><div class="stat-label">📞 Tổng calls team</div><div class="stat-val" style="color:var(--accent)">${totCalls}</div><div class="stat-sub">Target: ${dailyCallTarget*sales.length} · Gap: ${totCalls-dailyCallTarget*sales.length}</div></div>
+    <div class="stat-card"><div class="stat-label">⏱ Talktime team</div><div class="stat-val" style="color:var(--accent)">${totTalktime}'</div><div class="stat-sub">Target: ${dailyTalkTarget*sales.length}' · Gap: ${totTalktime-dailyTalkTarget*sales.length}'</div></div>
+  `;
+}
+
+async function editDailyFor(empId,ngay){
+  var {data:t}=await sb.from('daily_tracking').select('*').eq('user_id',empId).eq('ngay',ngay).maybeSingle();
+  var sel=document.getElementById('daily-emp-sel');
+  sel.innerHTML=allProfiles.filter(p=>p.role==='sale').map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
+  sel.value=empId;
+  document.getElementById('daily-modal-date').textContent=ngay;
+  document.getElementById('dt-total-calls').value=t?t.total_calls:'';
+  document.getElementById('dt-potential').value=t?t.potential_calls:'';
+  document.getElementById('dt-bao-gia').value=t?t.so_bao_gia:'';
+  document.getElementById('dt-talktime').value=t?t.talktime_phut:'';
+  document.getElementById('dt-note').value=t?t.ghi_chu:'';
+  document.getElementById('daily-modal').classList.add('open');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+var chartRevenue=null, chartOrders=null;
+
+async function renderDashboard(){
+  var dateEl=document.getElementById('dash-date');
+  var period=document.getElementById('dash-period').value;
+  if(!dateEl.value)dateEl.value=new Date().toISOString().slice(0,10);
+  var toDate=dateEl.value;
+  var toYear=parseInt(toDate.slice(0,4));
+  var toMonth=parseInt(toDate.slice(5,7));
+
+  // Determine date range based on period
+  var fromDate,planMonths;
+  if(period==='month'){
+    fromDate=toDate.slice(0,7)+'-01';
+    planMonths=1;
+  } else if(period==='quarter'){
+    var q=Math.ceil(toMonth/3);
+    var qStart=(q-1)*3+1;
+    fromDate=toYear+'-'+String(qStart).padStart(2,'0')+'-01';
+    planMonths=3;
+  } else {
+    fromDate=toYear+'-01-01';
+    planMonths=12;
+  }
+
+  var fromMonth=fromDate.slice(0,7);
+  var toMonth2=toDate.slice(0,7);
+
+  // Load target
+  var tgt=await getTarget(fromMonth);
+  var planDS=tgt.target_doanh_so*planMonths;
+  var planDon=tgt.target_don_hang*planMonths;
+
+  // Load orders in range
+  var {data:orders}=await sb.from('orders').select('*,profiles(ho_ten,ma_nv,biet_danh)').gte('order_date',fromDate).lte('order_date',toDate);
+  var ords=orders||[];
+
+  // Team totals
+  var totalDS=ords.reduce(function(s,o){return s+(o.total||0);},0);
+  var totalDon=ords.length;
+  var aov=totalDon>0?totalDS/totalDon:0;
+
+  // Load daily tracking for bao gia
+  var {data:dailyAll}=await sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate);
+  var totalBaoGia=(dailyAll||[]).reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
+  var convRate=totalBaoGia>0?(totalDon/totalBaoGia*100):0;
+
+  var gapDS=planDS-totalDS;
+  var gapDon=planDon-totalDon;
+  var pctDS=planDS>0?(totalDS/planDS*100):0;
+  var pctDon=planDon>0?(totalDon/planDon*100):0;
+
+  var periodLabel=period==='month'?'Tháng '+toMonth2:period==='quarter'?'Quý '+Math.ceil(toMonth/3)+'/'+toYear:'Năm '+toYear;
+  document.getElementById('dash-sub').textContent='Kết quả '+periodLabel+' (đến '+toDate+') — Target: '+planMonths+' tháng';
+
+  // Overview cards
+  document.getElementById('dash-overview').innerHTML=`
+    <div class="stat-card">
+      <div class="stat-label">💵 Doanh số Active</div>
+      <div class="stat-val" style="color:var(--success);font-size:18px">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+      <div class="stat-sub">Plan: $${planDS.toLocaleString('en-US',{maximumFractionDigits:0})} · Gap: <span style="color:${gapDS<=0?'var(--success)':'var(--danger)'}">$${Math.abs(gapDS).toLocaleString('en-US',{maximumFractionDigits:0})}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">📦 Đơn hàng</div>
+      <div class="stat-val" style="color:var(--accent)">${totalDon}</div>
+      <div class="stat-sub">Plan: ${planDon} · Gap: <span style="color:${gapDon<=0?'var(--success)':'var(--danger)'}">${Math.abs(gapDon)}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">📈 AOV</div>
+      <div class="stat-val" style="color:var(--warn);font-size:18px">$${aov.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+      <div class="stat-sub">Doanh số ÷ Đơn hàng</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">🔄 Conversion Rate</div>
+      <div class="stat-val" style="color:var(--manager)">${convRate.toFixed(1)}%</div>
+      <div class="stat-sub">${totalDon} đơn / ${totalBaoGia} báo giá</div>
+    </div>
+  `;
+
+  // Progress bars
+  document.getElementById('dash-progress').innerHTML=`
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>% Hoàn thành Doanh số</div>
+      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:var(--text2)">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</span>
+        <span style="color:var(--text2);font-weight:600">${pctDS.toFixed(1)}%</span>
+        <span style="color:var(--text2)">$${planDS.toLocaleString('en-US',{maximumFractionDigits:0})}</span>
+      </div>
+      <div style="background:var(--bg4);border-radius:8px;height:16px;overflow:hidden">
+        <div style="height:100%;border-radius:8px;background:linear-gradient(90deg,${pctDS>=100?'var(--success)':pctDS>=70?'var(--accent)':'var(--danger)'},${pctDS>=100?'#059669':pctDS>=70?'#7c3aed':'#dc2626'});width:${Math.min(100,pctDS)}%;transition:width .5s"></div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:700;color:${pctDS>=100?'var(--success)':pctDS>=70?'var(--accent)':'var(--danger)'}">${pctDS.toFixed(1)}%</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>% Hoàn thành Đơn hàng</div>
+      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:var(--text2)">${totalDon} đơn</span>
+        <span style="color:var(--text2);font-weight:600">${pctDon.toFixed(1)}%</span>
+        <span style="color:var(--text2)">${planDon} đơn</span>
+      </div>
+      <div style="background:var(--bg4);border-radius:8px;height:16px;overflow:hidden">
+        <div style="height:100%;border-radius:8px;background:linear-gradient(90deg,${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'},${pctDon>=100?'#059669':pctDon>=70?'#d97706':'#dc2626'});width:${Math.min(100,pctDon)}%;transition:width .5s"></div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:700;color:${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'}">${pctDon.toFixed(1)}%</div>
+    </div>
+  `;
+
+  // Revenue chart by month
+  var monthlyData={};
+  ords.forEach(function(o){
+    var m=o.order_date?o.order_date.slice(0,7):'';
+    if(!m)return;
+    if(!monthlyData[m])monthlyData[m]={ds:0,don:0};
+    monthlyData[m].ds+=(o.total||0);
+    monthlyData[m].don++;
+  });
+
+  // Generate all months in range
+  var allMonths=[];
+  var cur=new Date(fromDate.slice(0,7)+'-01');
+  var toD=new Date(toDate.slice(0,7)+'-01');
+  while(cur<=toD){
+    var mk=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
+    allMonths.push(mk);
+    cur.setMonth(cur.getMonth()+1);
+  }
+
+  var labels=allMonths.map(function(m){return m.slice(5)+'/'+m.slice(0,4);});
+  var dsData=allMonths.map(function(m){return monthlyData[m]?Math.round(monthlyData[m].ds):0;});
+  var donData=allMonths.map(function(m){return monthlyData[m]?monthlyData[m].don:0;});
+  var targetLine=allMonths.map(function(){return tgt.target_doanh_so;});
+
+  if(chartRevenue)chartRevenue.destroy();
+  var ctx1=document.getElementById('chart-revenue').getContext('2d');
+  chartRevenue=new Chart(ctx1,{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'Doanh số ($)',data:dsData,backgroundColor:'rgba(79,127,255,0.6)',borderColor:'rgba(79,127,255,1)',borderWidth:1,borderRadius:6},
+        {label:'Target ($)',data:targetLine,type:'line',borderColor:'rgba(255,181,71,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+
+  if(chartOrders)chartOrders.destroy();
+  var ctx2=document.getElementById('chart-orders').getContext('2d');
+  chartOrders=new Chart(ctx2,{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'Số đơn',data:donData,backgroundColor:'rgba(255,181,71,0.6)',borderColor:'rgba(255,181,71,1)',borderWidth:1,borderRadius:6},
+        {label:'Target đơn',data:allMonths.map(function(){return tgt.target_don_hang;}),type:'line',borderColor:'rgba(34,199,122,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+
+  // Leaderboard
+  var saleMap={};
+  ords.forEach(function(o){
+    var uid=o.user_id;
+    if(!saleMap[uid])saleMap[uid]={emp:o.profiles,ds:0,don:0,id:uid};
+    saleMap[uid].ds+=(o.total||0);
+    saleMap[uid].don++;
+  });
+  var saleArr=Object.values(saleMap).sort(function(a,b){return b.ds-a.ds;});
+
+  // Add sales with 0
+  allProfiles.filter(p=>p.role==='sale').forEach(function(p){
+    if(!saleMap[p.id])saleArr.push({emp:p,ds:0,don:0,id:p.id});
+  });
+  saleArr.sort(function(a,b){return b.ds-a.ds;});
+
+  var medals=['🥇','🥈','🥉'];
+  var lbHtml=saleArr.map(function(s,i){
+    var pct=planDS>0?(s.ds/planDS*100):0;
+    var isTop=i<3;
+    var borderColor=i===0?'var(--warn)':i===1?'rgba(192,192,192,0.5)':i===2?'rgba(205,127,50,0.5)':'var(--border)';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${borderColor};border-radius:${isTop?'10px':'8px'};margin-bottom:8px${isTop?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
+      <div style="font-size:${isTop?'24px':'16px'};flex-shrink:0;width:32px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${s.emp?s.emp.ho_ten:'—'} <span style="font-size:11px;color:var(--text2)">${s.emp?'('+s.emp.ma_nv+')':''}</span></div>
+        <div style="margin-top:4px;background:var(--bg4);border-radius:4px;height:6px;overflow:hidden">
+          <div style="height:100%;background:${i===0?'linear-gradient(90deg,var(--warn),#d97706)':i===1?'linear-gradient(90deg,#9ca3af,#6b7280)':i===2?'linear-gradient(90deg,#c9a227,#92550a)':'var(--accent)'};width:${Math.min(100,pct)}%"></div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:700;color:${i===0?'var(--warn)':i===1?'#9ca3af':i===2?'#c9a227':'var(--text)'}">$${s.ds.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+        <div style="font-size:11px;color:var(--text2)">${s.don} đơn · ${pct.toFixed(1)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('leaderboard-list').innerHTML=lbHtml||'<div class="empty">Chưa có dữ liệu</div>';
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open')}
