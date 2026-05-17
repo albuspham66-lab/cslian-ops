@@ -728,6 +728,46 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   </div>
 </div>
 
+<!-- MODAL: Edit employee profile -->
+<div class="modal-bg" id="emp-profile-modal">
+  <div class="modal-box" style="max-width:440px">
+    <h3>👤 Chỉnh sửa — <span id="ep-modal-title"></span></h3>
+    <span id="ep-id" style="display:none"></span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-f" style="grid-column:1/-1"><label>Họ và tên</label><input type="text" id="ep-name" placeholder="Nguyễn Văn A"/></div>
+      <div class="form-f"><label>Biệt danh (App)</label><input type="text" id="ep-biet-danh" placeholder="Calvin"/></div>
+      <div class="form-f"><label>Mã nhân viên</label><input type="text" id="ep-ma-nv" placeholder="C01"/></div>
+      <div class="form-f"><label>Chức vụ / Role</label>
+        <select id="ep-role">
+          <option value="sale">Sale</option>
+          <option value="leader">Leader</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Lever hiện tại</label>
+        <select id="ep-lever">
+          <option value="1">Lever 1</option>
+          <option value="2">Lever 2</option>
+          <option value="3">Lever 3</option>
+          <option value="4">Lever 4</option>
+          <option value="5">Lever 5</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Ngày bắt đầu làm việc</label><input type="date" id="ep-start-date"/></div>
+      <div class="form-f"><label>Loại hợp đồng</label>
+        <select id="ep-contract">
+          <option value="chinh-thuc">Chính thức</option>
+          <option value="thu-viec">Thử việc</option>
+        </select>
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="mbtn" onclick="closeModal('emp-profile-modal')">Huỷ</button>
+      <button class="mbtn mbtn-p" onclick="saveEmpProfile()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2260,18 +2300,55 @@ function renderEmpGrid(){
   el.innerHTML=allProfiles.map((p,i)=>{
     const c=avColor(i);
     const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>'};
-    const startDate=p.start_date?new Date(p.start_date).toLocaleDateString('vi-VN'):'—';
-    const monthsIn=p.start_date?Math.floor((Date.now()-new Date(p.start_date))/(30*24*3600*1000)):0;
+    const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
+    const monthsIn=p.start_date?Math.floor((Date.now()-new Date(p.start_date))/(30*24*3600*1000)):999;
     const isThuViec=monthsIn<2;
+    const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
     return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px">
       <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${c.bg};color:${c.color};flex-shrink:0">${initials(p.ho_ten)}</div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:600">${p.ho_ten} <span style="font-size:12px;color:var(--text2)">(${p.biet_danh||''})</span></div>
         <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.ma_nv} · ${p.email} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Ngày vào: ${startDate} ${isThuViec?'· <span style="color:var(--warn)">Thử việc</span>':''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Ngày vào: ${startDate} · ${contractLabel}</div>
       </div>
+      <button class="btn-sm" onclick="openEditProfile('${p.id}')" style="flex-shrink:0;font-size:12px;padding:5px 10px">✏️ Sửa</button>
     </div>`;
   }).join('');
+}
+
+async function openEditProfile(id){
+  const p=allProfiles.find(x=>x.id===id);
+  if(!p)return;
+  document.getElementById('ep-id').textContent=p.id;
+  document.getElementById('ep-name').value=p.ho_ten||'';
+  document.getElementById('ep-biet-danh').value=p.biet_danh||'';
+  document.getElementById('ep-ma-nv').value=p.ma_nv||'';
+  document.getElementById('ep-role').value=p.role||'sale';
+  document.getElementById('ep-lever').value=p.lever||1;
+  document.getElementById('ep-start-date').value=p.start_date||'';
+  document.getElementById('ep-contract').value=p.start_date&&Math.floor((Date.now()-new Date(p.start_date))/(30*24*3600*1000))<2?'thu-viec':'chinh-thuc';
+  document.getElementById('ep-modal-title').textContent=p.ho_ten;
+  document.getElementById('emp-profile-modal').classList.add('open');
+}
+
+async function saveEmpProfile(){
+  const id=document.getElementById('ep-id').textContent;
+  const hoTen=document.getElementById('ep-name').value.trim();
+  const bietDanh=document.getElementById('ep-biet-danh').value.trim();
+  const maNV=document.getElementById('ep-ma-nv').value.trim();
+  const role=document.getElementById('ep-role').value;
+  const lever=parseInt(document.getElementById('ep-lever').value)||1;
+  const startDate=document.getElementById('ep-start-date').value;
+  if(!hoTen){toast('Nhập họ tên','error');return;}
+  const {error}=await sb.from('profiles').update({
+    ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
+    start_date:startDate||null
+  }).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã cập nhật thông tin '+hoTen);
+  closeModal('emp-profile-modal');
+  await loadAllProfiles();
+  renderEmpGrid();
 }
 
 // NAV
