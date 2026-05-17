@@ -1065,7 +1065,7 @@ function calcDayLogic(rec,empType){
   if(!rec)return{hours:0,salary:0,isLate:false,lateMin:0};
   if(rec.status==='NL')return{hours:8,salary:LUONG_NGAY,isLate:false,lateMin:0};
   if(rec.status==='NKP')return{hours:0,salary:0,isLate:false,lateMin:0};
-  if(rec.status==='NP'){const ok=empType!=='thu-viec';return{hours:ok?8:0,salary:ok?LUONG_NGAY:0,isLate:false,lateMin:0};}
+  if(rec.status==='NP'){const ok=empType==='chinh-thuc'||empType==='manager'||empType==='leader';return{hours:ok?8:0,salary:ok?LUONG_NGAY:0,isLate:false,lateMin:0};}
   if(!rec.checkin_time||!rec.checkout_time)return{hours:0,salary:0,isLate:false,lateMin:0};
   const [ch,cm]=rec.checkin_time.split(':').map(Number),ciT=ch*60+cm;
   const isLate=ciT>=22*60+11,lateMin=isLate?ciT-22*60:0;
@@ -1958,7 +1958,9 @@ async function calcAndSaveSalary(){
 
   // Check thử việc (< 2 months from start_date)
   let heCoP1=1.0;
-  if(emp.start_date){
+  if((emp.contract_type||'chinh-thuc')==='thu-viec'){
+    heCoP1=0.85;
+  } else if(emp.start_date){
     const start=new Date(emp.start_date),monthsDiff=(salYear-start.getFullYear())*12+(salMonth-start.getMonth());
     if(monthsDiff<2)heCoP1=0.85;
   }
@@ -2324,8 +2326,7 @@ function renderEmpGrid(){
     const c=avColor(i);
     const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>'};
     const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
-    const monthsIn=p.start_date?Math.floor((Date.now()-new Date(p.start_date))/(30*24*3600*1000)):999;
-    const isThuViec=monthsIn<2;
+    const isThuViec=(p.contract_type||'thu-viec')==='thu-viec';
     const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
     return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px">
       <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${c.bg};color:${c.color};flex-shrink:0">${initials(p.ho_ten)}</div>
@@ -2349,7 +2350,7 @@ async function openEditProfile(id){
   document.getElementById('ep-role').value=p.role||'sale';
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
-  document.getElementById('ep-contract').value=p.start_date&&Math.floor((Date.now()-new Date(p.start_date))/(30*24*3600*1000))<2?'thu-viec':'chinh-thuc';
+  document.getElementById('ep-contract').value=p.contract_type||'chinh-thuc';
   document.getElementById('ep-modal-title').textContent=p.ho_ten;
   document.getElementById('emp-profile-modal').classList.add('open');
 }
@@ -2365,8 +2366,9 @@ async function saveEmpProfile(){
   if(!hoTen){toast('Nhập họ tên','error');return;}
   if(!id){toast('Lỗi: không tìm thấy ID nhân viên','error');return;}
   
+  const contractType=document.getElementById('ep-contract').value;
   const updateData={ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
-    start_date:startDate||null};
+    start_date:startDate||null,contract_type:contractType};
   console.log('Updating profile:',id,updateData);
   
   const {data,error}=await sb.from('profiles').update(updateData).eq('id',id).select();
