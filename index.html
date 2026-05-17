@@ -121,6 +121,11 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 /* TABLE */
 .tbl-wrap{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
 table{width:100%;border-collapse:collapse;font-size:13px}
+/* Dark inputs in tables */
+input[type="number"],input[type="text"],input[type="date"],input[type="time"],input[type="email"],input[type="password"],input[type="month"],select{
+  color-scheme:dark;
+}
+
 thead th{background:var(--bg3);padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
 tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
@@ -228,6 +233,24 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .toast.success{border-color:rgba(34,199,122,0.3);color:var(--success)}
 .toast.error{border-color:rgba(255,92,92,0.3);color:var(--danger)}
 .empty{text-align:center;padding:32px;color:var(--text2);font-size:13px}
+
+/* FORM FIELDS - Dark theme */
+.form-f{margin-bottom:14px}
+.form-f label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.form-f input,.form-f select{width:100%;background:var(--bg3)!important;border:1px solid var(--border2);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--text)!important;font-family:'Be Vietnam Pro',sans-serif;outline:none;transition:border .15s;-webkit-text-fill-color:var(--text)}
+.form-f input:focus,.form-f select:focus{border-color:var(--accent)}
+.form-f input::placeholder{color:var(--text3)}
+
+/* Fix modal inputs white bg */
+.modal-box input,.modal-box select,.modal-box textarea{
+  background:var(--bg3)!important;
+  color:var(--text)!important;
+  border:1px solid var(--border2);
+  border-radius:7px;
+  font-family:'Be Vietnam Pro',sans-serif;
+  -webkit-text-fill-color:var(--text)!important;
+}
+.modal-box input:focus,.modal-box select:focus{border-color:var(--accent);outline:none}
 .legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
 .legend-dot{width:8px;height:8px;border-radius:50%}
@@ -2332,7 +2355,7 @@ async function openEditProfile(id){
 }
 
 async function saveEmpProfile(){
-  const id=document.getElementById('ep-id').textContent;
+  const id=document.getElementById('ep-id').textContent.trim();
   const hoTen=document.getElementById('ep-name').value.trim();
   const bietDanh=document.getElementById('ep-biet-danh').value.trim();
   const maNV=document.getElementById('ep-ma-nv').value.trim();
@@ -2340,12 +2363,24 @@ async function saveEmpProfile(){
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
   if(!hoTen){toast('Nhập họ tên','error');return;}
-  const {error}=await sb.from('profiles').update({
-    ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
-    start_date:startDate||null
-  }).eq('id',id);
-  if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã cập nhật thông tin '+hoTen);
+  if(!id){toast('Lỗi: không tìm thấy ID nhân viên','error');return;}
+  
+  const updateData={ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
+    start_date:startDate||null};
+  console.log('Updating profile:',id,updateData);
+  
+  const {data,error}=await sb.from('profiles').update(updateData).eq('id',id).select();
+  if(error){
+    console.error('Update error:',error);
+    if(error.message.includes('policy')||error.code==='42501'){
+      toast('Lỗi quyền — Cần chạy SQL fix RLS trong Supabase','error');
+    } else {
+      toast('Lỗi: '+error.message,'error');
+    }
+    return;
+  }
+  console.log('Updated:',data);
+  toast('Đã cập nhật: '+hoTen);
   closeModal('emp-profile-modal');
   await loadAllProfiles();
   renderEmpGrid();
@@ -2472,7 +2507,13 @@ async function renderDaily(){
   }
 
   // Load tracking data for this date
-  var {data:tracks}=await sb.from('daily_tracking').select('*').eq('ngay',ngay);
+  var {data:tracks,error:trackErr}=await sb.from('daily_tracking').select('*').eq('ngay',ngay);
+  if(trackErr){
+    if(trackErr.message.includes('does not exist')){
+      document.getElementById('daily-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--warn)">⚠️ Cần chạy schema_v3.sql trong Supabase trước!</td></tr>';
+      return;
+    }
+  }
   var trackMap={};
   (tracks||[]).forEach(t=>trackMap[t.user_id]=t);
 
