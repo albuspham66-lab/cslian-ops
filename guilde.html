@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Hướng dẫn sử dụng — C-Slian Ops</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#20253a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f0f2f8;--text2:#8b92a8;--text3:#555e78;
+  --accent:#4f7fff;--success:#22c77a;--danger:#ff5c5c;--warn:#ffb547;
+  --manager:#a78bfa;--leader:#34d399;
+  --red:#c0392b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:14px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,#0d0f14 0%,#13161e 50%,#1a1e2a 100%);padding:60px 20px 40px;text-align:center;position:relative;overflow:hidden;border-bottom:1px solid var(--border)}
+.hero::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(79,127,255,0.08),transparent 70%);top:-200px;left:50%;transform:translateX(-50%);pointer-events:none}
+.hero-logo{width:60px;height:60px;background:linear-gradient(135deg,var(--accent),#7c3aed);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;box-shadow:0 8px 32px rgba(79,127,255,0.3)}
+.hero h1{font-size:32px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:15px;color:var(--text2);max-width:500px;margin:0 auto 24px}
+.hero-badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-sale{background:rgba(79,127,255,0.15);color:var(--accent);border:1px solid rgba(79,127,255,0.3)}
+.badge-mgr{background:rgba(167,139,250,0.15);color:var(--manager);border:1px solid rgba(167,139,250,0.3)}
+
+/* TABS */
+.tab-wrap{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.tabs{display:flex;max-width:900px;margin:0 auto;padding:0 20px;overflow-x:auto}
+.tab{padding:14px 20px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif;display:flex;align-items:center;gap:7px}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover:not(.active){color:var(--text)}
+
+/* CONTENT */
+.content{max-width:900px;margin:0 auto;padding:32px 20px}
+.section{display:none}.section.active{display:block}
+
+/* ROLE SELECTOR */
+.role-sel{display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap}
+.role-btn{padding:8px 20px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:13px;font-weight:500;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s}
+.role-btn.active-sale{background:rgba(79,127,255,0.15);color:var(--accent);border-color:rgba(79,127,255,0.4)}
+.role-btn.active-mgr{background:rgba(167,139,250,0.15);color:var(--manager);border-color:rgba(167,139,250,0.4)}
+
+/* CARDS */
+.guide-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden;transition:border .2s}
+.guide-card:hover{border-color:var(--border2)}
+.guide-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.card-sale::before{background:linear-gradient(90deg,var(--accent),#7c3aed)}
+.card-mgr::before{background:linear-gradient(90deg,var(--manager),#ec4899)}
+.card-both::before{background:linear-gradient(90deg,var(--success),var(--accent))}
+
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.icon-blue{background:rgba(79,127,255,0.15)}
+.icon-purple{background:rgba(167,139,250,0.15)}
+.icon-green{background:rgba(34,199,122,0.15)}
+.icon-red{background:rgba(255,92,92,0.15)}
+.icon-warn{background:rgba(255,181,71,0.15)}
+.card-title{font-size:16px;font-weight:700}
+.card-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:12px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-num.green{background:var(--success)}
+.step-num.purple{background:var(--manager)}
+.step-num.red{background:var(--danger)}
+.step-body{flex:1}
+.step-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.step-desc{font-size:12px;color:var(--text2);line-height:1.6}
+
+/* TIPS */
+.tip{display:flex;gap:10px;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.6;margin-top:12px}
+.tip-info{background:rgba(79,127,255,0.08);border:1px solid rgba(79,127,255,0.2);color:#7fa8ff}
+.tip-warn{background:rgba(255,181,71,0.08);border:1px solid rgba(255,181,71,0.2);color:var(--warn)}
+.tip-success{background:rgba(34,199,122,0.08);border:1px solid rgba(34,199,122,0.2);color:var(--success)}
+.tip-danger{background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.2);color:var(--danger)}
+
+/* PILLS */
+.pill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.pill-sale{background:rgba(79,127,255,0.15);color:var(--accent)}
+.pill-mgr{background:rgba(167,139,250,0.15);color:var(--manager)}
+.pill-both{background:rgba(34,199,122,0.15);color:var(--success)}
+
+/* FORMULA BOX */
+.formula-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:10px;line-height:1.8}
+.formula-box .f-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)}
+.formula-box .f-row:last-child{border-bottom:none;font-weight:600;color:var(--success);margin-top:4px}
+.formula-box .f-label{color:var(--text2)}
+.formula-box .f-val{color:var(--text)}
+
+/* TABLE */
+.info-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.info-table th{background:var(--bg3);padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.info-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.info-table tr:last-child td{border-bottom:none}
+.info-table tr:hover td{background:var(--bg3)}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:24px;margin-top:12px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--border2)}
+.tl-item{position:relative;margin-bottom:16px}
+.tl-dot{position:absolute;left:-20px;top:3px;width:10px;height:10px;border-radius:50%;border:2px solid var(--accent);background:var(--bg)}
+.tl-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.tl-desc{font-size:12px;color:var(--text2)}
+
+/* ROLE VISIBILITY */
+.for-sale{} .for-mgr{} 
+.hide{display:none!important}
+
+/* FAQ */
+.faq-item{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.faq-q{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;font-size:13px;font-weight:500;transition:background .15s}
+.faq-q:hover{background:var(--bg3)}
+.faq-q .icon{font-size:16px;transition:transform .2s;flex-shrink:0}
+.faq-q.open .icon{transform:rotate(45deg)}
+.faq-a{display:none;padding:0 16px 14px;font-size:12px;color:var(--text2);line-height:1.7}
+.faq-q.open+.faq-a{display:block}
+
+/* QUICK REF */
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.quick-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;gap:10px;align-items:flex-start}
+.quick-icon{font-size:20px;flex-shrink:0}
+.quick-title{font-size:12px;font-weight:600;margin-bottom:3px}
+.quick-desc{font-size:11px;color:var(--text2)}
+
+/* SECTION HEADER */
+.sec-header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.sec-header h2{font-size:20px;font-weight:700}
+.sec-header .line{flex:1;height:1px;background:var(--border)}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-logo">🌙</div>
+  <h1>C-Slian Ops</h1>
+  <p>Hướng dẫn sử dụng hệ thống quản lý chấm công & lương ca đêm 22:00 – 06:00</p>
+  <div class="hero-badges">
+    <span class="badge badge-sale">💼 Nhân viên Sale</span>
+    <span class="badge badge-mgr">🔑 Manager / Leader</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tab-wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('batdau',this)">🚀 Bắt đầu</button>
+    <button class="tab" onclick="switchTab('chamcong',this)">👆 Chấm công</button>
+    <button class="tab" onclick="switchTab('donhang',this)">📦 Đơn hàng</button>
+    <button class="tab" onclick="switchTab('luong',this)">💰 Lương & KPI</button>
+    <button class="tab" onclick="switchTab('quanly',this)">🔑 Quản lý</button>
+    <button class="tab" onclick="switchTab('faq',this)">❓ FAQ</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- BẮT ĐẦU -->
+<div id="sec-batdau" class="section active">
+  <div class="sec-header"><h2>Bắt đầu sử dụng</h2><div class="line"></div></div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-blue">🔐</div>
+      <div><div class="card-title">Đăng nhập hệ thống</div><div class="card-sub">Dành cho tất cả nhân viên</div></div>
+      <span class="pill pill-both" style="margin-left:auto">Tất cả</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Truy cập đường link hệ thống</div>
+          <div class="step-desc">Mở trình duyệt → vào link được cung cấp bởi Manager<br>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">https://albuspham66-lab.github.io/cslian-ops/</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Nhập Email & Mật khẩu</div>
+          <div class="step-desc">Dùng email được Manager cấp. Mật khẩu mặc định theo format: <span style="font-family:'JetBrains Mono',monospace;color:var(--warn)">TênViết@2025</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num green">3</div>
+        <div class="step-body">
+          <div class="step-title">Hệ thống tự nhận diện quyền</div>
+          <div class="step-desc">Sale thấy 3 tab: Check in/out · Chấm công · Đơn hàng<br>Manager/Leader thấy thêm: KPI · Bảng lương · Nghiệm thu · Nhân viên</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip tip-warn">⚠️ Không chia sẻ mật khẩu với người khác. Liên hệ Manager nếu quên mật khẩu.</div>
+  </div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-green">🌙</div>
+      <div><div class="card-title">Quy định ca làm việc</div><div class="card-sub">Ca đêm — 4 khung giờ</div></div>
+    </div>
+    <table class="info-table">
+      <thead><tr><th>Khung giờ</th><th>Thời gian</th><th>Giờ công</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td>Khung 1</td><td>22:00 – 00:00</td><td>2 giờ</td><td>Mất nếu check in sau 22:00</td></tr>
+        <tr><td>Khung 2</td><td>00:00 – 02:00</td><td>2 giờ</td><td>Mất nếu check in sau 00:00</td></tr>
+        <tr><td>Khung 3</td><td>02:00 – 04:00</td><td>2 giờ</td><td>—</td></tr>
+        <tr><td>Khung 4</td><td>04:00 – 06:00</td><td>2 giờ</td><td>Mất nếu check out trước 06:00</td></tr>
+      </tbody>
+    </table>
+    <div class="tip tip-danger" style="margin-top:12px">🚫 Check out trước 06:00 → mất khung giờ tương ứng. Phải check out đúng 06:00 trở về sau mới tính đủ Khung 4.</div>
+  </div>
+
+  <div class="quick-grid">
+    <div class="quick-card"><div class="quick-icon">⏰</div><div><div class="quick-title">Ca bắt đầu</div><div class="quick-desc">22:00 tối — cần check in trước hoặc đúng giờ</div></div></div>
+    <div class="quick-card"><div class="quick-icon">🌅</div><div><div class="quick-title">Ca kết thúc</div><div class="quick-desc">06:00 sáng — check out sau 06:00 mới tính đủ</div></div></div>
+    <div class="quick-card"><div class="quick-icon">💰</div><div><div class="quick-title">Lương/ngày</div><div class="quick-desc">241,364đ cho 8 giờ (22 công chuẩn/tháng)</div></div></div>
+    <div class="quick-card"><div class="quick-icon">⚠️</div><div><div class="quick-title">Trễ >10 phút</div><div class="quick-desc">Phạt 150,000đ (1 lần) hoặc 300,000đ (≥2 lần)</div></div></div>
+  </div>
+</div>
+
+<!-- CHẤM CÔNG -->
+<div id="sec-chamcong" class="section">
+  <div class="sec-header"><h2>Chấm công</h2><div class="line"></div></div>
+
+  <div class="guide-card card-sale">
+    <div class="card-header">
+      <div class="card-icon icon-green">✅</div>
+      <div><div class="card-title">Check in — Bắt đầu ca làm</div><div class="card-sub">Thực hiện mỗi ngày khi bắt đầu làm việc</div></div>
+      <span class="pill pill-both" style="margin-left:auto">Tất cả</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><div class="step-title">Mở tab "Check in/out"</div><div class="step-desc">Tab đầu tiên sau khi đăng nhập</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body"><div class="step-title">Kiểm tra ngày ca hiển thị</div><div class="step-desc">Hệ thống tự nhận biết ca đêm — nếu đang là 01:00 sáng ngày 17/05 thì ca thuộc ngày 16/05</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num green">3</div>
+        <div class="step-body"><div class="step-title">Bấm nút ✅ Check in màu xanh</div><div class="step-desc">Hệ thống ghi lại thời gian chính xác. Nút Check out sẽ kích hoạt sau khi check in xong</div></div>
+      </div>
+    </div>
+    <div class="tip tip-info">ℹ️ Check in từ 00:00–13:59 sẽ được ghi vào ca ngày hôm trước. Ví dụ: check in lúc 01:19 ngày 17/05 → ghi vào ngày 16/05.</div>
+  </div>
+
+  <div class="guide-card card-sale">
+    <div class="card-header">
+      <div class="card-icon icon-red">🚪</div>
+      <div><div class="card-title">Check out — Kết thúc ca làm</div><div class="card-sub">Thực hiện sau 06:00 sáng</div></div>
+      <span class="pill pill-both" style="margin-left:auto">Tất cả</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num red">1</div>
+        <div class="step-body"><div class="step-title">Đợi đến sau 06:00 sáng</div><div class="step-desc">Check out trước 06:00 sẽ mất Khung 4 (mất 2 giờ công = mất ~60,340đ)</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num red">2</div>
+        <div class="step-body"><div class="step-title">Bấm nút 🚪 Check out màu đỏ</div><div class="step-desc">Hệ thống tính ngay: số giờ công + lương ngày ước tính</div></div>
+      </div>
+    </div>
+    <div class="tip tip-success">✅ Sau khi check out: hệ thống hiển thị chip xanh "X giờ · XXX,XXXđ" — đây là lương ước tính của ngày hôm đó.</div>
+  </div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-warn">⚠️</div>
+      <div><div class="card-title">Quy định đi trễ & phạt</div></div>
+    </div>
+    <table class="info-table">
+      <thead><tr><th>Tình huống</th><th>Check in</th><th>Kết quả</th></tr></thead>
+      <tbody>
+        <tr><td>✅ Đúng giờ</td><td>22:00</td><td>Đủ 4 khung · Không phạt</td></tr>
+        <tr><td>⚠️ Trễ nhẹ</td><td>22:01 – 22:10</td><td>Mất Khung 1 · Không phạt tiền</td></tr>
+        <tr><td>❌ Trễ lần 1</td><td>22:11 – 23:59</td><td>Mất Khung 1 · Phạt <strong>150,000đ</strong></td></tr>
+        <tr><td>❌❌ Trễ ≥2 lần</td><td>Bất kỳ</td><td>Phạt <strong>300,000đ</strong>/tháng</td></tr>
+        <tr><td>🚫 Vào Khung 2+</td><td>Sau 00:00</td><td>Mất thêm Khung 2 + phạt</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-blue">📅</div>
+      <div><div class="card-title">Xem bảng chấm công tháng</div></div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><div class="step-title">Vào tab "Chấm công"</div><div class="step-desc">Hiển thị bảng tháng hiện tại với đầy đủ ngày</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body"><div class="step-title">Đọc màu sắc</div>
+        <div class="step-desc">
+          🔴 Hàng đỏ = T7/CN (nghỉ) · 🔵 Hàng xanh nhạt = Hôm nay<br>
+          <span style="color:var(--success)">■</span> Xanh = Đủ công · <span style="color:var(--warn)">■</span> Vàng = Thiếu giờ
+        </div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body"><div class="step-title">Xem tổng cuối bảng</div><div class="step-desc">Tổng giờ công · Số lần trễ · Lương ước tính tháng</div></div>
+      </div>
+    </div>
+    <div class="tip tip-info">ℹ️ Các loại ngày đặc biệt: <strong>NP</strong> = Ngày phép (hưởng lương) · <strong>NL</strong> = Nghỉ lễ (hưởng lương) · <strong>NKP</strong> = Nghỉ không phép (mất công)</div>
+  </div>
+</div>
+
+<!-- ĐƠN HÀNG -->
+<div id="sec-donhang" class="section">
+  <div class="sec-header"><h2>Đơn hàng</h2><div class="line"></div></div>
+
+  <div class="guide-card card-sale">
+    <div class="card-header">
+      <div class="card-icon icon-blue">📊</div>
+      <div><div class="card-title">Xem đơn hàng của mình</div><div class="card-sub">Sale chỉ xem được đơn của mình</div></div>
+      <span class="pill pill-sale" style="margin-left:auto">Sale</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><div class="step-title">Vào tab "Đơn hàng"</div><div class="step-desc">Hiển thị tất cả đơn hàng tháng hiện tại của bạn</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body"><div class="step-title">Kiểm tra trạng thái Balance</div>
+        <div class="step-desc">
+          <span style="color:var(--success)">✅ Tất toán</span> = Balance = $0 → Bonus được tính vào tháng trong cột "Tháng Bonus"<br>
+          <span style="color:var(--warn)">⏳ Còn nợ</span> = Khách chưa thanh toán hết → Chưa nhận Bonus
+        </div></div>
+      </div>
+    </div>
+    <div class="tip tip-warn">⚠️ Bonus chỉ được tính khi Balance = $0 (khách thanh toán đủ). Đơn có Deposit chưa đủ sẽ không có Bonus cho đến khi tất toán.</div>
+  </div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-purple">📥</div>
+      <div><div class="card-title">Import Excel đơn hàng tháng</div><div class="card-sub">Manager/Leader thực hiện cuối tháng</div></div>
+      <span class="pill pill-mgr" style="margin-left:auto">Manager/Leader</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num purple">1</div>
+        <div class="step-body"><div class="step-title">Chuẩn bị file Excel theo đúng format</div>
+        <div class="step-desc">Các cột bắt buộc: No. · Date · PO Number · Nick Name · Agent · BOLSA · ONS · TSPA · Total Amount · Headspa Qty · Bonus Headspa · 0.50% · 1% · Extra Bonus · Deposit · Balance · Month · Note · Truy Thu</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">2</div>
+        <div class="step-body"><div class="step-title">Kéo thả file vào vùng Upload</div><div class="step-desc">Hệ thống tự đọc và hiển thị preview dữ liệu — kiểm tra kỹ trước khi lưu</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">3</div>
+        <div class="step-body"><div class="step-title">Kiểm tra preview và bấm "Import & Lưu"</div><div class="step-desc">Hệ thống tự map tên Agent với nhân viên và tính Bonus theo tháng tất toán</div></div>
+      </div>
+    </div>
+    <div class="tip tip-info">ℹ️ Cột <strong>Agent</strong> phải khớp đúng tên nhân viên trong hệ thống. Cột <strong>Month</strong> = tháng nhận Bonus (không phải tháng lên đơn).</div>
+  </div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-warn">💰</div>
+      <div><div class="card-title">Logic tính Bonus P3A</div></div>
+    </div>
+    <div class="formula-box">
+      <div class="f-row"><span class="f-label">Doanh số (xét target)</span><span class="f-val">BOLSA + ONS + TSPA + Shipping = Total Amount</span></div>
+      <div class="f-row"><span class="f-label">Target tháng</span><span class="f-val">$23,500</span></div>
+      <div class="f-row"><span class="f-label">Đạt target (≥$23,500)</span><span class="f-val">Nhận 100% Bonus</span></div>
+      <div class="f-row"><span class="f-label">Không đạt (&lt;$23,500)</span><span class="f-val">Nhận 50% Bonus</span></div>
+      <div class="f-row"><span class="f-label">Bonus Headspa</span><span class="f-val">$15/giường (không tính vào 1%)</span></div>
+      <div class="f-row"><span class="f-label">Bonus ONS/TSPA</span><span class="f-val">1% × (DT ONS + TSPA) khi đạt target</span></div>
+      <div class="f-row"><span class="f-label">Vượt target 40%</span><span class="f-val">+ $100 thưởng thêm</span></div>
+      <div class="f-row"><span class="f-label">Vượt target 100%</span><span class="f-val">+ $200 thưởng thêm</span></div>
+      <div class="f-row"><span class="f-label">Tỷ giá</span><span class="f-val">25,000 VNĐ / $1 USD</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- LƯƠNG & KPI -->
+<div id="sec-luong" class="section">
+  <div class="sec-header"><h2>Lương & KPI</h2><div class="line"></div></div>
+
+  <div class="guide-card card-both">
+    <div class="card-header">
+      <div class="card-icon icon-green">💵</div>
+      <div><div class="card-title">Cấu trúc lương</div><div class="card-sub">Tổng lương = P1 + P2 + P3</div></div>
+    </div>
+    <div class="formula-box">
+      <div class="f-row"><span class="f-label">P1 — Lương cơ bản</span><span class="f-val">5,310,000đ ÷ 22 × Ngày công thực tế</span></div>
+      <div class="f-row"><span class="f-label">P2A — Ăn uống, đi lại</span><span class="f-val">500,000đ/tháng (cố định)</span></div>
+      <div class="f-row"><span class="f-label">P2B — Chức năng</span><span class="f-val">1,240,000đ/tháng (cố định)</span></div>
+      <div class="f-row"><span class="f-label">P2C — Năng lực (Lever)</span><span class="f-val">Lv1: 0 · Lv2: 500K · Lv3: 1M · Lv4: 1.5M · Lv5: 2M</span></div>
+      <div class="f-row"><span class="f-label">P3B — Chuyên cần</span><span class="f-val">0 lần trễ: +300K · 1 lần: +150K · ≥2 lần: 0</span></div>
+      <div class="f-row"><span class="f-label">P3C — KPI</span><span class="f-val">≥70 điểm: +500,000đ</span></div>
+      <div class="f-row"><span class="f-label">P3A — Bonus doanh thu</span><span class="f-val">Từ đơn hàng tất toán (Balance=0)</span></div>
+      <div class="f-row"><span class="f-label">Thử việc (&lt;2 tháng)</span><span class="f-val">P1 × 85%</span></div>
+      <div class="f-row"><span class="f-label" style="color:var(--success);font-weight:700">TỔNG LƯƠNG</span><span class="f-val" style="color:var(--success);font-weight:700">P1 + P2A + P2B + P2C + P3B + P3C + P3A</span></div>
+    </div>
+  </div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-purple">📊</div>
+      <div><div class="card-title">Nhập KPI tháng</div><div class="card-sub">Manager/Leader thực hiện cuối tháng</div></div>
+      <span class="pill pill-mgr" style="margin-left:auto">Manager/Leader</span>
+    </div>
+    <table class="info-table">
+      <thead><tr><th>Chỉ số</th><th>Mục tiêu</th><th>Điểm tối đa</th></tr></thead>
+      <tbody>
+        <tr><td>Potential cold call/ngày</td><td>≥6 calls</td><td>10đ</td></tr>
+        <tr><td>Total call/ngày</td><td>&lt;40 calls × 3 lần = -5đ</td><td>—</td></tr>
+        <tr><td>Tỷ lệ báo giá</td><td>≥45%</td><td>8đ</td></tr>
+        <tr><td>Conversion rate</td><td>≥35%</td><td>10đ</td></tr>
+        <tr><td>Pipeline coverage</td><td>≥2×</td><td>7đ</td></tr>
+        <tr><td>Talktime</td><td>≥120 phút/ngày</td><td>4đ</td></tr>
+        <tr><td>Follow-up rate</td><td>≥90%</td><td>6đ</td></tr>
+        <tr><td>CRM data quality</td><td>≥95%</td><td>5đ</td></tr>
+        <tr><td><strong>Doanh thu (Nhóm 1)</strong></td><td>≥$23,500 = 100% target</td><td>50đ</td></tr>
+      </tbody>
+    </table>
+    <div class="tip tip-danger">🚫 VETO: Nếu doanh thu &lt;70% target → tổng điểm KPI bị giới hạn tối đa 60 điểm dù các chỉ số khác cao.</div>
+  </div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-green">⚡</div>
+      <div><div class="card-title">Tính lương & Xuất phiếu PDF</div></div>
+      <span class="pill pill-mgr" style="margin-left:auto">Manager/Leader</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num purple">1</div>
+        <div class="step-body"><div class="step-title">Đảm bảo đã import Excel đơn hàng</div><div class="step-desc">Bonus P3A chỉ tính được sau khi có dữ liệu đơn hàng</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">2</div>
+        <div class="step-body"><div class="step-title">Vào tab "Bảng lương" → chọn nhân viên</div><div class="step-desc">Chọn tháng cần tính</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">3</div>
+        <div class="step-body"><div class="step-title">Bấm ⚡ Tính lương</div><div class="step-desc">Hệ thống tự tổng hợp từ chấm công + KPI + đơn hàng → lưu vào database</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num green">4</div>
+        <div class="step-body"><div class="step-title">Bấm 🖨️ Xuất phiếu PDF</div><div class="step-desc">Cửa sổ mới mở ra với phiếu lương đẹp → chọn "Save as PDF" hoặc in trực tiếp</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUẢN LÝ -->
+<div id="sec-quanly" class="section">
+  <div class="sec-header"><h2>Chức năng Quản lý</h2><div class="line"></div></div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-purple">👥</div>
+      <div><div class="card-title">Phân quyền hệ thống</div></div>
+    </div>
+    <table class="info-table">
+      <thead><tr><th>Chức năng</th><th style="text-align:center">Sale</th><th style="text-align:center">Leader</th><th style="text-align:center">Manager</th></tr></thead>
+      <tbody>
+        <tr><td>Check in/out</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Xem chấm công của mình</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Xem chấm công tất cả NV</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Chỉnh sửa chấm công</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Xem đơn hàng</td><td style="text-align:center">Của mình</td><td style="text-align:center">Tất cả</td><td style="text-align:center">Tất cả</td></tr>
+        <tr><td>Import Excel đơn hàng</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Nhập KPI</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Tính lương & xuất phiếu</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Nghiệm thu quý/năm</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td></tr>
+        <tr><td>Nâng Lever nhân viên</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-purple">🏆</div>
+      <div><div class="card-title">Nghiệm thu Quý & Năm</div></div>
+      <span class="pill pill-mgr" style="margin-left:auto">Manager</span>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-title">Nghiệm thu tháng (tự động)</div>
+        <div class="tl-desc">Hệ thống tự tính điểm KPI từ dữ liệu nhập · Xếp loại: Không đạt / Cần cải thiện / Đạt / Tốt / Xuất sắc</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="border-color:var(--manager)"></div>
+        <div class="tl-title">Nghiệm thu quý (Manager chốt)</div>
+        <div class="tl-desc">Cuối quý → vào tab Nghiệm thu → nhập điểm 3 tháng → bấm Lưu & Duyệt<br>TB ≥85đ: Tốt (+250K thưởng) · TB ≥95đ: Xuất sắc (+500K)</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="border-color:var(--success)"></div>
+        <div class="tl-title">Nâng Lever</div>
+        <div class="tl-desc">Điểm TB quý ≥85 + Lever hiện tại &lt;5 → hệ thống tự nâng Lever → P2C tăng theo</div>
+      </div>
+    </div>
+    <div class="tip tip-success">✅ Lever tăng → P2C tăng ngay từ tháng sau. Lever 1→2: +500K/tháng, Lever 2→3: +500K/tháng...</div>
+  </div>
+
+  <div class="guide-card card-mgr">
+    <div class="card-header">
+      <div class="card-icon icon-red">🔧</div>
+      <div><div class="card-title">Chỉnh sửa chấm công thủ công</div></div>
+      <span class="pill pill-mgr" style="margin-left:auto">Manager/Leader</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num purple">1</div>
+        <div class="step-body"><div class="step-title">Vào tab "Chấm công" → chọn nhân viên</div><div class="step-desc">Dropdown nhân viên chỉ hiện cho Manager/Leader</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">2</div>
+        <div class="step-body"><div class="step-title">Bấm ✏️ ở cột cuối của ngày cần sửa</div><div class="step-desc">Popup hiện ra cho phép chỉnh: Trạng thái · Check in · Check out · Ghi chú</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num purple">3</div>
+        <div class="step-body"><div class="step-title">Chọn trạng thái phù hợp</div>
+        <div class="step-desc">
+          <strong>WD</strong> = Làm việc (nhập giờ CI/CO) · <strong>NP</strong> = Ngày phép · <strong>NL</strong> = Nghỉ lễ · <strong>NKP</strong> = Nghỉ không phép
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div id="sec-faq" class="section">
+  <div class="sec-header"><h2>Câu hỏi thường gặp</h2><div class="line"></div></div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Tôi check in lúc 01:30 sáng, hệ thống ghi vào ngày nào?</span><span class="icon">+</span></div>
+    <div class="faq-a">Ghi vào <strong>ngày hôm trước</strong>. Ví dụ: check in 01:30 ngày 17/05 → ghi vào ca ngày 16/05. Quy tắc: 00:00–13:59 thuộc ca đêm ngày trước đó.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Check in lúc 22:08 có bị phạt tiền không?</span><span class="icon">+</span></div>
+    <div class="faq-a"><strong>Không bị phạt tiền</strong>, nhưng mất Khung 1 (2 giờ công). Chỉ phạt tiền khi check in từ <strong>22:11 trở đi</strong>.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Tôi check out lúc 05:45 sáng thì sao?</span><span class="icon">+</span></div>
+    <div class="faq-a">Mất Khung 4 (04:00–06:00) → chỉ tính đến 04:00 → mất 2 giờ công. Cần check out từ <strong>06:00 trở về sau</strong> mới tính đủ Khung 4.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Đơn hàng có Deposit $500 nhưng Balance còn $2,500 thì Bonus tính chưa?</span><span class="icon">+</span></div>
+    <div class="faq-a"><strong>Chưa tính Bonus</strong>. Chỉ tính Bonus khi Balance = $0 (khách thanh toán đủ 100%). Tháng nào Balance về 0 thì tháng đó nhận Bonus.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Tôi làm việc 6 tiếng thì lương ngày là bao nhiêu?</span><span class="icon">+</span></div>
+    <div class="faq-a">Lương/giờ = 241,364đ ÷ 8 = <strong>30,170đ/giờ</strong>. Làm 6 giờ = 6 × 30,170 = <strong>181,020đ</strong>.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Ngày nghỉ lễ có được tính lương không?</span><span class="icon">+</span></div>
+    <div class="faq-a"><strong>Có</strong>, cả nhân viên thử việc và chính thức đều được hưởng lương đủ 1 ngày công (241,364đ) cho ngày nghỉ lễ theo quy định nhà nước.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Ngày phép (NP) nhân viên thử việc có được hưởng không?</span><span class="icon">+</span></div>
+    <div class="faq-a"><strong>Không</strong>. Chỉ nhân viên <strong>chính thức</strong> mới được hưởng lương ngày phép. Nhân viên thử việc nghỉ phép = không tính công.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Truy thu là gì và ảnh hưởng thế nào đến lương?</span><span class="icon">+</span></div>
+    <div class="faq-a">Truy thu xảy ra khi: (1) Sale tự giảm giá không được duyệt, (2) Khách cancel đơn đã nhận Bonus, (3) Sale cheating để đạt target. Số tiền truy thu sẽ <strong>trừ thẳng vào Bonus P3A</strong> tháng đó.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Làm sao để tăng Lever?</span><span class="icon">+</span></div>
+    <div class="faq-a">Điểm TB quý ≥85 điểm + Lever hiện tại chưa đạt Lever 5 → Manager duyệt nghiệm thu quý → Lever tự động tăng 1 bậc từ tháng sau.<br><br>Mỗi bậc Lever tăng thêm <strong>500,000đ/tháng</strong> vào P2C.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)"><span>Tôi không thấy tab KPI / Bảng lương sau khi đăng nhập?</span><span class="icon">+</span></div>
+    <div class="faq-a">Các tab này chỉ hiện cho <strong>Manager và Leader</strong>. Nếu bạn là Manager mà vẫn không thấy, thử <strong>Ctrl+Shift+R</strong> (hard refresh) hoặc đăng xuất và đăng nhập lại.</div>
+  </div>
+</div>
+
+</div><!-- end content -->
+
+<script>
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sec-'+name).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toggleFaq(el){
+  el.classList.toggle('open');
+}
+// Animate on load
+document.querySelectorAll('.guide-card').forEach((c,i)=>{
+  c.style.opacity='0';c.style.transform='translateY(16px)';c.style.transition=`opacity .3s ${i*0.05}s, transform .3s ${i*0.05}s`;
+  setTimeout(()=>{c.style.opacity='1';c.style.transform='translateY(0)'},50);
+});
+</script>
+</body>
+</html>
