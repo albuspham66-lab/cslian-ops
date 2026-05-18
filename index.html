@@ -302,6 +302,10 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .pl-sign-title{font-weight:600;color:#333;margin-bottom:40px}
 .pl-sign-line{border-top:0.5px solid #999;margin-top:8px;padding-top:4px;color:#666;font-size:10px}
 .pl-confidential{background:#fff3cd;border:0.5px solid #ffc107;border-radius:4px;padding:6px 10px;font-size:10px;color:#856404;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+@media(max-width:700px){
+  #dash-lb-grid{grid-template-columns:1fr!important}
+  #dash-vendor .dash-vendor-grid{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
@@ -595,6 +599,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <option value="quarter">Quý này</option>
             <option value="year">Năm này</option>
           </select>
+          <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
           <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
         </div>
       </div>
@@ -604,6 +609,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
       <!-- PROGRESS BARS -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- VENDOR BREAKDOWN -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Doanh thu theo Vendor</div>
+        <div id="dash-vendor" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px"></div>
+      </div>
 
       <!-- CHARTS ROW -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
@@ -617,10 +628,22 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </div>
       </div>
 
-      <!-- LEADERBOARD -->
-      <div class="card" id="dash-leaderboard">
-        <div class="card-title"><span class="dot" style="background:var(--manager)"></span>Leaderboard — Kết quả từng Sale</div>
-        <div id="leaderboard-list" style="margin-top:12px"></div>
+      <!-- DAILY TRACKING SUMMARY (today) -->
+      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
+        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
+        <div id="dash-daily-summary" style="margin-top:8px"></div>
+      </div>
+
+      <!-- LEADERBOARD — 2 BẢNG -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-lb-grid">
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--leader)"></span>🏆 Leader Board — Top 3</div>
+          <div id="leaderboard-leader" style="margin-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--manager)"></span>🏆 Sales Board — Tất cả</div>
+          <div id="leaderboard-list" style="margin-top:12px"></div>
+        </div>
       </div>
     </div>
 
@@ -2667,8 +2690,8 @@ async function renderDashboard(){
     </div>
     <div class="stat-card">
       <div class="stat-label">🔄 Conversion Rate</div>
-      <div class="stat-val" style="color:var(--manager)">${convRate.toFixed(1)}%</div>
-      <div class="stat-sub">${totalDon} đơn / ${totalBaoGia} báo giá</div>
+      <div class="stat-val" style="color:var(--manager)">${totalBaoGia>0?convRate.toFixed(1)+'%':'—'}</div>
+      <div class="stat-sub">${totalDon} đơn / ${totalBaoGia||0} báo giá</div>
     </div>
   `;
 
@@ -2725,6 +2748,38 @@ async function renderDashboard(){
   var donData=allMonths.map(function(m){return monthlyData[m]?monthlyData[m].don:0;});
   var targetLine=allMonths.map(function(){return tgt.target_doanh_so;});
 
+  // ---- VENDOR BREAKDOWN ----
+  var vendorBolsa=ords.reduce(function(s,o){return s+(o.doanh_thu_bolsa||0);},0);
+  var vendorOns=ords.reduce(function(s,o){return s+(o.doanh_thu_ons||0);},0);
+  var vendorTspa=ords.reduce(function(s,o){return s+(o.doanh_thu_tspa||0);},0);
+  var vendorTotal=vendorBolsa+vendorOns+vendorTspa||1;
+  function vendorBar(val,total,color){
+    var pct=Math.round(val/total*100);
+    return `<div style="margin-top:6px;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden">
+      <div style="height:100%;border-radius:4px;background:${color};width:${Math.min(100,pct)}%;transition:width .5s"></div>
+    </div><div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}% tổng DT</div>`;
+  }
+  document.getElementById('dash-vendor').innerHTML=`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#60a5fa;text-transform:uppercase;margin-bottom:6px">BOLSA</div>
+      <div style="font-size:20px;font-weight:700;color:#60a5fa">$${vendorBolsa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+      ${vendorBar(vendorBolsa,vendorTotal,'#3b82f6')}
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#fb923c;text-transform:uppercase;margin-bottom:6px">ONS</div>
+      <div style="font-size:20px;font-weight:700;color:#fb923c">$${vendorOns.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+      ${vendorBar(vendorOns,vendorTotal,'#f97316')}
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#a78bfa;text-transform:uppercase;margin-bottom:6px">TSPA</div>
+      <div style="font-size:20px;font-weight:700;color:#a78bfa">$${vendorTspa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+      ${vendorBar(vendorTspa,vendorTotal,'#8b5cf6')}
+    </div>`;
+
+  // ---- CHART auto-scale Y axis ----
+  var maxDS=Math.max(...dsData,tgt.target_doanh_so)*1.15||1000;
+  var maxDon=Math.max(...donData,tgt.target_don_hang)*1.2||5;
+
   if(chartRevenue)chartRevenue.destroy();
   var ctx1=document.getElementById('chart-revenue').getContext('2d');
   chartRevenue=new Chart(ctx1,{
@@ -2736,7 +2791,7 @@ async function renderDashboard(){
         {label:'Target ($)',data:targetLine,type:'line',borderColor:'rgba(255,181,71,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
       ]
     },
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}}}
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:0,max:Math.round(maxDS),ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}}}
   });
 
   if(chartOrders)chartOrders.destroy();
@@ -2750,45 +2805,102 @@ async function renderDashboard(){
         {label:'Target đơn',data:allMonths.map(function(){return tgt.target_don_hang;}),type:'line',borderColor:'rgba(34,199,122,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
       ]
     },
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}}}
   });
 
-  // Leaderboard
+  // ---- DAILY TRACKING SUMMARY (today) ----
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('dash-daily-date').textContent=today;
+  var {data:dailyToday}=await sb.from('daily_tracking').select('*,profiles(ho_ten,ma_nv)').eq('ngay',today);
+  var dt=dailyToday||[];
+  var tCalls=dt.reduce(function(s,d){return s+(d.total_calls||0);},0);
+  var tPot=dt.reduce(function(s,d){return s+(d.potential_calls||0);},0);
+  var tBG=dt.reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
+  var tTalk=dt.reduce(function(s,d){return s+(d.talktime_phut||0);},0);
+  var targetCallsDay=40*allProfiles.filter(p=>p.role==='sale').length;
+  var targetTalkDay=120*allProfiles.filter(p=>p.role==='sale').length;
+  function gapColor(actual,target){return actual>=target?'var(--success)':'var(--danger)';}
+  document.getElementById('dash-daily-summary').innerHTML=dt.length===0
+    ?`<div class="empty" style="padding:12px 0">Chưa có dữ liệu daily tracking hôm nay</div>`
+    :`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total Calls</div>
+        <div style="font-size:20px;font-weight:700;color:${gapColor(tCalls,targetCallsDay)}">${tCalls}</div>
+        <div style="font-size:10px;color:var(--text3)">Target: ${targetCallsDay}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Potential</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent)">${tPot}</div>
+        <div style="font-size:10px;color:var(--text3)">${dt.length} người nhập</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Báo giá</div>
+        <div style="font-size:20px;font-weight:700;color:var(--warn)">${tBG}</div>
+        <div style="font-size:10px;color:var(--text3)">tổng team</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Talktime</div>
+        <div style="font-size:20px;font-weight:700;color:${gapColor(tTalk,targetTalkDay)}">${tTalk}'</div>
+        <div style="font-size:10px;color:var(--text3)">Target: ${targetTalkDay}'</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){
+      var p=d.profiles;
+      var ok=d.total_calls>=40&&d.talktime_phut>=120;
+      return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid ${ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)'};border-radius:20px;font-size:11px">
+        <span style="color:${ok?'var(--success)':'var(--danger)'}">${ok?'✓':'!'}</span>
+        <span>${p?p.biet_danh||p.ho_ten:'—'}</span>
+        <span style="color:var(--text3)">${d.total_calls}c/${d.talktime_phut}'</span>
+      </div>`;
+    }).join('')}</div>`;
+
+  // ---- LEADERBOARD: split Leader vs Sale ----
   var saleMap={};
   ords.forEach(function(o){
     var uid=o.user_id;
-    if(!saleMap[uid])saleMap[uid]={emp:o.profiles,ds:0,don:0,id:uid};
+    if(!saleMap[uid])saleMap[uid]={emp:o.profiles,ds:0,don:0,id:uid,role:'sale'};
     saleMap[uid].ds+=(o.total||0);
     saleMap[uid].don++;
   });
-  var saleArr=Object.values(saleMap).sort(function(a,b){return b.ds-a.ds;});
 
-  // Add sales with 0
   allProfiles.filter(p=>p.role==='sale'||p.role==='leader').forEach(function(p){
-    if(!saleMap[p.id])saleArr.push({emp:p,ds:0,don:0,id:p.id});
+    if(!saleMap[p.id])saleMap[p.id]={emp:p,ds:0,don:0,id:p.id,role:p.role};
+    else saleMap[p.id].role=p.role;
   });
-  saleArr.sort(function(a,b){return b.ds-a.ds;});
+
+  var allArr=Object.values(saleMap).sort(function(a,b){return b.ds-a.ds;});
+  var leaderArr=allArr.filter(function(s){return s.role==='leader';});
+  var saleArr=allArr.filter(function(s){return s.role!=='leader';});
 
   var medals=['🥇','🥈','🥉'];
-  var lbHtml=saleArr.map(function(s,i){
-    var pct=planDS>0?(s.ds/planDS*100):0;
-    var isTop=i<3;
-    var borderColor=i===0?'var(--warn)':i===1?'rgba(192,192,192,0.5)':i===2?'rgba(205,127,50,0.5)':'var(--border)';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${borderColor};border-radius:${isTop?'10px':'8px'};margin-bottom:8px${isTop?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
-      <div style="font-size:${isTop?'24px':'16px'};flex-shrink:0;width:32px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:600">${s.emp?s.emp.ho_ten:'—'} <span style="font-size:11px;color:var(--text2)">${s.emp?'('+s.emp.ma_nv+')':''}</span></div>
-        <div style="margin-top:4px;background:var(--bg4);border-radius:4px;height:6px;overflow:hidden">
-          <div style="height:100%;background:${i===0?'linear-gradient(90deg,var(--warn),#d97706)':i===1?'linear-gradient(90deg,#9ca3af,#6b7280)':i===2?'linear-gradient(90deg,#c9a227,#92550a)':'var(--accent)'};width:${Math.min(100,pct)}%"></div>
+
+  function buildLBHtml(arr,limit){
+    var shown=limit?arr.slice(0,limit):arr;
+    if(!shown.length)return '<div class="empty">Chưa có dữ liệu</div>';
+    return shown.map(function(s,i){
+      var pct=planDS>0?(s.ds/planDS*100):0;
+      var isTop=i<3;
+      var borderColor=i===0?'var(--warn)':i===1?'rgba(192,192,192,0.5)':i===2?'rgba(205,127,50,0.5)':'var(--border)';
+      var dsDisplay=s.ds>0?'$'+s.ds.toLocaleString('en-US',{maximumFractionDigits:0}):'—';
+      var pctDisplay=s.ds>0?pct.toFixed(1)+'%':'0.0%';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${borderColor};border-radius:${isTop?'10px':'8px'};margin-bottom:8px${isTop?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
+        <div style="font-size:${isTop?'22px':'14px'};flex-shrink:0;width:30px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.emp?s.emp.ho_ten:'—'} <span style="font-size:11px;color:var(--text2)">${s.emp?'('+s.emp.ma_nv+')':''}</span></div>
+          <div style="margin-top:4px;background:var(--bg4);border-radius:4px;height:5px;overflow:hidden">
+            <div style="height:100%;background:${i===0?'linear-gradient(90deg,var(--warn),#d97706)':i===1?'linear-gradient(90deg,#9ca3af,#6b7280)':i===2?'linear-gradient(90deg,#c9a227,#92550a)':'var(--accent)'};width:${Math.min(100,pct)}%"></div>
+          </div>
         </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:14px;font-weight:700;color:${i===0?'var(--warn)':i===1?'#9ca3af':i===2?'#c9a227':'var(--text)'}">$${s.ds.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
-        <div style="font-size:11px;color:var(--text2)">${s.don} đơn · ${pct.toFixed(1)}%</div>
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('leaderboard-list').innerHTML=lbHtml||'<div class="empty">Chưa có dữ liệu</div>';
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:13px;font-weight:700;color:${i===0?'var(--warn)':i===1?'#9ca3af':i===2?'#c9a227':'var(--text)'}">${dsDisplay}</div>
+          <div style="font-size:10px;color:var(--text2)">${s.don} đơn · ${pctDisplay}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('leaderboard-leader').innerHTML=buildLBHtml(leaderArr,3);
+  document.getElementById('leaderboard-list').innerHTML=buildLBHtml(saleArr,null);
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open')}
