@@ -912,32 +912,36 @@ async function doLogout(){
 
 async function initApp(user){
   curUser=user;
-  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
-  curProfile=profile;
+  // Parallel: fetch profile + products + all profiles at once
+  const [profRes, prodsRes, profilesRes] = await Promise.all([
+    sb.from('profiles').select('*').eq('id',user.id).single(),
+    sb.from('products').select('*').eq('active',true),
+    sb.from('profiles').select('*').order('ma_nv')
+  ]);
+  curProfile=profRes.data;
+  allProducts=prodsRes.data||[];
+  allProfiles=profilesRes.data||[];
+
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
 
   // Topbar
   const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));
   const av=document.getElementById('tb-avatar');
-  av.textContent=initials(profile.ho_ten);
+  av.textContent=initials(curProfile.ho_ten);
   av.style.background=c.bg;av.style.color=c.color;
-  document.getElementById('tb-name').textContent=profile.biet_danh||profile.ho_ten;
-  document.getElementById('tb-role').textContent={manager:'🔑 Manager',leader:'⭐ Leader',sale:'💼 Sale'}[profile.role]||profile.role;
+  document.getElementById('tb-name').textContent=curProfile.biet_danh||curProfile.ho_ten;
+  document.getElementById('tb-role').textContent={manager:'🔑 Manager',leader:'⭐ Leader',sale:'💼 Sale'}[curProfile.role]||curProfile.role;
 
-  // Products cache
-  const {data:prods}=await sb.from('products').select('*').eq('active',true);
-  allProducts=prods||[];
-
-  // Load all profiles FIRST — needed for selects, Excel import, salary calc
-  await loadAllProfiles();
-
-  if(profile.role==='manager'||profile.role==='leader'){
+  if(curProfile.role==='manager'||curProfile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
 
-  // Now safe to render — curProfile and allProfiles both ready
-  renderCheckinPage();renderAllLog();
+  populateSelects();
+  if(curProfile.role==='manager'||curProfile.role==='leader')renderEmpGrid();
+
+  // Checkin page + log in parallel
+  Promise.all([renderCheckinPage(), renderAllLog()]);
 }
 
 async function loadAllProfiles(){
@@ -1962,10 +1966,17 @@ async function calcAndSaveSalary(){
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
   if(!emp){toast('Không tìm thấy nhân viên','error');return;}
 
-  // Get attendance data
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
-  const {data:attRows}=await sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to);
-  const recMap={};(attRows||[]).forEach(r=>recMap[r.date]=r);
+
+  // ---- PARALLEL FETCH: attendance + kpi + orders + order_items ----
+  const [attRes, kpiRes, ordersRes, itemsRes] = await Promise.all([
+    sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to),
+    sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
+    sb.from('orders').select('*').eq('user_id',empId).eq('thang',thang),
+    sb.from('order_items').select('*,orders!inner(user_id,thang)').eq('orders.user_id',empId).eq('orders.thang',thang).eq('la_bolsa',true)
+  ]);
+
+  const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
 
   let ngayCong=0,soLanTre=0,npD=0,nlD=0,nkpD=0;
   for(let d=1;d<=last;d++){
@@ -1979,7 +1990,6 @@ async function calcAndSaveSalary(){
     else if(rec&&r.hours>0){ngayCong+=r.hours/8;if(r.isLate)soLanTre++;}
   }
 
-  // Check thử việc (< 2 months from start_date)
   let heCoP1=1.0;
   if((emp.contract_type||'chinh-thuc')==='thu-viec'){
     heCoP1=0.85;
@@ -1988,31 +1998,22 @@ async function calcAndSaveSalary(){
     if(monthsDiff<2)heCoP1=0.85;
   }
 
-  // P1
   const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong*heCoP1);
-
-  // P2
   const p2a=500000,p2b=1240000,p2c=P2C_MAP[emp.lever||1]||0;
-
-  // P3B chuyên cần
   const p3b=soLanTre===0?300000:soLanTre===1?150000:0;
 
-  // P3C KPI
-  const {data:kpi}=await sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  const kpi=kpiRes.data;
   const p3c=(kpi&&kpi.diem_tong>=70)?500000:0;
 
-  // P3A — from orders
-  const {data:orders}=await sb.from('orders').select('*').eq('user_id',empId).eq('thang',thang);
-  const ords=orders||[];
+  const ords=ordersRes.data||[];
   const dtTotal=ords.reduce((s,o)=>s+(o.total||0),0);
   const dtSubtotal=ords.reduce((s,o)=>s+(o.subtotal||0),0);
   const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
   const datTarget=dtTotal>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
-  // Bolsa bonus - need order items
-  const {data:items}=await sb.from('order_items').select('*,orders!inner(user_id,thang)').eq('orders.user_id',empId).eq('orders.thang',thang).eq('la_bolsa',true);
-  const soGiuong=(items||[]).reduce((s,i)=>s+(i.so_luong||0),0);
+  const items=itemsRes.data||[];
+  const soGiuong=items.reduce((s,i)=>s+(i.so_luong||0),0);
   let bolsaBonus=0;
   if(soGiuong<10)bolsaBonus=soGiuong*15;
   else if(soGiuong<20)bolsaBonus=soGiuong*15+100;
@@ -2020,20 +2021,16 @@ async function calcAndSaveSalary(){
   else if(soGiuong<40)bolsaBonus=soGiuong*20+200;
   else bolsaBonus=soGiuong*25+250;
 
-  // ONS/TSPA bonus = 1% of (total - bolsa revenue)
-  const dtBolsa=ords.reduce((s,o)=>s+(o.subtotal||0)*(items?.some(i=>i.order_id===o.id&&i.la_bolsa)?1:0),0);
+  const dtBolsa=ords.reduce((s,o)=>s+(o.subtotal||0)*(items.some(i=>i.order_id===o.id&&i.la_bolsa)?1:0),0);
   const dtOnsTspa=dtSubtotal-dtBolsa;
   const onsTspaBonus=dtOnsTspa*0.01;
 
-  // Vuot target bonus
   let vuotBonus=0;
   if(dtTotal>=TARGET_USD*2)vuotBonus=200;
   else if(dtTotal>=TARGET_USD*1.4)vuotBonus=100;
 
-  // Total P3A (apply tyLeDat)
   const p3aTotalUsd=(bolsaBonus+onsTspaBonus+bonusChenh+vuotBonus)*tyLeDat;
   const p3aVnd=Math.round(p3aTotalUsd*TY_GIA);
-
   const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3aVnd;
 
   const salData={user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
@@ -2094,16 +2091,18 @@ async function exportPhieuLuong(){
   if(!empId){toast('Chọn nhân viên trước','error');return;}
   const thang=monthStr(salYear,salMonth);
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
-
-  // Load salary data
-  const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-  if(!sal){toast('Chưa có bảng lương tháng này — bấm ⚡ Tính lương trước','error');return;}
-
-  // Load attendance summary
   const from=`${salYear}-${String(salMonth+1).padStart(2,'0')}-01`;
   const last=new Date(salYear,salMonth+1,0).getDate();
   const to=`${salYear}-${String(salMonth+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
-  const {data:attRows}=await sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to);
+
+  // Parallel fetch salary + attendance
+  const [salRes, attRes] = await Promise.all([
+    sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
+    sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to)
+  ]);
+  const sal=salRes.data;
+  if(!sal){toast('Chưa có bảng lương tháng này — bấm ⚡ Tính lương trước','error');return;}
+  const attRows=attRes.data;
 
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||25000));
   const tongGross=sal.p1_thuc_te+sal.p2a+sal.p2b+sal.p2c+sal.p3b_chuyen_can+sal.p3c_kpi+p3aVnd;
@@ -2434,22 +2433,29 @@ function switchTab(name,el){
 // TARGETS
 // ============================================================
 var cachedTargets={};
+var _targetsLoaded=false;
+var _targetsLoading=null;
 
 async function loadTargets(){
-  const {data}=await sb.from('targets').select('*').order('thang',{ascending:false});
-  (data||[]).forEach(t=>cachedTargets[t.thang]=t);
-  return cachedTargets;
+  if(_targetsLoaded)return cachedTargets;
+  if(_targetsLoading)return _targetsLoading;
+  _targetsLoading=(async()=>{
+    const {data}=await sb.from('targets').select('*').order('thang',{ascending:false});
+    (data||[]).forEach(t=>cachedTargets[t.thang]=t);
+    _targetsLoaded=true;_targetsLoading=null;
+    return cachedTargets;
+  })();
+  return _targetsLoading;
 }
 
 async function getTarget(thang){
-  // Find closest target <= thang
   await loadTargets();
   const keys=Object.keys(cachedTargets).sort().reverse();
-  for(var i=0;i<keys.length;i++){
-    if(keys[i]<=thang)return cachedTargets[keys[i]];
-  }
+  for(var i=0;i<keys.length;i++){if(keys[i]<=thang)return cachedTargets[keys[i]];}
   return {target_doanh_so:23500,target_don_hang:5,target_bao_gia:20};
 }
+
+function invalidateTargetCache(){_targetsLoaded=false;_targetsLoading=null;}
 
 function openTargetForm(){
   var now=new Date();
@@ -2471,6 +2477,7 @@ async function saveTarget(){
   var {error}=await sb.from('targets').upsert({thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq,ghi_chu:note,created_by:curProfile.id},{onConflict:'thang'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
   cachedTargets[thang]={thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq};
+  invalidateTargetCache();
   toast('Đã lưu Target tháng '+thang);
   closeModal('target-modal');
   renderDashboard();
@@ -2643,24 +2650,29 @@ async function renderDashboard(){
 
   var fromMonth=fromDate.slice(0,7);
   var toMonth2=toDate.slice(0,7);
+  var today=new Date().toISOString().slice(0,10);
 
-  // Load target
-  var tgt=await getTarget(fromMonth);
+  // ---- PARALLEL FETCH: target + orders + daily range + daily today ----
+  var [tgt, ordersRes, dailyAllRes, dailyTodayRes] = await Promise.all([
+    getTarget(fromMonth),
+    sb.from('orders').select('*,profiles(ho_ten,ma_nv,biet_danh)').gte('order_date',fromDate).lte('order_date',toDate),
+    sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
+    sb.from('daily_tracking').select('*,profiles(ho_ten,ma_nv,biet_danh)').eq('ngay',today)
+  ]);
+
   var planDS=tgt.target_doanh_so*planMonths;
   var planDon=tgt.target_don_hang*planMonths;
 
   // Load orders in range
-  var {data:orders}=await sb.from('orders').select('*,profiles(ho_ten,ma_nv,biet_danh)').gte('order_date',fromDate).lte('order_date',toDate);
-  var ords=orders||[];
+  var ords=ordersRes.data||[];
 
   // Team totals
   var totalDS=ords.reduce(function(s,o){return s+(o.total||0);},0);
   var totalDon=ords.length;
   var aov=totalDon>0?totalDS/totalDon:0;
 
-  // Load daily tracking for bao gia
-  var {data:dailyAll}=await sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate);
-  var totalBaoGia=(dailyAll||[]).reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
+  // daily_tracking for bao gia (already fetched in parallel)
+  var totalBaoGia=(dailyAllRes.data||[]).reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
   var convRate=totalBaoGia>0?(totalDon/totalBaoGia*100):0;
 
   var gapDS=planDS-totalDS;
@@ -2808,11 +2820,9 @@ async function renderDashboard(){
     options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}}}
   });
 
-  // ---- DAILY TRACKING SUMMARY (today) ----
-  var today=new Date().toISOString().slice(0,10);
+  // ---- DAILY TRACKING SUMMARY (today — already fetched in parallel) ----
   document.getElementById('dash-daily-date').textContent=today;
-  var {data:dailyToday}=await sb.from('daily_tracking').select('*,profiles(ho_ten,ma_nv)').eq('ngay',today);
-  var dt=dailyToday||[];
+  var dt=dailyTodayRes.data||[];
   var tCalls=dt.reduce(function(s,d){return s+(d.total_calls||0);},0);
   var tPot=dt.reduce(function(s,d){return s+(d.potential_calls||0);},0);
   var tBG=dt.reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
