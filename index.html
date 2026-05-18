@@ -2764,7 +2764,7 @@ async function renderDashboard(){
   var saleArr=Object.values(saleMap).sort(function(a,b){return b.ds-a.ds;});
 
   // Add sales with 0
-  allProfiles.filter(p=>p.role==='sale').forEach(function(p){
+  allProfiles.filter(p=>p.role==='sale'||p.role==='leader').forEach(function(p){
     if(!saleMap[p.id])saleArr.push({emp:p,ds:0,don:0,id:p.id});
   });
   saleArr.sort(function(a,b){return b.ds-a.ds;});
