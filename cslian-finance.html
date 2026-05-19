@@ -810,6 +810,8 @@ async function loadAll() {
     allProducts = products || [];
     filteredOrders = allOrders;
     setConn('ok', 'Đã kết nối Supabase');
+    // Init analytics selects after data loaded
+    initAnalyticsSelects();
     refreshCurrentPage();
     toast('Đã tải dữ liệu tháng ' + fmtMonth(), 'green');
   } catch(e) {
@@ -938,17 +940,26 @@ async function loadAnalyticsData(fromKey, toKey) {
   } catch(e) { return []; }
 }
 
-function renderAnalytics() {
+async function renderAnalytics() {
   initAnalyticsSelects();
   const fromKey = document.getElementById('an-from').value;
   const toKey = document.getElementById('an-to').value;
   if(!fromKey || !toKey || fromKey > toKey) return;
 
-  // Filter from already loaded + load more if needed
-  const orders = allOrders.filter(o => {
-    const tk = o.thang_bonus || o.thang;
-    return tk >= fromKey && tk <= toKey && o.da_tat_toan;
-  });
+  // Load orders in range from Supabase
+  let orders = [];
+  try {
+    setConn('loading','Đang tải...');
+    const data = await sb('orders', `select=*&order=order_date.asc`);
+    orders = (data||[]).filter(o => {
+      const tk = o.thang_bonus || o.thang;
+      return tk >= fromKey && tk <= toKey && o.da_tat_toan;
+    });
+    setConn('ok','Đã kết nối Supabase');
+  } catch(e) {
+    toast('Lỗi tải dữ liệu: '+e.message,'red');
+    return;
+  }
 
   // Build month range
   const monthRange = [];
