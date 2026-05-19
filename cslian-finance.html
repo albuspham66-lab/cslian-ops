@@ -269,6 +269,10 @@ textarea{resize:vertical;min-height:70px;}
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><rect x="4" y="14" width="4" height="6" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="10" width="4" height="10" rx="1"/></svg>
       Tổng hợp doanh thu
     </button>
+    <button class="s-item" data-pg="mapview">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Bản đồ doanh thu
+    </button>
 
     <div class="s-grp">Báo cáo</div>
     <button class="s-item" data-pg="report">
@@ -648,6 +652,93 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
+<!-- ══ MAP VIEW ══ -->
+<div class="page" id="pg-mapview">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Bản đồ doanh thu</div>
+      <div class="ph-sub" id="map-sub">Thống kê theo State · Hoa Kỳ</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Lọc Sale</span>
+      <select id="map-sale-filter" onchange="renderMap()" style="width:170px;padding:7px 10px;font-size:12px;">
+        <option value="">Tất cả Sale</option>
+      </select>
+      <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hiển thị</span>
+      <select id="map-metric" onchange="renderMap()" style="width:160px;padding:7px 10px;font-size:12px;">
+        <option value="revenue">Doanh thu ($)</option>
+        <option value="orders">Số đơn hàng</option>
+      </select>
+      <div style="margin-left:auto;font-size:12px;color:var(--text2);">Bộ lọc thời gian: <span id="map-range-lbl" style="color:var(--blue2);font-weight:500;">—</span></div>
+    </div>
+  </div>
+
+  <!-- Map + Top 5 charts -->
+  <div class="g2" style="margin-bottom:14px;">
+    <!-- MAP -->
+    <div class="card" style="grid-column:span 2;">
+      <div class="ctitle">Bản đồ theo State</div>
+      <div id="map-container" style="position:relative;width:100%;height:400px;background:var(--bg3);border-radius:var(--rsm);overflow:hidden;">
+        <div id="map-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px;">
+          <span class="spin"></span> Đang tải bản đồ...
+        </div>
+        <div id="us-map" style="width:100%;height:100%;"></div>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text3);">Doanh thu:</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:60px;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(61,126,245,0.15),rgba(61,126,245,1));"></div>
+          <span style="font-size:11px;color:var(--text3);">Thấp → Cao</span>
+        </div>
+        <div style="margin-left:12px;display:flex;align-items:center;gap:6px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);"></div>
+          <span style="font-size:11px;color:var(--text3);">Không có dữ liệu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top 5 charts -->
+  <div class="g2">
+    <div class="card">
+      <div class="ctitle">Top 5 State — Doanh thu cao nhất</div>
+      <div style="position:relative;height:200px;">
+        <canvas id="chart-top-rev"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Top 5 State — Đơn hàng nhiều nhất</div>
+      <div style="position:relative;height:200px;">
+        <canvas id="chart-top-orders"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail table -->
+  <div class="card gap">
+    <div class="ctitle">Chi tiết theo State</div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>State</th>
+          <th class="num">Doanh thu ($)</th>
+          <th class="num">Số đơn</th>
+          <th class="num">Đã tất toán</th>
+          <th class="num">Pending</th>
+          <th class="num">TB/đơn ($)</th>
+          <th>Top Sale</th>
+        </tr></thead>
+        <tbody id="map-detail-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SETTINGS ══ -->
 <div class="page" id="pg-settings">
   <div class="ph">
@@ -1020,6 +1111,7 @@ function renderPage(id) {
   if(id==='dashboard') renderDashboard();
   else if(id==='orders') renderOrders();
   else if(id==='analytics') renderAnalytics();
+  else if(id==='mapview') renderMap();
   else if(id==='expense') renderExpense();
   else if(id==='profit') renderProfit();
   else if(id==='salary') renderSalary();
@@ -1647,7 +1739,7 @@ function renderProductTable() {
     <td><span class="b ${p.vendor==='BOLSA'?'b-amber':p.vendor==='ONS'?'b-blue':'b-purple'}">${p.vendor||'—'}</span></td>
     <td class="num" style="color:var(--green2);">${fmtUSD(p.gia_ban)}</td>
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
-    <td class="num" style="color:var(--teal2);">${((p.commission_rate||0.03)*100).toFixed(1)}%</td>
+    <td class="num" style="color:var(--teal2);">${p.commission_rate!=null ? ((p.commission_rate)*100).toFixed(1)+'%' : p.vendor==='BOLSA'?'<span style="color:var(--amber2);">7%/5% cost</span>':'—'}</td>
     <td style="text-align:center;">${p.la_bolsa?'<span class="b b-amber">✓</span>':'—'}</td>
     <td><span class="b ${p.active!==false?'b-green':'b-gray'}">${p.active!==false?'Active':'Inactive'}</span></td>
     <td>
@@ -1864,7 +1956,245 @@ function toast(msg,type='green'){
   tTimer=setTimeout(()=>t.classList.remove('show'),3000);
 }
 
-// ─── INIT ───
+// ─── MAP VIEW ───
+let mapChartRev = null, mapChartOrd = null;
+let mapInitialized = false;
+
+// US States GeoJSON simplified viewBox coordinates (SVG path approach - no external lib needed)
+const US_STATES_SVG = {
+  'AL':'M520,340 L540,340 L545,390 L520,395 Z',
+  'AK':'M80,420 L140,420 L145,470 L75,465 Z',
+  'AZ':'M160,300 L220,300 L225,365 L155,360 Z',
+  'AR':'M490,315 L535,315 L535,355 L490,355 Z',
+  'CA':'M95,220 L155,215 L160,355 L90,350 Z',
+  'CO':'M245,255 L330,255 L330,305 L245,305 Z',
+  'CT':'M635,195 L650,195 L650,210 L635,210 Z',
+  'DE':'M620,220 L630,220 L632,235 L618,233 Z',
+  'FL':'M535,370 L590,370 L600,430 L545,440 Z',
+  'GA':'M540,335 L585,335 L590,380 L535,380 Z',
+  'HI':'M200,460 L260,460 L260,480 L200,480 Z',
+  'ID':'M175,155 L220,150 L225,240 L170,240 Z',
+  'IL':'M500,240 L530,240 L532,300 L498,298 Z',
+  'IN':'M525,235 L550,235 L552,285 L523,283 Z',
+  'IA':'M455,215 L505,215 L507,255 L453,253 Z',
+  'KS':'M355,285 L440,285 L442,320 L353,318 Z',
+  'KY':'M520,285 L590,285 L592,315 L518,313 Z',
+  'LA':'M470,360 L520,360 L525,400 L465,398 Z',
+  'ME':'M660,150 L680,148 L682,185 L658,183 Z',
+  'MD':'M610,225 L645,223 L647,240 L608,238 Z',
+  'MA':'M645,185 L670,183 L672,198 L643,196 Z',
+  'MI':'M510,185 L545,183 L547,225 L508,223 Z',
+  'MN':'M430,155 L480,153 L482,215 L428,213 Z',
+  'MS':'M500,335 L525,335 L527,385 L498,383 Z',
+  'MO':'M455,270 L510,270 L512,315 L453,313 Z',
+  'MT':'M200,140 L310,138 L312,195 L198,193 Z',
+  'NE':'M340,240 L430,240 L432,275 L338,273 Z',
+  'NV':'M130,220 L185,218 L188,305 L128,303 Z',
+  'NH':'M648,168 L662,166 L664,193 L646,191 Z',
+  'NJ':'M625,210 L640,208 L642,230 L623,228 Z',
+  'NM':'M225,305 L290,303 L292,365 L223,363 Z',
+  'NY':'M595,185 L645,183 L647,218 L593,216 Z',
+  'NC':'M560,295 L630,293 L632,320 L558,318 Z',
+  'ND':'M330,158 L415,156 L417,198 L328,196 Z',
+  'OH':'M545,220 L585,218 L587,260 L543,258 Z',
+  'OK':'M330,315 L455,313 L457,350 L328,348 Z',
+  'OR':'M115,170 L190,168 L192,225 L113,223 Z',
+  'PA':'M575,200 L630,198 L632,228 L573,226 Z',
+  'RI':'M652,198 L662,196 L664,208 L650,206 Z',
+  'SC':'M570,315 L610,313 L612,345 L568,343 Z',
+  'SD':'M330,198 L415,196 L417,240 L328,238 Z',
+  'TN':'M500,305 L575,303 L577,330 L498,328 Z',
+  'TX':'M295,325 L450,323 L455,420 L290,418 Z',
+  'UT':'M185,240 L245,238 L247,305 L183,303 Z',
+  'VT':'M635,165 L650,163 L652,188 L633,186 Z',
+  'VA':'M575,255 L630,253 L632,285 L573,283 Z',
+  'WA':'M120,135 L195,133 L197,170 L118,168 Z',
+  'WV':'M565,240 L600,238 L602,275 L563,273 Z',
+  'WI':'M475,175 L515,173 L517,220 L473,218 Z',
+  'WY':'M240,200 L325,198 L327,250 L238,248 Z',
+  'DC':'M615,238 L622,238 L622,245 L615,245 Z'
+};
+
+// State full names
+const STATE_NAMES = {
+  'AL':'Alabama','AK':'Alaska','AZ':'Arizona','AR':'Arkansas','CA':'California',
+  'CO':'Colorado','CT':'Connecticut','DE':'Delaware','FL':'Florida','GA':'Georgia',
+  'HI':'Hawaii','ID':'Idaho','IL':'Illinois','IN':'Indiana','IA':'Iowa',
+  'KS':'Kansas','KY':'Kentucky','LA':'Louisiana','ME':'Maine','MD':'Maryland',
+  'MA':'Massachusetts','MI':'Michigan','MN':'Minnesota','MS':'Mississippi','MO':'Missouri',
+  'MT':'Montana','NE':'Nebraska','NV':'Nevada','NH':'New Hampshire','NJ':'New Jersey',
+  'NM':'New Mexico','NY':'New York','NC':'North Carolina','ND':'North Dakota','OH':'Ohio',
+  'OK':'Oklahoma','OR':'Oregon','PA':'Pennsylvania','RI':'Rhode Island','SC':'South Carolina',
+  'SD':'South Dakota','TN':'Tennessee','TX':'Texas','UT':'Utah','VT':'Vermont',
+  'VA':'Virginia','WA':'Washington','WV':'West Virginia','WI':'Wisconsin','WY':'Wyoming','DC':'D.C.'
+};
+
+function buildMapSaleFilter() {
+  const sel = document.getElementById('map-sale-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tất cả Sale</option>' +
+    allProfiles.filter(p=>p.role==='sale').map(p=>
+      `<option value="${p.id}" ${p.id===cur?'selected':''}>${p.ho_ten}</option>`
+    ).join('');
+}
+
+function renderMap() {
+  buildMapSaleFilter();
+  const saleFilter = document.getElementById('map-sale-filter').value;
+  const metric = document.getElementById('map-metric').value;
+  const fk = fromKey(), tk = toKey();
+
+  document.getElementById('map-range-lbl').textContent =
+    isSingleMonth() ? `T${rangeFrom.month}/${rangeFrom.year}` :
+    `T${rangeFrom.month}/${rangeFrom.year} → T${rangeTo.month}/${rangeTo.year}`;
+
+  // Filter orders
+  let orders = allOrders.filter(o => {
+    const tk2 = o.thang_bonus || o.thang;
+    return tk2 >= fk && tk2 <= tk;
+  });
+  if(saleFilter) orders = orders.filter(o => o.user_id === saleFilter);
+
+  // Aggregate by state
+  const stateData = {};
+  orders.forEach(o => {
+    const s = (o.state||'').toUpperCase().trim();
+    if(!s) return;
+    if(!stateData[s]) stateData[s] = {rev:0, orders:0, done:0, pending:0, sales:{}};
+    stateData[s].rev += o.total||0;
+    stateData[s].orders++;
+    if(o.da_tat_toan) stateData[s].done++;
+    else stateData[s].pending++;
+    const p = allProfiles.find(x=>x.id===o.user_id);
+    if(p) stateData[s].sales[p.ho_ten] = (stateData[s].sales[p.ho_ten]||0) + (o.total||0);
+  });
+
+  const maxRev = Math.max(...Object.values(stateData).map(d=>d.rev), 1);
+  const maxOrd = Math.max(...Object.values(stateData).map(d=>d.orders), 1);
+
+  // Build SVG map
+  document.getElementById('map-loading').style.display = 'none';
+  const svgPaths = Object.entries(US_STATES_SVG).map(([code, path]) => {
+    const d = stateData[code];
+    const val = d ? (metric==='revenue' ? d.rev : d.orders) : 0;
+    const maxVal = metric==='revenue' ? maxRev : maxOrd;
+    const intensity = d ? Math.max(0.12, val/maxVal) : 0;
+    const fill = d
+      ? `rgba(61,126,245,${intensity})`
+      : 'rgba(255,255,255,0.04)';
+    const stroke = d ? 'rgba(61,126,245,0.5)' : 'rgba(255,255,255,0.08)';
+    const tooltip = d
+      ? `${STATE_NAMES[code]||code}: ${metric==='revenue'?'$'+d.rev.toLocaleString():d.orders+' đơn'}`
+      : STATE_NAMES[code]||code;
+    return `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="1"
+      style="cursor:pointer;transition:fill .2s;"
+      onmouseover="this.style.fill='rgba(111,163,255,0.7)';showMapTooltip(event,'${tooltip}')"
+      onmouseout="this.style.fill='${fill}';hideMapTooltip()"
+      onclick="highlightState('${code}')"/>
+    <text x="${getStateCenter(path).x}" y="${getStateCenter(path).y}"
+      style="font-size:7px;fill:${d?'#fff':'rgba(255,255,255,0.25)'};pointer-events:none;text-anchor:middle;font-family:sans-serif;">${code}</text>`;
+  }).join('');
+
+  document.getElementById('us-map').innerHTML = `
+    <svg viewBox="0 0 760 500" width="100%" height="100%" style="display:block;">
+      <rect width="760" height="500" fill="transparent"/>
+      ${svgPaths}
+      <div id="map-tooltip"></div>
+    </svg>
+    <div id="map-tooltip" style="position:absolute;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);pointer-events:none;display:none;z-index:10;"></div>`;
+
+  // Top 5 charts
+  const sorted = Object.entries(stateData).sort((a,b)=>b[1].rev-a[1].rev);
+  const top5Rev = sorted.slice(0,5);
+  const top5Ord = [...Object.entries(stateData)].sort((a,b)=>b[1].orders-a[1].orders).slice(0,5);
+
+  if(mapChartRev) mapChartRev.destroy();
+  if(mapChartOrd) mapChartOrd.destroy();
+
+  const chartOpts = (labels, data, color, isMoney) => ({
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        data,
+        backgroundColor: color,
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>isMoney?' $'+ctx.raw.toLocaleString():' '+ctx.raw+' đơn'}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7b87a6',font:{size:10},callback:v=>isMoney?'$'+(v>=1000?(v/1000).toFixed(0)+'K':v):v}},
+        y:{grid:{display:false},ticks:{color:'#dde4f2',font:{size:11}}}
+      }
+    }
+  });
+
+  mapChartRev = new Chart(
+    document.getElementById('chart-top-rev').getContext('2d'),
+    chartOpts(top5Rev.map(([s])=>STATE_NAMES[s]||s), top5Rev.map(([,d])=>d.rev), 'rgba(61,126,245,0.75)', true)
+  );
+  mapChartOrd = new Chart(
+    document.getElementById('chart-top-orders').getContext('2d'),
+    chartOpts(top5Ord.map(([s])=>STATE_NAMES[s]||s), top5Ord.map(([,d])=>d.orders), 'rgba(34,201,122,0.75)', false)
+  );
+
+  // Detail table
+  document.getElementById('map-detail-body').innerHTML = sorted.length ?
+    sorted.map(([code, d]) => {
+      const topSale = Object.entries(d.sales).sort((a,b)=>b[1]-a[1])[0];
+      return `<tr>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <span style="background:var(--bluebg);color:var(--blue2);font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">${code}</span>
+          <span style="font-size:12px;color:var(--text2);">${STATE_NAMES[code]||code}</span>
+        </div></td>
+        <td class="num" style="color:var(--green2);">${fmtUSD(d.rev)}</td>
+        <td class="num">${d.orders}</td>
+        <td class="num"><span class="b b-green">${d.done}</span></td>
+        <td class="num"><span class="b ${d.pending>0?'b-amber':'b-gray'}">${d.pending}</span></td>
+        <td class="num">${fmtUSD(d.orders>0?d.rev/d.orders:0)}</td>
+        <td style="font-size:12px;color:var(--text2);">${topSale?topSale[0]:'—'}</td>
+      </tr>`;
+    }).join('') :
+    `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3);">Không có dữ liệu. Kiểm tra bộ lọc thời gian hoặc cột State trong đơn hàng.</td></tr>`;
+}
+
+function getStateCenter(path) {
+  const nums = path.match(/[\d.]+/g).map(Number);
+  const xs = nums.filter((_,i)=>i%2===0);
+  const ys = nums.filter((_,i)=>i%2===1);
+  return {
+    x: Math.round((Math.min(...xs)+Math.max(...xs))/2),
+    y: Math.round((Math.min(...ys)+Math.max(...ys))/2)
+  };
+}
+
+function showMapTooltip(e, text) {
+  const t = document.getElementById('map-tooltip');
+  if(!t) return;
+  t.textContent = text;
+  t.style.display = 'block';
+  t.style.left = (e.offsetX+12)+'px';
+  t.style.top = (e.offsetY-10)+'px';
+}
+function hideMapTooltip() {
+  const t = document.getElementById('map-tooltip');
+  if(t) t.style.display = 'none';
+}
+function highlightState(code) {
+  const d = document.getElementById('map-detail-body');
+  if(!d) return;
+  const rows = d.querySelectorAll('tr');
+  rows.forEach(r => {
+    const badge = r.querySelector('span');
+    r.style.background = badge&&badge.textContent===code ? 'rgba(61,126,245,0.08)' : '';
+  });
+}
+
+
 updateRangeLabels();
 loadAll();
 </script>
