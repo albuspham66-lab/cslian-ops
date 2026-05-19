@@ -2755,7 +2755,7 @@ async function renderDashboard(){
     getTarget(fromMonth),
     sb.from('orders').select('*,profiles(ho_ten,ma_nv,biet_danh,role)').gte('order_date',fromDate).lte('order_date',toDate),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
-    sb.from('daily_tracking').select('*,profiles(ho_ten,ma_nv,biet_danh)').eq('ngay',today)
+    sb.from('daily_tracking').select('*').eq('ngay',today)
   ]);
 
   var planDS=tgt.target_doanh_so*planMonths;
