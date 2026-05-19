@@ -1958,9 +1958,177 @@ function toast(msg,type='green'){
 
 // ─── MAP VIEW ───
 let mapChartRev = null, mapChartOrd = null;
-let mapInitialized = false;
+let leafletMap = null, geojsonLayer = null;
 
-// US States GeoJSON simplified viewBox coordinates (SVG path approach - no external lib needed)
+const STATE_NAMES = {
+  'AL':'Alabama','AK':'Alaska','AZ':'Arizona','AR':'Arkansas','CA':'California',
+  'CO':'Colorado','CT':'Connecticut','DE':'Delaware','FL':'Florida','GA':'Georgia',
+  'HI':'Hawaii','ID':'Idaho','IL':'Illinois','IN':'Indiana','IA':'Iowa',
+  'KS':'Kansas','KY':'Kentucky','LA':'Louisiana','ME':'Maine','MD':'Maryland',
+  'MA':'Massachusetts','MI':'Michigan','MN':'Minnesota','MS':'Mississippi','MO':'Missouri',
+  'MT':'Montana','NE':'Nebraska','NV':'Nevada','NH':'New Hampshire','NJ':'New Jersey',
+  'NM':'New Mexico','NY':'New York','NC':'North Carolina','ND':'North Dakota','OH':'Ohio',
+  'OK':'Oklahoma','OR':'Oregon','PA':'Pennsylvania','RI':'Rhode Island','SC':'South Carolina',
+  'SD':'South Dakota','TN':'Tennessee','TX':'Texas','UT':'Utah','VT':'Vermont',
+  'VA':'Virginia','WA':'Washington','WV':'West Virginia','WI':'Wisconsin','WY':'Wyoming','DC':'D.C.'
+};
+
+function buildMapSaleFilter() {
+  const sel = document.getElementById('map-sale-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tất cả Sale</option>' +
+    allProfiles.filter(p=>p.role==='sale').map(p=>
+      `<option value="${p.id}" ${p.id===cur?'selected':''}>${p.ho_ten}</option>`
+    ).join('');
+}
+
+async function renderMap() {
+  buildMapSaleFilter();
+  const saleFilter = document.getElementById('map-sale-filter').value;
+  const metric = document.getElementById('map-metric').value;
+  const fk = fromKey(), tk = toKey();
+
+  document.getElementById('map-range-lbl').textContent =
+    isSingleMonth() ? `T${rangeFrom.month}/${rangeFrom.year}` :
+    `T${rangeFrom.month}/${rangeFrom.year} → T${rangeTo.month}/${rangeTo.year}`;
+
+  // Filter orders
+  let orders = allOrders.filter(o => {
+    const tk2 = o.thang_bonus || o.thang;
+    return tk2 >= fk && tk2 <= tk;
+  });
+  if(saleFilter) orders = orders.filter(o => o.user_id === saleFilter);
+
+  // Aggregate by state
+  const stateData = {};
+  orders.forEach(o => {
+    const s = (o.state||'').toUpperCase().trim();
+    if(!s) return;
+    if(!stateData[s]) stateData[s] = {rev:0, orders:0, done:0, pending:0, sales:{}};
+    stateData[s].rev += o.total||0;
+    stateData[s].orders++;
+    if(o.da_tat_toan) stateData[s].done++;
+    else stateData[s].pending++;
+    const p = allProfiles.find(x=>x.id===o.user_id);
+    if(p) stateData[s].sales[p.ho_ten] = (stateData[s].sales[p.ho_ten]||0)+(o.total||0);
+  });
+
+  const maxRev = Math.max(...Object.values(stateData).map(d=>d.rev), 1);
+  const maxOrd = Math.max(...Object.values(stateData).map(d=>d.orders), 1);
+
+  // Init Leaflet map
+  if(!leafletMap) {
+    document.getElementById('map-loading').style.display='none';
+    leafletMap = L.map('us-map', {
+      center:[37.8,-96], zoom:4,
+      zoomControl:true, scrollWheelZoom:true,
+      attributionControl:false
+    });
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      maxZoom:10
+    }).addTo(leafletMap);
+  }
+
+  // Load GeoJSON and render
+  if(geojsonLayer) { geojsonLayer.remove(); geojsonLayer=null; }
+
+  try {
+    const resp = await fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json');
+    const geojson = await resp.json();
+
+    geojsonLayer = L.geoJSON(geojson, {
+      style: feature => {
+        const code = feature.properties.postal || feature.properties.abbr ||
+          Object.keys(STATE_NAMES).find(k=>STATE_NAMES[k]===feature.properties.name) || '';
+        const d = stateData[code];
+        const val = d ? (metric==='revenue'?d.rev:d.orders) : 0;
+        const maxVal = metric==='revenue'?maxRev:maxOrd;
+        const intensity = d ? Math.max(0.15, val/maxVal) : 0;
+        return {
+          fillColor: d ? `rgba(61,126,245,${intensity})` : 'rgba(255,255,255,0.04)',
+          fillOpacity: 1,
+          color: d ? '#4a82f5' : 'rgba(255,255,255,0.1)',
+          weight: d ? 1.5 : 0.5
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const code = feature.properties.postal || feature.properties.abbr ||
+          Object.keys(STATE_NAMES).find(k=>STATE_NAMES[k]===feature.properties.name) || '';
+        const d = stateData[code];
+        const topSale = d ? Object.entries(d.sales).sort((a,b)=>b[1]-a[1])[0] : null;
+        layer.bindTooltip(`
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">${STATE_NAMES[code]||feature.properties.name} (${code})</div>
+          <div style="font-size:11px;">Doanh thu: <b style="color:#6fa3ff;">${d?'$'+d.rev.toLocaleString():'—'}</b></div>
+          <div style="font-size:11px;">Số đơn: <b>${d?d.orders:'—'}</b> (${d?d.done:0} tất toán · ${d?d.pending:0} pending)</div>
+          ${topSale?`<div style="font-size:11px;">Top Sale: <b>${topSale[0]}</b></div>`:''}
+        `, {sticky:true, className:'map-tooltip-custom'});
+        layer.on('mouseover', e => e.target.setStyle({weight:2.5,color:'#7aa8ff'}));
+        layer.on('mouseout', e => geojsonLayer.resetStyle(e.target));
+        layer.on('click', () => highlightState(code));
+      }
+    }).addTo(leafletMap);
+  } catch(e) {
+    console.error('GeoJSON load error:', e);
+    document.getElementById('us-map').innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;">Không tải được bản đồ. Kiểm tra kết nối mạng.</div>`;
+  }
+
+  // Top 5 charts
+  const sorted = Object.entries(stateData).sort((a,b)=>b[1].rev-a[1].rev);
+  const top5Rev = sorted.slice(0,5);
+  const top5Ord = [...Object.entries(stateData)].sort((a,b)=>b[1].orders-a[1].orders).slice(0,5);
+
+  if(mapChartRev) mapChartRev.destroy();
+  if(mapChartOrd) mapChartOrd.destroy();
+
+  const chartOpts = (labels, data, color, isMoney) => ({
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:color,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>isMoney?' $'+ctx.raw.toLocaleString():' '+ctx.raw+' đơn'}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7b87a6',font:{size:10},callback:v=>isMoney?'$'+(v>=1000?(v/1000).toFixed(0)+'K':v):v}},
+        y:{grid:{display:false},ticks:{color:'#dde4f2',font:{size:11}}}
+      }
+    }
+  });
+
+  mapChartRev = new Chart(document.getElementById('chart-top-rev').getContext('2d'),
+    chartOpts(top5Rev.map(([s])=>STATE_NAMES[s]||s), top5Rev.map(([,d])=>d.rev), 'rgba(61,126,245,0.8)', true));
+  mapChartOrd = new Chart(document.getElementById('chart-top-orders').getContext('2d'),
+    chartOpts(top5Ord.map(([s])=>STATE_NAMES[s]||s), top5Ord.map(([,d])=>d.orders), 'rgba(34,201,122,0.8)', false));
+
+  // Detail table
+  document.getElementById('map-detail-body').innerHTML = sorted.length ?
+    sorted.map(([code,d])=>{
+      const topSale = Object.entries(d.sales).sort((a,b)=>b[1]-a[1])[0];
+      return `<tr>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <span style="background:var(--bluebg);color:var(--blue2);font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">${code}</span>
+          <span style="font-size:12px;color:var(--text2);">${STATE_NAMES[code]||code}</span>
+        </div></td>
+        <td class="num" style="color:var(--green2);">${fmtUSD(d.rev)}</td>
+        <td class="num">${d.orders}</td>
+        <td class="num"><span class="b b-green">${d.done}</span></td>
+        <td class="num"><span class="b ${d.pending>0?'b-amber':'b-gray'}">${d.pending}</span></td>
+        <td class="num">${fmtUSD(d.orders>0?d.rev/d.orders:0)}</td>
+        <td style="font-size:12px;color:var(--text2);">${topSale?topSale[0]:'—'}</td>
+      </tr>`;
+    }).join('') :
+    `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3);">Không có dữ liệu. Kiểm tra cột State trong đơn hàng.</td></tr>`;
+}
+
+function highlightState(code) {
+  const rows = document.querySelectorAll('#map-detail-body tr');
+  rows.forEach(r => {
+    const badge = r.querySelector('span');
+    r.style.background = badge&&badge.textContent===code?'rgba(61,126,245,0.08)':'';
+  });
+  // Scroll to table
+  document.getElementById('map-detail-body').closest('.card').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
 const US_STATES_SVG = {
   'AL':'M520,340 L540,340 L545,390 L520,395 Z',
   'AK':'M80,420 L140,420 L145,470 L75,465 Z',
@@ -2162,42 +2330,17 @@ function renderMap() {
     `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3);">Không có dữ liệu. Kiểm tra bộ lọc thời gian hoặc cột State trong đơn hàng.</td></tr>`;
 }
 
-function getStateCenter(path) {
-  const nums = path.match(/[\d.]+/g).map(Number);
-  const xs = nums.filter((_,i)=>i%2===0);
-  const ys = nums.filter((_,i)=>i%2===1);
-  return {
-    x: Math.round((Math.min(...xs)+Math.max(...xs))/2),
-    y: Math.round((Math.min(...ys)+Math.max(...ys))/2)
-  };
-}
-
-function showMapTooltip(e, text) {
-  const t = document.getElementById('map-tooltip');
-  if(!t) return;
-  t.textContent = text;
-  t.style.display = 'block';
-  t.style.left = (e.offsetX+12)+'px';
-  t.style.top = (e.offsetY-10)+'px';
-}
-function hideMapTooltip() {
-  const t = document.getElementById('map-tooltip');
-  if(t) t.style.display = 'none';
-}
-function highlightState(code) {
-  const d = document.getElementById('map-detail-body');
-  if(!d) return;
-  const rows = d.querySelectorAll('tr');
-  rows.forEach(r => {
-    const badge = r.querySelector('span');
-    r.style.background = badge&&badge.textContent===code ? 'rgba(61,126,245,0.08)' : '';
-  });
-}
-
-
 updateRangeLabels();
 loadAll();
 </script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+.map-tooltip-custom{background:var(--surface2)!important;border:1px solid var(--border2)!important;border-radius:8px!important;color:var(--text)!important;font-size:12px!important;padding:8px 12px!important;box-shadow:0 4px 12px rgba(0,0,0,.4)!important;}
+.leaflet-container{background:#07090f!important;}
+.leaflet-control-zoom a{background:var(--surface2)!important;color:var(--text2)!important;border-color:var(--border2)!important;}
+.leaflet-tooltip{background:var(--surface2)!important;border:1px solid var(--border2)!important;color:var(--text)!important;border-radius:8px!important;}
+</style>
 </body>
 </html>
