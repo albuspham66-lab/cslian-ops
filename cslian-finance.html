@@ -213,12 +213,32 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 
   <div class="month-picker-wrap" style="margin:0 12px 8px;">
-    <div class="s-month" onclick="toggleMonthPicker()">
-      <svg class="s-month-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span class="s-month-val" id="cur-month-lbl">Tháng 5/2026</span>
-      <span class="s-month-arrow">▾</span>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Khoảng thời gian</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:11px;color:var(--text2);width:24px;flex-shrink:0;">Từ</span>
+        <div style="position:relative;flex:1;">
+          <div class="s-month" style="margin:0;padding:7px 10px;" onclick="toggleMonthPicker('from')">
+            <span class="s-month-val" id="from-month-lbl" style="font-size:12px;">T5/2026</span>
+            <span class="s-month-arrow">▾</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:var(--text2);width:24px;flex-shrink:0;">Đến</span>
+        <div style="position:relative;flex:1;">
+          <div class="s-month" style="margin:0;padding:7px 10px;" onclick="toggleMonthPicker('to')">
+            <span class="s-month-val" id="to-month-lbl" style="font-size:12px;">T5/2026</span>
+            <span class="s-month-arrow">▾</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:7px;font-size:12px;" onclick="applyRange()">
+        Áp dụng
+      </button>
     </div>
-    <div class="month-dropdown" id="month-dropdown">
+    <div class="month-dropdown" id="month-dropdown" style="width:calc(100% - 24px);">
+      <div style="font-size:10px;color:var(--text3);padding:2px 6px 6px;text-transform:uppercase;letter-spacing:1px;" id="mp-picking-label">Chọn tháng</div>
       <div class="mp-year">
         <button class="mp-yr-btn" onclick="changeYear(-1)">‹</button>
         <span class="mp-year-val" id="mp-year">2026</span>
@@ -381,21 +401,7 @@ textarea{resize:vertical;min-height:70px;}
   <div class="ph">
     <div class="ph-left">
       <div class="ph-title">Tổng hợp doanh thu</div>
-      <div class="ph-sub">Phân tích theo Vendor · Lọc theo khoảng thời gian</div>
-    </div>
-  </div>
-
-  <!-- Bộ lọc thời gian riêng -->
-  <div class="card" style="margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;">Từ tháng</span>
-      <select id="an-from" onchange="renderAnalytics()" style="width:130px;padding:7px 10px;font-size:13px;"></select>
-      <span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;">Đến tháng</span>
-      <select id="an-to" onchange="renderAnalytics()" style="width:130px;padding:7px 10px;font-size:13px;"></select>
-      <button class="btn btn-ghost btn-sm" onclick="renderAnalytics()">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-        Cập nhật
-      </button>
+      <div class="ph-sub" id="an-sub">Phân tích theo Vendor</div>
     </div>
   </div>
 
@@ -773,7 +779,6 @@ try {
 } catch(e){}
 
 // ─── STATE ───
-let curYear = 2026, curMonth = 5;
 let allOrders = [], allExpenses = [], allProfiles = [], allSalary = [], allKpi = [], allProducts = [];
 let filteredOrders = [];
 
@@ -824,13 +829,19 @@ async function sbDelete(table, id) {
 async function loadAll() {
   setConn('loading', 'Đang tải...');
   try {
-    const mk = curKey();
+    const fk = fromKey(), tk = toKey();
+    // Build OR filter for all months in range
+    let monthsInRange = [];
+    let [fy,fm] = [rangeFrom.year, rangeFrom.month];
+    while(monthKey(fy,fm) <= tk) { monthsInRange.push(monthKey(fy,fm)); fm++; if(fm>12){fm=1;fy++;} }
+    const orFilter = monthsInRange.map(m=>`thang.eq.${m},thang_bonus.eq.${m}`).join(',');
+
     const [orders, expenses, profiles, salary, kpi, products] = await Promise.all([
-      sb('orders', `select=*&or=(thang.eq.${mk},thang_bonus.eq.${mk})&order=order_date.desc`),
-      sb('expenses', `select=*&thang=eq.${mk}&order=ngay.desc`),
+      sb('orders', `select=*&or=(${orFilter})&order=order_date.desc`),
+      sb('expenses', `select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
       sb('profiles', `select=*&order=ho_ten.asc`),
-      sb('salary_monthly', `select=*&thang=eq.${mk}`),
-      sb('kpi_monthly', `select=*&thang=eq.${mk}`),
+      sb('salary_monthly', `select=*&thang=gte.${fk}&thang=lte.${tk}`),
+      sb('kpi_monthly', `select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('products', `select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,vendor_cost,commission_rate&active=eq.true&order=vendor.asc,ten_sp.asc`)
     ]);
     allOrders = orders || [];
@@ -841,54 +852,73 @@ async function loadAll() {
     allProducts = products || [];
     filteredOrders = allOrders;
     setConn('ok', 'Đã kết nối Supabase');
-    // Init analytics selects after data loaded
-    initAnalyticsSelects();
     refreshCurrentPage();
-    toast('Đã tải dữ liệu tháng ' + fmtMonth(), 'green');
+    toast('Đã tải ' + fmtMonth(), 'green');
   } catch(e) {
     setConn('err', 'Lỗi kết nối');
     toast('Lỗi: ' + e.message, 'red');
   }
 }
 
-// ─── MONTH PICKER ───
+// ─── MONTH PICKER (RANGE) ───
 let mpYear = 2026;
+let mpPicking = 'from'; // 'from' or 'to'
+let rangeFrom = { year:2026, month:5 };
+let rangeTo   = { year:2026, month:5 };
 const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
 
-function fmtMonth() { return `T${curMonth}/${curYear}`; }
+function fmtMonth() { return `T${rangeFrom.month}/${rangeFrom.year}${!isSingleMonth()?'→T'+rangeTo.month+'/'+rangeTo.year:''}`; }
 function fmtMonthKey(k) { const [y,m]=k.split('-'); return `T${parseInt(m)}/${y}`; }
+function isSingleMonth() { return rangeFrom.year===rangeTo.year && rangeFrom.month===rangeTo.month; }
+function fromKey() { return monthKey(rangeFrom.year, rangeFrom.month); }
+function toKey()   { return monthKey(rangeTo.year, rangeTo.month); }
+// Keep curKey for backward compat (uses fromKey as primary month)
+const curKey = () => fromKey();
 
-function buildMonthPicker() {
-  mpYear = curYear;
-  document.getElementById('mp-year').textContent = mpYear;
-  const grid = document.getElementById('mp-months');
-  grid.innerHTML = MONTHS_VI.map((m,i) => {
-    const on = (i+1)===curMonth && mpYear===curYear;
-    return `<button class="mp-m ${on?'on':''}" onclick="selectMonth(${i+1})">${m.replace('Tháng ','T')}</button>`;
-  }).join('');
+function updateRangeLabels() {
+  document.getElementById('from-month-lbl').textContent = `T${rangeFrom.month}/${rangeFrom.year}`;
+  document.getElementById('to-month-lbl').textContent   = `T${rangeTo.month}/${rangeTo.year}`;
 }
 
-function toggleMonthPicker() {
+function toggleMonthPicker(picking) {
   const d = document.getElementById('month-dropdown');
-  if(d.classList.contains('show')) { d.classList.remove('show'); return; }
+  if(d.classList.contains('show') && mpPicking===picking) { d.classList.remove('show'); return; }
+  mpPicking = picking;
+  mpYear = picking==='from' ? rangeFrom.year : rangeTo.year;
+  document.getElementById('mp-picking-label').textContent = picking==='from' ? 'Chọn tháng bắt đầu' : 'Chọn tháng kết thúc';
   buildMonthPicker();
   d.classList.add('show');
 }
 
-function changeYear(d) {
-  mpYear += d;
+function buildMonthPicker() {
   document.getElementById('mp-year').textContent = mpYear;
+  const cur = mpPicking==='from' ? rangeFrom : rangeTo;
   const grid = document.getElementById('mp-months');
   grid.innerHTML = MONTHS_VI.map((m,i) => {
-    const on = (i+1)===curMonth && mpYear===curYear;
+    const on = (i+1)===cur.month && mpYear===cur.year;
     return `<button class="mp-m ${on?'on':''}" onclick="selectMonth(${i+1})">${m.replace('Tháng ','T')}</button>`;
   }).join('');
 }
 
+function changeYear(d) {
+  mpYear += d;
+  buildMonthPicker();
+}
+
 function selectMonth(m) {
-  curYear = mpYear; curMonth = m;
+  if(mpPicking==='from') { rangeFrom = {year:mpYear, month:m}; }
+  else { rangeTo = {year:mpYear, month:m}; }
+  // Auto-fix: from > to
+  if(fromKey() > toKey()) {
+    if(mpPicking==='from') rangeTo = {...rangeFrom};
+    else rangeFrom = {...rangeTo};
+  }
+  updateRangeLabels();
+  buildMonthPicker();
   document.getElementById('month-dropdown').classList.remove('show');
-  document.getElementById('cur-month-lbl').textContent = `Tháng ${m}/${curYear}`;
+}
+
+function applyRange() {
   loadAll();
 }
 
@@ -926,77 +956,21 @@ function renderPage(id) {
 // ─── ANALYTICS ───
 let anChart = null;
 
-function buildAnalyticsMonthOptions() {
-  // Generate last 12 months + next 3
-  const now = new Date();
-  const months = [];
-  for(let i = -11; i <= 2; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
-    const k = monthKey(d.getFullYear(), d.getMonth()+1);
-    months.push(k);
-  }
-  // Also include any months from allOrders
-  allOrders.forEach(o => {
-    if(o.thang && !months.includes(o.thang)) months.push(o.thang);
-    if(o.thang_bonus && !months.includes(o.thang_bonus)) months.push(o.thang_bonus);
-  });
-  return [...new Set(months)].sort();
-}
-
-function initAnalyticsSelects() {
-  const months = buildAnalyticsMonthOptions();
-  const fromSel = document.getElementById('an-from');
-  const toSel = document.getElementById('an-to');
-  const curFrom = fromSel.value;
-  const curTo = toSel.value;
-  const opts = months.map(m => `<option value="${m}">${fmtMonthKey(m)}</option>`).join('');
-  fromSel.innerHTML = opts;
-  toSel.innerHTML = opts;
-  // Default: from = 3 months ago, to = current month
-  const defaultFrom = monthKey(curYear, curMonth-2 > 0 ? curMonth-2 : 1);
-  const defaultTo = monthKey(curYear, curMonth);
-  fromSel.value = curFrom || (months.includes(defaultFrom) ? defaultFrom : months[0]);
-  toSel.value = curTo || (months.includes(defaultTo) ? defaultTo : months[months.length-1]);
-}
-
-async function loadAnalyticsData(fromKey, toKey) {
-  // Load all orders in range from Supabase
-  try {
-    const orders = await sb('orders',
-      `select=*&or=(thang.gte.${fromKey},thang_bonus.gte.${fromKey})&order=order_date.asc`
-    );
-    return (orders||[]).filter(o => {
-      const tk = o.thang_bonus || o.thang;
-      return tk >= fromKey && tk <= toKey && o.da_tat_toan;
-    });
-  } catch(e) { return []; }
-}
-
 async function renderAnalytics() {
-  initAnalyticsSelects();
-  const fromKey = document.getElementById('an-from').value;
-  const toKey = document.getElementById('an-to').value;
-  if(!fromKey || !toKey || fromKey > toKey) return;
+  const fk = fromKey(), tk = toKey();
+  const sub = isSingleMonth() ? `Tháng ${rangeFrom.month}/${rangeFrom.year}` : `T${rangeFrom.month}/${rangeFrom.year} → T${rangeTo.month}/${rangeTo.year}`;
+  set('an-sub', 'Phân tích theo Vendor · ' + sub);
 
-  // Load orders in range from Supabase
-  let orders = [];
-  try {
-    setConn('loading','Đang tải...');
-    const data = await sb('orders', `select=*&order=order_date.asc`);
-    orders = (data||[]).filter(o => {
-      const tk = o.thang_bonus || o.thang;
-      return tk >= fromKey && tk <= toKey && o.da_tat_toan;
-    });
-    setConn('ok','Đã kết nối Supabase');
-  } catch(e) {
-    toast('Lỗi tải dữ liệu: '+e.message,'red');
-    return;
-  }
+  // Use already-loaded allOrders filtered by range
+  const orders = allOrders.filter(o => {
+    const tk2 = o.thang_bonus || o.thang;
+    return tk2 >= fk && tk2 <= tk && o.da_tat_toan;
+  });
 
   // Build month range
   const monthRange = [];
-  let [fy, fm] = fromKey.split('-').map(Number);
-  const [ty, tm] = toKey.split('-').map(Number);
+  let [fy, fm] = fk.split('-').map(Number);
+  const [ty, tm] = tk.split('-').map(Number);
   while(fy < ty || (fy===ty && fm<=tm)) {
     monthRange.push(monthKey(fy, fm));
     fm++; if(fm>12){fm=1;fy++;}
@@ -1131,15 +1105,11 @@ async function renderAnalytics() {
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Không có dữ liệu.</td></tr>`;
 
   // ─── DEBT (công nợ) ───
-  // Load tất cả đơn pending trong range từ Supabase
-  let debtOrders = [];
-  try {
-    const allData = await sb('orders', `select=*&da_tat_toan=eq.false&order=order_date.desc`);
-    debtOrders = (allData||[]).filter(o => {
-      const tk = o.thang_bonus || o.thang;
-      return tk >= fromKey && tk <= toKey && (o.balance||0) < 0;
-    });
-  } catch(e) { debtOrders = []; }
+  // Dùng allOrders đã load, lọc pending trong range
+  const debtOrders = allOrders.filter(o => {
+    const tk2 = o.thang_bonus || o.thang;
+    return tk2 >= fk && tk2 <= tk && !o.da_tat_toan && (o.balance||0) < 0;
+  });
 
   const debtEmpty = document.getElementById('an-debt-empty');
   if(!debtOrders.length) {
@@ -1174,8 +1144,8 @@ async function renderAnalytics() {
 
 
 // ─── CALCULATIONS ───
-function getOrdersByDate() { return allOrders.filter(o => o.thang === curKey()); }
-function getOrdersByMonth() { return allOrders.filter(o => o.thang_bonus === curKey()); }
+function getOrdersByDate() { return allOrders.filter(o => o.thang >= fromKey() && o.thang <= toKey()); }
+function getOrdersByMonth() { return allOrders.filter(o => (o.thang_bonus||o.thang) >= fromKey() && (o.thang_bonus||o.thang) <= toKey()); }
 function getPendingOrders() { return allOrders.filter(o => !o.da_tat_toan && (o.balance||0) < 0); }
 
 function calcRevDate() { return getOrdersByDate().reduce((s,o) => s+(o.total||0), 0); }
@@ -1624,7 +1594,7 @@ function toast(msg,type='green'){
 }
 
 // ─── INIT ───
-document.getElementById('cur-month-lbl').textContent = `Tháng ${curMonth}/${curYear}`;
+updateRangeLabels();
 loadAll();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
