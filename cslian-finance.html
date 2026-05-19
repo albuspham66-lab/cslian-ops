@@ -689,16 +689,40 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 
   <div class="card gap">
-    <div class="ctitle">Hoa hồng TSPA theo sản phẩm</div>
-    <div class="alert alert-blue" style="margin-bottom:12px;">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      Mặc định TSPA = 3%. Cập nhật sản phẩm cụ thể nếu rate là 5% bằng cách sửa cột commission_rate trong Supabase.
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div class="ctitle" style="margin-bottom:0;">Quản lý sản phẩm</div>
+      <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
     </div>
+    <!-- Filters -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <input type="text" id="prod-search" placeholder="Tìm SKU, tên sản phẩm..." oninput="filterProducts()" style="flex:1;min-width:180px;padding:7px 11px;font-size:12px;">
+      <select id="prod-vendor-filter" onchange="filterProducts()" style="width:130px;padding:7px 10px;font-size:12px;">
+        <option value="">Tất cả Vendor</option>
+        <option value="BOLSA">BOLSA</option>
+        <option value="ONS">ONS</option>
+        <option value="TSPA">TSPA</option>
+      </select>
+      <select id="prod-status-filter" onchange="filterProducts()" style="width:130px;padding:7px 10px;font-size:12px;">
+        <option value="">Tất cả</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <!-- Table -->
     <div class="tw">
       <table>
-        <thead><tr><th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th><th class="num">Giá bán ($)</th><th class="num">Cost ($)</th><th class="num">Commission rate</th></tr></thead>
+        <thead><tr>
+          <th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
+          <th class="num">Giá bán ($)</th><th class="num">Cost ($)</th>
+          <th class="num">Commission</th><th>Headspa</th><th>Trạng thái</th><th></th>
+        </tr></thead>
         <tbody id="prod-tbl"></tbody>
       </table>
+    </div>
+    <!-- Pagination -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:var(--text2);" id="prod-count">—</div>
+      <div style="display:flex;gap:6px;" id="prod-pagination"></div>
     </div>
   </div>
 </div>
@@ -738,6 +762,73 @@ textarea{resize:vertical;min-height:70px;}
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('m-exp')">Huỷ</button>
       <button class="btn btn-primary" onclick="addExpense()">Thêm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Thêm / Sửa sản phẩm ══ -->
+<div class="mbg" id="m-prod">
+  <div class="modal" style="width:560px;">
+    <div class="modal-title" id="m-prod-title">Thêm sản phẩm</div>
+    <input type="hidden" id="p-id">
+    <div class="fgrid2">
+      <div class="fg"><label class="fl">SKU</label><input type="text" id="p-sku" placeholder="VD: BLS-001"></div>
+      <div class="fg"><label class="fl">Vendor</label>
+        <select id="p-vendor" onchange="onVendorChange()">
+          <option value="BOLSA">BOLSA</option>
+          <option value="ONS">ONS</option>
+          <option value="TSPA">TSPA</option>
+        </select>
+      </div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Tên sản phẩm</label><input type="text" id="p-name" placeholder="VD: BOLSA_Headspa Bed Pro"></div>
+      <div class="fg"><label class="fl">Giá bán C-Slian ($)</label><input type="number" id="p-gia-ban" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">Giá cost Vendor ($)</label><input type="number" id="p-vendor-cost" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">Giá tốt nhất ($)</label><input type="number" id="p-gia-tot" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">Commission rate (%)</label><input type="number" id="p-commission" min="0" max="100" step="0.1" value="3"></div>
+      <div class="fg"><label class="fl">Màu / Variant</label><input type="text" id="p-variant" placeholder="VD: Black, White..."></div>
+      <div class="fg"><label class="fl">Trạng thái</label>
+        <select id="p-active">
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+      </div>
+      <div class="fg" style="grid-column:span 2;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);" id="p-bolsa-wrap">
+        <input type="checkbox" id="p-la-bolsa" style="width:16px;height:16px;accent-color:var(--amber);cursor:pointer;">
+        <div>
+          <label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed (BOLSA)</label>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sản phẩm thay vì 1% doanh số</div>
+        </div>
+      </div>
+      <div class="fg" style="grid-column:span 2;" id="p-note-wrap">
+        <label class="fl">Ghi chú lý do thay đổi giá (nếu sửa)</label>
+        <input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026">
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
+      <button class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Lịch sử giá ══ -->
+<div class="mbg" id="m-price-hist">
+  <div class="modal" style="width:620px;">
+    <div class="modal-title" id="ph-title">Lịch sử giá</div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Thời gian</th>
+          <th class="num">Giá bán cũ</th><th class="num">Giá bán mới</th>
+          <th class="num">Cost cũ</th><th class="num">Cost mới</th>
+          <th>Người sửa</th><th>Ghi chú</th>
+        </tr></thead>
+        <tbody id="ph-body"></tbody>
+      </table>
+    </div>
+    <div id="ph-empty" style="text-align:center;padding:24px;color:var(--text3);font-size:13px;">Chưa có lịch sử thay đổi giá.</div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-price-hist')">Đóng</button>
     </div>
   </div>
 </div>
@@ -826,7 +917,7 @@ async function loadAll() {
       sb('profiles', `select=*&order=ho_ten.asc`),
       sb('salary_monthly', `select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly', `select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products', `select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,vendor_cost,commission_rate&active=eq.true&order=vendor.asc,ten_sp.asc`)
+      sb('products', `select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,gia_tot_nhat,vendor_cost,commission_rate,mau_variant,active&active=eq.true&order=vendor.asc,ten_sp.asc`)
     ]);
     allOrders = orders || [];
     allExpenses = expenses || [];
@@ -1508,27 +1599,223 @@ function exportReport() {
   const csv = rows.map(r=>r.map?r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(','):'').join('\n');
   const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`cslian-baocao-${curKey()}.csv`;a.click();
+  a.download=`cslian-baocao-${fromKey()}.csv`;a.click();
   toast('Đã xuất báo cáo CSV','blue');
 }
 
 // ─── SETTINGS ───
+let prodPage = 1;
+const PROD_PER_PAGE = 30;
+let prodFiltered = [];
+
 function renderSettings() {
   document.getElementById('cfg-url').value = CFG.url||SUPA_URL;
   document.getElementById('cfg-key').value = CFG.key||SUPA_KEY;
   document.getElementById('cfg-rate').value = CFG.rate||25000;
   document.getElementById('cfg-target').value = CFG.target||23500;
   document.getElementById('cfg-extra-pct').value = CFG.extraPct||30;
+  prodPage = 1;
+  filterProducts();
+}
 
-  // Products table
-  document.getElementById('prod-tbl').innerHTML = allProducts.slice(0,30).map(p=>`<tr>
-    <td style="font-size:11px;color:var(--text2);">${p.sku||'—'}</td>
-    <td style="font-size:12px;">${p.ten_sp||'—'}</td>
+function filterProducts() {
+  const q = (document.getElementById('prod-search')?.value||'').toLowerCase();
+  const vendor = document.getElementById('prod-vendor-filter')?.value||'';
+  const status = document.getElementById('prod-status-filter')?.value||'';
+  prodFiltered = allProducts.filter(p => {
+    const matchQ = !q || (p.sku||'').toLowerCase().includes(q) || (p.ten_sp||'').toLowerCase().includes(q);
+    const matchV = !vendor || p.vendor===vendor;
+    const matchS = !status || (status==='active'?p.active!==false:p.active===false);
+    return matchQ && matchV && matchS;
+  });
+  prodPage = 1;
+  renderProductTable();
+}
+
+function renderProductTable() {
+  const total = prodFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total/PROD_PER_PAGE));
+  if(prodPage > totalPages) prodPage = totalPages;
+  const start = (prodPage-1)*PROD_PER_PAGE;
+  const page = prodFiltered.slice(start, start+PROD_PER_PAGE);
+
+  document.getElementById('prod-count').textContent = `${total} sản phẩm · Trang ${prodPage}/${totalPages}`;
+
+  document.getElementById('prod-tbl').innerHTML = page.map(p => `<tr>
+    <td style="font-size:11px;color:var(--blue2);font-weight:500;">${p.sku||'—'}</td>
+    <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.ten_sp||'—'}</td>
     <td><span class="b ${p.vendor==='BOLSA'?'b-amber':p.vendor==='ONS'?'b-blue':'b-purple'}">${p.vendor||'—'}</span></td>
-    <td class="num">${fmtUSD(p.gia_ban)}</td>
+    <td class="num" style="color:var(--green2);">${fmtUSD(p.gia_ban)}</td>
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
-    <td class="num" style="color:var(--green2);">${((p.commission_rate||0.03)*100).toFixed(1)}%</td>
-  </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3);">Chưa load sản phẩm.</td></tr>';
+    <td class="num" style="color:var(--teal2);">${((p.commission_rate||0.03)*100).toFixed(1)}%</td>
+    <td style="text-align:center;">${p.la_bolsa?'<span class="b b-amber">✓</span>':'—'}</td>
+    <td><span class="b ${p.active!==false?'b-green':'b-gray'}">${p.active!==false?'Active':'Inactive'}</span></td>
+    <td>
+      <div style="display:flex;gap:4px;">
+        <button class="act-btn" onclick="showPriceHistory('${p.id}','${(p.ten_sp||'').replace(/'/g,"\\'")}')">📋</button>
+        <button class="act-btn" onclick="editProduct('${p.id}')">✏️</button>
+        <button class="act-btn act-del" onclick="deleteProduct('${p.id}','${(p.ten_sp||'').replace(/'/g,"\\'")}')">✕</button>
+      </div>
+    </td>
+  </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>`;
+
+  // Pagination
+  const pages = [];
+  for(let i=1;i<=totalPages;i++) {
+    if(totalPages<=7 || i===1 || i===totalPages || Math.abs(i-prodPage)<=1) {
+      pages.push(`<button class="btn btn-sm ${i===prodPage?'btn-primary':'btn-ghost'}" onclick="goPage(${i})">${i}</button>`);
+    } else if(pages[pages.length-1]!=='...') pages.push('...');
+  }
+  document.getElementById('prod-pagination').innerHTML = pages.map(p=>
+    p==='...' ? `<span style="color:var(--text3);padding:0 4px;line-height:32px;">…</span>` : p
+  ).join('');
+}
+
+function goPage(p) { prodPage=p; renderProductTable(); }
+
+function onVendorChange() {
+  const v = document.getElementById('p-vendor').value;
+  document.getElementById('p-bolsa-wrap').style.display = v==='BOLSA' ? 'flex' : 'none';
+  if(v!=='BOLSA') document.getElementById('p-la-bolsa').checked = false;
+  document.getElementById('p-commission').value = v==='TSPA' ? 3 : v==='ONS' ? 1 : 0;
+}
+
+function openProductModal() {
+  document.getElementById('m-prod-title').textContent = 'Thêm sản phẩm';
+  document.getElementById('m-prod-btn').textContent = 'Thêm sản phẩm';
+  document.getElementById('p-id').value = '';
+  document.getElementById('p-sku').value = '';
+  document.getElementById('p-name').value = '';
+  document.getElementById('p-vendor').value = 'BOLSA';
+  document.getElementById('p-gia-ban').value = '';
+  document.getElementById('p-vendor-cost').value = '';
+  document.getElementById('p-gia-tot').value = '';
+  document.getElementById('p-commission').value = '0';
+  document.getElementById('p-variant').value = '';
+  document.getElementById('p-active').value = 'true';
+  document.getElementById('p-la-bolsa').checked = false;
+  document.getElementById('p-note').value = '';
+  document.getElementById('p-note-wrap').style.display = 'none';
+  onVendorChange();
+  openModal('m-prod');
+}
+
+function editProduct(id) {
+  const p = allProducts.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('m-prod-title').textContent = 'Sửa sản phẩm';
+  document.getElementById('m-prod-btn').textContent = 'Lưu thay đổi';
+  document.getElementById('p-id').value = p.id;
+  document.getElementById('p-sku').value = p.sku||'';
+  document.getElementById('p-name').value = p.ten_sp||'';
+  document.getElementById('p-vendor').value = p.vendor||'BOLSA';
+  document.getElementById('p-gia-ban').value = p.gia_ban||0;
+  document.getElementById('p-vendor-cost').value = p.vendor_cost||0;
+  document.getElementById('p-gia-tot').value = p.gia_tot_nhat||'';
+  document.getElementById('p-commission').value = ((p.commission_rate||0.03)*100).toFixed(1);
+  document.getElementById('p-variant').value = p.mau_variant||'';
+  document.getElementById('p-active').value = p.active===false ? 'false' : 'true';
+  document.getElementById('p-la-bolsa').checked = !!p.la_bolsa;
+  document.getElementById('p-note').value = '';
+  document.getElementById('p-note-wrap').style.display = 'block';
+  onVendorChange();
+  if(p.vendor==='BOLSA') document.getElementById('p-la-bolsa').checked = !!p.la_bolsa;
+  openModal('m-prod');
+}
+
+async function saveProduct() {
+  const id = document.getElementById('p-id').value;
+  const isEdit = !!id;
+  const data = {
+    sku: document.getElementById('p-sku').value.trim(),
+    ten_sp: document.getElementById('p-name').value.trim(),
+    vendor: document.getElementById('p-vendor').value,
+    gia_ban: parseFloat(document.getElementById('p-gia-ban').value)||0,
+    vendor_cost: parseFloat(document.getElementById('p-vendor-cost').value)||0,
+    gia_tot_nhat: parseFloat(document.getElementById('p-gia-tot').value)||null,
+    commission_rate: parseFloat(document.getElementById('p-commission').value)/100||0.03,
+    mau_variant: document.getElementById('p-variant').value.trim()||null,
+    active: document.getElementById('p-active').value === 'true',
+    la_bolsa: document.getElementById('p-la-bolsa').checked,
+    updated_at: new Date().toISOString()
+  };
+  if(!data.sku || !data.ten_sp) { toast('Vui lòng nhập SKU và tên sản phẩm','amber'); return; }
+
+  try {
+    if(isEdit) {
+      // Log price history trước khi update
+      const old = allProducts.find(p=>p.id===id);
+      const note = document.getElementById('p-note').value.trim();
+      if(old && (old.gia_ban!==data.gia_ban || old.vendor_cost!==data.vendor_cost || old.commission_rate!==data.commission_rate)) {
+        await sbInsert('product_price_history', {
+          product_id: id,
+          sku: data.sku,
+          ten_sp: data.ten_sp,
+          gia_ban_cu: old.gia_ban,
+          gia_ban_moi: data.gia_ban,
+          vendor_cost_cu: old.vendor_cost,
+          vendor_cost_moi: data.vendor_cost,
+          commission_rate_cu: old.commission_rate,
+          commission_rate_moi: data.commission_rate,
+          changed_by: 'Manager',
+          ghi_chu: note||null
+        });
+      }
+      // Update product
+      const r = await fetch(`${CFG.url}/rest/v1/products?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=representation'},
+        body: JSON.stringify(data)
+      });
+      if(!r.ok) throw new Error(await r.text());
+      toast('Đã cập nhật sản phẩm','green');
+    } else {
+      await sbInsert('products', data);
+      toast('Đã thêm sản phẩm mới','green');
+    }
+    closeModal('m-prod');
+    // Reload products
+    const prods = await sb('products','select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,gia_tot_nhat,vendor_cost,commission_rate,mau_variant,active&order=vendor.asc,ten_sp.asc');
+    allProducts = prods||[];
+    filterProducts();
+  } catch(e) { toast('Lỗi: '+e.message,'red'); }
+}
+
+async function deleteProduct(id, name) {
+  if(!confirm(`Xóa sản phẩm "${name}"?\n\nLịch sử đơn hàng sẽ không bị ảnh hưởng.`)) return;
+  try {
+    await sbDelete('products', id);
+    allProducts = allProducts.filter(p=>p.id!==id);
+    filterProducts();
+    toast('Đã xóa sản phẩm','green');
+  } catch(e) { toast('Lỗi: '+e.message,'red'); }
+}
+
+async function showPriceHistory(id, name) {
+  document.getElementById('ph-title').textContent = `Lịch sử giá · ${name}`;
+  document.getElementById('ph-body').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);"><span class="spin"></span> Đang tải...</td></tr>`;
+  document.getElementById('ph-empty').style.display = 'none';
+  openModal('m-price-hist');
+  try {
+    const data = await sb('product_price_history', `product_id=eq.${id}&order=changed_at.desc`);
+    const rows = data||[];
+    if(!rows.length) {
+      document.getElementById('ph-body').innerHTML = '';
+      document.getElementById('ph-empty').style.display = 'block';
+      return;
+    }
+    document.getElementById('ph-body').innerHTML = rows.map(r=>`<tr>
+      <td style="font-size:11px;color:var(--text2);">${r.changed_at?new Date(r.changed_at).toLocaleString('vi-VN'):'—'}</td>
+      <td class="num" style="color:var(--red2);">${fmtUSD(r.gia_ban_cu)}</td>
+      <td class="num" style="color:var(--green2);">${fmtUSD(r.gia_ban_moi)}</td>
+      <td class="num" style="color:var(--red2);">${fmtUSD(r.vendor_cost_cu)}</td>
+      <td class="num" style="color:var(--green2);">${fmtUSD(r.vendor_cost_moi)}</td>
+      <td style="font-size:12px;">${r.changed_by||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${r.ghi_chu||'—'}</td>
+    </tr>`).join('');
+  } catch(e) {
+    document.getElementById('ph-body').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red2);">Lỗi: ${e.message}</td></tr>`;
+  }
 }
 
 function saveConfig() {
