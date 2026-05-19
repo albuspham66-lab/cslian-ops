@@ -259,6 +259,12 @@ textarea{resize:vertical;min-height:70px;}
       Nhân sự
     </button>
 
+    <div class="s-grp">Phân tích</div>
+    <button class="s-item" data-pg="analytics">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><rect x="4" y="14" width="4" height="6" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="10" width="4" height="10" rx="1"/></svg>
+      Tổng hợp doanh thu
+    </button>
+
     <div class="s-grp">Báo cáo</div>
     <button class="s-item" data-pg="report">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
@@ -342,11 +348,18 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 
   <div class="card gap">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
       <div class="ctitle" style="margin-bottom:0;">Danh sách đơn hàng</div>
-      <select id="ord-agent-filter" onchange="filterOrders()" style="width:180px;padding:6px 10px;font-size:12px;">
-        <option value="">Tất cả Agent</option>
-      </select>
+      <div style="display:flex;gap:8px;">
+        <select id="ord-agent-filter" onchange="filterOrders()" style="width:170px;padding:6px 10px;font-size:12px;">
+          <option value="">Tất cả Agent</option>
+        </select>
+        <select id="ord-status-filter" onchange="filterOrders()" style="width:160px;padding:6px 10px;font-size:12px;">
+          <option value="">Tất cả tình trạng</option>
+          <option value="done">Tất toán</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
     </div>
     <div class="tw">
       <table>
@@ -360,6 +373,98 @@ textarea{resize:vertical;min-height:70px;}
       </table>
     </div>
     <div id="orders-empty" style="text-align:center;padding:28px;color:var(--text3);font-size:13px;display:none;">Không có đơn hàng nào trong tháng này.</div>
+  </div>
+</div>
+
+<!-- ══ ANALYTICS ══ -->
+<div class="page" id="pg-analytics">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Tổng hợp doanh thu</div>
+      <div class="ph-sub">Phân tích theo Vendor · Lọc theo khoảng thời gian</div>
+    </div>
+  </div>
+
+  <!-- Bộ lọc thời gian riêng -->
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;">Từ tháng</span>
+      <select id="an-from" onchange="renderAnalytics()" style="width:130px;padding:7px 10px;font-size:13px;"></select>
+      <span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;">Đến tháng</span>
+      <select id="an-to" onchange="renderAnalytics()" style="width:130px;padding:7px 10px;font-size:13px;"></select>
+      <button class="btn btn-ghost btn-sm" onclick="renderAnalytics()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        Cập nhật
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric strip -->
+  <div class="mrow" style="grid-template-columns:repeat(4,1fr);">
+    <div class="mc green"><div class="mc-lbl">Tổng doanh thu</div><div class="mc-val" id="an-rev">—</div><div class="mc-sub">USD · Đơn tất toán</div></div>
+    <div class="mc teal"><div class="mc-lbl">Hoa hồng C-Slian</div><div class="mc-val" id="an-comm">—</div><div class="mc-sub">USD · Ước tính</div></div>
+    <div class="mc amber"><div class="mc-lbl">Bonus Sale</div><div class="mc-val" id="an-bonus">—</div><div class="mc-sub">USD · Tổng P3A</div></div>
+    <div class="mc blue"><div class="mc-lbl">Lợi nhuận (USD)</div><div class="mc-val" id="an-profit">—</div><div class="mc-sub">Trước chi phí VNĐ</div></div>
+  </div>
+
+  <!-- Biểu đồ cột grouped -->
+  <div class="card gap">
+    <div class="ctitle">Doanh thu theo Vendor & Tháng</div>
+    <div style="position:relative;width:100%;height:260px;">
+      <canvas id="an-chart"></canvas>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);"><span style="width:10px;height:10px;border-radius:2px;background:#f5b842;display:inline-block;"></span>BOLSA</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);"><span style="width:10px;height:10px;border-radius:2px;background:#6fa3ff;display:inline-block;"></span>ONS</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);"><span style="width:10px;height:10px;border-radius:2px;background:#b08aff;display:inline-block;"></span>TSPA</span>
+    </div>
+  </div>
+
+  <!-- Bảng chi tiết theo Vendor -->
+  <div class="card gap">
+    <div class="ctitle">Chi tiết theo Vendor</div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Vendor</th>
+          <th class="num">Doanh thu ($)</th>
+          <th class="num">Hoa hồng C-Slian ($)</th>
+          <th class="num">Bonus Sale ($)</th>
+          <th class="num">Lợi nhuận ($)</th>
+          <th class="num">% Margin</th>
+        </tr></thead>
+        <tbody id="an-vendor-body"></tbody>
+        <tfoot>
+          <tr class="tf">
+            <td>Tổng cộng</td>
+            <td class="num" id="an-vf-rev">—</td>
+            <td class="num" id="an-vf-comm">—</td>
+            <td class="num" id="an-vf-bonus">—</td>
+            <td class="num" id="an-vf-profit">—</td>
+            <td class="num" id="an-vf-margin">—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Bảng chi tiết theo Agent -->
+  <div class="card gap">
+    <div class="ctitle">Chi tiết theo Agent</div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Agent</th>
+          <th class="num">BOLSA ($)</th>
+          <th class="num">ONS ($)</th>
+          <th class="num">TSPA ($)</th>
+          <th class="num">Tổng doanh thu ($)</th>
+          <th class="num">Bonus P3A ($)</th>
+          <th class="num">Số đơn</th>
+        </tr></thead>
+        <tbody id="an-agent-body"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -775,6 +880,7 @@ function refreshCurrentPage() {
 function renderPage(id) {
   if(id==='dashboard') renderDashboard();
   else if(id==='orders') renderOrders();
+  else if(id==='analytics') renderAnalytics();
   else if(id==='expense') renderExpense();
   else if(id==='profit') renderProfit();
   else if(id==='salary') renderSalary();
@@ -782,6 +888,204 @@ function renderPage(id) {
   else if(id==='report') renderReport();
   else if(id==='settings') renderSettings();
 }
+
+// ─── ANALYTICS ───
+let anChart = null;
+
+function buildAnalyticsMonthOptions() {
+  // Generate last 12 months + next 3
+  const now = new Date();
+  const months = [];
+  for(let i = -11; i <= 2; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    const k = monthKey(d.getFullYear(), d.getMonth()+1);
+    months.push(k);
+  }
+  // Also include any months from allOrders
+  allOrders.forEach(o => {
+    if(o.thang && !months.includes(o.thang)) months.push(o.thang);
+    if(o.thang_bonus && !months.includes(o.thang_bonus)) months.push(o.thang_bonus);
+  });
+  return [...new Set(months)].sort();
+}
+
+function initAnalyticsSelects() {
+  const months = buildAnalyticsMonthOptions();
+  const fromSel = document.getElementById('an-from');
+  const toSel = document.getElementById('an-to');
+  const curFrom = fromSel.value;
+  const curTo = toSel.value;
+  const opts = months.map(m => `<option value="${m}">${fmtMonthKey(m)}</option>`).join('');
+  fromSel.innerHTML = opts;
+  toSel.innerHTML = opts;
+  // Default: from = 3 months ago, to = current month
+  const defaultFrom = monthKey(curYear, curMonth-2 > 0 ? curMonth-2 : 1);
+  const defaultTo = monthKey(curYear, curMonth);
+  fromSel.value = curFrom || (months.includes(defaultFrom) ? defaultFrom : months[0]);
+  toSel.value = curTo || (months.includes(defaultTo) ? defaultTo : months[months.length-1]);
+}
+
+async function loadAnalyticsData(fromKey, toKey) {
+  // Load all orders in range from Supabase
+  try {
+    const orders = await sb('orders',
+      `select=*&or=(thang.gte.${fromKey},thang_bonus.gte.${fromKey})&order=order_date.asc`
+    );
+    return (orders||[]).filter(o => {
+      const tk = o.thang_bonus || o.thang;
+      return tk >= fromKey && tk <= toKey && o.da_tat_toan;
+    });
+  } catch(e) { return []; }
+}
+
+function renderAnalytics() {
+  initAnalyticsSelects();
+  const fromKey = document.getElementById('an-from').value;
+  const toKey = document.getElementById('an-to').value;
+  if(!fromKey || !toKey || fromKey > toKey) return;
+
+  // Filter from already loaded + load more if needed
+  const orders = allOrders.filter(o => {
+    const tk = o.thang_bonus || o.thang;
+    return tk >= fromKey && tk <= toKey && o.da_tat_toan;
+  });
+
+  // Build month range
+  const monthRange = [];
+  let [fy, fm] = fromKey.split('-').map(Number);
+  const [ty, tm] = toKey.split('-').map(Number);
+  while(fy < ty || (fy===ty && fm<=tm)) {
+    monthRange.push(monthKey(fy, fm));
+    fm++; if(fm>12){fm=1;fy++;}
+  }
+
+  // Aggregate by month & vendor
+  const byMonth = {};
+  monthRange.forEach(m => { byMonth[m] = {bolsa:0, ons:0, tspa:0}; });
+  orders.forEach(o => {
+    const m = o.thang_bonus || o.thang;
+    if(byMonth[m]) {
+      byMonth[m].bolsa += o.doanh_thu_bolsa||0;
+      byMonth[m].ons   += o.doanh_thu_ons||0;
+      byMonth[m].tspa  += o.doanh_thu_tspa||0;
+    }
+  });
+
+  // Total vendor
+  const totBolsa = orders.reduce((s,o)=>s+(o.doanh_thu_bolsa||0),0);
+  const totOns   = orders.reduce((s,o)=>s+(o.doanh_thu_ons||0),0);
+  const totTspa  = orders.reduce((s,o)=>s+(o.doanh_thu_tspa||0),0);
+  const totRev   = totBolsa+totOns+totTspa;
+
+  // Commission estimates
+  const avgBolsaCost = allProducts.filter(p=>p.la_bolsa&&p.vendor==='BOLSA').reduce((s,p)=>s+(p.vendor_cost||0),0) /
+    Math.max(1, allProducts.filter(p=>p.la_bolsa&&p.vendor==='BOLSA').length);
+  const totGiuong = orders.reduce((s,o)=>s+(o.so_giuong_bolsa||0),0);
+  const commBolsa = totGiuong*avgBolsaCost*0.07 + (totBolsa - totGiuong*1500)*0.05;
+  const commOns   = totOns * 0.70 * 0.08;
+  const commTspa  = totTspa * 0.03;
+  const totComm   = Math.max(0,commBolsa) + commOns + commTspa;
+
+  // Bonus P3A from salary_monthly (current month only, rough)
+  const totBonus = allSalary.reduce((s,r)=>s+(r.p3a_total_usd||0),0);
+
+  const profit = totRev + totComm - totBonus;
+
+  // Metrics
+  set('an-rev', fmtUSD(totRev));
+  set('an-comm', fmtUSD(totComm));
+  set('an-bonus', fmtUSD(totBonus));
+  set('an-profit', fmtUSD(profit));
+  document.getElementById('an-profit').style.color = profit>=0?'var(--green2)':'var(--red2)';
+
+  // Chart
+  const labels = monthRange.map(m => fmtMonthKey(m));
+  const bData = monthRange.map(m => +(byMonth[m].bolsa||0).toFixed(2));
+  const oData = monthRange.map(m => +(byMonth[m].ons||0).toFixed(2));
+  const tData = monthRange.map(m => +(byMonth[m].tspa||0).toFixed(2));
+
+  if(anChart) anChart.destroy();
+  const ctx = document.getElementById('an-chart').getContext('2d');
+  anChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'BOLSA', data:bData, backgroundColor:'rgba(245,184,66,0.8)', borderColor:'#f5b842', borderWidth:1, borderRadius:4 },
+        { label:'ONS',   data:oData, backgroundColor:'rgba(111,163,255,0.8)', borderColor:'#6fa3ff', borderWidth:1, borderRadius:4 },
+        { label:'TSPA',  data:tData, backgroundColor:'rgba(176,138,255,0.8)', borderColor:'#b08aff', borderWidth:1, borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>' '+ctx.dataset.label+': $'+ctx.raw.toLocaleString() } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#7b87a6',font:{size:11}} },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#7b87a6',font:{size:11},callback:v=>'$'+v.toLocaleString()} }
+      }
+    }
+  });
+
+  // Vendor table
+  const vendors = [
+    { name:'BOLSA', rev:totBolsa, comm:Math.max(0,commBolsa), color:'var(--amber2)' },
+    { name:'ONS',   rev:totOns,   comm:commOns, color:'var(--blue2)' },
+    { name:'TSPA',  rev:totTspa,  comm:commTspa, color:'var(--purple2)' }
+  ];
+  const bonusPerVendor = { BOLSA: allSalary.reduce((s,r)=>s+(r.p3a_bolsa_usd||0),0), ONS: allSalary.reduce((s,r)=>s+(r.p3a_ons_tspa_usd||0)*0.5,0), TSPA: allSalary.reduce((s,r)=>s+(r.p3a_ons_tspa_usd||0)*0.5,0) };
+
+  document.getElementById('an-vendor-body').innerHTML = vendors.map(v => {
+    const bon = bonusPerVendor[v.name]||0;
+    const pft = v.rev + v.comm - bon;
+    const margin = v.rev > 0 ? Math.round((v.comm-bon)/v.rev*100) : 0;
+    return `<tr>
+      <td><span class="b ${v.name==='BOLSA'?'b-amber':v.name==='ONS'?'b-blue':'b-purple'}">${v.name}</span></td>
+      <td class="num" style="color:var(--green2);">${fmtUSD(v.rev)}</td>
+      <td class="num" style="color:var(--teal2);">${fmtUSD(v.comm)}</td>
+      <td class="num" style="color:var(--amber2);">${fmtUSD(bon)}</td>
+      <td class="num" style="color:${pft>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(pft)}</td>
+      <td class="num" style="color:${margin>=0?'var(--green2)':'var(--red2)'};">${margin}%</td>
+    </tr>`;
+  }).join('');
+
+  // Footer totals
+  set('an-vf-rev', `<span style="color:var(--green2);">${fmtUSD(totRev)}</span>`);
+  set('an-vf-comm', `<span style="color:var(--teal2);">${fmtUSD(totComm)}</span>`);
+  set('an-vf-bonus', `<span style="color:var(--amber2);">${fmtUSD(totBonus)}</span>`);
+  set('an-vf-profit', `<span style="color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</span>`);
+  const totMargin = totRev > 0 ? Math.round((totComm-totBonus)/totRev*100) : 0;
+  set('an-vf-margin', `<span style="color:${totMargin>=0?'var(--green2)':'var(--red2)'};">${totMargin}%</span>`);
+
+  // Agent table
+  const agentStats = {};
+  allProfiles.forEach(p => { agentStats[p.id] = {name:p.ho_ten, bolsa:0, ons:0, tspa:0, total:0, orders:0, bonus:0}; });
+  orders.forEach(o => {
+    if(agentStats[o.user_id]) {
+      agentStats[o.user_id].bolsa += o.doanh_thu_bolsa||0;
+      agentStats[o.user_id].ons   += o.doanh_thu_ons||0;
+      agentStats[o.user_id].tspa  += o.doanh_thu_tspa||0;
+      agentStats[o.user_id].total += o.total||0;
+      agentStats[o.user_id].orders++;
+    }
+  });
+  allSalary.forEach(s => {
+    if(agentStats[s.user_id]) agentStats[s.user_id].bonus += s.p3a_total_usd||0;
+  });
+
+  document.getElementById('an-agent-body').innerHTML = Object.values(agentStats)
+    .filter(a=>a.total>0)
+    .sort((a,b)=>b.total-a.total)
+    .map(a=>`<tr>
+      <td><b style="color:var(--text)">${a.name}</b></td>
+      <td class="num" style="color:var(--amber2);">${fmtUSD(a.bolsa)}</td>
+      <td class="num" style="color:var(--blue2);">${fmtUSD(a.ons)}</td>
+      <td class="num" style="color:var(--purple2);">${fmtUSD(a.tspa)}</td>
+      <td class="num" style="color:var(--green2);font-weight:600;">${fmtUSD(a.total)}</td>
+      <td class="num" style="color:var(--amber2);">${fmtUSD(a.bonus)}</td>
+      <td class="num"><span class="b b-teal">${a.orders}</span></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Không có dữ liệu trong khoảng thời gian này.</td></tr>`;
+}
+
 
 // ─── CALCULATIONS ───
 function getOrdersByDate() { return allOrders.filter(o => o.thang === curKey()); }
@@ -900,10 +1204,14 @@ function renderOrders() {
 
 function filterOrders() {
   const agent = document.getElementById('ord-agent-filter').value;
-  const filtered = agent ? allOrders.filter(o => {
+  const status = document.getElementById('ord-status-filter').value;
+  let filtered = allOrders;
+  if(agent) filtered = filtered.filter(o => {
     const p = allProfiles.find(p=>p.id===o.user_id);
     return p && p.ho_ten===agent;
-  }) : allOrders;
+  });
+  if(status==='done') filtered = filtered.filter(o=>o.da_tat_toan);
+  if(status==='pending') filtered = filtered.filter(o=>!o.da_tat_toan);
   renderOrdersTable(filtered);
 }
 
@@ -1233,5 +1541,6 @@ function toast(msg,type='green'){
 document.getElementById('cur-month-lbl').textContent = `Tháng ${curMonth}/${curYear}`;
 loadAll();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </body>
 </html>
