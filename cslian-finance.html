@@ -466,6 +466,37 @@ textarea{resize:vertical;min-height:70px;}
       </table>
     </div>
   </div>
+
+  <!-- Công nợ -->
+  <div class="card gap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="ctitle" style="margin-bottom:0;">Công nợ</div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="font-size:12px;color:var(--text2);">Tổng còn lại: <span id="an-debt-total" style="color:var(--red2);font-weight:600;">—</span></div>
+      </div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Mã đơn</th>
+          <th class="num">Total ($)</th>
+          <th class="num">Đã thu ($)</th>
+          <th class="num">Còn lại ($)</th>
+          <th>Sale</th>
+          <th>Tháng đơn</th>
+        </tr></thead>
+        <tbody id="an-debt-body"></tbody>
+        <tfoot>
+          <tr class="tf">
+            <td colspan="3">Tổng công nợ (trừ shipping)</td>
+            <td class="num" id="an-debt-foot" style="color:var(--red2);">—</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div id="an-debt-empty" style="text-align:center;padding:20px;color:var(--text3);font-size:13px;display:none;">Không có công nợ trong khoảng thời gian này.</div>
+  </div>
 </div>
 
 <!-- ══ EXPENSE ══ -->
@@ -998,10 +1029,11 @@ async function renderAnalytics() {
   const commTspa  = totTspa * 0.03;
   const totComm   = Math.max(0,commBolsa) + commOns + commTspa;
 
-  // Bonus P3A from salary_monthly (current month only, rough)
+  // Bonus P3A from salary_monthly
   const totBonus = allSalary.reduce((s,r)=>s+(r.p3a_total_usd||0),0);
 
-  const profit = totRev + totComm - totBonus;
+  // ✅ Lợi nhuận = Hoa hồng C-Slian − Bonus Sale (không cộng doanh thu)
+  const profit = totComm - totBonus;
 
   // Metrics
   set('an-rev', fmtUSD(totRev));
@@ -1048,8 +1080,9 @@ async function renderAnalytics() {
 
   document.getElementById('an-vendor-body').innerHTML = vendors.map(v => {
     const bon = bonusPerVendor[v.name]||0;
-    const pft = v.rev + v.comm - bon;
-    const margin = v.rev > 0 ? Math.round((v.comm-bon)/v.rev*100) : 0;
+    // ✅ Lợi nhuận = Hoa hồng − Bonus (không cộng doanh thu)
+    const pft = v.comm - bon;
+    const margin = v.rev > 0 ? Math.round(pft/v.rev*100) : 0;
     return `<tr>
       <td><span class="b ${v.name==='BOLSA'?'b-amber':v.name==='ONS'?'b-blue':'b-purple'}">${v.name}</span></td>
       <td class="num" style="color:var(--green2);">${fmtUSD(v.rev)}</td>
@@ -1065,7 +1098,7 @@ async function renderAnalytics() {
   set('an-vf-comm', `<span style="color:var(--teal2);">${fmtUSD(totComm)}</span>`);
   set('an-vf-bonus', `<span style="color:var(--amber2);">${fmtUSD(totBonus)}</span>`);
   set('an-vf-profit', `<span style="color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</span>`);
-  const totMargin = totRev > 0 ? Math.round((totComm-totBonus)/totRev*100) : 0;
+  const totMargin = totRev > 0 ? Math.round(profit/totRev*100) : 0;
   set('an-vf-margin', `<span style="color:${totMargin>=0?'var(--green2)':'var(--red2)'};">${totMargin}%</span>`);
 
   // Agent table
@@ -1095,7 +1128,48 @@ async function renderAnalytics() {
       <td class="num" style="color:var(--green2);font-weight:600;">${fmtUSD(a.total)}</td>
       <td class="num" style="color:var(--amber2);">${fmtUSD(a.bonus)}</td>
       <td class="num"><span class="b b-teal">${a.orders}</span></td>
-    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Không có dữ liệu trong khoảng thời gian này.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">Không có dữ liệu.</td></tr>`;
+
+  // ─── DEBT (công nợ) ───
+  // Load tất cả đơn pending trong range từ Supabase
+  let debtOrders = [];
+  try {
+    const allData = await sb('orders', `select=*&da_tat_toan=eq.false&order=order_date.desc`);
+    debtOrders = (allData||[]).filter(o => {
+      const tk = o.thang_bonus || o.thang;
+      return tk >= fromKey && tk <= toKey && (o.balance||0) < 0;
+    });
+  } catch(e) { debtOrders = []; }
+
+  const debtEmpty = document.getElementById('an-debt-empty');
+  if(!debtOrders.length) {
+    document.getElementById('an-debt-body').innerHTML = '';
+    debtEmpty.style.display = 'block';
+    set('an-debt-foot', '$0.00');
+    set('an-debt-total', '$0.00');
+    return;
+  }
+  debtEmpty.style.display = 'none';
+
+  // Tổng công nợ = |balance| - shipping
+  const totDebt = debtOrders.reduce((s,o) => s + Math.abs(o.balance||0) - (o.shipping||0), 0);
+  set('an-debt-total', fmtUSD(Math.max(0, totDebt)));
+  set('an-debt-foot', fmtUSD(Math.max(0, totDebt)));
+
+  document.getElementById('an-debt-body').innerHTML = debtOrders.map(o => {
+    const profile = allProfiles.find(p=>p.id===o.user_id);
+    const saleName = profile ? profile.ho_ten : '—';
+    const collected = (o.total||0) - Math.abs(o.balance||0);
+    const remaining = Math.abs(o.balance||0) - (o.shipping||0);
+    return `<tr>
+      <td style="color:var(--blue2);font-size:12px;font-weight:500;">${o.ma_don||'—'}</td>
+      <td class="num" style="color:var(--green2);">${fmtUSD(o.total)}</td>
+      <td class="num" style="color:var(--text2);">${fmtUSD(Math.max(0,collected))}</td>
+      <td class="num" style="color:var(--red2);font-weight:600;">${fmtUSD(Math.max(0,remaining))}</td>
+      <td><span style="font-size:12px;color:var(--text);">${saleName}</span></td>
+      <td style="color:var(--text3);font-size:12px;">${o.thang||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 
