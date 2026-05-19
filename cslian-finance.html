@@ -1164,7 +1164,7 @@ function calcCommission() {
 
 // ─── DASHBOARD ───
 function renderDashboard() {
-  document.getElementById('dash-sub').textContent = `Tổng quan tài chính · Tháng ${curMonth}/${curYear}`;
+  document.getElementById('dash-sub').textContent = `Tổng quan tài chính · ${isSingleMonth() ? "Tháng "+rangeFrom.month+"/"+rangeFrom.year : "T"+rangeFrom.month+"/"+rangeFrom.year+" → T"+rangeTo.month+"/"+rangeTo.year}`;
   const revD = calcRevDate(), revM = calcRevMonth(), exp = calcTotalExp();
   const pending = getPendingOrders().reduce((s,o)=>s+Math.abs(o.balance||0),0);
 
@@ -1447,7 +1447,7 @@ function closeStaffDetail() { document.getElementById('staff-detail').style.disp
 
 // ─── REPORT ───
 function renderReport() {
-  document.getElementById('rpt-sub').textContent = `Tổng kết · Tháng ${curMonth}/${curYear}`;
+  document.getElementById('rpt-sub').textContent = `Tổng kết · ${isSingleMonth() ? "Tháng "+rangeFrom.month+"/"+rangeFrom.year : "T"+rangeFrom.month+"/"+rangeFrom.year+" → T"+rangeTo.month+"/"+rangeTo.year}`;
   const revM = calcRevMonth();
   const exp = calcTotalExp();
   const sal = calcTotalSalary();
@@ -1490,7 +1490,7 @@ function exportReport() {
   const revM = calcRevMonth(), exp = calcTotalExp(), sal = calcTotalSalary();
   const cm = calcCommission(), net = revM*CFG.rate+cm.total*CFG.rate-exp-sal;
   const rows = [
-    ['Báo cáo tháng', `${curMonth}/${curYear}`],[''],
+    ['Báo cáo tháng', `${rangeFrom.month}/${rangeFrom.year}`],[''],
     ['Doanh thu (hoàn tất USD)', revM],
     ['Hoa hồng C-Slian USD', cm.total],
     ['Chi phí vận hành VNĐ', exp],
