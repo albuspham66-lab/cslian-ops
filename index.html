@@ -477,6 +477,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <div><div class="uname" id="tb-name"></div><div class="urole" id="tb-role"></div></div>
       </div>
       <a href="guilde.html" target="_blank" id="guide-link" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border2);border-radius:7px;font-size:12px;color:var(--text2);text-decoration:none;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif" onmouseover="this.style.color='var(--accent)';this.style.borderColor='rgba(79,127,255,0.4)'" onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">📖 Hướng dẫn</a>
+      <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank" id="crm-link" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid rgba(34,199,122,0.3);border-radius:7px;font-size:12px;color:var(--success);text-decoration:none;font-weight:600;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif;background:var(--success-bg)" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">🎯 CRM</a>
+      <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank" id="finance-link" style="display:none;align-items:center;gap:5px;padding:5px 12px;border:1px solid rgba(167,139,250,0.3);border-radius:7px;font-size:12px;color:var(--manager);text-decoration:none;font-weight:600;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif;background:var(--manager-bg)" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">💹 Finance</a>
       <button class="btn-logout" onclick="doLogout()">Đăng xuất</button>
     </div>
   </div>
@@ -1250,6 +1252,11 @@ async function initApp(user){
   if(curProfile.role==='manager'||curProfile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
+  // Finance link chỉ Manager
+  if(curProfile.role==='manager'){
+    var fl=document.getElementById('finance-link');
+    if(fl) fl.style.display='inline-flex';
+  }
 
   populateSelects();
   if(curProfile.role==='manager'||curProfile.role==='leader')renderEmpGrid();
@@ -1480,7 +1487,7 @@ async function renderAttTable(){
       <td style="font-family:'JetBrains Mono',monospace">${coShow}</td>
       <td>${hShow}</td><td>${statusHtml}</td>
       <td style="color:var(--success)">${sShow}</td><td>${noteHtml}</td>
-      <td>${isMgr?`<button class="icon-btn" onclick="openDayModal('${empId}','${ds}','${rec?rec.status:'WD'}','${rec&&rec.checkin_time?rec.checkin_time.slice(0,5):''}','${rec&&rec.checkout_time?rec.checkout_time.slice(0,5):''}','${rec&&rec.note?rec.note:''}',${!!rec})">✏️</button>`:''}</td></tr>`;
+      <td>${isMgr?`<button class="icon-btn" onclick="openDayModalById('${empId}','${ds}')">✏️</button>`:''}</td></tr>`;
   }
   const penalty=late===1?PHAT1:late>=2?PHAT2:0,finalS=Math.max(0,totalS-penalty);
   document.getElementById('att-tbody').innerHTML=tbody;
@@ -1494,6 +1501,19 @@ async function renderAttTable(){
 function changeMonth(d){curMonth+=d;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}renderAttTable();}
 
 // DAY MODAL
+async function openDayModalById(empId, ds){
+  // Fetch bản ghi thật từ DB để tránh lỗi encode
+  var {data:rec} = await sb.from('attendance').select('*')
+    .eq('user_id', empId).eq('date', ds).maybeSingle();
+  openDayModal(empId, ds,
+    rec ? rec.status : 'WD',
+    rec && rec.checkin_time ? rec.checkin_time.slice(0,5) : '',
+    rec && rec.checkout_time ? rec.checkout_time.slice(0,5) : '',
+    rec && rec.note ? rec.note : '',
+    !!rec
+  );
+}
+
 function openDayModal(empId,ds,status,ci,co,note,hasRecord){
   editingDay={empId,ds};
   document.getElementById('dm-title').textContent=ds;
@@ -1501,7 +1521,6 @@ function openDayModal(empId,ds,status,ci,co,note,hasRecord){
   document.getElementById('dm-ci').value=ci||'';
   document.getElementById('dm-co').value=co||'';
   document.getElementById('dm-note').value=note||'';
-  // Hiện nút Xóa nếu đã có bản ghi
   var delBtn=document.getElementById('dm-delete-btn');
   if(delBtn) delBtn.style.display=hasRecord?'inline-flex':'none';
   dmToggle();
@@ -1515,27 +1534,41 @@ async function saveDay(){
   const ci=document.getElementById('dm-ci').value;
   const co=document.getElementById('dm-co').value;
   const note=document.getElementById('dm-note').value;
-  // Chỉ lưu checkin/checkout nếu là WD, các trạng thái khác null
   const isWD=st==='WD';
-  const{error}=await sb.from('attendance').upsert({
-    user_id:empId,date:ds,status:st,
+  const payload={
+    user_id:empId, date:ds, status:st,
     checkin_time:isWD&&ci?ci+':00':null,
     checkout_time:isWD&&co?co+':00':null,
     note:note||null
-  },{onConflict:'user_id,date'});
+  };
+  // Kiểm tra record có tồn tại không
+  const{data:existing}=await sb.from('attendance').select('id')
+    .eq('user_id',empId).eq('date',ds).maybeSingle();
+  let error;
+  if(existing){
+    // UPDATE
+    ({error}=await sb.from('attendance').update(payload)
+      .eq('user_id',empId).eq('date',ds));
+  } else {
+    // INSERT
+    ({error}=await sb.from('attendance').insert(payload));
+  }
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã lưu — Trạng thái: '+st);closeModal('day-modal');renderAttTable();
+  toast('Đã lưu — '+st);
+  closeModal('day-modal');
+  await renderAttTable();
 }
 
 async function deleteDay(){
-  if(!editingDay)return;
-  if(!confirm('Xóa bản ghi chấm công ngày '+editingDay.ds+'?')) return;
-  const{error}=await sb.from('attendance').delete()
-    .eq('user_id',editingDay.empId).eq('date',editingDay.ds);
-  if(error){toast('Lỗi: '+error.message,'error');return;}
-  editingDay=null;
+  if(!editingDay){toast('Không có bản ghi để xóa','error');return;}
+  var {empId,ds}=editingDay;
+  if(!confirm('Xóa bản ghi chấm công ngày '+ds+'?')) return;
   closeModal('day-modal');
-  toast('Đã xóa bản ghi');
+  var{error}=await sb.from('attendance').delete()
+    .eq('user_id',empId).eq('date',ds);
+  if(error){toast('Lỗi xóa: '+error.message,'error');return;}
+  editingDay=null;
+  toast('Đã xóa ngày '+ds);
   await renderAttTable();
 }
 
