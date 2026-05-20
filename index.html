@@ -572,7 +572,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
-        <div><h2>Daily Tracking</h2><div class="page-sub">Tổng hợp chỉ số KPI theo khoảng thời gian</div></div>
+        <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
         <div class="dr-wrap">
           <div class="dr-input-group">
             <label>Từ</label>
@@ -586,27 +586,15 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
             <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
           </div>
-          <button class="btn-sm btn-primary" onclick="openDailyForm()">✏️ Nhập</button>
+          <div class="dr-quick">
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Tuần</button>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Ngày</button>
+          </div>
+          <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
         </div>
       </div>
-      <!-- Summary stats -->
       <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
-      <!-- Team table -->
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Nhân viên</th>
-            <th style="text-align:center">Ngày nhập</th>
-            <th style="text-align:center">Total Calls</th>
-            <th style="text-align:center">Gap Calls</th>
-            <th style="text-align:center">Potential</th>
-            <th style="text-align:center">Báo giá</th>
-            <th style="text-align:center">Talktime</th>
-            <th style="text-align:center">Gap Talk</th>
-          </tr></thead>
-          <tbody id="daily-tbody"></tbody>
-        </table>
-      </div>
+      <div id="daily-report-wrap"></div>
     </div>
 
     <!-- DASHBOARD -->
@@ -628,6 +616,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </div>
           <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
           <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+          <button class="btn-sm" onclick="openHolidaysModal()" style="border-color:var(--leader);color:var(--leader)">📅 Ngày nghỉ</button>
         </div>
       </div>
 
@@ -755,39 +744,65 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   </div>
 </div>
 
-<!-- MODAL: Daily input -->
-<div class="modal-bg" id="daily-modal">
-  <div class="modal-box" style="max-width:520px">
-    <h3>📋 Nhập Daily Tracking — <span id="daily-modal-date"></span></h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="font-size:12px;color:var(--text2);font-weight:600;grid-column:1/-1;text-transform:uppercase;letter-spacing:.05em">Chọn nhân viên</div>
-      <div style="grid-column:1/-1">
-        <select id="daily-emp-sel" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none"></select>
+<!-- MODAL: Daily input — cả team -->
+<div class="modal-bg" id="daily-input-modal">
+  <div class="modal-box" style="max-width:780px;width:96vw">
+    <h3>✏️ Nhập Daily Tracking — <span id="dim-date-label"></span></h3>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--text2)">Ngày làm việc:</label>
+        <input type="date" id="dim-date" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none" onchange="onDimDateChange()"/>
       </div>
+      <div id="dim-prev-info" style="font-size:11px;color:var(--text2)"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-f"><label>Total Calls</label><input type="number" id="dt-total-calls" placeholder="0" min="0"/></div>
-      <div class="form-f"><label>Potential Calls</label><input type="number" id="dt-potential" placeholder="0" min="0"/></div>
-      <div class="form-f"><label>Số báo giá gửi</label><input type="number" id="dt-bao-gia" placeholder="0" min="0"/></div>
-      <div class="form-f"><label>Talktime (phút)</label><input type="number" id="dt-talktime" placeholder="0" min="0" step="0.5"/></div>
+    <!-- Grid nhập cả team -->
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="dim-table">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:8px;background:var(--bg4);border:1px solid var(--border);min-width:120px">Nhân viên</th>
+            <th colspan="2" style="text-align:center;padding:6px;background:#0f4a3a;color:#5dcaa5;border:1px solid var(--border);font-size:11px">Khung 1 — 22:00–02:00</th>
+            <th colspan="2" style="text-align:center;padding:6px;background:#1a3a14;color:#97c459;border:1px solid var(--border);font-size:11px">Khung 2 — 02:00–06:00</th>
+            <th colspan="2" style="text-align:center;padding:6px;background:var(--bg4);border:1px solid var(--border);font-size:11px">Daily Report</th>
+          </tr>
+          <tr>
+            <th style="padding:6px 8px;background:var(--bg3);border:1px solid var(--border)"></th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Cum Calls</th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Cum Talk'</th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Cum Calls</th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Cum Talk'</th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Potential</th>
+            <th style="text-align:center;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2)">Báo giá</th>
+          </tr>
+        </thead>
+        <tbody id="dim-tbody"></tbody>
+      </table>
     </div>
-    <div class="form-f" style="margin-top:10px"><label>Ghi chú</label><input type="text" id="dt-note" placeholder="Tuỳ chọn..."/></div>
-    <div class="mactions">
-      <button class="mbtn" onclick="closeModal('daily-modal')">Huỷ</button>
-      <button class="mbtn mbtn-p" onclick="saveDailyTracking()">💾 Lưu</button>
+    <div id="dim-delta-preview" style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6"></div>
+    <div class="mactions" style="margin-top:16px">
+      <button class="mbtn" onclick="closeModal('daily-input-modal')">Huỷ</button>
+      <button class="mbtn mbtn-p" onclick="saveDailyTeam()">💾 Lưu cả team</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL: Target setting -->
 <div class="modal-bg" id="target-modal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:480px">
     <h3>🎯 Cài đặt Target</h3>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Doanh số</div>
     <div class="form-f"><label>Áp dụng từ tháng</label><input type="month" id="tgt-thang"/></div>
     <div class="form-f"><label>Target doanh số / tháng ($)</label><input type="number" id="tgt-doanh-so" placeholder="23500" step="100"/></div>
     <div class="form-f"><label>Target số đơn / tháng</label><input type="number" id="tgt-don-hang" placeholder="5"/></div>
     <div class="form-f"><label>Target số báo giá / tháng</label><input type="number" id="tgt-bao-gia" placeholder="20"/></div>
-    <div class="form-f"><label>Ghi chú</label><input type="text" id="tgt-note" placeholder="VD: Q2 2026 điều chỉnh..."/></div>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Daily KPI (per người/ngày)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-f"><label>Target Calls / ngày</label><input type="number" id="tgt-calls-day" placeholder="180"/></div>
+      <div class="form-f"><label>Target Talktime / ngày (phút)</label><input type="number" id="tgt-talk-day" placeholder="150"/></div>
+      <div class="form-f"><label>Target Potential / tháng</label><input type="number" id="tgt-potential-month" placeholder="16"/></div>
+      <div class="form-f"><label>Target Báo giá / tháng</label><input type="number" id="tgt-bagia-month" placeholder="8"/></div>
+    </div>
+    <div class="form-f" style="margin-top:8px"><label>Ghi chú</label><input type="text" id="tgt-note" placeholder="VD: Q2 2026 điều chỉnh..."/></div>
     <div class="mactions">
       <button class="mbtn" onclick="closeModal('target-modal')">Huỷ</button>
       <button class="mbtn mbtn-p" onclick="saveTarget()">💾 Lưu Target</button>
@@ -795,7 +810,22 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   </div>
 </div>
 
-<!-- MODAL: Edit employee profile -->
+<!-- MODAL: Holidays management -->
+<div class="modal-bg" id="holidays-modal">
+  <div class="modal-box" style="max-width:480px">
+    <h3>📅 Quản lý ngày nghỉ</h3>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Ngày lễ cố định + nghỉ bù do Manager thêm. Hệ thống tự bỏ qua T7/CN khi tính plan.</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="date" id="hl-date" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none;flex:1"/>
+      <input type="text" id="hl-name" placeholder="Tên ngày nghỉ..." style="flex:2;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none"/>
+      <button class="btn-sm btn-primary" onclick="addHoliday()">+ Thêm</button>
+    </div>
+    <div id="holidays-list" style="max-height:320px;overflow-y:auto"></div>
+    <div class="mactions">
+      <button class="mbtn mbtn-p" onclick="closeModal('holidays-modal')">Đóng</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="emp-profile-modal">
   <div class="modal-box" style="max-width:440px">
     <h3>👤 Chỉnh sửa — <span id="ep-modal-title"></span></h3>
@@ -2473,17 +2503,23 @@ async function getTarget(thang){
   await loadTargets();
   const keys=Object.keys(cachedTargets).sort().reverse();
   for(var i=0;i<keys.length;i++){if(keys[i]<=thang)return cachedTargets[keys[i]];}
-  return {target_doanh_so:23500,target_don_hang:5,target_bao_gia:20};
+  return {target_doanh_so:23500,target_don_hang:5,target_bao_gia:20,target_calls_day:180,target_talktime_day:150,target_potential_month:16,target_bagia_month:8};
 }
 
 function invalidateTargetCache(){_targetsLoaded=false;_targetsLoading=null;}
 
-function openTargetForm(){
+async function openTargetForm(){
   var now=new Date();
-  document.getElementById('tgt-thang').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('tgt-doanh-so').value=23500;
-  document.getElementById('tgt-don-hang').value=5;
-  document.getElementById('tgt-bao-gia').value=20;
+  var thang=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('tgt-thang').value=thang;
+  var tgt=await getTarget(thang);
+  document.getElementById('tgt-doanh-so').value=tgt.target_doanh_so||23500;
+  document.getElementById('tgt-don-hang').value=tgt.target_don_hang||5;
+  document.getElementById('tgt-bao-gia').value=tgt.target_bao_gia||20;
+  document.getElementById('tgt-calls-day').value=tgt.target_calls_day||180;
+  document.getElementById('tgt-talk-day').value=tgt.target_talktime_day||150;
+  document.getElementById('tgt-potential-month').value=tgt.target_potential_month||16;
+  document.getElementById('tgt-bagia-month').value=tgt.target_bagia_month||8;
   document.getElementById('tgt-note').value='';
   document.getElementById('target-modal').classList.add('open');
 }
@@ -2493,11 +2529,19 @@ async function saveTarget(){
   var ds=parseFloat(document.getElementById('tgt-doanh-so').value)||23500;
   var don=parseInt(document.getElementById('tgt-don-hang').value)||5;
   var bq=parseInt(document.getElementById('tgt-bao-gia').value)||20;
+  var callsDay=parseInt(document.getElementById('tgt-calls-day').value)||180;
+  var talkDay=parseInt(document.getElementById('tgt-talk-day').value)||150;
+  var potMonth=parseInt(document.getElementById('tgt-potential-month').value)||16;
+  var bagiaMonth=parseInt(document.getElementById('tgt-bagia-month').value)||8;
   var note=document.getElementById('tgt-note').value;
   if(!thang){toast('Chọn tháng áp dụng','error');return;}
-  var {error}=await sb.from('targets').upsert({thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq,ghi_chu:note,created_by:curProfile.id},{onConflict:'thang'});
+  var {error}=await sb.from('targets').upsert({
+    thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq,
+    target_calls_day:callsDay,target_talktime_day:talkDay,
+    target_potential_month:potMonth,target_bagia_month:bagiaMonth,
+    ghi_chu:note,created_by:curProfile.id
+  },{onConflict:'thang'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  cachedTargets[thang]={thang,target_doanh_so:ds,target_don_hang:don,target_bao_gia:bq};
   invalidateTargetCache();
   toast('Đã lưu Target tháng '+thang);
   closeModal('target-modal');
@@ -2507,140 +2551,534 @@ async function saveTarget(){
 // ============================================================
 // DAILY TRACKING
 // ============================================================
-function openDailyForm(){
-  var today=getTodayVN();
-  var dateVal=today;
-  document.getElementById('daily-modal-date').textContent=dateVal;
-  // Populate emp select
-  var sel=document.getElementById('daily-emp-sel');
-  sel.innerHTML=allProfiles.filter(p=>p.role==='sale').map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
-  document.getElementById('dt-total-calls').value='';
-  document.getElementById('dt-potential').value='';
-  document.getElementById('dt-bao-gia').value='';
-  document.getElementById('dt-talktime').value='';
-  document.getElementById('dt-note').value='';
-  document.getElementById('daily-modal').classList.add('open');
+// ============================================================
+// DAILY TRACKING — Holidays cache
+// ============================================================
+var _holidaysCache=null;
+var _holidaysLoading=null;
+
+async function loadHolidays(){
+  if(_holidaysCache)return _holidaysCache;
+  if(_holidaysLoading)return _holidaysLoading;
+  _holidaysLoading=(async()=>{
+    var {data}=await sb.from('holidays').select('ngay');
+    _holidaysCache=new Set((data||[]).map(h=>h.ngay));
+    _holidaysLoading=null;
+    return _holidaysCache;
+  })();
+  return _holidaysLoading;
 }
 
-async function saveDailyTracking(){
-  var empId=document.getElementById('daily-emp-sel').value;
-  var ngay=document.getElementById('daily-modal-date').textContent||getTodayVN();
-  var totalCalls=parseInt(document.getElementById('dt-total-calls').value)||0;
-  var potential=parseInt(document.getElementById('dt-potential').value)||0;
-  var baoGia=parseInt(document.getElementById('dt-bao-gia').value)||0;
-  var talktime=parseFloat(document.getElementById('dt-talktime').value)||0;
-  var note=document.getElementById('dt-note').value;
-  if(!empId){toast('Chọn nhân viên','error');return;}
-  var {error}=await sb.from('daily_tracking').upsert({
-    user_id:empId,ngay,total_calls:totalCalls,potential_calls:potential,
-    so_bao_gia:baoGia,talktime_phut:talktime,ghi_chu:note,nhap_boi:curProfile.id
-  },{onConflict:'user_id,ngay'});
+function isHoliday(dateStr,holidaySet){
+  return holidaySet&&holidaySet.has(dateStr);
+}
+
+function isWorkDay(dateStr,holidaySet){
+  var d=new Date(dateStr);
+  var dow=d.getDay();
+  if(dow===0||dow===6)return false;
+  if(isHoliday(dateStr,holidaySet))return false;
+  return true;
+}
+
+function getWorkDays(fromDate,toDate,holidaySet){
+  var days=[],d=new Date(fromDate),to=new Date(toDate);
+  while(d<=to){
+    var ds=d.toISOString().slice(0,10);
+    if(isWorkDay(ds,holidaySet))days.push(ds);
+    d.setDate(d.getDate()+1);
+  }
+  return days;
+}
+
+function fmtMinutes(m){
+  if(m===null||m===undefined||isNaN(m))return '—';
+  var sign=m<0?'-':'';
+  var abs=Math.abs(Math.round(m));
+  var h=Math.floor(abs/60),mn=abs%60;
+  return sign+h+':'+(mn<10?'0':'')+mn;
+}
+
+// ============================================================
+// HOLIDAYS MODAL
+// ============================================================
+async function openHolidaysModal(){
+  document.getElementById('holidays-modal').classList.add('open');
+  await renderHolidaysList();
+}
+
+async function renderHolidaysList(){
+  var {data}=await sb.from('holidays').select('*').order('ngay');
+  var html=(data||[]).map(function(h){
+    var canDel=h.loai==='custom'||(curProfile&&curProfile.role==='manager');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--text3);width:90px;flex-shrink:0">${h.ngay}</span>
+      <span style="flex:1;font-size:13px">${h.ten||''}</span>
+      <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${h.loai==='fixed'?'var(--bg4)':'var(--warn-bg)'};color:${h.loai==='fixed'?'var(--text2)':'var(--warn)'}">${h.loai==='fixed'?'Cố định':'Nghỉ bù'}</span>
+      ${canDel&&h.loai==='custom'?`<button class="icon-btn" onclick="deleteHoliday('${h.id}')" title="Xoá">🗑</button>`:''}
+    </div>`;
+  }).join('')||'<div class="empty">Chưa có ngày nghỉ nào</div>';
+  document.getElementById('holidays-list').innerHTML=html;
+  _holidaysCache=null; // invalidate cache
+}
+
+async function addHoliday(){
+  var ngay=document.getElementById('hl-date').value;
+  var ten=document.getElementById('hl-name').value.trim();
+  if(!ngay){toast('Chọn ngày','error');return;}
+  var {error}=await sb.from('holidays').upsert({ngay,ten:ten||'Nghỉ bù',loai:'custom'},{onConflict:'ngay'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã lưu tracking cho '+ngay);
-  closeModal('daily-modal');
+  document.getElementById('hl-date').value='';
+  document.getElementById('hl-name').value='';
+  toast('Đã thêm ngày nghỉ');
+  await renderHolidaysList();
+}
+
+async function deleteHoliday(id){
+  var {error}=await sb.from('holidays').delete().eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã xoá');
+  await renderHolidaysList();
+}
+
+// ============================================================
+// DAILY VIEW STATE
+// ============================================================
+var _dailyView='day'; // 'day' | 'week'
+
+function setDailyView(v){
+  _dailyView=v;
+  document.getElementById('dv-day').classList.toggle('active',v==='day');
+  document.getElementById('dv-week').classList.toggle('active',v==='week');
   renderDaily();
 }
 
+// ============================================================
+// DAILY INPUT MODAL — nhập cả team
+// ============================================================
+var _dimPrevData={}; // {userId: {cum_calls_shift1, cum_talk_shift1, cum_calls_shift2, cum_talk_shift2}}
+
+async function openDailyInputModal(){
+  var today=getTodayVN();
+  document.getElementById('dim-date').value=today;
+  document.getElementById('dim-date-label').textContent=today;
+  document.getElementById('daily-input-modal').classList.add('open');
+  await loadDimData(today);
+}
+
+async function onDimDateChange(){
+  var ngay=document.getElementById('dim-date').value;
+  document.getElementById('dim-date-label').textContent=ngay;
+  await loadDimData(ngay);
+}
+
+async function loadDimData(ngay){
+  var sales=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).filter(function(p){return p.role!=='manager';});
+  if(!sales.length){document.getElementById('dim-tbody').innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên</td></tr>';return;}
+
+  // Load existing data for this date + prev workday data
+  var holidays=await loadHolidays();
+
+  // Find prev work day
+  var prevDay='';
+  var d=new Date(ngay);
+  d.setDate(d.getDate()-1);
+  for(var i=0;i<14;i++){
+    var ds=d.toISOString().slice(0,10);
+    if(isWorkDay(ds,holidays)){prevDay=ds;break;}
+    d.setDate(d.getDate()-1);
+  }
+
+  var [todayRes, prevRes] = await Promise.all([
+    sb.from('daily_tracking').select('*').eq('ngay',ngay),
+    prevDay?sb.from('daily_tracking').select('*').eq('ngay',prevDay):Promise.resolve({data:[]})
+  ]);
+
+  var todayMap={};(todayRes.data||[]).forEach(function(r){todayMap[r.user_id]=r;});
+  var prevMap={};(prevRes.data||[]).forEach(function(r){prevMap[r.user_id]=r;});
+  _dimPrevData=prevMap;
+
+  var prevInfo=prevDay?'Ngày làm việc trước: <b>'+prevDay+'</b> (dùng để tính delta)':'Ngày đầu tiên — delta = cumulative';
+  document.getElementById('dim-prev-info').innerHTML=prevInfo;
+
+  var tbody=sales.map(function(emp){
+    var t=todayMap[emp.id]||{};
+    var p=prevMap[emp.id]||{};
+    var ck1=t.cum_calls_shift1||'';
+    var ct1=t.cum_talk_shift1||'';
+    var ck2=t.cum_calls_shift2||'';
+    var ct2=t.cum_talk_shift2||'';
+    var pot=t.potential_calls||'';
+    var bq=t.so_bao_gia||'';
+
+    // Show prev cumulative as hint
+    var hint1=p.cum_calls_shift1?`<div style="font-size:9px;color:var(--text3)">hôm trước: ${p.cum_calls_shift1}</div>`:'';
+    var hint2=p.cum_calls_shift2?`<div style="font-size:9px;color:var(--text3)">hôm trước: ${p.cum_calls_shift2}</div>`:'';
+
+    return `<tr>
+      <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.biet_danh||emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        ${hint1}
+      </td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift1" value="${ct1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+      </td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift2" value="${ck2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        ${hint2}
+      </td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift2" value="${ct2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+      </td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="potential_calls" value="${pot}" placeholder="0" style="width:60px"/>
+      </td>
+      <td style="padding:4px;border:1px solid var(--border)">
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="so_bao_gia" value="${bq}" placeholder="0" style="width:60px"/>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('dim-tbody').innerHTML=tbody;
+
+  // Style inputs
+  document.querySelectorAll('.dim-input').forEach(function(el){
+    el.style.cssText+='background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:4px 6px;font-size:12px;color:var(--text);font-family:"Be Vietnam Pro",sans-serif;outline:none;text-align:center';
+  });
+
+  updateAllDimDeltas(sales,prevMap);
+}
+
+function getDimInputs(uid){
+  var inputs={};
+  document.querySelectorAll('.dim-input[data-uid="'+uid+'"]').forEach(function(el){
+    inputs[el.dataset.field]=parseInt(el.value)||0;
+  });
+  return inputs;
+}
+
+function updateDimDelta(uid){
+  var vals=getDimInputs(uid);
+  var p=_dimPrevData[uid]||{};
+  var dk1=Math.max(0,vals.cum_calls_shift1-(p.cum_calls_shift1||0));
+  var dt1=Math.max(0,vals.cum_talk_shift1-(p.cum_talk_shift1||0));
+  var dk2=Math.max(0,vals.cum_calls_shift2-(p.cum_calls_shift2||0));
+  var dt2=Math.max(0,vals.cum_talk_shift2-(p.cum_talk_shift2||0));
+  // Update preview text (find row)
+  var preview=document.querySelector('.dim-preview-'+uid);
+  if(preview){
+    preview.textContent='→ Delta: K1 '+dk1+' calls / '+fmtMinutes(dt1)+' | K2 '+dk2+' calls / '+fmtMinutes(dt2);
+  }
+}
+
+function updateAllDimDeltas(sales,prevMap){
+  var lines=sales.map(function(emp){
+    var vals=getDimInputs(emp.id);
+    var p=prevMap[emp.id]||{};
+    var dk1=Math.max(0,vals.cum_calls_shift1-(p.cum_calls_shift1||0));
+    var dt1=Math.max(0,vals.cum_talk_shift1-(p.cum_talk_shift1||0));
+    var dk2=Math.max(0,vals.cum_calls_shift2-(p.cum_calls_shift2||0));
+    var dt2=Math.max(0,vals.cum_talk_shift2-(p.cum_talk_shift2||0));
+    return (emp.biet_danh||emp.ho_ten)+': K1 '+dk1+'c/'+fmtMinutes(dt1)+' | K2 '+dk2+'c/'+fmtMinutes(dt2);
+  });
+  document.getElementById('dim-delta-preview').innerHTML='<b style="color:var(--accent)">Preview delta sẽ lưu:</b> '+lines.join(' &nbsp;·&nbsp; ');
+}
+
+async function saveDailyTeam(){
+  var ngay=document.getElementById('dim-date').value;
+  if(!ngay){toast('Chọn ngày','error');return;}
+
+  var sales=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).filter(function(p){return p.role!=='manager';});
+  var holidays=await loadHolidays();
+  if(!isWorkDay(ngay,holidays)){
+    if(!confirm(ngay+' là ngày nghỉ/cuối tuần. Vẫn lưu?'))return;
+  }
+
+  var upserts=sales.map(function(emp){
+    var vals=getDimInputs(emp.id);
+    var p=_dimPrevData[emp.id]||{};
+    var shift1_calls=Math.max(0,vals.cum_calls_shift1-(p.cum_calls_shift1||0));
+    var shift1_talktime=Math.max(0,vals.cum_talk_shift1-(p.cum_talk_shift1||0));
+    var shift2_calls=Math.max(0,vals.cum_calls_shift2-(p.cum_calls_shift2||0));
+    var shift2_talktime=Math.max(0,vals.cum_talk_shift2-(p.cum_talk_shift2||0));
+    var total_calls=shift1_calls+shift2_calls;
+    var talktime_phut=shift1_talktime+shift2_talktime;
+    return {
+      user_id:emp.id, ngay,
+      cum_calls_shift1:vals.cum_calls_shift1, cum_talk_shift1:vals.cum_talk_shift1,
+      cum_calls_shift2:vals.cum_calls_shift2, cum_talk_shift2:vals.cum_talk_shift2,
+      shift1_calls, shift1_talktime, shift2_calls, shift2_talktime,
+      total_calls, talktime_phut,
+      potential_calls:vals.potential_calls,
+      so_bao_gia:vals.so_bao_gia,
+      nhap_boi:curProfile.id
+    };
+  });
+
+  var {error}=await sb.from('daily_tracking').upsert(upserts,{onConflict:'user_id,ngay'});
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã lưu daily tracking cho cả team — '+ngay);
+  closeModal('daily-input-modal');
+  renderDaily();
+}
+
+// ============================================================
+// RENDER DAILY — bảng report
+// ============================================================
 async function renderDaily(){
   var fromDate=document.getElementById('daily-from').value;
   var toDate=document.getElementById('daily-to').value;
   if(!fromDate||!toDate){initDailyFilter();fromDate=document.getElementById('daily-from').value;toDate=document.getElementById('daily-to').value;}
 
-  var thang=fromDate.slice(0,7);
-  var [targetRes, tracksRes] = await Promise.all([
-    getTarget(thang),
-    sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate)
+  var fromMonth=fromDate.slice(0,7);
+  var [tgt, tracksRes, holidays] = await Promise.all([
+    getTarget(fromMonth),
+    sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
+    loadHolidays()
   ]);
-  var target=targetRes;
+
   var tracks=tracksRes.data||[];
-
-  if(tracksRes.error&&tracksRes.error.message.includes('does not exist')){
-    document.getElementById('daily-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--warn)">\u26A0\uFE0F C\u1EA7n ch\u1EA1y schema_v3.sql trong Supabase tr\u01B0\u1EDBc!</td></tr>';
-    return;
-  }
-
-  // Aggregate by user_id across date range
   var salesProfiles=allProfiles.filter(function(p){return p.role==='sale';});
-  var dailyCallTarget=40, dailyTalkTarget=120;
+  var workDays=getWorkDays(fromDate,toDate,holidays);
+  var totalWorkDays=workDays.length;
 
-  // Count working days in range
-  var workDaysInRange=0;
-  var d=new Date(fromDate);
-  var toD=new Date(toDate);
-  while(d<=toD){var dow=d.getDay();if(dow!==0&&dow!==6)workDaysInRange++;d.setDate(d.getDate()+1);}
-  var targetCallsTotal=dailyCallTarget*workDaysInRange;
-  var targetTalkTotal=dailyTalkTarget*workDaysInRange;
+  // Working days in full month for plan
+  var monthWorkDays=getWorkDays(fromMonth+'-01',fromMonth+'-'+new Date(parseInt(fromMonth),parseInt(fromMonth.slice(5,7)),0).getDate(),holidays);
+  var totalMonthWorkDays=monthWorkDays.length||22;
 
-  // Build per-user aggregate map
-  var agg={};
+  // Target per person per day
+  var callsPerDay=tgt.target_calls_day||180;
+  var talkPerDay=tgt.target_talktime_day||150;
+  var potentialMonth=tgt.target_potential_month||16;
+  var bagiaMonth=tgt.target_bagia_month||8;
+
+  // Plan for range
+  var planCalls=callsPerDay*totalWorkDays;
+  var planTalk=talkPerDay*totalWorkDays;
+  var planPotential=Math.round(potentialMonth/totalMonthWorkDays*totalWorkDays);
+  var planBagia=Math.round(bagiaMonth/totalMonthWorkDays*totalWorkDays);
+
+  // Build track map: {userId: {date: record}}
+  var trackMap={};
   tracks.forEach(function(t){
-    if(!agg[t.user_id])agg[t.user_id]={calls:0,potential:0,baoGia:0,talktime:0,days:0};
-    agg[t.user_id].calls+=(t.total_calls||0);
-    agg[t.user_id].potential+=(t.potential_calls||0);
-    agg[t.user_id].baoGia+=(t.so_bao_gia||0);
-    agg[t.user_id].talktime+=(t.talktime_phut||0);
-    agg[t.user_id].days++;
+    if(!trackMap[t.user_id])trackMap[t.user_id]={};
+    trackMap[t.user_id][t.ngay]=t;
   });
 
-  var totCalls=0,totPotential=0,totBaoGia=0,totTalktime=0,totDays=0,missing=0;
-  var tbody='';
-
+  // Summary stats
+  var totCalls=0,totTalk=0,totPot=0,totBG=0,entered=0;
   salesProfiles.forEach(function(emp){
-    var a=agg[emp.id];
-    var calls=a?a.calls:null;
-    var pot=a?a.potential:null;
-    var bq=a?a.baoGia:null;
-    var talk=a?a.talktime:null;
-    var days=a?a.days:0;
-    var gapCalls=calls!==null?calls-targetCallsTotal:null;
-    var gapTalk=talk!==null?talk-targetTalkTotal:null;
-    if(calls!==null){totCalls+=calls;totPotential+=pot||0;totBaoGia+=bq||0;totTalktime+=talk||0;totDays+=days;}
-    else missing++;
-
-    var callColor=calls===null?'var(--text3)':(calls>=targetCallsTotal?'var(--success)':'var(--danger)');
-    var talkColor=talk===null?'var(--text3)':(talk>=targetTalkTotal?'var(--success)':'var(--danger)');
-    var gcColor=gapCalls===null?'var(--text3)':(gapCalls>=0?'var(--success)':'var(--danger)');
-    var gtColor=gapTalk===null?'var(--text3)':(gapTalk>=0?'var(--success)':'var(--danger)');
-
-    tbody+=`<tr>
-      <td style="font-weight:500">${emp.ho_ten}<br><span style="font-size:11px;color:var(--text2)">${emp.ma_nv}</span></td>
-      <td style="text-align:center;color:var(--accent)">${days>0?days+' ng\u00E0y':'—'}</td>
-      <td style="text-align:center;color:${callColor};font-weight:600">${calls!==null?calls:'—'}</td>
-      <td style="text-align:center;color:${gcColor};font-weight:600">${gapCalls!==null?(gapCalls>=0?'+'+gapCalls:gapCalls):'—'}</td>
-      <td style="text-align:center;color:var(--accent)">${pot!==null?pot:'—'}</td>
-      <td style="text-align:center;color:var(--warn)">${bq!==null?bq:'—'}</td>
-      <td style="text-align:center;color:${talkColor};font-weight:600">${talk!==null?talk+"'":'—'}</td>
-      <td style="text-align:center;color:${gtColor};font-weight:600">${gapTalk!==null?(gapTalk>=0?'+'+gapTalk:gapTalk)+"'":'—'}</td>
-    </tr>`;
+    var days=trackMap[emp.id]||{};
+    var hasData=Object.keys(days).length>0;
+    if(hasData){
+      entered++;
+      Object.values(days).forEach(function(d){
+        totCalls+=(d.total_calls||0);
+        totTalk+=(d.talktime_phut||0);
+        totPot+=(d.potential_calls||0);
+        totBG+=(d.so_bao_gia||0);
+      });
+    }
   });
-
-  document.getElementById('daily-tbody').innerHTML=tbody||'<tr><td colspan="8" class="empty">Kh\u00F4ng c\u00F3 nh\u00E2n vi\u00EAn Sale</td></tr>';
 
   var fromLabel=fromDate.slice(8)+'/'+fromDate.slice(5,7);
   var toLabel=toDate.slice(8)+'/'+toDate.slice(5,7)+'/'+toDate.slice(0,4);
-  var entered=salesProfiles.length-missing;
+  var missing=salesProfiles.length-entered;
+
+  document.getElementById('daily-sub').textContent=fromLabel+' → '+toLabel+' — '+totalWorkDays+' ngày làm việc';
   document.getElementById('daily-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCC5 Kho\u1EA3ng th\u1EE9i gian</div><div class="stat-val" style="color:var(--accent);font-size:16px">${fromLabel} \u2192 ${toLabel}</div><div class="stat-sub">${workDaysInRange} ng\u00E0y l\u00E0m vi\u1EC7c</div></div>
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCCA \u0110\u00E3 nh\u1EADp</div><div class="stat-val" style="color:${entered===salesProfiles.length?'var(--success)':'var(--warn)'}">${entered}<span style="font-size:14px">/${salesProfiles.length}</span></div><div class="stat-sub">${missing>0?missing+' ch\u01B0a nh\u1EADp':'\u0110\u1EE7 h\u1EBFt'}</div></div>
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCDE T\u1ED5ng calls team</div><div class="stat-val" style="color:${totCalls>=targetCallsTotal*salesProfiles.length?'var(--success)':'var(--danger)'}">${totCalls}</div><div class="stat-sub">Target: ${targetCallsTotal*salesProfiles.length} \u00B7 Gap: <span style="color:${totCalls-targetCallsTotal*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${totCalls-targetCallsTotal*salesProfiles.length}</span></div></div>
-    <div class="stat-card"><div class="stat-label">\u23F1 Talktime team</div><div class="stat-val" style="color:${totTalktime>=targetTalkTotal*salesProfiles.length?'var(--success)':'var(--danger)'}">${totTalktime}'</div><div class="stat-sub">Target: ${targetTalkTotal*salesProfiles.length}' \u00B7 Gap: <span style="color:${totTalktime-targetTalkTotal*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${totTalktime-targetTalkTotal*salesProfiles.length}'</span></div></div>
+    <div class="stat-card"><div class="stat-label">📊 Đã nhập</div><div class="stat-val" style="color:${entered===salesProfiles.length?'var(--success)':'var(--warn)'}">${entered}<span style="font-size:14px">/${salesProfiles.length}</span></div><div class="stat-sub">${missing>0?missing+' chưa nhập':'Đủ hết'}</div></div>
+    <div class="stat-card"><div class="stat-label">📞 Tổng Calls team</div><div class="stat-val" style="color:${totCalls>=planCalls*salesProfiles.length?'var(--success)':'var(--danger)'}">${totCalls}</div><div class="stat-sub">Plan: ${planCalls*salesProfiles.length} · Gap: <span style="color:${totCalls-planCalls*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${totCalls-planCalls*salesProfiles.length}</span></div></div>
+    <div class="stat-card"><div class="stat-label">⏱ Talktime team</div><div class="stat-val" style="color:${totTalk>=planTalk*salesProfiles.length?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk)}</div><div class="stat-sub">Plan: ${fmtMinutes(planTalk*salesProfiles.length)} · Gap: <span style="color:${totTalk-planTalk*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk-planTalk*salesProfiles.length)}</span></div></div>
+    <div class="stat-card"><div class="stat-label">🎯 Potential / BG</div><div class="stat-val" style="color:var(--accent)">${totPot} / ${totBG}</div><div class="stat-sub">Plan: ${planPotential*salesProfiles.length} / ${planBagia*salesProfiles.length}</div></div>
   `;
+
+  // Render bảng theo view mode
+  if(_dailyView==='week'){
+    renderDailyWeekView(salesProfiles,trackMap,workDays,fromDate,tgt,planCalls,planTalk,planPotential,planBagia,totalMonthWorkDays,holidays);
+  } else {
+    renderDailyDayView(salesProfiles,trackMap,workDays,callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays,tgt);
+  }
 }
 
+function renderDailyDayView(salesProfiles,trackMap,workDays,callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays,tgt){
+  if(!workDays.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có ngày làm việc trong khoảng này</div>';return;}
 
-async function editDailyFor(empId,ngay){
-  var {data:t}=await sb.from('daily_tracking').select('*').eq('user_id',empId).eq('ngay',ngay).maybeSingle();
-  var sel=document.getElementById('daily-emp-sel');
-  sel.innerHTML=allProfiles.filter(p=>p.role==='sale').map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
-  sel.value=empId;
-  document.getElementById('daily-modal-date').textContent=ngay;
-  document.getElementById('dt-total-calls').value=t?t.total_calls:'';
-  document.getElementById('dt-potential').value=t?t.potential_calls:'';
-  document.getElementById('dt-bao-gia').value=t?t.so_bao_gia:'';
-  document.getElementById('dt-talktime').value=t?t.talktime_phut:'';
-  document.getElementById('dt-note').value=t?t.ghi_chu:'';
-  document.getElementById('daily-modal').classList.add('open');
+  // Group work days
+  var planCalls=callsPerDay;
+  var planTalk=talkPerDay;
+  var planPot=Math.round(potentialMonth/totalMonthWorkDays);
+  var planBG=Math.round(bagiaMonth/totalMonthWorkDays);
+
+  var html='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:700px">';
+
+  // Header
+  html+=`<thead><tr>
+    <th style="text-align:left;padding:8px;background:var(--bg4);border:1px solid var(--border);min-width:110px;position:sticky;left:0;z-index:2">Nhân viên</th>
+    ${workDays.map(function(d){
+      var label=d.slice(8)+'/'+d.slice(5,7);
+      var dow=['CN','T2','T3','T4','T5','T6','T7'][new Date(d).getDay()];
+      return `<th colspan="2" style="text-align:center;padding:6px 4px;background:var(--bg4);border:1px solid var(--border);font-size:11px;white-space:nowrap">${label}<br><span style="color:var(--text2)">${dow}</span></th>`;
+    }).join('')}
+    <th colspan="2" style="text-align:center;padding:6px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
+    <th colspan="2" style="text-align:center;padding:6px;background:#3c3489;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap tích lũy</th>
+  </tr>
+  <tr>
+    <th style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);position:sticky;left:0;z-index:2"></th>
+    ${workDays.map(function(){return '<th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th><th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>';}).join('')}
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
+  </tr></thead><tbody>`;
+
+  var planCallsTotal=planCalls*workDays.length;
+  var planTalkTotal=planTalk*workDays.length;
+
+  salesProfiles.forEach(function(emp){
+    var days=trackMap[emp.id]||{};
+    var totC=0,totT=0,daysEntered=0;
+    var dayCells=workDays.map(function(d){
+      var r=days[d];
+      if(r){totC+=(r.total_calls||0);totT+=(r.talktime_phut||0);daysEntered++;}
+      var cOk=r&&r.total_calls>=planCalls;
+      var tOk=r&&r.talktime_phut>=planTalk;
+      return `<td style="text-align:center;padding:5px 3px;border:1px solid var(--border);color:${r?(cOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?'500':'400'}">${r?r.total_calls:'—'}</td>
+        <td style="text-align:center;padding:5px 3px;border:1px solid var(--border);color:${r?(tOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?'500':'400'}">${r?fmtMinutes(r.talktime_phut):'—'}</td>`;
+    }).join('');
+    var gapC=totC-planCallsTotal;
+    var gapT=totT-planTalkTotal;
+    html+=`<tr>
+      <td style="padding:7px 8px;border:1px solid var(--border);font-weight:500;position:sticky;left:0;background:var(--bg2);z-index:1;white-space:nowrap">${emp.biet_danh||emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
+      ${dayCells}
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${totC||'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${totT?fmtMinutes(totT):'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gapC>=0?'var(--success)':'var(--danger)'}">${daysEntered?(gapC>=0?'+':'')+gapC:'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gapT>=0?'var(--success)':'var(--danger)'}">${daysEntered?(gapT>=0?'+':'')+fmtMinutes(gapT):'—'}</td>
+    </tr>`;
+  });
+
+  // Total row
+  var totalC={},totalT={};
+  workDays.forEach(function(d){
+    var c=0,t=0;
+    salesProfiles.forEach(function(emp){var r=(trackMap[emp.id]||{})[d];if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);}});
+    totalC[d]=c;totalT[d]=t;
+  });
+  var grandC=Object.values(totalC).reduce(function(a,b){return a+b;},0);
+  var grandT=Object.values(totalT).reduce(function(a,b){return a+b;},0);
+  var planGrandC=planCalls*workDays.length*salesProfiles.length;
+  var planGrandT=planTalk*workDays.length*salesProfiles.length;
+
+  html+=`<tr style="font-weight:600;background:var(--bg3)">
+    <td style="padding:7px 8px;border:1px solid var(--border);position:sticky;left:0;background:var(--bg3);z-index:1">Total</td>
+    ${workDays.map(function(d){return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${totalC[d]||0}</td><td style="text-align:center;padding:5px;border:1px solid var(--border)">${fmtMinutes(totalT[d])}</td>`;}).join('')}
+    <td style="text-align:center;padding:5px;border:1px solid var(--border)">${grandC}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border)">${fmtMinutes(grandT)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandC-planGrandC>=0?'var(--success)':'var(--danger)'}">${(grandC-planGrandC>=0?'+':'')+(grandC-planGrandC)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandT-planGrandT>=0?'var(--success)':'var(--danger)'}">${(grandT-planGrandT>=0?'+':'')+fmtMinutes(grandT-planGrandT)}</td>
+  </tr>`;
+
+  html+='</tbody></table></div>';
+  document.getElementById('daily-report-wrap').innerHTML=html;
 }
+
+function renderDailyWeekView(salesProfiles,trackMap,workDays,fromDate,tgt,planCalls,planTalk,planPotential,planBagia,totalMonthWorkDays,holidays){
+  if(!workDays.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có ngày làm việc trong khoảng này</div>';return;}
+
+  // Group work days into weeks (Mon-based, skip weekends+holidays)
+  var weeks=[];
+  var monthStr=fromDate.slice(0,7);
+  var year=parseInt(monthStr),month=parseInt(monthStr.slice(5,7));
+  var firstDay=new Date(year,month-1,1);
+  var lastDay=new Date(year,month,0);
+
+  // Build 4 weeks for the month
+  var allMonthWorkDays=getWorkDays(monthStr+'-01',monthStr+'-'+lastDay.getDate(),holidays);
+  var perWeek=Math.ceil(allMonthWorkDays.length/4);
+
+  for(var w=0;w<4;w++){
+    var wDays=allMonthWorkDays.slice(w*perWeek,(w+1)*perWeek);
+    if(wDays.length)weeks.push({label:'Tuần '+(w+1),days:wDays});
+  }
+
+  // Plan per person per month (full)
+  var planCallsMonth=tgt.target_calls_day*totalMonthWorkDays;
+  var planTalkMonth=tgt.target_talktime_day*totalMonthWorkDays;
+  var planPotMonth=tgt.target_potential_month||16;
+  var planBGMonth=tgt.target_bagia_month||8;
+
+  // Render per-person block
+  var html='<div style="display:flex;flex-direction:column;gap:16px">';
+
+  salesProfiles.forEach(function(emp){
+    var days=trackMap[emp.id]||{};
+    var weekData=weeks.map(function(w){
+      var c=0,t=0,pot=0,bg=0;
+      w.days.forEach(function(d){var r=days[d];if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);pot+=(r.potential_calls||0);bg+=(r.so_bao_gia||0);}});
+      return {calls:c,talk:t,pot:pot,bg:bg};
+    });
+    var totC=weekData.reduce(function(s,w){return s+w.calls;},0);
+    var totT=weekData.reduce(function(s,w){return s+w.talk;},0);
+    var totPot=weekData.reduce(function(s,w){return s+w.pot;},0);
+    var totBG=weekData.reduce(function(s,w){return s+w.bg;},0);
+    var gapC=totC-planCallsMonth,gapT=totT-planTalkMonth;
+    var gapPot=totPot-planPotMonth,gapBG=totBG-planBGMonth;
+
+    function gc(v){return v>=0?'var(--success)':'var(--danger)';}
+    function gv(v){return (v>=0?'+':'')+v;}
+
+    html+=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="padding:8px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">
+        ${emp.biet_danh||emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span>
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2);min-width:100px">Chỉ số</th>
+          ${weeks.map(function(w){return `<th style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border);font-size:11px">${w.label}</th>`;}).join('')}
+          <th style="text-align:center;padding:6px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
+          <th style="text-align:center;padding:6px;background:#3c2a14;color:#fac775;border:1px solid var(--border);font-size:11px">Plan</th>
+          <th style="text-align:center;padding:6px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Total Calls</td>
+            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:500">${w.calls||'—'}</td>`;}).join('')}
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totC}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planCallsMonth}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapC)}">${gv(gapC)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Talktime</td>
+            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:500">${w.talk?fmtMinutes(w.talk):'—'}</td>`;}).join('')}
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${fmtMinutes(totT)}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${fmtMinutes(planTalkMonth)}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapT)}">${(gapT>=0?'+'  :'')+fmtMinutes(gapT)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Potential</td>
+            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border)">${w.pot||'—'}</td>`;}).join('')}
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totPot}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planPotMonth}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapPot)}">${gv(gapPot)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Báo giá</td>
+            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border)">${w.bg||'—'}</td>`;}).join('')}
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totBG}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planBGMonth}</td>
+            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapBG)}">${gv(gapBG)}</td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>`;
+  });
+
+  html+='</div>';
+  document.getElementById('daily-report-wrap').innerHTML=html;
+}
+
 
 // ============================================================
 // DASHBOARD — date range helpers
