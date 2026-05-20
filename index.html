@@ -4021,7 +4021,7 @@ function showChatToast(sender, room, body, roomId){
     +'<div style="font-size:20px">💬</div>'
     +'<div><div style="font-size:12px;font-weight:700;color:var(--text)">'+escapeHtml(sender)+' · '+escapeHtml(room)+'</div>'
     +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+escapeHtml(body.slice(0,60))+'</div></div>'
-    +'<button onclick="switchTabByName('chat');this.closest('.chat-notif-toast').classList.remove('show')" '
+    +'<button onclick="switchTabByName(\'chat\');document.getElementById(\'chat-notif-toast\').classList.remove(\'show\')" '
     +'style="margin-left:auto;background:var(--accent);border:none;border-radius:6px;color:#fff;padding:4px 10px;font-size:11px;cursor:pointer">Xem</button>'
     +'</div>';
   el.classList.add('show');
@@ -4030,8 +4030,11 @@ function showChatToast(sender, room, body, roomId){
 }
 
 function switchTabByName(name){
-  var btn = document.querySelector('.nav-btn[onclick*="''+name+''"]');
-  if(btn){ btn.click(); }
+  var btns = document.querySelectorAll('.nav-btn');
+  for(var i=0;i<btns.length;i++){
+    var oc = btns[i].getAttribute('onclick')||'';
+    if(oc.indexOf("'"+name+"'")>=0){ btns[i].click(); break; }
+  }
 }
 
 // ---- Room-specific realtime (messages hiển thị trong chat) ----
@@ -4318,8 +4321,6 @@ function openMemberModal(){
       return '<button class="btn-sm" onclick="addMember(\''+p.id+'\')" style="font-size:11px">+ '+(p.biet_danh||p.ho_ten)+'</button>';
     }).join(''):'<div style="font-size:12px;color:var(--text2)">Tất cả đã trong phòng</div>';
   }
-  document.getElementById('member-modal').classList.add('open');
-}
   document.getElementById('member-modal').classList.add('open');
 }
 
