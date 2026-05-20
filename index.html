@@ -4,6 +4,11 @@
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="theme-color" content="#0d0f14"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="C-Slian"/>
+<link rel="manifest" href="manifest.json"/>
 <title>C-Slian Operations System</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -316,6 +321,63 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .dr-quick-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s}
 .dr-quick-btn:hover{border-color:var(--accent);color:var(--accent)}
 .dr-quick-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+/* ===== CHAT MODULE ===== */
+#page-chat{height:calc(100vh - 112px);display:flex;flex-direction:column;padding:0}
+.chat-layout{display:flex;height:100%;gap:0;overflow:hidden}
+.chat-sidebar{width:200px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.chat-sidebar-title{padding:14px 12px 10px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+.chat-rooms{flex:1;overflow-y:auto;padding:6px}
+.chat-room-btn{width:100%;text-align:left;background:none;border:none;border-radius:7px;padding:8px 10px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;position:relative}
+.chat-room-btn:hover{background:var(--bg3);color:var(--text)}
+.chat-room-btn.active{background:var(--accent-glow);color:var(--accent);border:1px solid rgba(79,127,255,0.2)}
+.chat-badge{min-width:18px;height:18px;background:var(--danger);border-radius:9px;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;margin-left:auto;padding:0 4px;display:none}
+.chat-badge.show{display:flex}
+.chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.chat-header{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.chat-header-name{font-size:14px;font-weight:700}
+.chat-header-sub{font-size:11px;color:var(--text2);margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-msg{display:flex;gap:10px;align-items:flex-end;max-width:80%}
+.chat-msg.mine{flex-direction:row-reverse;align-self:flex-end}
+.chat-msg.mine .chat-bubble{background:var(--accent);color:#fff;border-radius:16px 16px 4px 16px}
+.chat-msg.other .chat-bubble{background:var(--bg3);color:var(--text);border-radius:16px 16px 16px 4px}
+.chat-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.chat-bubble{padding:9px 13px;font-size:13px;line-height:1.5;max-width:100%;word-break:break-word}
+.chat-bubble img{max-width:240px;max-height:200px;border-radius:10px;display:block;margin-top:6px;cursor:pointer}
+.chat-meta{font-size:10px;color:var(--text3);margin-top:3px;text-align:right;white-space:nowrap}
+.chat-msg.other .chat-meta{text-align:left}
+.chat-sender{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:2px}
+.chat-input-area{padding:12px 16px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end}
+.chat-textarea{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;resize:none;outline:none;max-height:120px;min-height:42px;line-height:1.4;transition:border .15s}
+.chat-textarea:focus{border-color:var(--accent)}
+.chat-textarea::placeholder{color:var(--text3)}
+.chat-send-btn{width:40px;height:40px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s}
+.chat-send-btn:hover{opacity:.85}
+.chat-send-btn:disabled{opacity:.4;cursor:not-allowed}
+.chat-img-btn{width:40px;height:40px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.chat-img-btn:hover{background:var(--bg4);color:var(--text)}
+.chat-img-preview{margin-bottom:8px;position:relative;display:inline-block}
+.chat-img-preview img{max-width:120px;max-height:90px;border-radius:8px;display:block}
+.chat-img-preview .remove-img{position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--danger);border-radius:50%;border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-date-sep{text-align:center;font-size:10px;color:var(--text3);margin:4px 0;position:relative}
+.chat-date-sep::before,.chat-date-sep::after{content:'';position:absolute;top:50%;width:calc(50% - 50px);height:1px;background:var(--border)}
+.chat-date-sep::before{left:0}.chat-date-sep::after{right:0}
+.chat-typing{font-size:11px;color:var(--text3);padding:0 16px 6px;min-height:20px}
+.chat-img-fullscreen{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.chat-img-fullscreen img{max-width:90vw;max-height:90vh;border-radius:10px}
+/* PWA update banner */
+#pwa-update-banner{display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;display:none;align-items:center;justify-content:space-between;gap:10px}
+#pwa-update-banner button{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif}
+/* Mobile responsive */
+@media(max-width:600px){
+  .chat-sidebar{width:52px}
+  .chat-sidebar-title,.chat-room-btn span.room-label{display:none}
+  .chat-room-btn{justify-content:center;padding:10px 0}
+  .chat-msg{max-width:90%}
+  .chat-bubble img{max-width:180px}
+}
+
 </style>
 </head>
 <body>
@@ -371,6 +433,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
+    <button class="nav-btn" id="nav-chat" onclick="switchTab('chat',this)">💬 Chat <span class="chat-badge" id="nav-chat-badge"></span></button>
   </div>
 
   <div class="content">
@@ -667,8 +730,62 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="emp-grid" style="display:grid;gap:10px"></div>
     </div>
 
+
+    <!-- CHAT -->
+    <div id="page-chat" class="page-content">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-title">Phòng chat</div>
+          <div class="chat-rooms">
+            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
+              <span>🌐</span><span class="room-label">General</span>
+              <span class="chat-badge" id="badge-general"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-ca-truc" onclick="switchRoom('ca-truc',this)">
+              <span>🌙</span><span class="room-label">Ca trực</span>
+              <span class="chat-badge" id="badge-ca-truc"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-manager" onclick="switchRoom('manager',this)">
+              <span>🔑</span><span class="room-label">Manager</span>
+              <span class="chat-badge" id="badge-manager"></span>
+            </button>
+          </div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-header">
+            <span id="chat-room-icon">🌐</span>
+            <div><div class="chat-header-name" id="chat-room-name">General</div></div>
+            <div class="chat-header-sub" id="chat-online-count"></div>
+          </div>
+          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-typing" id="chat-typing"></div>
+          <div class="chat-input-area">
+            <div id="chat-img-preview-wrap"></div>
+            <div class="chat-input-row">
+              <button class="chat-img-btn" onclick="document.getElementById('chat-file-input').click()" title="Gửi ảnh">📎</button>
+              <input type="file" id="chat-file-input" accept="image/*" style="display:none" onchange="onChatImageSelect(event)"/>
+              <textarea class="chat-textarea" id="chat-textarea" placeholder="Nhập tin nhắn..." rows="1"
+                onkeydown="onChatKeydown(event)" oninput="autoResizeTextarea(this);onChatTyping()"></textarea>
+              <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">&#10148;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
+
+
+    <!-- PWA update banner -->
+    <div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;align-items:center;justify-content:space-between;gap:10px">
+      <span>Có phiên bản mới — bấm để cập nhật</span>
+      <button onclick="pwaDoUpdate()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:Be Vietnam Pro,sans-serif">Cập nhật ngay</button>
+    </div>
+    <!-- Image fullscreen viewer -->
+    <div id="chat-img-fullscreen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer" onclick="this.style.display='none'">
+      <img id="chat-img-fullscreen-img" src="" style="max-width:90vw;max-height:90vh;border-radius:10px"/>
+    </div>
 
 <!-- MODAL: edit attendance day -->
 <div class="modal-bg" id="day-modal">
@@ -1024,6 +1141,7 @@ async function initApp(user){
   initRealtime();
 
   Promise.all([renderCheckinPage(), renderAllLog()]);
+  initPWA();
 }
 
 function initRealtime(){
@@ -2593,6 +2711,7 @@ function switchTab(name,el){
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
+  else if(name==='chat'){_chatUnread[_chatRoom]=0;updateChatBadges();initChat();}
 }
 
 
@@ -3549,6 +3668,413 @@ document.addEventListener('click',function(e){
     if(!el.contains(e.target))el.style.display='none';
   });
 });
+
+
+// ============================================================
+// CHAT MODULE — Optimized với Realtime + Image Upload
+// ============================================================
+var _chatRoom = 'general';
+var _chatChannel = null;
+var _chatMessages = [];
+var _chatUnread = {general:0,'ca-truc':0,manager:0};
+var _chatPendingImage = null; // {file, dataUrl, compressed}
+var _chatTypingTimer = null;
+var _chatTypingUsers = {};
+var _chatTypingChannel = null;
+var _chatInitialized = false;
+var _pwaWaitingWorker = null;
+
+var ROOM_META = {
+  'general':   {icon:'🌐', name:'General',  desc:'Toàn team'},
+  'ca-truc':   {icon:'🌙', name:'Ca trực',  desc:'Ca đêm'},
+  'manager':   {icon:'🔑', name:'Manager',  desc:'Manager & Leader'}
+};
+
+// ---- PWA Service Worker ----
+function initPWA(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    reg.addEventListener('updatefound', function(){
+      var nw = reg.installing;
+      nw.addEventListener('statechange', function(){
+        if(nw.state==='installed' && navigator.serviceWorker.controller){
+          _pwaWaitingWorker = nw;
+          var banner = document.getElementById('pwa-update-banner');
+          if(banner){ banner.style.display='flex'; }
+        }
+      });
+    });
+  }).catch(function(e){ console.log('SW register failed:', e); });
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    window.location.reload();
+  });
+}
+function pwaDoUpdate(){
+  if(_pwaWaitingWorker){ _pwaWaitingWorker.postMessage({type:'SKIP_WAITING'}); }
+}
+
+// ---- Init chat when tab opened ----
+async function initChat(){
+  if(_chatInitialized) return;
+  _chatInitialized = true;
+  await loadChatMessages();
+  subscribeChatRealtime();
+  subscribeTypingChannel();
+}
+
+// ---- Load initial messages (last 60) ----
+async function loadChatMessages(){
+  var el = document.getElementById('chat-messages');
+  if(el) el.innerHTML = '<div class="loading"><div class="spinner"></div>Đang tải...</div>';
+  var {data, error} = await sb.from('messages')
+    .select('*, profiles(ho_ten, biet_danh, role, ma_nv)')
+    .eq('room', _chatRoom)
+    .order('created_at', {ascending:false})
+    .limit(60);
+  if(error){ console.error('Chat load error:', error); return; }
+  _chatMessages = (data||[]).reverse();
+  renderChatMessages(true);
+}
+
+// ---- Render all messages ----
+function renderChatMessages(scrollBottom){
+  var el = document.getElementById('chat-messages');
+  if(!el) return;
+  if(!_chatMessages.length){
+    el.innerHTML = '<div class="empty">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện! 👋</div>';
+    return;
+  }
+  var html = '';
+  var lastDate = '';
+  _chatMessages.forEach(function(msg, i){
+    var d = msg.created_at ? msg.created_at.slice(0,10) : '';
+    if(d !== lastDate){
+      var dateLabel = formatChatDate(d);
+      html += '<div class="chat-date-sep">' + dateLabel + '</div>';
+      lastDate = d;
+    }
+    html += buildMsgHTML(msg, i);
+  });
+  el.innerHTML = html;
+  if(scrollBottom) el.scrollTop = el.scrollHeight;
+}
+
+// ---- Build single message HTML ----
+function buildMsgHTML(msg, idx){
+  var isMine = curProfile && msg.user_id === curProfile.id;
+  var prof = msg.profiles || allProfilesMap[msg.user_id] || {};
+  var name = prof.biet_danh || prof.ho_ten || 'Unknown';
+  var roleColor = prof.role==='manager'?'var(--manager)':prof.role==='leader'?'var(--leader)':'var(--accent)';
+  var ci = avColor(allProfiles.findIndex(function(p){ return p.id===msg.user_id; }));
+  var avatarStyle = 'background:'+ci.bg+';color:'+ci.color;
+  var timeStr = msg.created_at ? formatChatTime(msg.created_at) : '';
+
+  var bubbleContent = '';
+  if(msg.content) bubbleContent += '<div>' + escapeHtml(msg.content).replace(/\n/g,'<br>') + '</div>';
+  if(msg.image_url) bubbleContent += '<img src="' + msg.image_url + '" loading="lazy" onclick="openImgFullscreen(this.src)" alt="ảnh"/>';
+
+  var canDelete = isMine || (curProfile && curProfile.role==='manager');
+  var deleteBtn = canDelete ? '<button onclick="deleteChatMsg(\''+msg.id+'\')" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:11px;cursor:pointer;padding:0 4px;margin-left:4px" title="Xóa">✕</button>' : '';
+
+  if(isMine){
+    return '<div class="chat-msg mine" id="msg-'+msg.id+'">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="chat-bubble">' + bubbleContent + deleteBtn + '</div>'
+      + '<div class="chat-meta">' + timeStr + '</div>'
+      + '</div>'
+      + '<div class="chat-avatar" style="'+avatarStyle+'">' + initials(prof.ho_ten||name) + '</div>'
+      + '</div>';
+  } else {
+    return '<div class="chat-msg other" id="msg-'+msg.id+'">'
+      + '<div class="chat-avatar" style="'+avatarStyle+'">' + initials(prof.ho_ten||name) + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="chat-sender" style="color:'+roleColor+'">' + escapeHtml(name) + '</div>'
+      + '<div class="chat-bubble">' + bubbleContent + '</div>'
+      + '<div class="chat-meta">' + timeStr + '</div>'
+      + '</div>'
+      + '</div>';
+  }
+}
+
+// ---- Realtime subscribe messages ----
+function subscribeChatRealtime(){
+  if(_chatChannel) sb.removeChannel(_chatChannel);
+  _chatChannel = sb.channel('chat-room-' + _chatRoom)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: 'room=eq.' + _chatRoom
+    }, function(payload){
+      var msg = payload.new;
+      // Attach profile from cache
+      msg.profiles = allProfilesMap[msg.user_id] || null;
+      _chatMessages.push(msg);
+      // Append single msg without full re-render
+      appendSingleMsg(msg);
+    })
+    .on('postgres_changes', {
+      event: 'DELETE', schema: 'public', table: 'messages'
+    }, function(payload){
+      var id = payload.old.id;
+      _chatMessages = _chatMessages.filter(function(m){ return m.id !== id; });
+      var el = document.getElementById('msg-'+id);
+      if(el) el.remove();
+    })
+    .subscribe();
+}
+
+// ---- Append single new message (O(1) DOM insert) ----
+function appendSingleMsg(msg){
+  var el = document.getElementById('chat-messages');
+  if(!el) return;
+  var isMine = curProfile && msg.user_id === curProfile.id;
+  // Check if need date separator
+  var lastMsg = _chatMessages[_chatMessages.length - 2];
+  var lastDate = lastMsg && lastMsg.created_at ? lastMsg.created_at.slice(0,10) : '';
+  var thisDate = msg.created_at ? msg.created_at.slice(0,10) : '';
+  if(thisDate !== lastDate){
+    var sep = document.createElement('div');
+    sep.className = 'chat-date-sep';
+    sep.textContent = formatChatDate(thisDate);
+    el.appendChild(sep);
+  }
+  var div = document.createElement('div');
+  div.innerHTML = buildMsgHTML(msg, _chatMessages.length-1);
+  var child = div.firstChild;
+  if(child) el.appendChild(child);
+  // Auto scroll nếu gần cuối
+  var distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  if(distFromBottom < 120 || isMine) el.scrollTop = el.scrollHeight;
+  // Badge nếu đang ở tab khác
+  if(document.querySelector('.page-content.active')?.id !== 'page-chat' || _chatRoom !== msg.room){
+    _chatUnread[msg.room] = (_chatUnread[msg.room]||0) + 1;
+    updateChatBadges();
+  }
+}
+
+// ---- Typing indicator ----
+var _typingDebounce = null;
+function subscribeTypingChannel(){
+  if(_chatTypingChannel) sb.removeChannel(_chatTypingChannel);
+  _chatTypingChannel = sb.channel('typing-' + _chatRoom)
+    .on('broadcast', {event:'typing'}, function(payload){
+      if(!curProfile || payload.payload.user_id === curProfile.id) return;
+      var name = payload.payload.name;
+      _chatTypingUsers[payload.payload.user_id] = {name, ts: Date.now()};
+      renderTyping();
+      setTimeout(function(){
+        delete _chatTypingUsers[payload.payload.user_id];
+        renderTyping();
+      }, 3000);
+    })
+    .subscribe();
+}
+
+function onChatTyping(){
+  if(!_chatTypingChannel || !curProfile) return;
+  if(_typingDebounce) clearTimeout(_typingDebounce);
+  _typingDebounce = setTimeout(function(){
+    _chatTypingChannel.send({
+      type:'broadcast', event:'typing',
+      payload:{user_id:curProfile.id, name: curProfile.biet_danh||curProfile.ho_ten}
+    });
+  }, 300);
+}
+
+function renderTyping(){
+  var el = document.getElementById('chat-typing');
+  if(!el) return;
+  var names = Object.values(_chatTypingUsers).map(function(u){ return u.name; });
+  if(!names.length){ el.textContent=''; return; }
+  el.textContent = names.join(', ') + (names.length===1?' đang nhập...':' đang nhập...');
+}
+
+// ---- Switch room ----
+function switchRoom(room, btn){
+  if(_chatRoom === room) return;
+  _chatRoom = room;
+  // Reset channel
+  if(_chatChannel) sb.removeChannel(_chatChannel);
+  if(_chatTypingChannel) sb.removeChannel(_chatTypingChannel);
+  _chatMessages = [];
+  _chatTypingUsers = {};
+  // UI update
+  document.querySelectorAll('.chat-room-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  var meta = ROOM_META[room] || {icon:'💬', name:room};
+  var iconEl = document.getElementById('chat-room-icon');
+  var nameEl = document.getElementById('chat-room-name');
+  if(iconEl) iconEl.textContent = meta.icon;
+  if(nameEl) nameEl.textContent = meta.name;
+  // Clear unread
+  _chatUnread[room] = 0;
+  updateChatBadges();
+  // Reload
+  loadChatMessages();
+  subscribeChatRealtime();
+  subscribeTypingChannel();
+}
+
+// ---- Send message ----
+async function sendChatMessage(){
+  var ta = document.getElementById('chat-textarea');
+  var content = (ta ? ta.value.trim() : '');
+  if(!content && !_chatPendingImage){ return; }
+  if(!curProfile){ toast('Vui lòng đăng nhập lại','error'); return; }
+
+  var btn = document.getElementById('chat-send-btn');
+  if(btn) btn.disabled = true;
+
+  var imageUrl = null;
+
+  // Upload image if pending
+  if(_chatPendingImage){
+    try {
+      imageUrl = await uploadChatImage(_chatPendingImage);
+    } catch(e){
+      toast('Lỗi upload ảnh: '+e.message,'error');
+      if(btn) btn.disabled = false;
+      return;
+    }
+  }
+
+  var {error} = await sb.from('messages').insert({
+    user_id: curProfile.id,
+    content: content || null,
+    image_url: imageUrl || null,
+    room: _chatRoom
+  });
+
+  if(error){ toast('Lỗi gửi tin: '+error.message,'error'); }
+  else {
+    if(ta) { ta.value=''; ta.style.height=''; }
+    clearChatImagePreview();
+  }
+  if(btn) btn.disabled = false;
+  if(ta) ta.focus();
+}
+
+// ---- Image handling ----
+async function uploadChatImage(pendingImg){
+  var file = pendingImg.compressed || pendingImg.file;
+  var ext = file.name.split('.').pop() || 'jpg';
+  var path = 'chat/' + curProfile.id + '/' + Date.now() + '.' + ext;
+  var {data, error} = await sb.storage.from('chat-images').upload(path, file, {
+    cacheControl: '3600', upsert: false, contentType: file.type
+  });
+  if(error) throw error;
+  var {data: urlData} = sb.storage.from('chat-images').getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
+function onChatImageSelect(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  // Reset input
+  event.target.value = '';
+  // Compress before preview
+  compressImage(file, 1200, 0.82, function(compressed, dataUrl){
+    _chatPendingImage = {file, compressed, dataUrl};
+    var wrap = document.getElementById('chat-img-preview-wrap');
+    if(wrap) wrap.innerHTML = '<div class="chat-img-preview">'
+      + '<img src="' + dataUrl + '" alt="preview"/>'
+      + '<button class="remove-img" onclick="clearChatImagePreview()">✕</button>'
+      + '</div>';
+  });
+}
+
+function clearChatImagePreview(){
+  _chatPendingImage = null;
+  var wrap = document.getElementById('chat-img-preview-wrap');
+  if(wrap) wrap.innerHTML = '';
+}
+
+// ---- Compress image using Canvas ----
+function compressImage(file, maxSize, quality, cb){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var w = img.width, h = img.height;
+      if(w > maxSize || h > maxSize){
+        var ratio = Math.min(maxSize/w, maxSize/h);
+        w = Math.round(w*ratio); h = Math.round(h*ratio);
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob){
+        var compressed = new File([blob], file.name, {type:'image/jpeg'});
+        cb(compressed, canvas.toDataURL('image/jpeg', quality));
+      }, 'image/jpeg', quality);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- Delete message ----
+async function deleteChatMsg(id){
+  if(!confirm('Xóa tin nhắn này?')) return;
+  var {error} = await sb.from('messages').delete().eq('id', id);
+  if(error) toast('Lỗi: '+error.message,'error');
+}
+
+// ---- Keyboard shortcut ----
+function onChatKeydown(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendChatMessage();
+  }
+}
+
+// ---- Auto resize textarea ----
+function autoResizeTextarea(el){
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ---- Open image fullscreen ----
+function openImgFullscreen(src){
+  var overlay = document.getElementById('chat-img-fullscreen');
+  var img = document.getElementById('chat-img-fullscreen-img');
+  if(overlay && img){ img.src=src; overlay.style.display='flex'; }
+}
+
+// ---- Update badge counts ----
+function updateChatBadges(){
+  var totalUnread = 0;
+  Object.keys(_chatUnread).forEach(function(room){
+    var count = _chatUnread[room]||0;
+    var badge = document.getElementById('badge-'+room);
+    if(badge){ badge.textContent=count; badge.classList.toggle('show', count>0); }
+    totalUnread += count;
+  });
+  // Nav badge
+  var navBadge = document.getElementById('nav-chat-badge');
+  if(navBadge){ navBadge.textContent=totalUnread; navBadge.classList.toggle('show', totalUnread>0); }
+}
+
+// ---- Format helpers ----
+function formatChatTime(iso){
+  var d = new Date(iso);
+  return pad2(d.getHours())+':'+pad2(d.getMinutes());
+}
+function formatChatDate(dateStr){
+  if(!dateStr) return '';
+  var today = getTodayVN();
+  var yesterday = new Date(new Date().getTime() - 86400000).toISOString().slice(0,10);
+  if(dateStr === today) return 'Hôm nay';
+  if(dateStr === yesterday) return 'Hôm qua';
+  return dateStr.slice(8)+'/'+dateStr.slice(5,7)+'/'+dateStr.slice(0,4);
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---- Hook into switchTab ----
+var _origSwitchTab = null; // patched below after page load
+
+
 
 // AUTO LOGIN
 (async()=>{
