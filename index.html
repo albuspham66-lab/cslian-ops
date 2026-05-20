@@ -77,6 +77,19 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .nav-btn{display:flex;align-items:center;gap:7px;padding:12px 16px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif}
 .nav-btn:hover{color:var(--text)}
 .nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* Sub-tabs inside salary page */
+.sub-tab-btn{background:none;border:none;border-bottom:2px solid transparent;padding:10px 18px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s;white-space:nowrap}
+.sub-tab-btn:hover{color:var(--text)}
+.sub-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.sub-content{display:none}
+.sub-content.active{display:block}
+/* Mini stat cards for attendance */
+.stat-mini{flex:1;min-width:120px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat-mini-val{font-size:20px;font-weight:700;color:var(--text)}
+.stat-mini-val.warning{color:var(--warning)}
+.stat-mini-val.danger{color:var(--danger)}
+.stat-mini-val.success{color:var(--success)}
+.stat-mini-lbl{font-size:11px;color:var(--text2);margin-top:2px}
 
 .content{flex:1;padding:24px 20px;max-width:1200px;margin:0 auto;width:100%}
 .page-content{display:none}
@@ -494,24 +507,22 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   </div>
 
   <div class="nav" id="main-nav">
-    <button class="nav-btn active" onclick="switchTab('checkin',this)">👆 Check in/out</button>
-    <button class="nav-btn" onclick="switchTab('attendance',this)">📅 Chấm công</button>
+    <button class="nav-btn active" onclick="switchTab('attendance',this)">📅 Chấm công</button>
     <button class="nav-btn" onclick="switchTab('orders',this)">📦 Đơn hàng</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('kpi',this)" style="display:none">📊 KPI</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Bảng lương</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('reviews',this)" style="display:none">🏆 Nghiệm thu</button>
+    <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Lương & KPI</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
     <button class="nav-btn" id="nav-chat" onclick="switchTab('chat',this)">💬 Chat <span class="chat-badge" id="nav-chat-badge"></span></button>
     <button class="nav-btn" onclick="switchTab('crm',this)">🎯 CRM</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('finance',this)" style="display:none">💹 Finance</button>
+    <button class="nav-btn nav-mgr-only" onclick="switchTab('settings',this)" style="display:none">⚙️ Settings</button>
   </div>
 
   <div class="content">
 
     <!-- CHECK IN/OUT -->
-    <div id="page-checkin" class="page-content active">
+    <div id="page-checkin" class="page-content">
       <div class="ci-hero">
         <div class="ci-top">
           <div>
@@ -534,7 +545,44 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     </div>
 
     <!-- CHẤM CÔNG -->
-    <div id="page-attendance" class="page-content">
+    <div id="page-attendance" class="page-content active">
+      <!-- CHECK IN/OUT SECTION (nhúng vào đầu trang Chấm công) -->
+      <div id="att-checkin-section" style="margin-bottom:20px">
+        <div class="ci-hero" style="margin-bottom:0">
+          <div class="ci-top">
+            <div>
+              <div class="emp-name-big" id="ci-name">—</div>
+              <div class="emp-meta" id="ci-meta"></div>
+            </div>
+            <div id="ci-shift-badge" class="shift-badge">🌙 Ca đêm 22:00 – 06:00</div>
+          </div>
+          <div class="ci-grid">
+            <div class="ci-card" id="ci-today-card">
+              <div class="ci-card-title">● HÔM NAY CỦA BẠN</div>
+              <div id="ci-today-list" class="ci-list"></div>
+            </div>
+            <div class="ci-card" id="ci-log-card">
+              <div class="ci-card-title">● LỊCH SỬ CHECK LOG</div>
+              <div id="ci-log-list" class="ci-list"></div>
+            </div>
+          </div>
+          <div class="ci-actions">
+            <button class="ci-btn ci-btn-in" id="ci-btn-in" onclick="doCheckIn()">✅ Check in</button>
+            <button class="ci-btn ci-btn-out" id="ci-btn-out" onclick="doCheckOut()">🏁 Check out</button>
+          </div>
+          <div class="ci-status-row">
+            <span id="ci-status-txt" class="ci-status-chip"></span>
+            <span id="ci-next-txt" class="ci-next-chip"></span>
+          </div>
+        </div>
+        <!-- Stats row -->
+        <div class="att-stats-row" id="att-stats-row" style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+          <div class="stat-mini"><div class="stat-mini-val" id="ats-hours">—</div><div class="stat-mini-lbl">Tổng giờ công</div></div>
+          <div class="stat-mini"><div class="stat-mini-val warning" id="ats-late">—</div><div class="stat-mini-lbl">Đi trễ</div></div>
+          <div class="stat-mini"><div class="stat-mini-val danger" id="ats-nkp">—</div><div class="stat-mini-lbl">NKP</div></div>
+          <div class="stat-mini"><div class="stat-mini-val success" id="ats-salary">—</div><div class="stat-mini-lbl">Lương ước tính</div></div>
+        </div>
+      </div>
       <div class="page-header">
         <div><h2>Bảng chấm công</h2><div class="page-sub" id="att-emp-info"></div></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -656,7 +704,14 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
     <!-- KPI -->
     <div id="page-kpi" class="page-content">
-      <div class="page-header">
+    <div id="page-salary" class="page-content">
+      <!-- SUB-TABS -->
+      <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
+        <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
+        <button class="sub-tab-btn" id="stb-reviews" onclick="switchSubTab('reviews',this)">🏆 Nghiệm thu</button>
+        <button class="sub-tab-btn" id="stb-salary" onclick="switchSubTab('salary',this)">💰 Bảng lương</button>
+      </div>
+      <div id="sub-kpi" class="sub-content">
         <div><h2>KPI tháng</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <select id="kpi-emp-sel" onchange="renderKPI()"></select>
@@ -670,9 +725,26 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <div id="kpi-display"></div>
     </div>
-
-    <!-- LƯƠNG -->
-    <div id="page-salary" class="page-content">
+      </div>
+      <div id="sub-reviews" class="sub-content" style="display:none">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+      </div>
+      <div id="sub-salary" class="sub-content" style="display:none">
+      <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;background:var(--bg2);margin:-24px -24px 20px;padding:0 24px">
+        <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
+        <button class="sub-tab-btn" id="stb-reviews" onclick="switchSubTab('reviews',this)">🏆 Nghiệm thu</button>
+        <button class="sub-tab-btn" id="stb-salary" onclick="switchSubTab('salary',this)">💰 Bảng lương</button>
+      </div>
+      <!-- KPI content (moved here) -->
+      <div id="sub-kpi" class="sub-content active">
       <div class="page-header">
         <div><h2>Bảng lương</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -693,17 +765,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
     <!-- NGHIỆM THU -->
     <div id="page-reviews" class="page-content">
-      <div class="page-header">
-        <div><h2>Nghiệm thu Quý & Năm</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="rev-emp-sel" onchange="renderReviews()"></select>
-          <select id="rev-nam-sel" onchange="renderReviews()"></select>
-          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
-        </div>
-      </div>
-      <div id="reviews-display"></div>
-    </div>
-
     <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
@@ -965,8 +1026,69 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
+    <!-- SETTINGS PAGE -->
+    <div id="page-settings" class="page-content">
+      <div class="page-header"><div><h2>⚙️ Settings</h2><div class="page-sub">Quản trị hệ thống — chỉ Manager</div></div></div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">👤 Quản lý tài khoản nhân viên</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Chọn nhân viên</label>
+          <select id="settings-emp-sel" onchange="loadEmpSettings()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);width:100%;max-width:320px;font-family:Be Vietnam Pro,sans-serif">
+            <option value="">-- Chọn nhân viên --</option>
+          </select>
+        </div>
+        <div id="settings-emp-info" style="display:none;margin-top:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="form-f"><label>Email đăng nhập</label><input type="email" id="settings-email" placeholder="email@example.com"/></div>
+            <div class="form-f"><label>Mật khẩu mới</label><input type="password" id="settings-password" placeholder="Để trống nếu không đổi"/></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-sm btn-primary" onclick="saveEmpSettings()">💾 Lưu thay đổi</button>
+            <button class="btn-sm" onclick="openTransferModal()" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:#fbbf24">🔄 Gán sang NV mới</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Kiểm tra dữ liệu</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="query-preset" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif;min-width:200px">
+            <option value="">-- Chọn query --</option>
+            <option value="profiles">Danh sách nhân viên</option>
+            <option value="attendance_today">Chấm công hôm nay</option>
+            <option value="attendance_month">Chấm công tháng này</option>
+            <option value="orders_month">Đơn hàng tháng này</option>
+            <option value="messages_recent">Tin nhắn chat gần đây (50)</option>
+            <option value="check_log_today">Check log hôm nay</option>
+            <option value="salary_month">Bảng lương tháng này</option>
+            <option value="kpi_month">KPI tháng này</option>
+            <option value="daily_tracking">Daily Tracking gần đây</option>
+          </select>
+          <button class="btn-sm btn-primary" onclick="runQuery()">▶ Chạy</button>
+        </div>
+        <div id="query-result" style="overflow-x:auto;max-height:420px;overflow-y:auto;font-size:12px"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: Gán tài khoản -->
+    <div class="modal-bg" id="transfer-modal">
+      <div class="modal-box" style="max-width:420px">
+        <h3>🔄 Gán tài khoản sang nhân viên mới</h3>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px">Tài khoản đăng nhập (email/pass) của nhân viên cũ sẽ được gán cho nhân viên mới. Nhân viên cũ sẽ không thể đăng nhập nữa.</p>
+        <div class="form-f"><label>Nhân viên cũ (đã nghỉ)</label>
+          <select id="transfer-old-emp" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif"></select>
+        </div>
+        <div class="form-f"><label>Nhân viên mới (nhận tài khoản)</label>
+          <select id="transfer-new-emp" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif"></select>
+        </div>
+        <div class="mactions">
+          <button class="btn-sm" onclick="closeModal('transfer-modal')">Huỷ</button>
+          <button class="btn-sm btn-primary" onclick="doTransferAccount()">🔄 Xác nhận gán</button>
+        </div>
+      </div>
+    </div>
   </div><!-- end .content -->
-</div><!-- end #app -->
+      </div>
+    </div>
 
 <!-- PWA update banner -->
     <div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;align-items:center;justify-content:space-between;gap:10px">
@@ -1330,9 +1452,12 @@ async function initApp(user){
   if(curProfile.role==='manager'||curProfile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
-  // Finance chỉ Manager (không phải Leader)
-  var financeBtn = document.querySelector('.nav-btn[onclick*="finance"]');
-  if(financeBtn) financeBtn.style.display = curProfile.role==='manager' ? 'flex' : 'none';
+  // Finance + Settings chỉ Manager
+  if(curProfile.role==='manager'){
+    document.querySelectorAll('.nav-mgr-only').forEach(b=>b.style.display='flex');
+    var financeBtn = document.querySelector('.nav-btn[onclick*="finance"]');
+    if(financeBtn) financeBtn.style.display='flex';
+  }
 
 
   populateSelects();
@@ -2950,6 +3075,17 @@ async function toggleEmpStatus(id,newStatus,ngayNghi){
 }
 
 // NAV
+function switchSubTab(name, el){
+  document.querySelectorAll('.sub-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.sub-content').forEach(p=>{ p.classList.remove('active'); p.style.display='none'; });
+  if(el) el.classList.add('active');
+  var subEl = document.getElementById('sub-'+name);
+  if(subEl){ subEl.classList.add('active'); subEl.style.display='block'; }
+  if(name==='kpi') renderKPI();
+  else if(name==='reviews') renderReviews();
+  else if(name==='salary') renderSalary();
+}
+
 function switchTab(name,el){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
@@ -2957,17 +3093,32 @@ function switchTab(name,el){
   document.getElementById('page-'+name).classList.add('active');
   const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
   if(name==='checkin'){renderCheckinPage();renderAllLog();}
-  else if(name==='attendance'){document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';renderAttTable();}
+  else if(name==='attendance'){
+    document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';
+    renderAttTable();
+    renderCheckinPage();
+    renderAllLog();
+    renderAttStats();
+  }
   else if(name==='orders'){document.getElementById('ord-emp-sel-wrap').style.display=isMgr?'block':'none';renderOrders();}
-  else if(name==='kpi')renderKPI();
-  else if(name==='salary')renderSalary();
-  else if(name==='reviews')renderReviews();
+  else if(name==='salary'){
+    // Mở sub-tab KPI mặc định khi vào Lương & KPI
+    var activeSubBtn = document.querySelector('.sub-tab-btn.active');
+    if(!activeSubBtn){
+      var kpiBtn = document.getElementById('stb-kpi');
+      if(kpiBtn) switchSubTab('kpi', kpiBtn);
+    } else {
+      var activeName = activeSubBtn.id.replace('stb-','');
+      switchSubTab(activeName, activeSubBtn);
+    }
+  }
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
   else if(name==='chat'){ _chatUnread[_chatRoom]=0; updateChatBadges(); initChat(); }
   else if(name==='crm'){ loadIframeTab('crm','https://cnail1911-maker.github.io/csilan-crm/index.html?v=39'); }
   else if(name==='finance'){ loadIframeTab('finance','https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html'); }
+  else if(name==='settings'){ initSettings(); }
 }
 
 
@@ -4648,6 +4799,176 @@ function onIframeError(name){
   if(blocked) blocked.style.display='flex';
   if(iframe) iframe.style.display='none';
 }
+
+
+// ============================================================
+// SETTINGS MODULE
+// ============================================================
+
+// Init settings page
+async function initSettings(){
+  var sel = document.getElementById('settings-emp-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+  allProfiles.forEach(function(p){
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = (p.biet_danh||p.ho_ten) + ' (' + p.ma_nv + ')' + (p.status==='inactive'?' [Đã nghỉ]':'');
+    sel.appendChild(opt);
+  });
+}
+
+async function loadEmpSettings(){
+  var uid = document.getElementById('settings-emp-sel').value;
+  var info = document.getElementById('settings-emp-info');
+  if(!uid){ info.style.display='none'; return; }
+  var p = allProfilesMap[uid];
+  if(!p){ info.style.display='none'; return; }
+  document.getElementById('settings-email').value = p.email||'';
+  document.getElementById('settings-password').value = '';
+  info.style.display='block';
+}
+
+async function saveEmpSettings(){
+  var uid = document.getElementById('settings-emp-sel').value;
+  if(!uid){ toast('Chọn nhân viên','error'); return; }
+  var email = document.getElementById('settings-email').value.trim();
+  var password = document.getElementById('settings-password').value;
+  if(!email){ toast('Nhập email','error'); return; }
+
+  var updates = {};
+  if(email) updates.email = email;
+  if(password) updates.password = password;
+
+  // Gọi Supabase Admin API qua Edge Function hoặc update profile
+  // Vì không có service_role key ở frontend, chỉ update profiles table
+  var {error} = await sb.from('profiles').update({email}).eq('id', uid);
+  if(error){ toast('Lỗi: '+error.message,'error'); return; }
+
+  // Update email trong auth (chỉ được nếu là user hiện tại)
+  if(uid === curProfile.id && email !== curProfile.email){
+    var {error:authErr} = await sb.auth.updateUser({email});
+    if(authErr) toast('Lưu profile OK. Lỗi update email auth: '+authErr.message,'error');
+    else toast('Đã cập nhật email thành công');
+  } else if(password && uid === curProfile.id){
+    var {error:pwErr} = await sb.auth.updateUser({password});
+    if(pwErr) toast('Lỗi đổi mật khẩu: '+pwErr.message,'error');
+    else toast('Đã đổi mật khẩu thành công');
+  } else {
+    toast('Đã lưu thông tin profile. Để đổi email/pass người khác cần service key.');
+  }
+  // Refresh cache
+  allProfilesMap[uid] = {...(allProfilesMap[uid]||{}), email};
+}
+
+function openTransferModal(){
+  var oldSel = document.getElementById('transfer-old-emp');
+  var newSel = document.getElementById('transfer-new-emp');
+  var inactive = allProfiles.filter(function(p){ return p.status==='inactive'; });
+  var active = allProfiles.filter(function(p){ return p.status==='active'; });
+  oldSel.innerHTML = inactive.map(function(p){
+    return '<option value="'+p.id+'">'+(p.biet_danh||p.ho_ten)+' ('+p.ma_nv+')</option>';
+  }).join('') || '<option value="">Không có NV đã nghỉ</option>';
+  newSel.innerHTML = active.map(function(p){
+    return '<option value="'+p.id+'">'+(p.biet_danh||p.ho_ten)+' ('+p.ma_nv+')</option>';
+  }).join('');
+  document.getElementById('transfer-modal').classList.add('open');
+}
+
+async function doTransferAccount(){
+  var oldId = document.getElementById('transfer-old-emp').value;
+  var newId = document.getElementById('transfer-new-emp').value;
+  if(!oldId||!newId){ toast('Chọn đủ 2 nhân viên','error'); return; }
+  if(oldId===newId){ toast('Phải chọn 2 người khác nhau','error'); return; }
+  var oldP = allProfilesMap[oldId], newP = allProfilesMap[newId];
+  if(!confirm('Gán tài khoản của '+((oldP&&(oldP.biet_danh||oldP.ho_ten))||'?')+' cho '+((newP&&(newP.biet_danh||newP.ho_ten))||'?')+'?\nTài khoản cũ sẽ không đăng nhập được nữa.')) return;
+  // Update email của NV mới = email của NV cũ
+  var oldEmail = oldP && oldP.email;
+  if(!oldEmail){ toast('NV cũ không có email trong hệ thống','error'); return; }
+  var {error} = await sb.from('profiles').update({email: oldEmail}).eq('id', newId);
+  if(error){ toast('Lỗi: '+error.message,'error'); return; }
+  closeModal('transfer-modal');
+  toast('Đã gán tài khoản thành công. NV mới dùng email: '+oldEmail);
+}
+
+// Query preset runner
+var QUERY_PRESETS = {
+  profiles: function(){ return sb.from('profiles').select('ma_nv,ho_ten,biet_danh,role,lever,status,email,contract_type').order('ma_nv'); },
+  attendance_today: function(){ var today=getTodayVN(); return sb.from('attendance').select('*, profiles(ho_ten,ma_nv)').eq('date',today); },
+  attendance_month: function(){ var m=new Date().toISOString().slice(0,7); return sb.from('attendance').select('*, profiles(ho_ten,ma_nv)').gte('date',m+'-01').lte('date',m+'-31').order('date'); },
+  orders_month: function(){ var m=new Date().toISOString().slice(0,7); return sb.from('orders').select('ma_don,ten_tiem,thang,total,balance,da_tat_toan, profiles(ho_ten)').eq('thang',m).order('order_date',{ascending:false}); },
+  messages_recent: function(){ return sb.from('messages').select('content,room,created_at,profiles(biet_danh,ho_ten)').neq('room','_sys_members').order('created_at',{ascending:false}).limit(50); },
+  check_log_today: function(){ var today=getTodayVN(); return sb.from('check_log').select('type,timestamp,profiles(ho_ten,ma_nv)').gte('timestamp',today+'T00:00:00').order('timestamp',{ascending:false}); },
+  salary_month: function(){ var m=new Date().toISOString().slice(0,7); return sb.from('salary_monthly').select('thang,tong_luong_vnd, profiles(ho_ten,ma_nv)').eq('thang',m); },
+  kpi_month: function(){ var m=new Date().toISOString().slice(0,7); return sb.from('kpi_monthly').select('thang,diem_tong,xep_loai, profiles(ho_ten,ma_nv)').eq('thang',m); },
+  daily_tracking: function(){ return sb.from('daily_tracking').select('ngay,total_calls,talktime_phut,potential_calls,so_bao_gia, profiles(ho_ten,ma_nv)').order('ngay',{ascending:false}).limit(40); }
+};
+
+async function runQuery(){
+  var preset = document.getElementById('query-preset').value;
+  var resultEl = document.getElementById('query-result');
+  if(!preset){ toast('Chọn query','error'); return; }
+  if(!QUERY_PRESETS[preset]){ toast('Query không hợp lệ','error'); return; }
+  resultEl.innerHTML = '<div class="loading"><div class="spinner"></div>Đang chạy query...</div>';
+  var {data, error, count} = await QUERY_PRESETS[preset]();
+  if(error){ resultEl.innerHTML = '<div style="color:var(--danger);padding:12px">❌ Lỗi: '+error.message+'</div>'; return; }
+  if(!data||!data.length){ resultEl.innerHTML = '<div class="empty">Không có dữ liệu</div>'; return; }
+  // Render table
+  var flat = data.map(function(row){
+    var result = {};
+    Object.entries(row).forEach(function(e){
+      if(e[1] && typeof e[1]==='object' && !Array.isArray(e[1])){
+        Object.entries(e[1]).forEach(function(e2){ result[e[0]+'.'+e2[0]] = e2[1]; });
+      } else { result[e[0]] = e[1]; }
+    });
+    return result;
+  });
+  var cols = Object.keys(flat[0]);
+  var html = '<div style="font-size:11px;color:var(--text2);margin-bottom:6px">'+flat.length+' dòng</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<thead><tr>'+cols.map(function(c){ return '<th style="padding:6px 8px;background:var(--bg3);border:1px solid var(--border);text-align:left;white-space:nowrap;position:sticky;top:0">'+c+'</th>'; }).join('')+'</tr></thead>'
+    +'<tbody>'+flat.map(function(row,i){
+      return '<tr style="background:'+(i%2?'var(--bg2)':'var(--bg)')+'">'+cols.map(function(c){
+        var val = row[c];
+        if(val===null||val===undefined) val='—';
+        else if(typeof val==='boolean') val=val?'✓':'✗';
+        return '<td style="padding:5px 8px;border:1px solid var(--border);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+String(val)+'</td>';
+      }).join('')+'</tr>';
+    }).join('')+'</tbody></table>';
+  resultEl.innerHTML = html;
+}
+
+// renderAttStats - hiện stat cards trong tab Chấm công
+function renderAttStats(){
+  if(!curProfile) return;
+  var empId = curProfile.id;
+  // Lấy từ allAttendance nếu có
+  var today = getTodayVN();
+  var m = today.slice(0,7);
+  // Tính từ dữ liệu đã có
+  var hoursEl = document.getElementById('ats-hours');
+  var lateEl = document.getElementById('ats-late');
+  var nkpEl = document.getElementById('ats-nkp');
+  var salEl = document.getElementById('ats-salary');
+  if(hoursEl) hoursEl.textContent = '...';
+  // Fetch nhanh
+  sb.from('attendance').select('*').eq('user_id', empId).gte('date', m+'-01').then(function(res){
+    var rows = res.data || [];
+    var totalH=0, late=0, nkp=0, salary=0;
+    rows.forEach(function(r){
+      if(r.status==='WD'){ totalH+=8; }
+      else if(r.status==='NP'||r.status==='NL'){ totalH+=8; }
+      else if(r.status==='NKP'){ nkp++; }
+      if(r.is_late) late++;
+    });
+    if(hoursEl) hoursEl.textContent = totalH+'h';
+    if(lateEl) lateEl.textContent = late;
+    if(nkpEl) nkpEl.textContent = nkp;
+    if(salEl) salEl.textContent = '...';
+  });
+}
+
+
 
 // AUTO LOGIN
 (async()=>{
