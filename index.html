@@ -712,6 +712,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <button class="sub-tab-btn" id="stb-salary-lw" onclick="switchSubTab('salary-lw',this)">💰 Bảng lương</button>
       </div>
       <div id="sub-kpi" class="sub-content" style="display:block">
+      <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
+        <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
+        <button class="sub-tab-btn" id="stb-reviews" onclick="switchSubTab('reviews',this)">🏆 Nghiệm thu</button>
+        <button class="sub-tab-btn" id="stb-salary-lw" onclick="switchSubTab('salary-lw',this)">💰 Bảng lương</button>
+      </div>
+      <div id="sub-kpi" class="sub-content" style="display:block">
               <div class="page-header">
         <div><h2>KPI tháng</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -727,8 +733,21 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="kpi-display"></div>
     </div>
 
-    <!-- LƯƠNG -->
-    <div id="page-salary" class="page-content">
+      </div>
+      <div id="sub-reviews" class="sub-content" style="display:none">
+      <div class="page-header">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+
+      </div>
+      <div id="sub-salary-lw" class="sub-content" style="display:none">
       <div class="page-header">
         <div><h2>Bảng lương</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -747,20 +766,9 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="phieu-luong" id="phieu-luong-print"></div>
     </div>
 
-    <!-- NGHIỆM THU -->
-    <div id="page-reviews" class="page-content">
-      <div class="page-header">
-        <div><h2>Nghiệm thu Quý & Năm</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="rev-emp-sel" onchange="renderReviews()"></select>
-          <select id="rev-nam-sel" onchange="renderReviews()"></select>
-          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
-        </div>
       </div>
-      <div id="reviews-display"></div>
     </div>
 
-    <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
         <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
@@ -1131,20 +1139,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <!-- Phiếu lương để print -->
       <div class="phieu-luong" id="phieu-luong-print"></div>
     </div>
-
-    <!-- NGHIỆM THU -->
-    <div id="page-reviews" class="page-content">
-      <div class="page-header">
-        <div><h2>Nghiệm thu Quý & Năm</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="rev-emp-sel" onchange="renderReviews()"></select>
-          <select id="rev-nam-sel" onchange="renderReviews()"></select>
-          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
-        </div>
-      </div>
-      <div id="reviews-display"></div>
-    </div>
-
     <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
