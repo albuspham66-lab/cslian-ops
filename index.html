@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="C-Slian"/>
 <link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png"/>
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png"/>
+<link rel="shortcut icon" href="icon-192.png"/>
 <title>C-Slian Operations System</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3929,6 +3933,8 @@ async function initChat(){
     if('Notification' in window && Notification.permission === 'default'){
       Notification.requestPermission();
     }
+    // Load room members config
+    await loadRoomMembers();
     // Subscribe realtime + typing + global notif once
     subscribeChatRealtime();
     subscribeTypingChannel();
@@ -4354,17 +4360,55 @@ function openMemberModal(){
   document.getElementById('member-modal').classList.add('open');
 }
 
-function addMember(uid){
+async function addMember(uid){
   if(!ROOM_META[_chatRoom]) return;
   if(!ROOM_META[_chatRoom].members) ROOM_META[_chatRoom].members=[];
-  if(!ROOM_META[_chatRoom].members.includes(uid)) ROOM_META[_chatRoom].members.push(uid);
-  toast('Đã thêm thành viên'); openMemberModal();
+  if(ROOM_META[_chatRoom].members.includes(uid)) return;
+  ROOM_META[_chatRoom].members.push(uid);
+  await saveRoomMembers(_chatRoom);
+  toast('Đã thêm thành viên');
+  openMemberModal();
 }
 
-function removeMember(uid){
+async function removeMember(uid){
   if(!ROOM_META[_chatRoom]||!ROOM_META[_chatRoom].members) return;
+  if(!confirm('Xóa thành viên khỏi phòng này?')) return;
   ROOM_META[_chatRoom].members=ROOM_META[_chatRoom].members.filter(function(id){return id!==uid;});
-  toast('Đã xóa thành viên'); openMemberModal();
+  await saveRoomMembers(_chatRoom);
+  toast('Đã xóa thành viên');
+  openMemberModal();
+}
+
+// Lưu members vào Supabase qua special system message
+async function saveRoomMembers(roomId){
+  var meta=ROOM_META[roomId];
+  if(!meta||meta.fixed) return;
+  // Upsert system record: room='_sys_members', content = JSON config
+  var key='members:'+roomId;
+  var {data:existing}=await sb.from('messages')
+    .select('id').eq('room','_sys_members').eq('user_id',curProfile.id)
+    .like('content',key+'%').maybeSingle();
+  var payload={content:key+':'+JSON.stringify(meta.members), room:'_sys_members', user_id:curProfile.id};
+  if(existing){
+    await sb.from('messages').update(payload).eq('id',existing.id);
+  } else {
+    await sb.from('messages').insert(payload);
+  }
+}
+
+// Load members từ Supabase khi init
+async function loadRoomMembers(){
+  var {data}=await sb.from('messages').select('content')
+    .eq('room','_sys_members').like('content','members:%');
+  if(!data) return;
+  data.forEach(function(row){
+    try{
+      var colon2=row.content.indexOf(':',8);
+      var roomId=row.content.slice(8,colon2);
+      var members=JSON.parse(row.content.slice(colon2+1));
+      if(ROOM_META[roomId]) ROOM_META[roomId].members=members;
+    }catch(e){}
+  });
 }
 
 // ---- Delete message ----
