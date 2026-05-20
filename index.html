@@ -589,10 +589,10 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </div>
           <div class="dr-quick">
             <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
-            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Ngày</button>
-            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Tuần</button>
-            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Quý</button>
-            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Năm</button>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Theo ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Theo tuần</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Theo quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Theo năm</button>
           </div>
           <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
         </div>
@@ -3055,16 +3055,15 @@ function renderDailyDayView(ctx){
     <th colspan="4" style="text-align:center;padding:5px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
     <th colspan="4" style="text-align:center;padding:5px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap tích lũy</th>
   </tr><tr>
-    <th style="padding:0;background:var(--bg4);border:0;position:sticky;left:0;z-index:2"></th>
     ${workDays.map(function(){return '<th style="text-align:center;padding:4px 2px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th><th style="text-align:center;padding:4px 2px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>';}).join('')}
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Pot.</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">BG</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Pot.</th>
-    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">BG</th>
+    <th style="text-align:center;padding:4px;background:#1a3a5c;border:1px solid var(--border);font-size:10px;color:#b5d4f4">Calls</th>
+    <th style="text-align:center;padding:4px;background:#1a3a5c;border:1px solid var(--border);font-size:10px;color:#b5d4f4">Talk</th>
+    <th style="text-align:center;padding:4px;background:#1a3a5c;border:1px solid var(--border);font-size:10px;color:#b5d4f4">Pot.</th>
+    <th style="text-align:center;padding:4px;background:#1a3a5c;border:1px solid var(--border);font-size:10px;color:#b5d4f4">BG</th>
+    <th style="text-align:center;padding:4px;background:#2a143c;border:1px solid var(--border);font-size:10px;color:#cecbf6">Calls</th>
+    <th style="text-align:center;padding:4px;background:#2a143c;border:1px solid var(--border);font-size:10px;color:#cecbf6">Talk</th>
+    <th style="text-align:center;padding:4px;background:#2a143c;border:1px solid var(--border);font-size:10px;color:#cecbf6">Pot.</th>
+    <th style="text-align:center;padding:4px;background:#2a143c;border:1px solid var(--border);font-size:10px;color:#cecbf6">BG</th>
   </tr></thead><tbody>`;
 
   var planCallsTot=callsPerDay*workDays.length;
@@ -3251,10 +3250,18 @@ function renderDailyQuarterView(ctx){
 
   // Build groups: each quarter = 1 group, each month = 1 col
   var groupMap={};
+  var qColors={
+    1:{bg:'#0f3a5c',color:'#b5d4f4'},
+    2:{bg:'#0f3a1a',color:'#9ef4b5'},
+    3:{bg:'#3a1f0f',color:'#f4c89e'},
+    4:{bg:'#2a143c',color:'#cecbf6'}
+  };
   months.forEach(function(m){
     var mo=parseInt(m.slice(5,7)),y=m.slice(0,4);
-    var qLabel='Q'+Math.ceil(mo/3)+'/'+y;
-    if(!groupMap[qLabel])groupMap[qLabel]={label:qLabel,bg:'#0f3a5c',color:'#b5d4f4',cols:[]};
+    var qNum=Math.ceil(mo/3);
+    var qLabel='Q'+qNum+'/'+y;
+    var qc=qColors[qNum]||{bg:'#0f3a5c',color:'#b5d4f4'};
+    if(!groupMap[qLabel])groupMap[qLabel]={label:qLabel,bg:qc.bg,color:qc.color,cols:[]};
     var lastDay=new Date(parseInt(y),mo,0).getDate();
     var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
     groupMap[qLabel].cols.push({label:'T'+mo,days:mWD});
@@ -3281,9 +3288,9 @@ function renderDailyYearView(ctx){
   var year=parseInt(fromDate.slice(0,4));
   var quarterDefs=[
     {label:'Q1/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[1,2,3]},
-    {label:'Q2/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[4,5,6]},
-    {label:'Q3/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[7,8,9]},
-    {label:'Q4/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[10,11,12]}
+    {label:'Q2/'+year,bg:'#0f3a1a',color:'#9ef4b5',months:[4,5,6]},
+    {label:'Q3/'+year,bg:'#3a1f0f',color:'#f4c89e',months:[7,8,9]},
+    {label:'Q4/'+year,bg:'#2a143c',color:'#cecbf6',months:[10,11,12]}
   ];
   var groups=quarterDefs.map(function(qd){
     return {
