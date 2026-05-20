@@ -69,7 +69,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .btn-logout:hover{background:var(--danger-bg);color:var(--danger);border-color:rgba(255,92,92,0.3)}
 
 /* NAV */
-.nav{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;padding:0 20px;overflow-x:auto;gap:2px}
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;padding:0 20px;overflow-x:auto;gap:2px;position:sticky;top:56px;z-index:99}
 .nav-btn{display:flex;align-items:center;gap:7px;padding:12px 16px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif}
 .nav-btn:hover{color:var(--text)}
 .nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -373,6 +373,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 @media(max-width:600px){
   /* Topbar: ẩn logo text + hướng dẫn, thu gọn */
   .topbar{padding:0 10px;gap:8px;height:48px}
+  .nav{top:48px}
   .topbar-logo-name{display:none}
   .topbar-divider{display:none}
   #live-date{display:none}
@@ -897,8 +898,10 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <h3>✏️ <span id="dm-title">Chỉnh sửa</span></h3>
     <div class="mrow"><label>Trạng thái</label>
       <select id="dm-status" onchange="dmToggle()">
-        <option value="WD">Làm việc</option><option value="NP">Ngày phép (NP)</option>
-        <option value="NL">Nghỉ lễ (NL)</option><option value="NKP">Nghỉ không phép</option>
+        <option value="WD">Làm việc (WD)</option>
+        <option value="NP">Ngày phép (NP)</option>
+        <option value="NL">Nghỉ lễ (NL)</option>
+        <option value="NKP">Nghỉ không phép (NKP)</option>
       </select>
     </div>
     <div id="dm-time-fields">
@@ -906,9 +909,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="mrow"><label>Check out</label><input type="time" id="dm-co"/></div>
     </div>
     <div class="mrow"><label>Ghi chú</label><input type="text" id="dm-note" placeholder="Tuỳ chọn..." style="flex:1"/></div>
-    <div class="mactions">
-      <button class="btn-sm" onclick="closeModal('day-modal')">Huỷ</button>
-      <button class="btn-sm btn-primary" onclick="saveDay()">💾 Lưu</button>
+    <div class="mactions" style="justify-content:space-between">
+      <button class="btn-sm btn-danger" onclick="deleteDay()" id="dm-delete-btn" style="display:none">🗑️ Xóa bản ghi</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm" onclick="closeModal('day-modal')">Huỷ</button>
+        <button class="btn-sm btn-primary" onclick="saveDay()">💾 Lưu</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1467,7 +1473,7 @@ async function renderAttTable(){
       <td style="font-family:'JetBrains Mono',monospace">${coShow}</td>
       <td>${hShow}</td><td>${statusHtml}</td>
       <td style="color:var(--success)">${sShow}</td><td>${noteHtml}</td>
-      <td>${isMgr?`<button class="icon-btn" onclick="openDayModal('${empId}','${ds}','${rec?rec.status:'WD'}','${rec&&rec.checkin_time?rec.checkin_time.slice(0,5):''}','${rec&&rec.checkout_time?rec.checkout_time.slice(0,5):''}','${rec&&rec.note?rec.note:''}')">✏️</button>`:''}</td></tr>`;
+      <td>${isMgr?`<button class="icon-btn" onclick="openDayModal('${empId}','${ds}','${rec?rec.status:'WD'}','${rec&&rec.checkin_time?rec.checkin_time.slice(0,5):''}','${rec&&rec.checkout_time?rec.checkout_time.slice(0,5):''}','${rec&&rec.note?rec.note:''}',${!!rec})">✏️</button>`:''}</td></tr>`;
   }
   const penalty=late===1?PHAT1:late>=2?PHAT2:0,finalS=Math.max(0,totalS-penalty);
   document.getElementById('att-tbody').innerHTML=tbody;
@@ -1481,22 +1487,45 @@ async function renderAttTable(){
 function changeMonth(d){curMonth+=d;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}renderAttTable();}
 
 // DAY MODAL
-function openDayModal(empId,ds,status,ci,co,note){
+function openDayModal(empId,ds,status,ci,co,note,hasRecord){
   editingDay={empId,ds};
   document.getElementById('dm-title').textContent=ds;
   document.getElementById('dm-status').value=status||'WD';
   document.getElementById('dm-ci').value=ci||'';
   document.getElementById('dm-co').value=co||'';
   document.getElementById('dm-note').value=note||'';
-  dmToggle();document.getElementById('day-modal').classList.add('open');
+  // Hiện nút Xóa nếu đã có bản ghi
+  var delBtn=document.getElementById('dm-delete-btn');
+  if(delBtn) delBtn.style.display=hasRecord?'inline-flex':'none';
+  dmToggle();
+  document.getElementById('day-modal').classList.add('open');
 }
 function dmToggle(){document.getElementById('dm-time-fields').style.display=document.getElementById('dm-status').value==='WD'?'block':'none';}
 async function saveDay(){
   if(!editingDay)return;
-  const{empId,ds}=editingDay,st=document.getElementById('dm-status').value,ci=document.getElementById('dm-ci').value,co=document.getElementById('dm-co').value,note=document.getElementById('dm-note').value;
-  const{error}=await sb.from('attendance').upsert({user_id:empId,date:ds,status:st,checkin_time:st==='WD'&&ci?ci+':00':null,checkout_time:st==='WD'&&co?co+':00':null,note},{onConflict:'user_id,date'});
+  const{empId,ds}=editingDay;
+  const st=document.getElementById('dm-status').value;
+  const ci=document.getElementById('dm-ci').value;
+  const co=document.getElementById('dm-co').value;
+  const note=document.getElementById('dm-note').value;
+  // Chỉ lưu checkin/checkout nếu là WD, các trạng thái khác null
+  const isWD=st==='WD';
+  const{error}=await sb.from('attendance').upsert({
+    user_id:empId,date:ds,status:st,
+    checkin_time:isWD&&ci?ci+':00':null,
+    checkout_time:isWD&&co?co+':00':null,
+    note:note||null
+  },{onConflict:'user_id,date'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã lưu');closeModal('day-modal');renderAttTable();
+  toast('Đã lưu — Trạng thái: '+st);closeModal('day-modal');renderAttTable();
+}
+
+async function deleteDay(){
+  if(!editingDay)return;
+  if(!confirm('Xóa bản ghi chấm công ngày '+editingDay.ds+'?')) return;
+  const{error}=await sb.from('attendance').delete().eq('user_id',editingDay.empId).eq('date',editingDay.ds);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã xóa bản ghi');closeModal('day-modal');renderAttTable();
 }
 
 // ============================================================
@@ -3834,11 +3863,10 @@ function playNotifSound(){
 
 // ---- Init chat ----
 async function initChat(){
-  if(_chatInitialized){ 
-    // Reset unread khi mở lại
-    _chatUnread[_chatRoom] = 0; updateChatBadges(); return; 
-  }
-  _chatInitialized = true;
+  // Luôn load lại tin nhắn mỗi khi mở tab chat (không cache)
+  _chatUnread[_chatRoom] = 0; updateChatBadges();
+  if(!_chatInitialized){
+    _chatInitialized = true;
   // Show create room button for manager
   if(curProfile && curProfile.role==='manager'){
     var el = document.getElementById('chat-create-room-wrap');
@@ -3847,16 +3875,23 @@ async function initChat(){
   await loadChatMessages();
   subscribeChatRealtime();
   subscribeTypingChannel();
-  updateMemberBtn();
-  // Hide manager room for sale
-  var mgrBtn = document.getElementById('room-btn-manager');
-  if(mgrBtn && curProfile && curProfile.role==='sale'){
-    mgrBtn.style.display='none';
+    updateMemberBtn();
+    // Hide manager room for sale
+    var mgrBtn = document.getElementById('room-btn-manager');
+    if(mgrBtn && curProfile && curProfile.role==='sale'){
+      mgrBtn.style.display='none';
+    }
+    // Request notification permission
+    if('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission();
+    }
+    // Subscribe realtime + typing + global notif once
+    subscribeChatRealtime();
+    subscribeTypingChannel();
+    subscribeGlobalNotif();
   }
-  // Request notification permission
-  if('Notification' in window && Notification.permission === 'default'){
-    Notification.requestPermission();
-  }
+  // Luôn reload messages mỗi lần mở tab
+  await loadChatMessages();
 }
 
 // ---- Load messages (last 80) ----
@@ -3927,7 +3962,41 @@ function buildMsgHTML(msg){
   }
 }
 
-// ---- Realtime ----
+// ---- Global notification subscription (tất cả rooms) ----
+var _chatGlobalChannel = null;
+function subscribeGlobalNotif(){
+  if(_chatGlobalChannel) sb.removeChannel(_chatGlobalChannel);
+  _chatGlobalChannel = sb.channel('chat-global-notif')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'}, function(payload){
+      var msg = payload.new;
+      if(!curProfile || msg.user_id === curProfile.id) return;
+      if(msg.room === _chatRoom) return; // đang xem room này rồi, handled bởi room channel
+      // Tăng badge room khác
+      if(_chatUnread[msg.room] !== undefined){
+        _chatUnread[msg.room] = (_chatUnread[msg.room]||0)+1;
+      } else {
+        _chatUnread[msg.room] = 1;
+      }
+      updateChatBadges();
+      playNotifSound();
+      sendBrowserNotif(msg);
+    }).subscribe();
+}
+
+function sendBrowserNotif(msg){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  var prof = allProfilesMap[msg.user_id]||{};
+  var senderName = prof.biet_danh||prof.ho_ten||'Ai đó';
+  var roomName = (ROOM_META[msg.room]||{}).name || msg.room;
+  try {
+    new Notification('💬 '+senderName+' — '+roomName, {
+      body: msg.content || '📷 Đã gửi một ảnh',
+      icon: 'icon-192.png', silent: false
+    });
+  } catch(e){}
+}
+
+// ---- Room-specific realtime (messages hiển thị trong chat) ----
 function subscribeChatRealtime(){
   if(_chatChannel) sb.removeChannel(_chatChannel);
   _chatChannel = sb.channel('chat-v2-'+_chatRoom)
@@ -3936,24 +4005,12 @@ function subscribeChatRealtime(){
       msg.profiles = allProfilesMap[msg.user_id] || null;
       _chatMessages.push(msg);
       appendSingleMsg(msg);
-      // Notification nếu không phải mình gửi
-      if(curProfile && msg.user_id !== curProfile.id){
-        var isVisible = document.querySelector('.page-content.active')?.id === 'page-chat';
-        if(!isVisible || document.hidden){
-          playNotifSound();
-          _chatUnread[_chatRoom] = (_chatUnread[_chatRoom]||0)+1;
-          updateChatBadges();
-          // Browser notification
-          if('Notification' in window && Notification.permission==='granted'){
-            var prof = allProfilesMap[msg.user_id]||{};
-            var senderName = prof.biet_danh||prof.ho_ten||'Ai đó';
-            var roomName = ROOM_META[_chatRoom]?.name || _chatRoom;
-            new Notification('💬 '+senderName+' — '+roomName, {
-              body: msg.content || '📷 Gửi một ảnh',
-              icon: 'icon-192.png', badge:'icon-192.png', silent:false
-            });
-          }
-        }
+      // Notification cho room hiện tại (khi tab chat active nhưng app bị ẩn)
+      if(curProfile && msg.user_id !== curProfile.id && document.hidden){
+        playNotifSound();
+        _chatUnread[_chatRoom] = (_chatUnread[_chatRoom]||0)+1;
+        updateChatBadges();
+        sendBrowserNotif(msg);
       }
     })
     .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'}, function(payload){
