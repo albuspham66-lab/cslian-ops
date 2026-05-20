@@ -581,14 +581,16 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <label>Đến</label>
             <input type="date" id="daily-to" class="dr-input" onchange="onDailyDateChange()"/>
           </div>
-          <div class="dr-quick">
+          <div class="dr-quick" style="border-right:1px solid var(--border2);padding-right:8px;margin-right:2px">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Kỳ:</span>
             <button class="dr-quick-btn active" id="dqb-daily-month" onclick="setDailyPeriod('month')">Tháng</button>
             <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
             <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
           </div>
           <div class="dr-quick">
-            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Tuần</button>
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
             <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Tuần</button>
             <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Quý</button>
             <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Năm</button>
           </div>
@@ -3128,14 +3130,26 @@ function renderDailyDayView(ctx){
 }
 
 // ---- HELPER: build per-person block table (dùng cho week/quarter/year) ----
-function buildPersonBlock(emp,cols,planCalls,planTalk,planPot,planBG,trackMap){
+// buildPersonBlock — groups: [{label, bg, color, cols:[{label, days}]}]
+// simple cols (no groups): [{label, days}]
+function buildPersonBlock(emp,groups,planCalls,planTalk,planPot,planBG,trackMap){
   var rows=[
-    {label:'Total Calls',key:'c',fmt:function(v){return v;},planV:planCalls},
-    {label:'Talktime',key:'t',fmt:fmtMinutes,planV:planTalk},
-    {label:'Potential',key:'pot',fmt:function(v){return v;},planV:planPot},
-    {label:'Báo giá',key:'bg',fmt:function(v){return v;},planV:planBG},
+    {label:'Total Calls',key:'c',fmt:function(v){return v;}},
+    {label:'Talktime',key:'t',fmt:fmtMinutes},
+    {label:'Potential',key:'pot',fmt:function(v){return v;}},
+    {label:'Báo giá',key:'bg',fmt:function(v){return v;}},
   ];
-  var colTotals=cols.map(function(col){
+  var plans={c:planCalls,t:planTalk,pot:planPot,bg:planBG};
+
+  // Normalise: if groups[0] has no .cols → treat as flat cols
+  var isFlat=!groups[0].cols;
+  var normGroups=isFlat?[{label:'',cols:groups,bg:'',color:''}]:groups;
+
+  // Aggregate per col
+  var allCols=[];
+  normGroups.forEach(function(g){g.cols.forEach(function(col){allCols.push(col);});});
+
+  var colTotals=allCols.map(function(col){
     var c=0,t=0,pot=0,bg=0;
     col.days.forEach(function(d){
       var r=(trackMap[emp.id]||{})[d];
@@ -3146,121 +3160,116 @@ function buildPersonBlock(emp,cols,planCalls,planTalk,planPot,planBG,trackMap){
   var grand={c:0,t:0,pot:0,bg:0};
   colTotals.forEach(function(ct){grand.c+=ct.c;grand.t+=ct.t;grand.pot+=ct.pot;grand.bg+=ct.bg;});
 
-  var colHeaders=cols.map(function(col){
-    return col.group
-      ?`<th colspan="${col.subCols?col.subCols.length:1}" style="text-align:center;padding:4px 6px;background:${col.groupBg||'var(--bg4)'};color:${col.groupColor||'var(--text)'};border:1px solid var(--border);font-size:10px;font-weight:600">${col.group}</th>`
-      :`<th style="text-align:center;padding:4px 6px;background:var(--bg4);border:1px solid var(--border);font-size:11px">${col.label}</th>`;
-  }).join('');
+  var hasGroups=!isFlat;
+  var thBase='text-align:center;border:1px solid var(--border);font-size:10px;padding:4px 6px;';
 
-  var subHeaders=cols.map(function(col){
-    if(col.subCols){return col.subCols.map(function(sc){return `<th style="text-align:center;padding:3px 5px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">${sc}</th>`;}).join('');}
-    return `<th style="text-align:center;padding:3px 5px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">${col.label}</th>`;
-  }).join('');
-  var hasGroups=cols.some(function(c){return c.group;});
-
-  var dataRows=rows.map(function(row){
-    var cells=colTotals.map(function(ct,ci){
-      var v=ct[row.key];
-      var colDef=cols[ci];
-      if(colDef.subCols){
-        // multiple sub-cols: show value once, pad rest
-        return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${v?row.fmt(v):'—'}</td>${colDef.subCols.slice(1).map(function(){return '<td style="border:1px solid var(--border)"></td>';}).join('')}`;
-      }
-      return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${v?row.fmt(v):'—'}</td>`;
+  // Row 1: group headers (only if hasGroups)
+  var groupHeaderRow='';
+  if(hasGroups){
+    var gCells=normGroups.map(function(g){
+      return `<th colspan="${g.cols.length}" style="${thBase}background:${g.bg||'#0f3a5c'};color:${g.color||'#b5d4f4'};font-weight:600">${g.label}</th>`;
     }).join('');
-    var gv=grand[row.key]-row.planV,ok=gv>=0;
+    groupHeaderRow=`<tr>
+      <th style="background:var(--bg3);border:1px solid var(--border)"></th>
+      ${gCells}
+      <th style="${thBase}background:#1a3a5c;color:#b5d4f4">Total</th>
+      <th style="${thBase}background:#3c2a14;color:#fac775">Plan</th>
+      <th style="${thBase}background:#2a143c;color:#cecbf6">Gap</th>
+    </tr>`;
+  }
+
+  // Row 2: col sub-headers
+  var colSubHeaders=allCols.map(function(col){
+    return `<th style="${thBase}background:var(--bg3);color:var(--text2)">${col.label}</th>`;
+  }).join('');
+  var subHeaderRow=`<tr>
+    <th style="text-align:left;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2);min-width:90px">Chỉ số</th>
+    ${colSubHeaders}
+    <th style="${thBase}background:${hasGroups?'var(--bg3)':'#1a3a5c'};color:${hasGroups?'var(--text2)':'#b5d4f4'}">${hasGroups?'':'Total'}</th>
+    <th style="${thBase}background:${hasGroups?'var(--bg3)':'#3c2a14'};color:${hasGroups?'var(--text2)':'#fac775'}">${hasGroups?'':'Plan'}</th>
+    <th style="${thBase}background:${hasGroups?'var(--bg3)':'#2a143c'};color:${hasGroups?'var(--text2)':'#cecbf6'}">${hasGroups?'':'Gap'}</th>
+  </tr>`;
+
+  // Data rows
+  var dataRows=rows.map(function(row){
+    var cells=colTotals.map(function(ct){
+      var v=ct[row.key];
+      return `<td style="text-align:center;padding:5px 4px;border:1px solid var(--border)">${v?row.fmt(v):'—'}</td>`;
+    }).join('');
+    var planV=plans[row.key];
+    var gv=grand[row.key]-planV,ok=gv>=0;
     return `<tr>
       <td style="padding:5px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">${row.label}</td>
       ${cells}
       <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${grand[row.key]?row.fmt(grand[row.key]):'—'}</td>
-      <td style="text-align:center;padding:5px;border:1px solid var(--border);color:var(--text2)">${row.fmt(row.planV)}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);color:var(--text3)">${row.fmt(planV)}</td>
       <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${ok?'var(--success)':'var(--danger)'}">${ok?'+':''}${row.fmt(gv)}</td>
     </tr>`;
   }).join('');
 
-  return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px">
-    <div style="padding:8px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">${emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span></div>
+  return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px">
+    <div style="padding:7px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">${emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span></div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        ${hasGroups?`<tr><th style="background:var(--bg3);border:1px solid var(--border)"></th>${colHeaders}<th style="text-align:center;padding:4px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:10px">Total</th><th style="text-align:center;padding:4px;background:#3c2a14;color:#fac775;border:1px solid var(--border);font-size:10px">Plan</th><th style="text-align:center;padding:4px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:10px">Gap</th></tr>`:''}
-        <tr><th style="text-align:left;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2);min-width:90px">Chỉ số</th>${subHeaders}<th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#1a3a5c'};color:${hasGroups?'var(--text2)':'#b5d4f4'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Total'}</th><th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#3c2a14'};color:${hasGroups?'var(--text2)':'#fac775'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Plan'}</th><th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#2a143c'};color:${hasGroups?'var(--text2)':'#cecbf6'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Gap'}</th></tr>
-      </thead>
+      <thead>${groupHeaderRow}${subHeaderRow}</thead>
       <tbody>${dataRows}</tbody>
     </table></div>
   </div>`;
-}
 
 // ---- CHEDE TUAN ----
 function renderDailyWeekView(ctx){
   var {salesProfiles,trackMap,holidays,fromDate,tgt,totalMonthWorkDays}=ctx;
+  var m=fromDate.slice(0,7);
+  var y=parseInt(m),mo=parseInt(m.slice(5,7));
+  var allMWD=getWorkDays(m+'-01',m+'-'+new Date(y,mo,0).getDate(),holidays);
+  var perW=Math.ceil(allMWD.length/4);
+  var flatCols=[];
+  for(var w=0;w<4;w++){
+    var wDays=allMWD.slice(w*perW,(w+1)*perW);
+    if(wDays.length)flatCols.push({label:'Tuần '+(w+1),days:wDays});
+  }
+  if(!flatCols.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có dữ liệu</div>';return;}
+
   var planCalls=tgt.target_calls_day*totalMonthWorkDays||0;
   var planTalk=tgt.target_talktime_day*totalMonthWorkDays||0;
   var planPot=tgt.target_potential_month||16;
   var planBG=tgt.target_bagia_month||8;
 
-  // Build 4 weeks from the month of fromDate
-  var m=fromDate.slice(0,7);
-  var y=parseInt(m),mo=parseInt(m.slice(5,7));
-  var allMWD=getWorkDays(m+'-01',m+'-'+new Date(y,mo,0).getDate(),holidays);
-  var perW=Math.ceil(allMWD.length/4);
-  var cols=[];
-  for(var w=0;w<4;w++){
-    var wDays=allMWD.slice(w*perW,(w+1)*perW);
-    if(wDays.length)cols.push({label:'Tuần '+(w+1),days:wDays});
-  }
-  if(!cols.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có dữ liệu</div>';return;}
-
   var html='<div style="display:flex;flex-direction:column;gap:0">';
   salesProfiles.forEach(function(emp){
-    html+=buildPersonBlock(emp,cols,planCalls,planTalk,planPot,planBG,trackMap);
+    html+=buildPersonBlock(emp,flatCols,planCalls,planTalk,planPot,planBG,trackMap);
   });
   document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
 }
 
 // ---- CHEDE QUY ----
 function renderDailyQuarterView(ctx){
-  var {salesProfiles,trackMap,holidays,fromDate,toDate,tgt,totalMonthWorkDays}=ctx;
-  // Collect all months in range, group by quarter
+  var {salesProfiles,trackMap,holidays,fromDate,toDate,tgt}=ctx;
+  // Collect months in range, group by quarter
   var months=[],d=new Date(fromDate.slice(0,7)+'-01'),toD=new Date(toDate.slice(0,7)+'-01');
   while(d<=toD){months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()+1);}
 
-  var quarters={};
+  // Build groups: each quarter = 1 group, each month = 1 col
+  var groupMap={};
   months.forEach(function(m){
-    var mo=parseInt(m.slice(5,7));
-    var q='Q'+Math.ceil(mo/3)+'/'+m.slice(0,4);
-    if(!quarters[q])quarters[q]=[];
-    quarters[q].push(m);
+    var mo=parseInt(m.slice(5,7)),y=m.slice(0,4);
+    var qLabel='Q'+Math.ceil(mo/3)+'/'+y;
+    if(!groupMap[qLabel])groupMap[qLabel]={label:qLabel,bg:'#0f3a5c',color:'#b5d4f4',cols:[]};
+    var lastDay=new Date(parseInt(y),mo,0).getDate();
+    var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
+    groupMap[qLabel].cols.push({label:'T'+mo,days:mWD});
   });
+  var groups=Object.values(groupMap);
+  if(!groups.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có dữ liệu</div>';return;}
 
-  // Build cols per quarter: group header = Q label, sub-cols = month labels
+  var totalWD=groups.reduce(function(s,g){return s+g.cols.reduce(function(ss,c){return ss+c.days.length;},0);},0);
+  var planCalls=(tgt.target_calls_day||180)*totalWD;
+  var planTalk=(tgt.target_talktime_day||150)*totalWD;
+  var planPot=Math.round((tgt.target_potential_month||16)*months.length);
+  var planBG=Math.round((tgt.target_bagia_month||8)*months.length);
+
   var html='<div style="display:flex;flex-direction:column;gap:0">';
   salesProfiles.forEach(function(emp){
-    var allCols=[];
-    Object.keys(quarters).forEach(function(q){
-      var qMonths=quarters[q];
-      qMonths.forEach(function(m,mi){
-        var mo=parseInt(m.slice(5,7));
-        var y=parseInt(m.slice(0,4));
-        var lastDay=new Date(y,mo,0).getDate();
-        var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
-        // planCalls for this month
-        var planC=(tgt.target_calls_day||180)*mWD.length;
-        var planT=(tgt.target_talktime_day||150)*mWD.length;
-        allCols.push({
-          label:'T'+mo,
-          days:mWD,
-          group:mi===0?q:null,
-          groupBg:'#0f3a5c',groupColor:'#b5d4f4'
-        });
-      });
-    });
-    // Plan = full month targets summed
-    var totalWD=allCols.reduce(function(s,c){return s+c.days.length;},0);
-    var planCalls=(tgt.target_calls_day||180)*totalWD;
-    var planTalk=(tgt.target_talktime_day||150)*totalWD;
-    var planPot=Math.round((tgt.target_potential_month||16)*months.length);
-    var planBG=Math.round((tgt.target_bagia_month||8)*months.length);
-    html+=buildPersonBlock(emp,allCols,planCalls,planTalk,planPot,planBG,trackMap);
+    html+=buildPersonBlock(emp,groups,planCalls,planTalk,planPot,planBG,trackMap);
   });
   document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
 }
@@ -3269,34 +3278,32 @@ function renderDailyQuarterView(ctx){
 function renderDailyYearView(ctx){
   var {salesProfiles,trackMap,holidays,fromDate,tgt}=ctx;
   var year=parseInt(fromDate.slice(0,4));
-  // 4 quarters, each 3 months
   var quarterDefs=[
-    {label:'Q1',months:[1,2,3]},{label:'Q2',months:[4,5,6]},
-    {label:'Q3',months:[7,8,9]},{label:'Q4',months:[10,11,12]}
+    {label:'Q1/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[1,2,3]},
+    {label:'Q2/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[4,5,6]},
+    {label:'Q3/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[7,8,9]},
+    {label:'Q4/'+year,bg:'#0f3a5c',color:'#b5d4f4',months:[10,11,12]}
   ];
+  var groups=quarterDefs.map(function(qd){
+    return {
+      label:qd.label,bg:qd.bg,color:qd.color,
+      cols:qd.months.map(function(mo){
+        var m=year+'-'+String(mo).padStart(2,'0');
+        var lastDay=new Date(year,mo,0).getDate();
+        return {label:'T'+mo,days:getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays)};
+      })
+    };
+  });
+
+  var totalWD=groups.reduce(function(s,g){return s+g.cols.reduce(function(ss,c){return ss+c.days.length;},0);},0);
+  var planCalls=(tgt.target_calls_day||180)*totalWD;
+  var planTalk=(tgt.target_talktime_day||150)*totalWD;
+  var planPot=(tgt.target_potential_month||16)*12;
+  var planBG=(tgt.target_bagia_month||8)*12;
 
   var html='<div style="display:flex;flex-direction:column;gap:0">';
   salesProfiles.forEach(function(emp){
-    var allCols=[];
-    quarterDefs.forEach(function(qd,qi){
-      qd.months.forEach(function(mo,mi){
-        var m=year+'-'+String(mo).padStart(2,'0');
-        var lastDay=new Date(year,mo,0).getDate();
-        var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
-        allCols.push({
-          label:'T'+mo,
-          days:mWD,
-          group:mi===0?qd.label:null,
-          groupBg:'#0f3a5c',groupColor:'#b5d4f4'
-        });
-      });
-    });
-    var totalWD=allCols.reduce(function(s,c){return s+c.days.length;},0);
-    var planCalls=(tgt.target_calls_day||180)*totalWD;
-    var planTalk=(tgt.target_talktime_day||150)*totalWD;
-    var planPot=(tgt.target_potential_month||16)*12;
-    var planBG=(tgt.target_bagia_month||8)*12;
-    html+=buildPersonBlock(emp,allCols,planCalls,planTalk,planPot,planBG,trackMap);
+    html+=buildPersonBlock(emp,groups,planCalls,planTalk,planPot,planBG,trackMap);
   });
   document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
 }
