@@ -589,6 +589,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <div class="dr-quick">
             <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Tuần</button>
             <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Ngày</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Năm</button>
           </div>
           <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
         </div>
@@ -909,11 +911,37 @@ const AV_COLORS=[{bg:'rgba(79,127,255,0.15)',color:'#4f7fff'},{bg:'rgba(167,139,
 const P2C_MAP={1:0,2:500000,3:1000000,4:1500000,5:2000000};
 
 let curUser=null,curProfile=null,allProfiles=[],allProducts=[];
+let allProfilesMap={}; // id -> profile, O(1) lookup
 let curMonth=new Date().getMonth(),curYear=new Date().getFullYear();
 let ordMonth=new Date().getMonth(),ordYear=new Date().getFullYear();
 let kpiMonth=new Date().getMonth(),kpiYear=new Date().getFullYear();
 let salMonth=new Date().getMonth(),salYear=new Date().getFullYear();
 let editingDay=null,pendingInvoice=null;
+let _realtimeChannel=null;
+
+// ---- Daily tracking cache (TTL 30s, invalidate on write) ----
+var _dailyCache={};
+var DAILY_CACHE_TTL=30000;
+function _dailyCacheKey(from,to){return from+'|'+to;}
+async function fetchDailyTracks(from,to){
+  var key=_dailyCacheKey(from,to);
+  var cached=_dailyCache[key];
+  if(cached&&Date.now()-cached.ts<DAILY_CACHE_TTL)return cached.data;
+  var {data}=await sb.from('daily_tracking').select('*').gte('ngay',from).lte('ngay',to);
+  _dailyCache[key]={data:data||[],ts:Date.now()};
+  return _dailyCache[key].data;
+}
+function invalidateDailyCache(){_dailyCache={};}
+
+// ---- Profile helpers ----
+function buildProfilesMap(){
+  allProfilesMap={};
+  allProfiles.forEach(function(p){allProfilesMap[p.id]=p;});
+}
+function getProfile(id){return allProfilesMap[id]||null;}
+function activeProfiles(){return allProfiles.filter(function(p){return (p.status||'active')==='active';});}
+function activeSales(){return activeProfiles().filter(function(p){return p.role==='sale';});}
+function activeTeam(){return activeProfiles().filter(function(p){return p.role==='sale'||p.role==='leader';});}
 
 function pad2(n){return String(n).padStart(2,'0')}
 function vnd(n){return Math.round(n).toLocaleString('vi-VN')+'đ'}
@@ -963,7 +991,6 @@ async function doLogout(){
 
 async function initApp(user){
   curUser=user;
-  // Parallel: fetch profile + products + all profiles at once
   const [profRes, prodsRes, profilesRes] = await Promise.all([
     sb.from('profiles').select('*').eq('id',user.id).single(),
     sb.from('products').select('*').eq('active',true),
@@ -972,11 +999,11 @@ async function initApp(user){
   curProfile=profRes.data;
   allProducts=prodsRes.data||[];
   allProfiles=profilesRes.data||[];
+  buildProfilesMap();
 
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
 
-  // Topbar
   const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));
   const av=document.getElementById('tb-avatar');
   av.textContent=initials(curProfile.ho_ten);
@@ -991,36 +1018,69 @@ async function initApp(user){
   populateSelects();
   if(curProfile.role==='manager'||curProfile.role==='leader')renderEmpGrid();
 
-  // Checkin page + log in parallel
+  // ---- REALTIME SUBSCRIPTIONS ----
+  initRealtime();
+
   Promise.all([renderCheckinPage(), renderAllLog()]);
 }
 
+function initRealtime(){
+  if(_realtimeChannel)sb.removeChannel(_realtimeChannel);
+  _realtimeChannel=sb.channel('cslian-global')
+    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},function(payload){
+      // Refresh profiles cache, re-render active page
+      refreshProfiles();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'daily_tracking'},function(payload){
+      invalidateDailyCache();
+      var activePage=document.querySelector('.page-content.active');
+      if(activePage&&activePage.id==='page-daily')renderDaily();
+      if(activePage&&activePage.id==='page-dashboard')renderDashboard();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'targets'},function(payload){
+      invalidateTargetCache();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'holidays'},function(payload){
+      _holidaysCache=null;
+      invalidateDailyCache();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(payload){
+      var activePage=document.querySelector('.page-content.active');
+      if(activePage&&activePage.id==='page-orders')renderOrders();
+      if(activePage&&activePage.id==='page-dashboard')renderDashboard();
+    })
+    .subscribe(function(status){
+      if(status==='SUBSCRIBED')console.log('Realtime connected');
+    });
+}
+
+async function refreshProfiles(){
+  var {data}=await sb.from('profiles').select('*').order('ma_nv');
+  if(!data)return;
+  allProfiles=data;
+  buildProfilesMap();
+  populateSelects();
+  var activePage=document.querySelector('.page-content.active');
+  if(activePage&&activePage.id==='page-team')renderEmpGrid();
+}
+
 async function loadAllProfiles(){
-  // Ensure we have an active session before querying
   const {data:{session}}=await sb.auth.getSession();
-  if(!session){
-    console.warn('loadAllProfiles: no session yet, retrying in 500ms');
-    setTimeout(loadAllProfiles,500);
-    return;
-  }
+  if(!session){setTimeout(loadAllProfiles,500);return;}
   const {data,error}=await sb.from('profiles').select('*').order('ma_nv');
-  if(error){
-    console.error('loadAllProfiles error:',error.message,error.details);
-    if(curProfile)allProfiles=[curProfile];
-  } else {
-    allProfiles=data||[];
-  }
-  console.log('loadAllProfiles result:',allProfiles.length,'profiles');
+  if(error){if(curProfile)allProfiles=[curProfile];}
+  else{allProfiles=data||[];}
+  buildProfilesMap();
   populateSelects();
   if(curProfile&&(curProfile.role==='manager'||curProfile.role==='leader'))renderEmpGrid();
 }
 
 function populateSelects(){
-  const opts=allProfiles.map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
+  const active=activeProfiles();
+  const opts=active.map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
   ['att-emp-sel','ord-emp-sel','kpi-emp-sel','sal-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
-  // Year select for reviews
   const revNam=document.getElementById('rev-nam-sel');
   if(revNam)revNam.innerHTML=[2025,2026,2027].map(y=>`<option value="${y}">${y}</option>`).join('');
 }
@@ -2393,28 +2453,68 @@ async function renderReviews(){
 // ============================================================
 // EMPLOYEE GRID
 // ============================================================
+var _empFilter='active'; // 'active' | 'inactive' | 'all'
+
 function renderEmpGrid(){
   const el=document.getElementById('emp-grid');
-  el.innerHTML=allProfiles.map((p,i)=>{
+  if(!el)return;
+
+  // Filter bar
+  var filterBar=document.getElementById('emp-filter-bar');
+  if(!filterBar){
+    filterBar=document.createElement('div');
+    filterBar.id='emp-filter-bar';
+    filterBar.style.cssText='display:flex;gap:6px;margin-bottom:14px;align-items:center';
+    el.parentNode.insertBefore(filterBar,el);
+  }
+  filterBar.innerHTML=`
+    <span style="font-size:12px;color:var(--text2)">Hiển thị:</span>
+    <button class="dr-quick-btn ${_empFilter==='active'?'active':''}" onclick="setEmpFilter('active')">Đang làm</button>
+    <button class="dr-quick-btn ${_empFilter==='inactive'?'active':''}" onclick="setEmpFilter('inactive')">Đã nghỉ</button>
+    <button class="dr-quick-btn ${_empFilter==='all'?'active':''}" onclick="setEmpFilter('all')">Tất cả</button>
+    <span style="font-size:11px;color:var(--text3);margin-left:8px">${allProfiles.filter(p=>(p.status||'active')==='active').length} đang làm · ${allProfiles.filter(p=>p.status==='inactive').length} đã nghỉ</span>
+  `;
+
+  var filtered=allProfiles.filter(function(p){
+    if(_empFilter==='active')return (p.status||'active')==='active';
+    if(_empFilter==='inactive')return p.status==='inactive';
+    return true;
+  });
+
+  el.innerHTML=filtered.map(function(p,i){
     const c=avColor(i);
+    const isInactive=p.status==='inactive';
     const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>'};
     const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
     const isThuViec=(p.contract_type||'thu-viec')==='thu-viec';
     const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
-    return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${c.bg};color:${c.color};flex-shrink:0">${initials(p.ho_ten)}</div>
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:600">${p.ho_ten} <span style="font-size:12px;color:var(--text2)">(${p.biet_danh||''})</span></div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.ma_nv} · ${p.email} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Ngày vào: ${startDate} · ${contractLabel}</div>
+    const ngayNghi=p.ngay_nghi_viec?'<span style="color:var(--danger);font-size:11px"> · Nghỉ: '+p.ngay_nghi_viec+'</span>':'';
+
+    var actions=`<button class="btn-sm" onclick="openEditProfile('${p.id}')" style="font-size:11px;padding:4px 9px">✏️ Sửa</button>`;
+    if(curProfile&&curProfile.role==='manager'){
+      if(isInactive){
+        actions+=` <button class="btn-sm" onclick="toggleEmpStatus('${p.id}','active')" style="font-size:11px;padding:4px 9px;border-color:var(--success);color:var(--success)">✅ Kích hoạt</button>`;
+      } else {
+        actions+=` <button class="btn-sm" onclick="openDeactivateModal('${p.id}')" style="font-size:11px;padding:4px 9px;border-color:var(--danger);color:var(--danger)">🚫 Nghỉ việc</button>`;
+      }
+    }
+
+    return `<div style="background:var(--bg3);border:1px solid ${isInactive?'var(--border)':'var(--border)'};border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;opacity:${isInactive?'0.6':'1'}">
+      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${isInactive?'rgba(255,255,255,0.05)':c.bg};color:${isInactive?'var(--text3)':c.color};flex-shrink:0">${initials(p.ho_ten)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">${p.ho_ten} <span style="font-size:12px;color:var(--text2)">(${p.biet_danh||''})</span>${isInactive?'<span style="font-size:10px;background:var(--danger-bg);color:var(--danger);border-radius:4px;padding:1px 6px;margin-left:6px">Đã nghỉ</span>':''}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.ma_nv} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Vào: ${startDate} · ${contractLabel}${ngayNghi}</div>
       </div>
-      <button class="btn-sm" onclick="openEditProfile('${p.id}')" style="flex-shrink:0;font-size:12px;padding:5px 10px">✏️ Sửa</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">${actions}</div>
     </div>`;
-  }).join('');
+  }).join('')||'<div class="empty">Không có nhân viên</div>';
 }
 
+function setEmpFilter(f){_empFilter=f;renderEmpGrid();}
+
 async function openEditProfile(id){
-  const p=allProfiles.find(x=>x.id===id);
+  const p=allProfilesMap[id]||allProfiles.find(x=>x.id===id);
   if(!p)return;
   document.getElementById('ep-id').textContent=p.id;
   document.getElementById('ep-name').value=p.ho_ten||'';
@@ -2436,29 +2536,43 @@ async function saveEmpProfile(){
   const role=document.getElementById('ep-role').value;
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
-  if(!hoTen){toast('Nhập họ tên','error');return;}
-  if(!id){toast('Lỗi: không tìm thấy ID nhân viên','error');return;}
-  
   const contractType=document.getElementById('ep-contract').value;
-  const updateData={ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
-    start_date:startDate||null,contract_type:contractType};
-  console.log('Updating profile:',id,updateData);
-  
-  const {data,error}=await sb.from('profiles').update(updateData).eq('id',id).select();
-  if(error){
-    console.error('Update error:',error);
-    if(error.message.includes('policy')||error.code==='42501'){
-      toast('Lỗi quyền — Cần chạy SQL fix RLS trong Supabase','error');
-    } else {
-      toast('Lỗi: '+error.message,'error');
-    }
-    return;
-  }
-  console.log('Updated:',data);
+  if(!hoTen){toast('Nhập họ tên','error');return;}
+  if(!id){toast('Lỗi: không tìm thấy ID','error');return;}
+  const {error}=await sb.from('profiles').update({
+    ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
+    start_date:startDate||null,contract_type:contractType
+  }).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
   toast('Đã cập nhật: '+hoTen);
   closeModal('emp-profile-modal');
-  await loadAllProfiles();
-  renderEmpGrid();
+  // Realtime will refresh, but update local cache immediately
+  var idx=allProfiles.findIndex(p=>p.id===id);
+  if(idx>=0)Object.assign(allProfiles[idx],{ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,start_date:startDate||null,contract_type:contractType});
+  buildProfilesMap();populateSelects();renderEmpGrid();
+}
+
+// Nghỉ việc modal
+function openDeactivateModal(id){
+  var p=allProfilesMap[id];
+  if(!p)return;
+  var ngay=getTodayVN();
+  if(!confirm('Xác nhận nghỉ việc cho '+p.ho_ten+'?\nNgày nghỉ: '+ngay+'\n\nNhân viên sẽ bị ẩn khỏi hệ thống nhưng lịch sử vẫn giữ nguyên.')){return;}
+  toggleEmpStatus(id,'inactive',ngay);
+}
+
+async function toggleEmpStatus(id,newStatus,ngayNghi){
+  var updateData={status:newStatus};
+  if(newStatus==='inactive'){updateData.ngay_nghi_viec=ngayNghi||getTodayVN();}
+  else{updateData.ngay_nghi_viec=null;updateData.ly_do_nghi=null;}
+  var {error}=await sb.from('profiles').update(updateData).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  var p=allProfilesMap[id];
+  toast(newStatus==='inactive'?'Đã đánh dấu nghỉ việc: '+(p?p.ho_ten:''):'Đã kích hoạt lại: '+(p?p.ho_ten:''));
+  // Update local immediately
+  var idx=allProfiles.findIndex(p=>p.id===id);
+  if(idx>=0)Object.assign(allProfiles[idx],updateData);
+  buildProfilesMap();populateSelects();renderEmpGrid();
 }
 
 // NAV
@@ -2648,8 +2762,10 @@ var _dailyView='day'; // 'day' | 'week'
 
 function setDailyView(v){
   _dailyView=v;
-  document.getElementById('dv-day').classList.toggle('active',v==='day');
-  document.getElementById('dv-week').classList.toggle('active',v==='week');
+  ['day','week','quarter','year'].forEach(function(p){
+    var el=document.getElementById('dv-'+p);
+    if(el)el.classList.toggle('active',p===v);
+  });
   renderDaily();
 }
 
@@ -2673,7 +2789,7 @@ async function onDimDateChange(){
 }
 
 async function loadDimData(ngay){
-  var sales=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).filter(function(p){return p.role!=='manager';});
+  var sales=activeTeam();
   if(!sales.length){document.getElementById('dim-tbody').innerHTML='<tr><td colspan="7" class="empty">Không có nhân viên</td></tr>';return;}
 
   // Load existing data for this date + prev workday data
@@ -2716,7 +2832,7 @@ async function loadDimData(ngay){
     var hint2=p.cum_calls_shift2?`<div style="font-size:9px;color:var(--text3)">hôm trước: ${p.cum_calls_shift2}</div>`:'';
 
     return `<tr>
-      <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.biet_danh||emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
+      <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
       <td style="padding:4px;border:1px solid var(--border)">
         <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
         ${hint1}
@@ -2789,7 +2905,7 @@ async function saveDailyTeam(){
   var ngay=document.getElementById('dim-date').value;
   if(!ngay){toast('Chọn ngày','error');return;}
 
-  var sales=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).filter(function(p){return p.role!=='manager';});
+  var sales=activeTeam();
   var holidays=await loadHolidays();
   if(!isWorkDay(ngay,holidays)){
     if(!confirm(ngay+' là ngày nghỉ/cuối tuần. Vẫn lưu?'))return;
@@ -2832,34 +2948,28 @@ async function renderDaily(){
   if(!fromDate||!toDate){initDailyFilter();fromDate=document.getElementById('daily-from').value;toDate=document.getElementById('daily-to').value;}
 
   var fromMonth=fromDate.slice(0,7);
-  var [tgt, tracksRes, holidays] = await Promise.all([
+  var [tgt, tracks, holidays] = await Promise.all([
     getTarget(fromMonth),
-    sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
+    fetchDailyTracks(fromDate,toDate),
     loadHolidays()
   ]);
 
-  var tracks=tracksRes.data||[];
-  var salesProfiles=allProfiles.filter(function(p){return p.role==='sale';});
+  var salesProfiles=activeSales();
   var workDays=getWorkDays(fromDate,toDate,holidays);
   var totalWorkDays=workDays.length;
 
-  // Working days in full month for plan
-  var monthWorkDays=getWorkDays(fromMonth+'-01',fromMonth+'-'+new Date(parseInt(fromMonth),parseInt(fromMonth.slice(5,7)),0).getDate(),holidays);
-  var totalMonthWorkDays=monthWorkDays.length||22;
-
-  // Target per person per day
   var callsPerDay=tgt.target_calls_day||180;
   var talkPerDay=tgt.target_talktime_day||150;
   var potentialMonth=tgt.target_potential_month||16;
   var bagiaMonth=tgt.target_bagia_month||8;
 
-  // Plan for range
-  var planCalls=callsPerDay*totalWorkDays;
-  var planTalk=talkPerDay*totalWorkDays;
-  var planPotential=Math.round(potentialMonth/totalMonthWorkDays*totalWorkDays);
-  var planBagia=Math.round(bagiaMonth/totalMonthWorkDays*totalWorkDays);
+  // Working days in full month
+  var y=parseInt(fromMonth),m=parseInt(fromMonth.slice(5,7));
+  var lastDay=new Date(y,m,0).getDate();
+  var monthWorkDays=getWorkDays(fromMonth+'-01',fromMonth+'-'+String(lastDay).padStart(2,'0'),holidays);
+  var totalMonthWorkDays=monthWorkDays.length||22;
 
-  // Build track map: {userId: {date: record}}
+  // trackMap: {userId: {date: record}}
   var trackMap={};
   tracks.forEach(function(t){
     if(!trackMap[t.user_id])trackMap[t.user_id]={};
@@ -2870,213 +2980,325 @@ async function renderDaily(){
   var totCalls=0,totTalk=0,totPot=0,totBG=0,entered=0;
   salesProfiles.forEach(function(emp){
     var days=trackMap[emp.id]||{};
-    var hasData=Object.keys(days).length>0;
-    if(hasData){
+    if(Object.keys(days).length>0){
       entered++;
       Object.values(days).forEach(function(d){
-        totCalls+=(d.total_calls||0);
-        totTalk+=(d.talktime_phut||0);
-        totPot+=(d.potential_calls||0);
-        totBG+=(d.so_bao_gia||0);
+        totCalls+=(d.total_calls||0);totTalk+=(d.talktime_phut||0);
+        totPot+=(d.potential_calls||0);totBG+=(d.so_bao_gia||0);
       });
     }
   });
 
+  var planC=callsPerDay*totalWorkDays*salesProfiles.length;
+  var planT=talkPerDay*totalWorkDays*salesProfiles.length;
+  var missing=salesProfiles.length-entered;
   var fromLabel=fromDate.slice(8)+'/'+fromDate.slice(5,7);
   var toLabel=toDate.slice(8)+'/'+toDate.slice(5,7)+'/'+toDate.slice(0,4);
-  var missing=salesProfiles.length-entered;
 
   document.getElementById('daily-sub').textContent=fromLabel+' → '+toLabel+' — '+totalWorkDays+' ngày làm việc';
   document.getElementById('daily-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📊 Đã nhập</div><div class="stat-val" style="color:${entered===salesProfiles.length?'var(--success)':'var(--warn)'}">${entered}<span style="font-size:14px">/${salesProfiles.length}</span></div><div class="stat-sub">${missing>0?missing+' chưa nhập':'Đủ hết'}</div></div>
-    <div class="stat-card"><div class="stat-label">📞 Tổng Calls team</div><div class="stat-val" style="color:${totCalls>=planCalls*salesProfiles.length?'var(--success)':'var(--danger)'}">${totCalls}</div><div class="stat-sub">Plan: ${planCalls*salesProfiles.length} · Gap: <span style="color:${totCalls-planCalls*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${totCalls-planCalls*salesProfiles.length}</span></div></div>
-    <div class="stat-card"><div class="stat-label">⏱ Talktime team</div><div class="stat-val" style="color:${totTalk>=planTalk*salesProfiles.length?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk)}</div><div class="stat-sub">Plan: ${fmtMinutes(planTalk*salesProfiles.length)} · Gap: <span style="color:${totTalk-planTalk*salesProfiles.length>=0?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk-planTalk*salesProfiles.length)}</span></div></div>
-    <div class="stat-card"><div class="stat-label">🎯 Potential / BG</div><div class="stat-val" style="color:var(--accent)">${totPot} / ${totBG}</div><div class="stat-sub">Plan: ${planPotential*salesProfiles.length} / ${planBagia*salesProfiles.length}</div></div>
+    <div class="stat-card"><div class="stat-label">📞 Tổng Calls team</div><div class="stat-val" style="color:${totCalls>=planC?'var(--success)':'var(--danger)'}">${totCalls}</div><div class="stat-sub">Plan: ${planC} · Gap: <span style="color:${totCalls-planC>=0?'var(--success)':'var(--danger)'}">${totCalls-planC}</span></div></div>
+    <div class="stat-card"><div class="stat-label">⏱ Talktime team</div><div class="stat-val" style="color:${totTalk>=planT?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk)}</div><div class="stat-sub">Plan: ${fmtMinutes(planT)} · Gap: <span style="color:${totTalk-planT>=0?'var(--success)':'var(--danger)'}">${fmtMinutes(totTalk-planT)}</span></div></div>
+    <div class="stat-card"><div class="stat-label">🎯 Potential / BG</div><div class="stat-val" style="color:var(--accent)">${totPot} / ${totBG}</div><div class="stat-sub">Plan: ${Math.round(potentialMonth/totalMonthWorkDays*totalWorkDays*salesProfiles.length)} / ${Math.round(bagiaMonth/totalMonthWorkDays*totalWorkDays*salesProfiles.length)}</div></div>
   `;
 
-  // Render bảng theo view mode
-  if(_dailyView==='week'){
-    renderDailyWeekView(salesProfiles,trackMap,workDays,fromDate,tgt,planCalls,planTalk,planPotential,planBagia,totalMonthWorkDays,holidays);
-  } else {
-    renderDailyDayView(salesProfiles,trackMap,workDays,callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays,tgt);
-  }
+  var ctx={tgt,tracks,trackMap,salesProfiles,workDays,holidays,
+    callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays,
+    fromDate,toDate};
+
+  if(_dailyView==='week') renderDailyWeekView(ctx);
+  else if(_dailyView==='quarter') renderDailyQuarterView(ctx);
+  else if(_dailyView==='year') renderDailyYearView(ctx);
+  else renderDailyDayView(ctx);
 }
 
-function renderDailyDayView(salesProfiles,trackMap,workDays,callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays,tgt){
-  if(!workDays.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có ngày làm việc trong khoảng này</div>';return;}
+// ---- Shared helpers ----
+function empNameCell(emp,sticky){
+  var s=sticky?'position:sticky;left:0;background:var(--bg2);z-index:1;':'';
+  return `<td style="padding:7px 8px;border:1px solid var(--border);font-weight:500;white-space:nowrap;${s}">${emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>`;
+}
+function aggTracks(userDays){
+  var c=0,t=0,pot=0,bg=0;
+  Object.values(userDays||{}).forEach(function(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);pot+=(r.potential_calls||0);bg+=(r.so_bao_gia||0);});
+  return {c,t,pot,bg};
+}
+function gapCell(val,target){
+  var g=val-target,ok=g>=0;
+  return `<td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${ok?'var(--success)':'var(--danger)'}">${ok?'+':''+(g)}</td>`;
+}
+function gapCellFmt(val,target,fmt){
+  var g=val-target,ok=g>=0;
+  return `<td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${ok?'var(--success)':'var(--danger)'}">${ok?'+':''}${fmt(g)}</td>`;
+}
+function numCell(v,color){return `<td style="text-align:center;padding:5px 3px;border:1px solid var(--border);font-weight:500;color:${color||'inherit'}">${v!==null&&v!==undefined?v:'—'}</td>`;}
+function fmtCell(v,fmt){return `<td style="text-align:center;padding:5px 3px;border:1px solid var(--border);font-weight:500">${v?fmt(v):'—'}</td>`;}
 
-  // Group work days
-  var planCalls=callsPerDay;
-  var planTalk=talkPerDay;
-  var planPot=Math.round(potentialMonth/totalMonthWorkDays);
-  var planBG=Math.round(bagiaMonth/totalMonthWorkDays);
+// ---- CHEDE NGAY ----
+function renderDailyDayView(ctx){
+  var {salesProfiles,trackMap,workDays,callsPerDay,talkPerDay,potentialMonth,bagiaMonth,totalMonthWorkDays}=ctx;
+  if(!workDays.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có ngày làm việc</div>';return;}
+  var planPotDay=Math.round(potentialMonth/totalMonthWorkDays);
+  var planBGDay=Math.round(bagiaMonth/totalMonthWorkDays);
 
-  var html='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:700px">';
-
-  // Header
+  var html='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px">';
+  // Header row 1
   html+=`<thead><tr>
-    <th style="text-align:left;padding:8px;background:var(--bg4);border:1px solid var(--border);min-width:110px;position:sticky;left:0;z-index:2">Nhân viên</th>
+    <th rowspan="2" style="text-align:left;padding:8px;background:var(--bg4);border:1px solid var(--border);position:sticky;left:0;z-index:3">Nhân viên</th>
     ${workDays.map(function(d){
       var label=d.slice(8)+'/'+d.slice(5,7);
       var dow=['CN','T2','T3','T4','T5','T6','T7'][new Date(d).getDay()];
-      return `<th colspan="2" style="text-align:center;padding:6px 4px;background:var(--bg4);border:1px solid var(--border);font-size:11px;white-space:nowrap">${label}<br><span style="color:var(--text2)">${dow}</span></th>`;
+      return `<th colspan="2" style="text-align:center;padding:5px 3px;background:var(--bg4);border:1px solid var(--border);font-size:11px;white-space:nowrap">${label}<br><span style="font-size:10px;color:var(--text2)">${dow}</span></th>`;
     }).join('')}
-    <th colspan="2" style="text-align:center;padding:6px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
-    <th colspan="2" style="text-align:center;padding:6px;background:#3c3489;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap tích lũy</th>
-  </tr>
-  <tr>
-    <th style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);position:sticky;left:0;z-index:2"></th>
-    ${workDays.map(function(){return '<th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th><th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>';}).join('')}
+    <th colspan="4" style="text-align:center;padding:5px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
+    <th colspan="4" style="text-align:center;padding:5px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap tích lũy</th>
+  </tr><tr>
+    <th style="padding:0;background:var(--bg4);border:0;position:sticky;left:0;z-index:2"></th>
+    ${workDays.map(function(){return '<th style="text-align:center;padding:4px 2px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th><th style="text-align:center;padding:4px 2px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>';}).join('')}
     <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
     <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Pot.</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">BG</th>
     <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Calls</th>
     <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Talk</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">Pot.</th>
+    <th style="text-align:center;padding:4px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">BG</th>
   </tr></thead><tbody>`;
 
-  var planCallsTotal=planCalls*workDays.length;
-  var planTalkTotal=planTalk*workDays.length;
+  var planCallsTot=callsPerDay*workDays.length;
+  var planTalkTot=talkPerDay*workDays.length;
+  var planPotTot=planPotDay*workDays.length;
+  var planBGTot=planBGDay*workDays.length;
 
+  // Per-person rows
   salesProfiles.forEach(function(emp){
     var days=trackMap[emp.id]||{};
-    var totC=0,totT=0,daysEntered=0;
+    var totC=0,totT=0,totPot=0,totBG=0,cnt=0;
     var dayCells=workDays.map(function(d){
       var r=days[d];
-      if(r){totC+=(r.total_calls||0);totT+=(r.talktime_phut||0);daysEntered++;}
-      var cOk=r&&r.total_calls>=planCalls;
-      var tOk=r&&r.talktime_phut>=planTalk;
-      return `<td style="text-align:center;padding:5px 3px;border:1px solid var(--border);color:${r?(cOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?'500':'400'}">${r?r.total_calls:'—'}</td>
-        <td style="text-align:center;padding:5px 3px;border:1px solid var(--border);color:${r?(tOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?'500':'400'}">${r?fmtMinutes(r.talktime_phut):'—'}</td>`;
+      if(r){totC+=(r.total_calls||0);totT+=(r.talktime_phut||0);totPot+=(r.potential_calls||0);totBG+=(r.so_bao_gia||0);cnt++;}
+      var cOk=r&&r.total_calls>=callsPerDay,tOk=r&&r.talktime_phut>=talkPerDay;
+      return `<td style="text-align:center;padding:4px 2px;border:1px solid var(--border);color:${r?(cOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?500:400}">${r?r.total_calls:'—'}</td>
+        <td style="text-align:center;padding:4px 2px;border:1px solid var(--border);color:${r?(tOk?'var(--success)':'var(--danger)'):'var(--text3)'};font-weight:${r?500:400}">${r?fmtMinutes(r.talktime_phut):'—'}</td>`;
     }).join('');
-    var gapC=totC-planCallsTotal;
-    var gapT=totT-planTalkTotal;
+    var gC=totC-planCallsTot,gT=totT-planTalkTot,gPot=totPot-planPotTot,gBG=totBG-planBGTot;
     html+=`<tr>
-      <td style="padding:7px 8px;border:1px solid var(--border);font-weight:500;position:sticky;left:0;background:var(--bg2);z-index:1;white-space:nowrap">${emp.biet_danh||emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
+      ${empNameCell(emp,true)}
       ${dayCells}
-      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${totC||'—'}</td>
-      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${totT?fmtMinutes(totT):'—'}</td>
-      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gapC>=0?'var(--success)':'var(--danger)'}">${daysEntered?(gapC>=0?'+':'')+gapC:'—'}</td>
-      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gapT>=0?'var(--success)':'var(--danger)'}">${daysEntered?(gapT>=0?'+':'')+fmtMinutes(gapT):'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${cnt?totC:'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${cnt?fmtMinutes(totT):'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border)">${cnt?totPot:'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border)">${cnt?totBG:'—'}</td>
+      ${cnt?`<td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gC>=0?'var(--success)':'var(--danger)'}">${gC>=0?'+':''+(gC)}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gT>=0?'var(--success)':'var(--danger)'}">${gT>=0?'+':''}${fmtMinutes(gT)}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gPot>=0?'var(--success)':'var(--danger)'}">${gPot>=0?'+':''+(gPot)}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${gBG>=0?'var(--success)':'var(--danger)'}">${gBG>=0?'+':''+(gBG)}</td>`
+      :'<td colspan="4" style="text-align:center;padding:5px;border:1px solid var(--border);color:var(--text3)">—</td>'}
     </tr>`;
   });
 
   // Total row
-  var totalC={},totalT={};
-  workDays.forEach(function(d){
+  var tRows=salesProfiles.map(function(emp){return trackMap[emp.id]||{};});
+  var dTotals=workDays.map(function(d){
     var c=0,t=0;
-    salesProfiles.forEach(function(emp){var r=(trackMap[emp.id]||{})[d];if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);}});
-    totalC[d]=c;totalT[d]=t;
+    tRows.forEach(function(days){var r=days[d];if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);}});
+    return {c,t};
   });
-  var grandC=Object.values(totalC).reduce(function(a,b){return a+b;},0);
-  var grandT=Object.values(totalT).reduce(function(a,b){return a+b;},0);
-  var planGrandC=planCalls*workDays.length*salesProfiles.length;
-  var planGrandT=planTalk*workDays.length*salesProfiles.length;
+  var grandC=dTotals.reduce(function(s,d){return s+d.c;},0);
+  var grandT=dTotals.reduce(function(s,d){return s+d.t;},0);
+  var grandPot=0,grandBG=0;
+  tRows.forEach(function(days){Object.values(days).forEach(function(r){grandPot+=(r.potential_calls||0);grandBG+=(r.so_bao_gia||0);});});
+  var totPlanC=planCallsTot*salesProfiles.length,totPlanT=planTalkTot*salesProfiles.length;
+  var totPlanPot=planPotTot*salesProfiles.length,totPlanBG=planBGTot*salesProfiles.length;
 
   html+=`<tr style="font-weight:600;background:var(--bg3)">
     <td style="padding:7px 8px;border:1px solid var(--border);position:sticky;left:0;background:var(--bg3);z-index:1">Total</td>
-    ${workDays.map(function(d){return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${totalC[d]||0}</td><td style="text-align:center;padding:5px;border:1px solid var(--border)">${fmtMinutes(totalT[d])}</td>`;}).join('')}
+    ${dTotals.map(function(d){return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${d.c}</td><td style="text-align:center;padding:5px;border:1px solid var(--border)">${fmtMinutes(d.t)}</td>`;}).join('')}
     <td style="text-align:center;padding:5px;border:1px solid var(--border)">${grandC}</td>
     <td style="text-align:center;padding:5px;border:1px solid var(--border)">${fmtMinutes(grandT)}</td>
-    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandC-planGrandC>=0?'var(--success)':'var(--danger)'}">${(grandC-planGrandC>=0?'+':'')+(grandC-planGrandC)}</td>
-    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandT-planGrandT>=0?'var(--success)':'var(--danger)'}">${(grandT-planGrandT>=0?'+':'')+fmtMinutes(grandT-planGrandT)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border)">${grandPot}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border)">${grandBG}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandC-totPlanC>=0?'var(--success)':'var(--danger)'}">${(grandC-totPlanC>=0?'+':'')+(grandC-totPlanC)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandT-totPlanT>=0?'var(--success)':'var(--danger)'}">${(grandT-totPlanT>=0?'+':'')+fmtMinutes(grandT-totPlanT)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandPot-totPlanPot>=0?'var(--success)':'var(--danger)'}">${(grandPot-totPlanPot>=0?'+':'')+(grandPot-totPlanPot)}</td>
+    <td style="text-align:center;padding:5px;border:1px solid var(--border);color:${grandBG-totPlanBG>=0?'var(--success)':'var(--danger)'}">${(grandBG-totPlanBG>=0?'+':'')+(grandBG-totPlanBG)}</td>
   </tr>`;
-
   html+='</tbody></table></div>';
   document.getElementById('daily-report-wrap').innerHTML=html;
 }
 
-function renderDailyWeekView(salesProfiles,trackMap,workDays,fromDate,tgt,planCalls,planTalk,planPotential,planBagia,totalMonthWorkDays,holidays){
-  if(!workDays.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có ngày làm việc trong khoảng này</div>';return;}
-
-  // Group work days into weeks (Mon-based, skip weekends+holidays)
-  var weeks=[];
-  var monthStr=fromDate.slice(0,7);
-  var year=parseInt(monthStr),month=parseInt(monthStr.slice(5,7));
-  var firstDay=new Date(year,month-1,1);
-  var lastDay=new Date(year,month,0);
-
-  // Build 4 weeks for the month
-  var allMonthWorkDays=getWorkDays(monthStr+'-01',monthStr+'-'+lastDay.getDate(),holidays);
-  var perWeek=Math.ceil(allMonthWorkDays.length/4);
-
-  for(var w=0;w<4;w++){
-    var wDays=allMonthWorkDays.slice(w*perWeek,(w+1)*perWeek);
-    if(wDays.length)weeks.push({label:'Tuần '+(w+1),days:wDays});
-  }
-
-  // Plan per person per month (full)
-  var planCallsMonth=tgt.target_calls_day*totalMonthWorkDays;
-  var planTalkMonth=tgt.target_talktime_day*totalMonthWorkDays;
-  var planPotMonth=tgt.target_potential_month||16;
-  var planBGMonth=tgt.target_bagia_month||8;
-
-  // Render per-person block
-  var html='<div style="display:flex;flex-direction:column;gap:16px">';
-
-  salesProfiles.forEach(function(emp){
-    var days=trackMap[emp.id]||{};
-    var weekData=weeks.map(function(w){
-      var c=0,t=0,pot=0,bg=0;
-      w.days.forEach(function(d){var r=days[d];if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);pot+=(r.potential_calls||0);bg+=(r.so_bao_gia||0);}});
-      return {calls:c,talk:t,pot:pot,bg:bg};
+// ---- HELPER: build per-person block table (dùng cho week/quarter/year) ----
+function buildPersonBlock(emp,cols,planCalls,planTalk,planPot,planBG,trackMap){
+  var rows=[
+    {label:'Total Calls',key:'c',fmt:function(v){return v;},planV:planCalls},
+    {label:'Talktime',key:'t',fmt:fmtMinutes,planV:planTalk},
+    {label:'Potential',key:'pot',fmt:function(v){return v;},planV:planPot},
+    {label:'Báo giá',key:'bg',fmt:function(v){return v;},planV:planBG},
+  ];
+  var colTotals=cols.map(function(col){
+    var c=0,t=0,pot=0,bg=0;
+    col.days.forEach(function(d){
+      var r=(trackMap[emp.id]||{})[d];
+      if(r){c+=(r.total_calls||0);t+=(r.talktime_phut||0);pot+=(r.potential_calls||0);bg+=(r.so_bao_gia||0);}
     });
-    var totC=weekData.reduce(function(s,w){return s+w.calls;},0);
-    var totT=weekData.reduce(function(s,w){return s+w.talk;},0);
-    var totPot=weekData.reduce(function(s,w){return s+w.pot;},0);
-    var totBG=weekData.reduce(function(s,w){return s+w.bg;},0);
-    var gapC=totC-planCallsMonth,gapT=totT-planTalkMonth;
-    var gapPot=totPot-planPotMonth,gapBG=totBG-planBGMonth;
+    return {c,t,pot,bg};
+  });
+  var grand={c:0,t:0,pot:0,bg:0};
+  colTotals.forEach(function(ct){grand.c+=ct.c;grand.t+=ct.t;grand.pot+=ct.pot;grand.bg+=ct.bg;});
 
-    function gc(v){return v>=0?'var(--success)':'var(--danger)';}
-    function gv(v){return (v>=0?'+':'')+v;}
+  var colHeaders=cols.map(function(col){
+    return col.group
+      ?`<th colspan="${col.subCols?col.subCols.length:1}" style="text-align:center;padding:4px 6px;background:${col.groupBg||'var(--bg4)'};color:${col.groupColor||'var(--text)'};border:1px solid var(--border);font-size:10px;font-weight:600">${col.group}</th>`
+      :`<th style="text-align:center;padding:4px 6px;background:var(--bg4);border:1px solid var(--border);font-size:11px">${col.label}</th>`;
+  }).join('');
 
-    html+=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <div style="padding:8px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">
-        ${emp.biet_danh||emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span>
-      </div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead><tr>
-          <th style="text-align:left;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2);min-width:100px">Chỉ số</th>
-          ${weeks.map(function(w){return `<th style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border);font-size:11px">${w.label}</th>`;}).join('')}
-          <th style="text-align:center;padding:6px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:11px">Total</th>
-          <th style="text-align:center;padding:6px;background:#3c2a14;color:#fac775;border:1px solid var(--border);font-size:11px">Plan</th>
-          <th style="text-align:center;padding:6px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:11px">Gap</th>
-        </tr></thead>
-        <tbody>
-          <tr>
-            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Total Calls</td>
-            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:500">${w.calls||'—'}</td>`;}).join('')}
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totC}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planCallsMonth}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapC)}">${gv(gapC)}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Talktime</td>
-            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:500">${w.talk?fmtMinutes(w.talk):'—'}</td>`;}).join('')}
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${fmtMinutes(totT)}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${fmtMinutes(planTalkMonth)}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapT)}">${(gapT>=0?'+'  :'')+fmtMinutes(gapT)}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Potential</td>
-            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border)">${w.pot||'—'}</td>`;}).join('')}
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totPot}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planPotMonth}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapPot)}">${gv(gapPot)}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">Báo giá</td>
-            ${weekData.map(function(w){return `<td style="text-align:center;padding:6px;border:1px solid var(--border)">${w.bg||'—'}</td>`;}).join('')}
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600">${totBG}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);color:var(--text2)">${planBGMonth}</td>
-            <td style="text-align:center;padding:6px;border:1px solid var(--border);font-weight:600;color:${gc(gapBG)}">${gv(gapBG)}</td>
-          </tr>
-        </tbody>
-      </table></div>
-    </div>`;
+  var subHeaders=cols.map(function(col){
+    if(col.subCols){return col.subCols.map(function(sc){return `<th style="text-align:center;padding:3px 5px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">${sc}</th>`;}).join('');}
+    return `<th style="text-align:center;padding:3px 5px;background:var(--bg3);border:1px solid var(--border);font-size:10px;color:var(--text2)">${col.label}</th>`;
+  }).join('');
+  var hasGroups=cols.some(function(c){return c.group;});
+
+  var dataRows=rows.map(function(row){
+    var cells=colTotals.map(function(ct,ci){
+      var v=ct[row.key];
+      var colDef=cols[ci];
+      if(colDef.subCols){
+        // multiple sub-cols: show value once, pad rest
+        return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${v?row.fmt(v):'—'}</td>${colDef.subCols.slice(1).map(function(){return '<td style="border:1px solid var(--border)"></td>';}).join('')}`;
+      }
+      return `<td style="text-align:center;padding:5px;border:1px solid var(--border)">${v?row.fmt(v):'—'}</td>`;
+    }).join('');
+    var gv=grand[row.key]-row.planV,ok=gv>=0;
+    return `<tr>
+      <td style="padding:5px 10px;border:1px solid var(--border);color:var(--text2);font-size:11px">${row.label}</td>
+      ${cells}
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600">${grand[row.key]?row.fmt(grand[row.key]):'—'}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);color:var(--text2)">${row.fmt(row.planV)}</td>
+      <td style="text-align:center;padding:5px;border:1px solid var(--border);font-weight:600;color:${ok?'var(--success)':'var(--danger)'}">${ok?'+':''}${row.fmt(gv)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px">
+    <div style="padding:8px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">${emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span></div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        ${hasGroups?`<tr><th style="background:var(--bg3);border:1px solid var(--border)"></th>${colHeaders}<th style="text-align:center;padding:4px;background:#1a3a5c;color:#b5d4f4;border:1px solid var(--border);font-size:10px">Total</th><th style="text-align:center;padding:4px;background:#3c2a14;color:#fac775;border:1px solid var(--border);font-size:10px">Plan</th><th style="text-align:center;padding:4px;background:#2a143c;color:#cecbf6;border:1px solid var(--border);font-size:10px">Gap</th></tr>`:''}
+        <tr><th style="text-align:left;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);font-size:11px;color:var(--text2);min-width:90px">Chỉ số</th>${subHeaders}<th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#1a3a5c'};color:${hasGroups?'var(--text2)':'#b5d4f4'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Total'}</th><th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#3c2a14'};color:${hasGroups?'var(--text2)':'#fac775'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Plan'}</th><th style="text-align:center;padding:4px;background:${hasGroups?'var(--bg3)':'#2a143c'};color:${hasGroups?'var(--text2)':'#cecbf6'};border:1px solid var(--border);font-size:10px">${hasGroups?'':'Gap'}</th></tr>
+      </thead>
+      <tbody>${dataRows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ---- CHEDE TUAN ----
+function renderDailyWeekView(ctx){
+  var {salesProfiles,trackMap,holidays,fromDate,tgt,totalMonthWorkDays}=ctx;
+  var planCalls=tgt.target_calls_day*totalMonthWorkDays||0;
+  var planTalk=tgt.target_talktime_day*totalMonthWorkDays||0;
+  var planPot=tgt.target_potential_month||16;
+  var planBG=tgt.target_bagia_month||8;
+
+  // Build 4 weeks from the month of fromDate
+  var m=fromDate.slice(0,7);
+  var y=parseInt(m),mo=parseInt(m.slice(5,7));
+  var allMWD=getWorkDays(m+'-01',m+'-'+new Date(y,mo,0).getDate(),holidays);
+  var perW=Math.ceil(allMWD.length/4);
+  var cols=[];
+  for(var w=0;w<4;w++){
+    var wDays=allMWD.slice(w*perW,(w+1)*perW);
+    if(wDays.length)cols.push({label:'Tuần '+(w+1),days:wDays});
+  }
+  if(!cols.length){document.getElementById('daily-report-wrap').innerHTML='<div class="empty" style="padding:24px">Không có dữ liệu</div>';return;}
+
+  var html='<div style="display:flex;flex-direction:column;gap:0">';
+  salesProfiles.forEach(function(emp){
+    html+=buildPersonBlock(emp,cols,planCalls,planTalk,planPot,planBG,trackMap);
+  });
+  document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
+}
+
+// ---- CHEDE QUY ----
+function renderDailyQuarterView(ctx){
+  var {salesProfiles,trackMap,holidays,fromDate,toDate,tgt,totalMonthWorkDays}=ctx;
+  // Collect all months in range, group by quarter
+  var months=[],d=new Date(fromDate.slice(0,7)+'-01'),toD=new Date(toDate.slice(0,7)+'-01');
+  while(d<=toD){months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()+1);}
+
+  var quarters={};
+  months.forEach(function(m){
+    var mo=parseInt(m.slice(5,7));
+    var q='Q'+Math.ceil(mo/3)+'/'+m.slice(0,4);
+    if(!quarters[q])quarters[q]=[];
+    quarters[q].push(m);
   });
 
-  html+='</div>';
-  document.getElementById('daily-report-wrap').innerHTML=html;
+  // Build cols per quarter: group header = Q label, sub-cols = month labels
+  var html='<div style="display:flex;flex-direction:column;gap:0">';
+  salesProfiles.forEach(function(emp){
+    var allCols=[];
+    Object.keys(quarters).forEach(function(q){
+      var qMonths=quarters[q];
+      qMonths.forEach(function(m,mi){
+        var mo=parseInt(m.slice(5,7));
+        var y=parseInt(m.slice(0,4));
+        var lastDay=new Date(y,mo,0).getDate();
+        var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
+        // planCalls for this month
+        var planC=(tgt.target_calls_day||180)*mWD.length;
+        var planT=(tgt.target_talktime_day||150)*mWD.length;
+        allCols.push({
+          label:'T'+mo,
+          days:mWD,
+          group:mi===0?q:null,
+          groupBg:'#0f3a5c',groupColor:'#b5d4f4'
+        });
+      });
+    });
+    // Plan = full month targets summed
+    var totalWD=allCols.reduce(function(s,c){return s+c.days.length;},0);
+    var planCalls=(tgt.target_calls_day||180)*totalWD;
+    var planTalk=(tgt.target_talktime_day||150)*totalWD;
+    var planPot=Math.round((tgt.target_potential_month||16)*months.length);
+    var planBG=Math.round((tgt.target_bagia_month||8)*months.length);
+    html+=buildPersonBlock(emp,allCols,planCalls,planTalk,planPot,planBG,trackMap);
+  });
+  document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
+}
+
+// ---- CHEDE NAM ----
+function renderDailyYearView(ctx){
+  var {salesProfiles,trackMap,holidays,fromDate,tgt}=ctx;
+  var year=parseInt(fromDate.slice(0,4));
+  // 4 quarters, each 3 months
+  var quarterDefs=[
+    {label:'Q1',months:[1,2,3]},{label:'Q2',months:[4,5,6]},
+    {label:'Q3',months:[7,8,9]},{label:'Q4',months:[10,11,12]}
+  ];
+
+  var html='<div style="display:flex;flex-direction:column;gap:0">';
+  salesProfiles.forEach(function(emp){
+    var allCols=[];
+    quarterDefs.forEach(function(qd,qi){
+      qd.months.forEach(function(mo,mi){
+        var m=year+'-'+String(mo).padStart(2,'0');
+        var lastDay=new Date(year,mo,0).getDate();
+        var mWD=getWorkDays(m+'-01',m+'-'+String(lastDay).padStart(2,'0'),holidays);
+        allCols.push({
+          label:'T'+mo,
+          days:mWD,
+          group:mi===0?qd.label:null,
+          groupBg:'#0f3a5c',groupColor:'#b5d4f4'
+        });
+      });
+    });
+    var totalWD=allCols.reduce(function(s,c){return s+c.days.length;},0);
+    var planCalls=(tgt.target_calls_day||180)*totalWD;
+    var planTalk=(tgt.target_talktime_day||150)*totalWD;
+    var planPot=(tgt.target_potential_month||16)*12;
+    var planBG=(tgt.target_bagia_month||8)*12;
+    html+=buildPersonBlock(emp,allCols,planCalls,planTalk,planPot,planBG,trackMap);
+  });
+  document.getElementById('daily-report-wrap').innerHTML=html+'</div>';
 }
 
 
