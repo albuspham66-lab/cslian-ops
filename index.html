@@ -434,6 +434,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   /* Dashboard chart row stack */
   #dash-chart-revenue,#dash-chart-orders{grid-column:1/-1}
   .topbar-logo-icon{width:26px;height:26px;font-size:14px}
+  #page-crm,#page-finance{height:calc(100dvh - 82px)!important}
 }
 @media(max-width:380px){
   .nav-btn{padding:8px 5px;font-size:10px}
@@ -481,8 +482,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <div><div class="uname" id="tb-name"></div><div class="urole" id="tb-role"></div></div>
       </div>
       <a href="guilde.html" target="_blank" id="guide-link" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border2);border-radius:7px;font-size:12px;color:var(--text2);text-decoration:none;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif" onmouseover="this.style.color='var(--accent)';this.style.borderColor='rgba(79,127,255,0.4)'" onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">📖 Hướng dẫn</a>
-      <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank" id="crm-link" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid rgba(34,199,122,0.3);border-radius:7px;font-size:12px;color:var(--success);text-decoration:none;font-weight:600;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif;background:var(--success-bg)" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">🎯 CRM</a>
-      <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank" id="finance-link" style="display:none;align-items:center;gap:5px;padding:5px 12px;border:1px solid rgba(167,139,250,0.3);border-radius:7px;font-size:12px;color:var(--manager);text-decoration:none;font-weight:600;transition:all .15s;font-family:'Be Vietnam Pro',sans-serif;background:var(--manager-bg)" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">💹 Finance</a>
+
       <button class="btn-logout" onclick="doLogout()">Đăng xuất</button>
     </div>
   </div>
@@ -498,6 +498,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
     <button class="nav-btn" id="nav-chat" onclick="switchTab('chat',this)">💬 Chat <span class="chat-badge" id="nav-chat-badge"></span></button>
+    <button class="nav-btn" onclick="switchTab('crm',this)">🎯 CRM</button>
+    <button class="nav-btn nav-mgr" onclick="switchTab('finance',this)" style="display:none">💹 Finance</button>
   </div>
 
   <div class="content">
@@ -796,6 +798,16 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
 
     <!-- CHAT -->
+    <!-- CRM -->
+    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px)">
+      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block" allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px)">
+      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block" allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
+    </div>
+
     <div id="page-chat" class="page-content">
       <div class="chat-layout">
         <div class="chat-sidebar">
@@ -1256,11 +1268,7 @@ async function initApp(user){
   if(curProfile.role==='manager'||curProfile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
   }
-  // Finance link chỉ Manager
-  if(curProfile.role==='manager'){
-    var fl=document.getElementById('finance-link');
-    if(fl) fl.style.display='inline-flex';
-  }
+
 
   populateSelects();
   if(curProfile.role==='manager'||curProfile.role==='leader')renderEmpGrid();
@@ -2893,6 +2901,14 @@ function switchTab(name,el){
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
   else if(name==='chat'){ _chatUnread[_chatRoom]=0; updateChatBadges(); initChat(); }
+  else if(name==='crm'){
+    var f=document.getElementById('crm-iframe');
+    if(f && !f.src) f.src='https://cnail1911-maker.github.io/csilan-crm/index.html?v=39';
+  }
+  else if(name==='finance'){
+    var f=document.getElementById('finance-iframe');
+    if(f && !f.src) f.src='https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html';
+  }
 }
 
 
