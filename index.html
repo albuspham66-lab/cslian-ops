@@ -322,7 +322,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .dr-quick-btn:hover{border-color:var(--accent);color:var(--accent)}
 .dr-quick-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 /* ===== CHAT MODULE ===== */
-#page-chat{height:calc(100vh - 112px);display:flex;flex-direction:column;padding:0}
+#page-chat{
+  position:fixed;top:96px;left:0;right:0;bottom:0;
+  z-index:50;background:var(--bg);
+  display:none;flex-direction:column;padding:0;
+}
+#page-chat.active{display:flex!important}
 .chat-layout{display:flex;height:100%;gap:0;overflow:hidden}
 .chat-sidebar{width:200px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 .chat-sidebar-title{padding:14px 12px 10px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
@@ -364,6 +369,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .chat-date-sep::before,.chat-date-sep::after{content:'';position:absolute;top:50%;width:calc(50% - 50px);height:1px;background:var(--border)}
 .chat-date-sep::before{left:0}.chat-date-sep::after{right:0}
 .chat-typing{font-size:11px;color:var(--text3);padding:0 16px 6px;min-height:20px}
+.chat-notif-toast{position:fixed;bottom:80px;right:20px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:13px;z-index:9000;transform:translateY(20px);opacity:0;transition:all .3s;box-shadow:var(--shadow);max-width:320px;pointer-events:none;width:300px}
+.chat-notif-toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
 .chat-img-fullscreen{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:pointer}
 .chat-img-fullscreen img{max-width:90vw;max-height:90vh;border-radius:10px}
 /* PWA update banner */
@@ -419,7 +426,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   .chat-bubble img{max-width:200px}
   .chat-input-area{padding:8px 10px}
   /* Page chat fullheight */
-  #page-chat{height:calc(100dvh - 96px)}
+  #page-chat{top:82px}
   /* Dashboard chart row stack */
   #dash-chart-revenue,#dash-chart-orders{grid-column:1/-1}
   .topbar-logo-icon{width:26px;height:26px;font-size:14px}
@@ -878,11 +885,10 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
-  </div>
-</div>
+  </div><!-- end .content -->
+</div><!-- end #app -->
 
-
-    <!-- PWA update banner -->
+<!-- PWA update banner -->
     <div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;align-items:center;justify-content:space-between;gap:10px">
       <span>Có phiên bản mới — bấm để cập nhật</span>
       <button onclick="pwaDoUpdate()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:Be Vietnam Pro,sans-serif">Cập nhật ngay</button>
@@ -1097,6 +1103,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="chat-notif-toast" id="chat-notif-toast"></div>
 
 <script>
 const SUPA_URL='https://jggfmpihfisbusnbzyoi.supabase.co';
@@ -1523,9 +1530,13 @@ async function saveDay(){
 async function deleteDay(){
   if(!editingDay)return;
   if(!confirm('Xóa bản ghi chấm công ngày '+editingDay.ds+'?')) return;
-  const{error}=await sb.from('attendance').delete().eq('user_id',editingDay.empId).eq('date',editingDay.ds);
+  const{error}=await sb.from('attendance').delete()
+    .eq('user_id',editingDay.empId).eq('date',editingDay.ds);
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã xóa bản ghi');closeModal('day-modal');renderAttTable();
+  editingDay=null;
+  closeModal('day-modal');
+  toast('Đã xóa bản ghi');
+  await renderAttTable();
 }
 
 // ============================================================
@@ -3984,16 +3995,43 @@ function subscribeGlobalNotif(){
 }
 
 function sendBrowserNotif(msg){
-  if(!('Notification' in window) || Notification.permission !== 'granted') return;
   var prof = allProfilesMap[msg.user_id]||{};
   var senderName = prof.biet_danh||prof.ho_ten||'Ai đó';
   var roomName = (ROOM_META[msg.room]||{}).name || msg.room;
-  try {
-    new Notification('💬 '+senderName+' — '+roomName, {
-      body: msg.content || '📷 Đã gửi một ảnh',
-      icon: 'icon-192.png', silent: false
-    });
-  } catch(e){}
+  var body = msg.content || '📷 Đã gửi một ảnh';
+  // In-app toast notification (hoạt động trên mọi thiết bị)
+  showChatToast(senderName, roomName, body, msg.room);
+  // Browser notification (desktop Chrome/Firefox)
+  if('Notification' in window && Notification.permission === 'granted'){
+    try {
+      var n = new Notification('💬 '+senderName+' — '+roomName, {
+        body: body, icon: 'icon-192.png', silent: false,
+        tag: 'chat-'+msg.room // nhóm theo room, tránh spam
+      });
+      n.onclick = function(){ window.focus(); switchTabByName('chat'); n.close(); };
+    } catch(e){}
+  }
+}
+
+// In-app notification toast cho chat
+function showChatToast(sender, room, body, roomId){
+  var el = document.getElementById('chat-notif-toast');
+  if(!el) return;
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'
+    +'<div style="font-size:20px">💬</div>'
+    +'<div><div style="font-size:12px;font-weight:700;color:var(--text)">'+escapeHtml(sender)+' · '+escapeHtml(room)+'</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+escapeHtml(body.slice(0,60))+'</div></div>'
+    +'<button onclick="switchTabByName('chat');this.closest('.chat-notif-toast').classList.remove('show')" '
+    +'style="margin-left:auto;background:var(--accent);border:none;border-radius:6px;color:#fff;padding:4px 10px;font-size:11px;cursor:pointer">Xem</button>'
+    +'</div>';
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(function(){ el.classList.remove('show'); }, 5000);
+}
+
+function switchTabByName(name){
+  var btn = document.querySelector('.nav-btn[onclick*="''+name+''"]');
+  if(btn){ btn.click(); }
 }
 
 // ---- Room-specific realtime (messages hiển thị trong chat) ----
@@ -4190,9 +4228,9 @@ function switchRoom(room, btn){
 function updateMemberBtn(){
   var wrap = document.getElementById('chat-member-btn-wrap');
   if(!wrap) return;
-  var isPrivateRoom = !ROOM_META[_chatRoom];
+  // Hiện nút thành viên cho tất cả rooms, với Manager/Leader
   var canManage = curProfile && (curProfile.role==='manager'||curProfile.role==='leader');
-  wrap.style.display = (isPrivateRoom && canManage) ? 'block' : 'none';
+  wrap.style.display = canManage ? 'block' : 'none';
 }
 
 // ---- Create room modal ----
@@ -4255,28 +4293,33 @@ function renderDynamicRooms(){
 
 // ---- Member modal ----
 function openMemberModal(){
-  document.getElementById('member-modal-room-name').textContent=ROOM_META[_chatRoom]?.name||_chatRoom;
-  var members=(ROOM_META[_chatRoom]?.members)||[];
+  var roomMeta=ROOM_META[_chatRoom]||{};
+  document.getElementById('member-modal-room-name').textContent=roomMeta.name||_chatRoom;
   var canManage=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
+  var isFixed=!!roomMeta.fixed;
+  var members=isFixed?activeProfiles().map(function(p){return p.id;}):(roomMeta.members||[]);
   var list=document.getElementById('member-list');
-  if(list) list.innerHTML=members.length ? members.map(function(uid){
+  if(list) list.innerHTML=members.length?members.map(function(uid){
     var p=allProfilesMap[uid]||{ho_ten:'?',ma_nv:'?'};
+    var canRemove=canManage&&!isFixed&&uid!==curProfile.id;
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="width:28px;height:28px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.ho_ten||'?')+'</div>'
       +'<div style="flex:1;font-size:13px">'+(p.biet_danh||p.ho_ten)+' <span style="color:var(--text3);font-size:11px">('+p.ma_nv+')</span></div>'
-      +(canManage&&uid!==curProfile.id?'<button class="btn-sm btn-danger" onclick="removeMember(\''+uid+'\')" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
+      +(canRemove?'<button class="btn-sm btn-danger" onclick="removeMember(\''+uid+'\')" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
       +'</div>';
-  }).join('') : '<div class="empty">Chưa có thành viên</div>';
-  // Add member
+  }).join(''):'<div class="empty">Chưa có thành viên</div>';
   var addWrap=document.getElementById('add-member-wrap');
-  if(addWrap) addWrap.style.display=canManage?'block':'none';
+  if(addWrap) addWrap.style.display=(canManage&&!isFixed)?'block':'none';
   var addList=document.getElementById('add-member-list');
-  if(addList){
+  if(addList&&canManage&&!isFixed){
     var existing=new Set(members);
-    addList.innerHTML=activeProfiles().filter(function(p){return !existing.has(p.id);}).map(function(p){
-      return '<button class="btn-sm" onclick="addMember(\''+p.id+'\')" style="font-size:11px">'
-        +'+ '+(p.biet_danh||p.ho_ten)+'</button>';
-    }).join('');
+    var notIn=activeProfiles().filter(function(p){return !existing.has(p.id);});
+    addList.innerHTML=notIn.length?notIn.map(function(p){
+      return '<button class="btn-sm" onclick="addMember(\''+p.id+'\')" style="font-size:11px">+ '+(p.biet_danh||p.ho_ten)+'</button>';
+    }).join(''):'<div style="font-size:12px;color:var(--text2)">Tất cả đã trong phòng</div>';
   }
+  document.getElementById('member-modal').classList.add('open');
+}
   document.getElementById('member-modal').classList.add('open');
 }
 
