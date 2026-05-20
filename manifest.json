@@ -1,0 +1,27 @@
+{
+  "name": "C-Slian Operations System",
+  "short_name": "C-Slian",
+  "description": "Hệ thống quản lý vận hành ca đêm C-Slian",
+  "start_url": "/cslian-ops/",
+  "scope": "/cslian-ops/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0d0f14",
+  "theme_color": "#0d0f14",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
