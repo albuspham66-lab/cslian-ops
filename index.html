@@ -3,7 +3,68 @@
 <head>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>-- ============================================================
+-- 1. MỞ RỘNG daily_tracking
+-- ============================================================
+ALTER TABLE daily_tracking
+  ADD COLUMN IF NOT EXISTS cum_calls_shift1  int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cum_talk_shift1   int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cum_calls_shift2  int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cum_talk_shift2   int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS shift1_calls      int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS shift1_talktime   int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS shift2_calls      int DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS shift2_talktime   int DEFAULT 0;
+
+-- ============================================================
+-- 2. MỞ RỘNG targets
+-- ============================================================
+ALTER TABLE targets
+  ADD COLUMN IF NOT EXISTS target_calls_day       int DEFAULT 180,
+  ADD COLUMN IF NOT EXISTS target_talktime_day    int DEFAULT 150,
+  ADD COLUMN IF NOT EXISTS target_potential_month int DEFAULT 16,
+  ADD COLUMN IF NOT EXISTS target_bagia_month     int DEFAULT 8;
+
+-- ============================================================
+-- 3. BẢNG holidays
+-- ============================================================
+CREATE TABLE IF NOT EXISTS holidays (
+  id        uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ngay      date NOT NULL UNIQUE,
+  ten       varchar(100),
+  loai      varchar(20) DEFAULT 'fixed'
+);
+
+-- Ngày lễ cố định 2026 (thêm Tết ÂL theo lịch từng năm)
+INSERT INTO holidays (ngay, ten, loai) VALUES
+  ('2026-01-01', 'Tết Dương lịch',            'fixed'),
+  ('2026-01-28', 'Tết Nguyên Đán (28 tháng Chạp)', 'fixed'),
+  ('2026-01-29', 'Tết Nguyên Đán (29 tháng Chạp)', 'fixed'),
+  ('2026-01-30', 'Tết Nguyên Đán (Mùng 1)',   'fixed'),
+  ('2026-01-31', 'Tết Nguyên Đán (Mùng 2)',   'fixed'),
+  ('2026-02-01', 'Tết Nguyên Đán (Mùng 3)',   'fixed'),
+  ('2026-04-02', 'Giỗ Tổ Hùng Vương',         'fixed'),
+  ('2026-04-30', 'Giải phóng miền Nam',        'fixed'),
+  ('2026-05-01', 'Quốc tế Lao động',           'fixed'),
+  ('2026-09-02', 'Quốc khánh',                 'fixed'),
+  ('2026-09-03', 'Quốc khánh (bù)',            'fixed')
+ON CONFLICT (ngay) DO NOTHING;
+
+-- ============================================================
+-- 4. RLS cho holidays (Manager được insert/update/delete)
+-- ============================================================
+ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "holidays_read_all" ON holidays
+  FOR SELECT USING (true);
+
+CREATE POLICY "holidays_manager_write" ON holidays
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'manager'
+    )
+  );
 <title>C-Slian Operations System</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
