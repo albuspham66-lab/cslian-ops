@@ -4043,14 +4043,19 @@ function subscribeChatRealtime(){
   _chatChannel = sb.channel('chat-v2-'+_chatRoom)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'room=eq.'+_chatRoom}, function(payload){
       var msg = payload.new;
+      // Dedup: nếu sendChatMessage đã append rồi thì skip
+      var exists = _chatMessages.some(function(m){ return m.id===msg.id; });
+      if(exists) return;
       msg.profiles = allProfilesMap[msg.user_id] || null;
       _chatMessages.push(msg);
       appendSingleMsg(msg);
-      // Notification cho room hiện tại (khi tab chat active nhưng app bị ẩn)
-      if(curProfile && msg.user_id !== curProfile.id && document.hidden){
+      // Notification: chỉ khi không phải mình gửi
+      if(curProfile && msg.user_id !== curProfile.id){
         playNotifSound();
-        _chatUnread[_chatRoom] = (_chatUnread[_chatRoom]||0)+1;
-        updateChatBadges();
+        if(document.hidden){
+          _chatUnread[_chatRoom] = (_chatUnread[_chatRoom]||0)+1;
+          updateChatBadges();
+        }
         sendBrowserNotif(msg);
       }
     })
@@ -4084,7 +4089,7 @@ function appendSingleMsg(msg){
   if(dist < 150 || isMine) el.scrollTop = el.scrollHeight;
 }
 
-// ---- Optimistic send ----
+// ---- Send: insert+select+append, không dùng optimistic ----
 async function sendChatMessage(){
   var ta = document.getElementById('chat-textarea');
   var content = ta ? ta.value.trim() : '';
@@ -4093,49 +4098,41 @@ async function sendChatMessage(){
   var btn = document.getElementById('chat-send-btn');
   if(btn) btn.disabled = true;
 
-  // Optimistic: hiện ngay
-  var tempId = 'temp-'+Date.now();
-  var optimisticMsg = {
-    id: tempId, user_id: curProfile.id, content: content||null,
-    image_url: _chatPendingImage ? _chatPendingImage.dataUrl : null,
-    room: _chatRoom, created_at: new Date().toISOString(),
-    profiles: curProfile, _optimistic: true
-  };
-  if(!_chatPendingImage){ // chỉ optimistic với text (ảnh cần upload xong mới có URL thật)
-    _chatMessages.push(optimisticMsg);
-    appendSingleMsg(optimisticMsg);
-    if(ta){ ta.value=''; ta.style.height=''; }
-  } else {
-    if(ta){ ta.value=''; ta.style.height=''; }
-  }
+  var savedContent = content;
+  if(ta){ ta.value=''; ta.style.height=''; ta.focus(); }
 
   var imageUrl = null;
   if(_chatPendingImage){
     try { imageUrl = await uploadChatImage(_chatPendingImage); }
-    catch(e){ toast('Lỗi upload ảnh: '+e.message,'error'); if(btn) btn.disabled=false; return; }
+    catch(e){
+      toast('Lỗi upload ảnh: '+e.message,'error');
+      if(ta) ta.value = savedContent;
+      if(btn) btn.disabled = false;
+      return;
+    }
+    clearChatImagePreview();
   }
-  clearChatImagePreview();
 
-  var {error} = await sb.from('messages').insert({
-    user_id: curProfile.id, content: content||null,
-    image_url: imageUrl||null, room: _chatRoom
-  });
+  // Insert + select ngay để lấy ID và timestamp thật
+  var {data:newMsg, error} = await sb.from('messages')
+    .insert({user_id:curProfile.id, content:savedContent||null, image_url:imageUrl||null, room:_chatRoom})
+    .select('*, profiles(ho_ten,biet_danh,role,ma_nv)')
+    .single();
 
   if(error){
-    // Rollback optimistic
-    _chatMessages = _chatMessages.filter(function(m){ return m.id!==tempId; });
-    var el = document.getElementById('msg-'+tempId);
-    if(el) el.remove();
     toast('Lỗi gửi tin: '+error.message,'error');
-  } else {
-    // Remove optimistic (realtime sẽ thêm bản thật)
-    var el = document.getElementById('msg-'+tempId);
-    if(el) el.remove();
-    _chatMessages = _chatMessages.filter(function(m){ return m.id!==tempId; });
+    if(ta) ta.value = savedContent;
+  } else if(newMsg){
+    // Append ngay, Realtime sẽ skip nếu đã có (dedup bằng id)
+    var exists = _chatMessages.some(function(m){ return m.id===newMsg.id; });
+    if(!exists){
+      _chatMessages.push(newMsg);
+      appendSingleMsg(newMsg);
+    }
   }
   if(btn) btn.disabled = false;
-  if(ta) ta.focus();
 }
+
 
 // ---- Upload image ----
 async function uploadChatImage(pendingImg){
