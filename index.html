@@ -84,12 +84,14 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .sub-content{display:none}
 .sub-content.active{display:block}
 /* Mini stat cards for attendance */
-.stat-mini{flex:1;min-width:120px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-.stat-mini-val{font-size:20px;font-weight:700;color:var(--text)}
+.stat-mini{flex:1;min-width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:border .15s}
+.stat-mini:hover{border-color:var(--border2)}
+.stat-mini-val{font-size:22px;font-weight:700;color:var(--text);line-height:1.2}
 .stat-mini-val.warning{color:var(--warning)}
 .stat-mini-val.danger{color:var(--danger)}
 .stat-mini-val.success{color:var(--success)}
-.stat-mini-lbl{font-size:11px;color:var(--text2);margin-top:2px}
+.stat-mini-lbl{font-size:11px;color:var(--text2);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+#att-checkin-section .ci-hero{border-radius:14px;overflow:hidden}
 
 .content{flex:1;padding:24px 20px;max-width:1200px;margin:0 auto;width:100%}
 .page-content{display:none}
@@ -576,7 +578,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </div>
         </div>
         <!-- Stats row -->
-        <div class="att-stats-row" id="att-stats-row" style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+        <div class="att-stats-row" id="att-stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:16px">
           <div class="stat-mini"><div class="stat-mini-val" id="ats-hours">—</div><div class="stat-mini-lbl">Tổng giờ công</div></div>
           <div class="stat-mini"><div class="stat-mini-val warning" id="ats-late">—</div><div class="stat-mini-lbl">Đi trễ</div></div>
           <div class="stat-mini"><div class="stat-mini-val danger" id="ats-nkp">—</div><div class="stat-mini-lbl">NKP</div></div>
@@ -703,8 +705,940 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     </div>
 
     <!-- KPI -->
-    <div id="page-kpi" class="page-content">
     <div id="page-salary" class="page-content">
+      <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
+        <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
+        <button class="sub-tab-btn" id="stb-reviews" onclick="switchSubTab('reviews',this)">🏆 Nghiệm thu</button>
+        <button class="sub-tab-btn" id="stb-salary-lw" onclick="switchSubTab('salary-lw',this)">💰 Bảng lương</button>
+      </div>
+      <div id="sub-kpi" class="sub-content" style="display:block">
+              <div class="page-header">
+        <div><h2>KPI tháng</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="kpi-emp-sel" onchange="renderKPI()"></select>
+          <div class="month-nav">
+            <button class="mnbtn" onclick="changeMonthKPI(-1)">‹</button>
+            <span class="mlabel" id="kpi-month-label"></span>
+            <button class="mnbtn" onclick="changeMonthKPI(1)">›</button>
+          </div>
+          <button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Nhập KPI</button>
+        </div>
+      </div>
+      <div id="kpi-display"></div>
+    </div>
+
+    <!-- LƯƠNG -->
+    <div id="page-salary" class="page-content">
+      <div class="page-header">
+        <div><h2>Bảng lương</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="sal-emp-sel" onchange="renderSalary()"></select>
+          <div class="month-nav">
+            <button class="mnbtn" onclick="changeMonthSal(-1)">‹</button>
+            <span class="mlabel" id="sal-month-label"></span>
+            <button class="mnbtn" onclick="changeMonthSal(1)">›</button>
+          </div>
+          <button class="btn-sm btn-success" onclick="calcAndSaveSalary()">⚡ Tính lương</button>
+          <button class="btn-sm btn-primary" onclick="exportPhieuLuong()">🖨️ Xuất phiếu PDF</button>
+        </div>
+      </div>
+      <div id="salary-display"></div>
+      <!-- Phiếu lương để print -->
+      <div class="phieu-luong" id="phieu-luong-print"></div>
+    </div>
+
+    <!-- NGHIỆM THU -->
+    <div id="page-reviews" class="page-content">
+      <div class="page-header">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+
+    <!-- DAILY TRACKING -->
+    <div id="page-daily" class="page-content">
+      <div class="page-header">
+        <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="daily-from" class="dr-input" onchange="onDailyDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="daily-to" class="dr-input" onchange="onDailyDateChange()"/>
+          </div>
+          <div class="dr-quick" style="border-right:1px solid var(--border2);padding-right:8px;margin-right:2px">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Kỳ:</span>
+            <button class="dr-quick-btn active" id="dqb-daily-month" onclick="setDailyPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
+          </div>
+          <div class="dr-quick">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Theo ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Theo tuần</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Theo quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Theo năm</button>
+          </div>
+          <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
+      <div id="daily-report-wrap"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><div class="page-sub" id="dash-sub">Kết quả so với Plan</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="dash-from" class="dr-input" onchange="onDashDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="dash-to" class="dr-input" onchange="onDashDateChange()"/>
+          </div>
+          <div class="dr-quick">
+            <button class="dr-quick-btn active" id="dqb-month" onclick="setDashPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-quarter" onclick="setDashPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-year" onclick="setDashPeriod('year')">Năm</button>
+          </div>
+          <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
+          <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+          <button class="btn-sm" onclick="openHolidaysModal()" style="border-color:var(--leader);color:var(--leader)">📅 Ngày nghỉ</button>
+        </div>
+      </div>
+
+      <!-- TEAM OVERVIEW CARDS -->
+      <div class="stat-grid" id="dash-overview" style="margin-bottom:20px"></div>
+
+      <!-- PROGRESS BARS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- VENDOR BREAKDOWN -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Doanh thu theo Vendor</div>
+        <div id="dash-vendor" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px"></div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div class="card" id="dash-chart-revenue" style="min-width:0">
+          <div class="card-title"><span class="dot"></span>Doanh số theo tháng</div>
+          <canvas id="chart-revenue" height="200"></canvas>
+        </div>
+        <div class="card" id="dash-chart-orders" style="min-width:0">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Đơn hàng theo tháng</div>
+          <canvas id="chart-orders" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- DAILY TRACKING SUMMARY (today) -->
+      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
+        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
+        <div id="dash-daily-summary" style="margin-top:8px"></div>
+      </div>
+
+      <!-- LEADERBOARD — 1 BẢNG gộp Leader + Sale -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🏆 Leaderboard — Leader & Sale</div>
+        <div id="leaderboard-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- NHÂN VIÊN -->
+    <div id="page-team" class="page-content">
+      <div class="page-header"><div><h2>Nhân viên</h2></div></div>
+      <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+
+    <!-- CHAT -->
+    <!-- CRM -->
+    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="crm-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
+      </div>
+      <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">🎯</div>
+        <div style="font-size:16px;font-weight:700">C-Slian CRM</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở CRM
+        </a>
+      </div>
+      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('crm')" onerror="onIframeError('crm')"></iframe>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="finance-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
+      </div>
+      <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">💹</div>
+        <div style="font-size:16px;font-weight:700">C-Slian Finance</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--manager);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở Finance
+        </a>
+      </div>
+      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('finance')" onerror="onIframeError('finance')"></iframe>
+    </div>
+
+    <div id="page-chat" class="page-content">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-title">Chat</div>
+          <div class="chat-rooms" id="chat-room-list">
+            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
+              <span>💬</span><span class="room-label">C-Slian Group</span>
+              <span class="chat-badge" id="badge-general"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-thong-bao" onclick="switchRoom('thong-bao',this)">
+              <span>📢</span><span class="room-label">Thông báo</span>
+      </div>
+      <div id="sub-reviews" class="sub-content" style="display:none">
+              <div class="page-header">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+
+    <!-- DAILY TRACKING -->
+    <div id="page-daily" class="page-content">
+      <div class="page-header">
+        <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="daily-from" class="dr-input" onchange="onDailyDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="daily-to" class="dr-input" onchange="onDailyDateChange()"/>
+          </div>
+          <div class="dr-quick" style="border-right:1px solid var(--border2);padding-right:8px;margin-right:2px">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Kỳ:</span>
+            <button class="dr-quick-btn active" id="dqb-daily-month" onclick="setDailyPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
+          </div>
+          <div class="dr-quick">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Theo ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Theo tuần</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Theo quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Theo năm</button>
+          </div>
+          <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
+      <div id="daily-report-wrap"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><div class="page-sub" id="dash-sub">Kết quả so với Plan</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="dash-from" class="dr-input" onchange="onDashDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="dash-to" class="dr-input" onchange="onDashDateChange()"/>
+          </div>
+          <div class="dr-quick">
+            <button class="dr-quick-btn active" id="dqb-month" onclick="setDashPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-quarter" onclick="setDashPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-year" onclick="setDashPeriod('year')">Năm</button>
+          </div>
+          <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
+          <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+          <button class="btn-sm" onclick="openHolidaysModal()" style="border-color:var(--leader);color:var(--leader)">📅 Ngày nghỉ</button>
+        </div>
+      </div>
+
+      <!-- TEAM OVERVIEW CARDS -->
+      <div class="stat-grid" id="dash-overview" style="margin-bottom:20px"></div>
+
+      <!-- PROGRESS BARS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- VENDOR BREAKDOWN -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Doanh thu theo Vendor</div>
+        <div id="dash-vendor" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px"></div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div class="card" id="dash-chart-revenue" style="min-width:0">
+          <div class="card-title"><span class="dot"></span>Doanh số theo tháng</div>
+          <canvas id="chart-revenue" height="200"></canvas>
+        </div>
+        <div class="card" id="dash-chart-orders" style="min-width:0">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Đơn hàng theo tháng</div>
+          <canvas id="chart-orders" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- DAILY TRACKING SUMMARY (today) -->
+      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
+        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
+        <div id="dash-daily-summary" style="margin-top:8px"></div>
+      </div>
+
+      <!-- LEADERBOARD — 1 BẢNG gộp Leader + Sale -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🏆 Leaderboard — Leader & Sale</div>
+        <div id="leaderboard-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- NHÂN VIÊN -->
+    <div id="page-team" class="page-content">
+      <div class="page-header"><div><h2>Nhân viên</h2></div></div>
+      <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+
+    <!-- CHAT -->
+    <!-- CRM -->
+    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="crm-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
+      </div>
+      <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">🎯</div>
+        <div style="font-size:16px;font-weight:700">C-Slian CRM</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở CRM
+        </a>
+      </div>
+      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('crm')" onerror="onIframeError('crm')"></iframe>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="finance-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
+      </div>
+      <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">💹</div>
+        <div style="font-size:16px;font-weight:700">C-Slian Finance</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--manager);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở Finance
+        </a>
+      </div>
+      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('finance')" onerror="onIframeError('finance')"></iframe>
+    </div>
+
+    <div id="page-chat" class="page-content">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-title">Chat</div>
+          <div class="chat-rooms" id="chat-room-list">
+            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
+              <span>💬</span><span class="room-label">C-Slian Group</span>
+              <span class="chat-badge" id="badge-general"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-thong-bao" onclick="switchRoom('thong-bao',this)">
+              <span>📢</span><span class="room-label">Thông báo</span>
+              <span class="chat-badge" id="badge-thong-bao"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-manager" onclick="switchRoom('manager',this)">
+              <span>🔑</span><span class="room-label">Manager</span>
+              <span class="chat-badge" id="badge-manager"></span>
+            </button>
+            <!-- Dynamic rooms inserted here -->
+            <div id="chat-dynamic-rooms"></div>
+          </div>
+          <!-- Tạo phòng - chỉ Manager -->
+          <div id="chat-create-room-wrap" style="display:none;padding:6px">
+            <button class="chat-room-btn" onclick="openCreateRoomModal()" style="color:var(--accent);font-size:12px;width:100%;justify-content:center;gap:4px">
+              <span>+</span><span class="room-label">Tạo phòng</span>
+            </button>
+          </div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-header">
+            <span id="chat-room-icon">💬</span>
+            <div>
+              <div class="chat-header-name" id="chat-room-name">C-Slian Group</div>
+            </div>
+            <!-- Member management - Leader/Manager -->
+            <div id="chat-member-btn-wrap" style="display:none;margin-left:auto">
+              <button class="btn-sm" onclick="openMemberModal()" style="font-size:11px;padding:4px 10px">👥 Thành viên</button>
+            </div>
+          </div>
+          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-typing" id="chat-typing"></div>
+          <div class="chat-input-area">
+            <div id="chat-img-preview-wrap"></div>
+            <div class="chat-input-row">
+              <button class="chat-img-btn" onclick="document.getElementById('chat-file-input').click()" title="Gửi ảnh">📎</button>
+              <input type="file" id="chat-file-input" accept="image/*" style="display:none" onchange="onChatImageSelect(event)"/>
+              <textarea class="chat-textarea" id="chat-textarea" placeholder="Nhập tin nhắn..." rows="1"
+                onkeydown="onChatKeydown(event)" oninput="autoResizeTextarea(this);onChatTyping()"></textarea>
+              <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">&#10148;</button>
+      </div>
+      <div id="sub-salary-lw" class="sub-content" style="display:none">
+              <div class="page-header">
+        <div><h2>Bảng lương</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="sal-emp-sel" onchange="renderSalary()"></select>
+          <div class="month-nav">
+            <button class="mnbtn" onclick="changeMonthSal(-1)">‹</button>
+            <span class="mlabel" id="sal-month-label"></span>
+            <button class="mnbtn" onclick="changeMonthSal(1)">›</button>
+          </div>
+          <button class="btn-sm btn-success" onclick="calcAndSaveSalary()">⚡ Tính lương</button>
+          <button class="btn-sm btn-primary" onclick="exportPhieuLuong()">🖨️ Xuất phiếu PDF</button>
+        </div>
+      </div>
+      <div id="salary-display"></div>
+      <!-- Phiếu lương để print -->
+      <div class="phieu-luong" id="phieu-luong-print"></div>
+    </div>
+
+    <!-- NGHIỆM THU -->
+    <div id="page-reviews" class="page-content">
+      <div class="page-header">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+
+    <!-- DAILY TRACKING -->
+    <div id="page-daily" class="page-content">
+      <div class="page-header">
+        <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="daily-from" class="dr-input" onchange="onDailyDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="daily-to" class="dr-input" onchange="onDailyDateChange()"/>
+          </div>
+          <div class="dr-quick" style="border-right:1px solid var(--border2);padding-right:8px;margin-right:2px">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Kỳ:</span>
+            <button class="dr-quick-btn active" id="dqb-daily-month" onclick="setDailyPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
+          </div>
+          <div class="dr-quick">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Theo ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Theo tuần</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Theo quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Theo năm</button>
+          </div>
+          <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
+      <div id="daily-report-wrap"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><div class="page-sub" id="dash-sub">Kết quả so với Plan</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="dash-from" class="dr-input" onchange="onDashDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="dash-to" class="dr-input" onchange="onDashDateChange()"/>
+          </div>
+          <div class="dr-quick">
+            <button class="dr-quick-btn active" id="dqb-month" onclick="setDashPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-quarter" onclick="setDashPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-year" onclick="setDashPeriod('year')">Năm</button>
+          </div>
+          <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
+          <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+          <button class="btn-sm" onclick="openHolidaysModal()" style="border-color:var(--leader);color:var(--leader)">📅 Ngày nghỉ</button>
+        </div>
+      </div>
+
+      <!-- TEAM OVERVIEW CARDS -->
+      <div class="stat-grid" id="dash-overview" style="margin-bottom:20px"></div>
+
+      <!-- PROGRESS BARS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- VENDOR BREAKDOWN -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Doanh thu theo Vendor</div>
+        <div id="dash-vendor" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px"></div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div class="card" id="dash-chart-revenue" style="min-width:0">
+          <div class="card-title"><span class="dot"></span>Doanh số theo tháng</div>
+          <canvas id="chart-revenue" height="200"></canvas>
+        </div>
+        <div class="card" id="dash-chart-orders" style="min-width:0">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Đơn hàng theo tháng</div>
+          <canvas id="chart-orders" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- DAILY TRACKING SUMMARY (today) -->
+      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
+        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
+        <div id="dash-daily-summary" style="margin-top:8px"></div>
+      </div>
+
+      <!-- LEADERBOARD — 1 BẢNG gộp Leader + Sale -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🏆 Leaderboard — Leader & Sale</div>
+        <div id="leaderboard-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- NHÂN VIÊN -->
+    <div id="page-team" class="page-content">
+      <div class="page-header"><div><h2>Nhân viên</h2></div></div>
+      <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+
+    <!-- CHAT -->
+    <!-- CRM -->
+    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="crm-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
+      </div>
+      <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">🎯</div>
+        <div style="font-size:16px;font-weight:700">C-Slian CRM</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở CRM
+        </a>
+      </div>
+      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('crm')" onerror="onIframeError('crm')"></iframe>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="finance-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
+      </div>
+      <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">💹</div>
+        <div style="font-size:16px;font-weight:700">C-Slian Finance</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--manager);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở Finance
+        </a>
+      </div>
+      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('finance')" onerror="onIframeError('finance')"></iframe>
+    </div>
+
+    <div id="page-chat" class="page-content">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-title">Chat</div>
+          <div class="chat-rooms" id="chat-room-list">
+            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
+              <span>💬</span><span class="room-label">C-Slian Group</span>
+              <span class="chat-badge" id="badge-general"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-thong-bao" onclick="switchRoom('thong-bao',this)">
+              <span>📢</span><span class="room-label">Thông báo</span>
+              <span class="chat-badge" id="badge-thong-bao"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-manager" onclick="switchRoom('manager',this)">
+              <span>🔑</span><span class="room-label">Manager</span>
+              <span class="chat-badge" id="badge-manager"></span>
+            </button>
+            <!-- Dynamic rooms inserted here -->
+            <div id="chat-dynamic-rooms"></div>
+          </div>
+          <!-- Tạo phòng - chỉ Manager -->
+          <div id="chat-create-room-wrap" style="display:none;padding:6px">
+            <button class="chat-room-btn" onclick="openCreateRoomModal()" style="color:var(--accent);font-size:12px;width:100%;justify-content:center;gap:4px">
+              <span>+</span><span class="room-label">Tạo phòng</span>
+            </button>
+          </div>
+        </div>
+        <div class="chat-main">
+      </div>
+    </div>
+
+    <div id="page-daily" class="page-content">
+      <div class="page-header">
+        <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="daily-from" class="dr-input" onchange="onDailyDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="daily-to" class="dr-input" onchange="onDailyDateChange()"/>
+          </div>
+          <div class="dr-quick" style="border-right:1px solid var(--border2);padding-right:8px;margin-right:2px">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Kỳ:</span>
+            <button class="dr-quick-btn active" id="dqb-daily-month" onclick="setDailyPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-daily-quarter" onclick="setDailyPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-daily-year" onclick="setDailyPeriod('year')">Năm</button>
+          </div>
+          <div class="dr-quick">
+            <span style="font-size:10px;color:var(--text3);margin-right:2px">Xem:</span>
+            <button class="dr-quick-btn active" id="dv-day" onclick="setDailyView('day')">Theo ngày</button>
+            <button class="dr-quick-btn" id="dv-week" onclick="setDailyView('week')">Theo tuần</button>
+            <button class="dr-quick-btn" id="dv-quarter" onclick="setDailyView('quarter')">Theo quý</button>
+            <button class="dr-quick-btn" id="dv-year" onclick="setDailyView('year')">Theo năm</button>
+          </div>
+          <button class="btn-sm btn-primary" id="daily-input-btn" onclick="openDailyInputModal()">✏️ Nhập</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="daily-stats" style="margin-bottom:16px"></div>
+      <div id="daily-report-wrap"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><div class="page-sub" id="dash-sub">Kết quả so với Plan</div></div>
+        <div class="dr-wrap">
+          <div class="dr-input-group">
+            <label>Từ</label>
+            <input type="date" id="dash-from" class="dr-input" onchange="onDashDateChange()"/>
+            <span class="dr-sep">→</span>
+            <label>Đến</label>
+            <input type="date" id="dash-to" class="dr-input" onchange="onDashDateChange()"/>
+          </div>
+          <div class="dr-quick">
+            <button class="dr-quick-btn active" id="dqb-month" onclick="setDashPeriod('month')">Tháng</button>
+            <button class="dr-quick-btn" id="dqb-quarter" onclick="setDashPeriod('quarter')">Quý</button>
+            <button class="dr-quick-btn" id="dqb-year" onclick="setDashPeriod('year')">Năm</button>
+          </div>
+          <button class="btn-sm" onclick="renderDashboard()" style="border-color:var(--accent);color:var(--accent)">🔄 Refresh</button>
+          <button class="btn-sm" onclick="openTargetForm()" style="border-color:var(--warn);color:var(--warn)">🎯 Cài Target</button>
+          <button class="btn-sm" onclick="openHolidaysModal()" style="border-color:var(--leader);color:var(--leader)">📅 Ngày nghỉ</button>
+        </div>
+      </div>
+
+      <!-- TEAM OVERVIEW CARDS -->
+      <div class="stat-grid" id="dash-overview" style="margin-bottom:20px"></div>
+
+      <!-- PROGRESS BARS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-progress"></div>
+
+      <!-- VENDOR BREAKDOWN -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--success)"></span>Doanh thu theo Vendor</div>
+        <div id="dash-vendor" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px"></div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+        <div class="card" id="dash-chart-revenue" style="min-width:0">
+          <div class="card-title"><span class="dot"></span>Doanh số theo tháng</div>
+          <canvas id="chart-revenue" height="200"></canvas>
+        </div>
+        <div class="card" id="dash-chart-orders" style="min-width:0">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Đơn hàng theo tháng</div>
+          <canvas id="chart-orders" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- DAILY TRACKING SUMMARY (today) -->
+      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
+        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
+        <div id="dash-daily-summary" style="margin-top:8px"></div>
+      </div>
+
+      <!-- LEADERBOARD — 1 BẢNG gộp Leader + Sale -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🏆 Leaderboard — Leader & Sale</div>
+        <div id="leaderboard-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- NHÂN VIÊN -->
+    <div id="page-team" class="page-content">
+      <div class="page-header"><div><h2>Nhân viên</h2></div></div>
+      <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+
+    <!-- CHAT -->
+    <!-- CRM -->
+    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="crm-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
+      </div>
+      <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">🎯</div>
+        <div style="font-size:16px;font-weight:700">C-Slian CRM</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở CRM
+        </a>
+      </div>
+      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('crm')" onerror="onIframeError('crm')"></iframe>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
+      <div id="finance-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
+        <div class="spinner" style="width:36px;height:36px"></div>
+        <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
+      </div>
+      <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
+        <div style="font-size:48px">💹</div>
+        <div style="font-size:16px;font-weight:700">C-Slian Finance</div>
+        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
+        <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank"
+          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--manager);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
+          🚀 Mở Finance
+        </a>
+      </div>
+      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
+        allow="clipboard-read;clipboard-write" allowfullscreen
+        onload="onIframeLoad('finance')" onerror="onIframeError('finance')"></iframe>
+    </div>
+
+    <div id="page-chat" class="page-content">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-title">Chat</div>
+          <div class="chat-rooms" id="chat-room-list">
+            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
+              <span>💬</span><span class="room-label">C-Slian Group</span>
+              <span class="chat-badge" id="badge-general"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-thong-bao" onclick="switchRoom('thong-bao',this)">
+              <span>📢</span><span class="room-label">Thông báo</span>
+              <span class="chat-badge" id="badge-thong-bao"></span>
+            </button>
+            <button class="chat-room-btn" id="room-btn-manager" onclick="switchRoom('manager',this)">
+              <span>🔑</span><span class="room-label">Manager</span>
+              <span class="chat-badge" id="badge-manager"></span>
+            </button>
+            <!-- Dynamic rooms inserted here -->
+            <div id="chat-dynamic-rooms"></div>
+          </div>
+          <!-- Tạo phòng - chỉ Manager -->
+          <div id="chat-create-room-wrap" style="display:none;padding:6px">
+            <button class="chat-room-btn" onclick="openCreateRoomModal()" style="color:var(--accent);font-size:12px;width:100%;justify-content:center;gap:4px">
+              <span>+</span><span class="room-label">Tạo phòng</span>
+            </button>
+          </div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-header">
+            <span id="chat-room-icon">💬</span>
+            <div>
+              <div class="chat-header-name" id="chat-room-name">C-Slian Group</div>
+            </div>
+            <!-- Member management - Leader/Manager -->
+            <div id="chat-member-btn-wrap" style="display:none;margin-left:auto">
+              <button class="btn-sm" onclick="openMemberModal()" style="font-size:11px;padding:4px 10px">👥 Thành viên</button>
+            </div>
+          </div>
+          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-typing" id="chat-typing"></div>
+          <div class="chat-input-area">
+            <div id="chat-img-preview-wrap"></div>
+            <div class="chat-input-row">
+              <button class="chat-img-btn" onclick="document.getElementById('chat-file-input').click()" title="Gửi ảnh">📎</button>
+              <input type="file" id="chat-file-input" accept="image/*" style="display:none" onchange="onChatImageSelect(event)"/>
+              <textarea class="chat-textarea" id="chat-textarea" placeholder="Nhập tin nhắn..." rows="1"
+                onkeydown="onChatKeydown(event)" oninput="autoResizeTextarea(this);onChatTyping()"></textarea>
+              <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">&#10148;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Tạo phòng chat -->
+    <div class="modal-bg" id="create-room-modal">
+      <div class="modal-box" style="max-width:460px;padding:0;overflow:hidden">
+        <!-- Header -->
+        <div style="padding:20px 24px 16px;background:linear-gradient(135deg,var(--bg3),var(--bg2));border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:20px" id="cr-icon-preview">💼</div>
+            <div>
+              <div style="font-size:15px;font-weight:700">Tạo phòng chat mới</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:1px">Phòng riêng cho nhóm nhỏ</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px 24px">
+          <!-- Tên phòng -->
+          <div style="margin-bottom:16px">
+            <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Tên phòng</label>
+            <input type="text" id="cr-name" placeholder="VD: Dự án X, Ca nhóm A..."
+              style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif;outline:none;box-sizing:border-box"
+              oninput="document.getElementById('cr-icon-preview').textContent=document.getElementById('cr-icon').value"/>
+          </div>
+          <!-- Icon picker -->
+          <div style="margin-bottom:16px">
+            <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Icon phòng</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="cr-icon-picker">
+              <span class="cr-icon-opt selected" onclick="selectRoomIcon(this,'💼')">💼</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'🎯')">🎯</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'📊')">📊</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'🔥')">🔥</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'⭐')">⭐</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'📌')">📌</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'🚀')">🚀</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'💡')">💡</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'🛠')">🛠</span>
+              <span class="cr-icon-opt" onclick="selectRoomIcon(this,'📣')">📣</span>
+            </div>
+            <input type="hidden" id="cr-icon" value="💼"/>
+          </div>
+          <!-- Thành viên -->
+          <div style="margin-bottom:20px">
+            <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px">Thêm thành viên</label>
+            <div id="cr-members-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          </div>
+          <!-- Actions -->
+          <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button class="btn-sm" onclick="closeModal('create-room-modal')" style="padding:8px 16px">Huỷ</button>
+            <button class="btn-sm btn-primary" onclick="createRoom()" style="padding:8px 20px;font-size:13px">🚀 Tạo phòng</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Quản lý thành viên -->
+    <div class="modal-bg" id="member-modal">
+      <div class="modal-box" style="max-width:420px">
+        <h3>👥 Thành viên — <span id="member-modal-room-name"></span></h3>
+        <div id="member-list" style="max-height:300px;overflow-y:auto;margin-bottom:12px"></div>
+        <div id="add-member-wrap" style="display:none">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Thêm thành viên</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px" id="add-member-list"></div>
+        </div>
+        <div class="mactions" style="margin-top:16px">
+          <button class="btn-sm btn-primary" onclick="closeModal('member-modal')">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="page-settings" class="page-content">
+      <div class="page-header"><div><h2>⚙️ Settings</h2><div class="page-sub">Quản trị hệ thống — chỉ Manager</div></div></div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">👤 Quản lý tài khoản nhân viên</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Chọn nhân viên</label>
+          <select id="settings-emp-sel" onchange="loadEmpSettings()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);width:100%;max-width:320px;font-family:Be Vietnam Pro,sans-serif">
+            <option value="">-- Chọn nhân viên --</option>
+          </select>
+        </div>
+        <div id="settings-emp-info" style="display:none;margin-top:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="form-f"><label>Email đăng nhập</label><input type="email" id="settings-email" placeholder="email@example.com"/></div>
+            <div class="form-f"><label>Mật khẩu mới</label><input type="password" id="settings-password" placeholder="Để trống nếu không đổi"/></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-sm btn-primary" onclick="saveEmpSettings()">💾 Lưu thay đổi</button>
+            <button class="btn-sm" onclick="openTransferModal()" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:#fbbf24">🔄 Gán sang NV mới</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Kiểm tra dữ liệu</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="query-preset" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif;min-width:200px">
+            <option value="">-- Chọn query --</option>
+            <option value="profiles">Danh sách nhân viên</option>
+            <option value="attendance_today">Chấm công hôm nay</option>
+            <option value="attendance_month">Chấm công tháng này</option>
+            <option value="orders_month">Đơn hàng tháng này</option>
+            <option value="messages_recent">Tin nhắn chat gần đây (50)</option>
+            <option value="check_log_today">Check log hôm nay</option>
+            <option value="salary_month">Bảng lương tháng này</option>
+            <option value="kpi_month">KPI tháng này</option>
+            <option value="daily_tracking">Daily Tracking gần đây</option>
+          </select>
+          <button class="btn-sm btn-primary" onclick="runQuery()">▶ Chạy</button>
+        </div>
+        <div id="query-result" style="overflow-x:auto;max-height:420px;overflow-y:auto;font-size:12px"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: Gán tài khoản -->
+    <div class="modal-bg" id="transfer-modal">
+      <div class="modal-box" style="max-width:420px">
+        <h3>🔄 Gán tài khoản sang nhân viên mới</h3>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px">Tài khoản đăng nhập (email/pass) của nhân viên cũ sẽ được gán cho nhân viên mới. Nhân viên cũ sẽ không thể đăng nhập nữa.</p>
+        <div class="form-f"><label>Nhân viên cũ (đã nghỉ)</label>
+          <select id="transfer-old-emp" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif"></select>
+        </div>
+        <div class="form-f"><label>Nhân viên mới (nhận tài khoản)</label>
+          <select id="transfer-new-emp" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:Be Vietnam Pro,sans-serif"></select>
+        </div>
+        <div class="mactions">
+          <button class="btn-sm" onclick="closeModal('transfer-modal')">Huỷ</button>
+          <button class="btn-sm btn-primary" onclick="doTransferAccount()">🔄 Xác nhận gán</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- end .content -->
+      </div>
+      <div id="sub-salary-lw" class="sub-content" style="display:none">
       <!-- SUB-TABS -->
       <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
         <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
@@ -726,46 +1660,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="kpi-display"></div>
     </div>
       </div>
-      <div id="sub-reviews" class="sub-content" style="display:none">
-        <div><h2>Nghiệm thu Quý & Năm</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="rev-emp-sel" onchange="renderReviews()"></select>
-          <select id="rev-nam-sel" onchange="renderReviews()"></select>
-          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
-        </div>
-      </div>
-      <div id="reviews-display"></div>
-    </div>
-      </div>
-      <div id="sub-salary" class="sub-content" style="display:none">
-      <div class="sub-tab-bar" style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;background:var(--bg2);margin:-24px -24px 20px;padding:0 24px">
-        <button class="sub-tab-btn active" id="stb-kpi" onclick="switchSubTab('kpi',this)">📊 KPI</button>
-        <button class="sub-tab-btn" id="stb-reviews" onclick="switchSubTab('reviews',this)">🏆 Nghiệm thu</button>
-        <button class="sub-tab-btn" id="stb-salary" onclick="switchSubTab('salary',this)">💰 Bảng lương</button>
-      </div>
-      <!-- KPI content (moved here) -->
-      <div id="sub-kpi" class="sub-content active">
-      <div class="page-header">
-        <div><h2>Bảng lương</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="sal-emp-sel" onchange="renderSalary()"></select>
-          <div class="month-nav">
-            <button class="mnbtn" onclick="changeMonthSal(-1)">‹</button>
-            <span class="mlabel" id="sal-month-label"></span>
-            <button class="mnbtn" onclick="changeMonthSal(1)">›</button>
-          </div>
-          <button class="btn-sm btn-success" onclick="calcAndSaveSalary()">⚡ Tính lương</button>
-          <button class="btn-sm btn-primary" onclick="exportPhieuLuong()">🖨️ Xuất phiếu PDF</button>
-        </div>
-      </div>
-      <div id="salary-display"></div>
-      <!-- Phiếu lương để print -->
-      <div class="phieu-luong" id="phieu-luong-print"></div>
     </div>
 
-    <!-- NGHIỆM THU -->
-    <div id="page-reviews" class="page-content">
-    <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
         <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
@@ -3083,7 +3979,7 @@ function switchSubTab(name, el){
   if(subEl){ subEl.classList.add('active'); subEl.style.display='block'; }
   if(name==='kpi') renderKPI();
   else if(name==='reviews') renderReviews();
-  else if(name==='salary') renderSalary();
+  else if(name==='salary-lw') renderSalary();
 }
 
 function switchTab(name,el){
@@ -3102,15 +3998,15 @@ function switchTab(name,el){
   }
   else if(name==='orders'){document.getElementById('ord-emp-sel-wrap').style.display=isMgr?'block':'none';renderOrders();}
   else if(name==='salary'){
-    // Mở sub-tab KPI mặc định khi vào Lương & KPI
-    var activeSubBtn = document.querySelector('.sub-tab-btn.active');
-    if(!activeSubBtn){
-      var kpiBtn = document.getElementById('stb-kpi');
-      if(kpiBtn) switchSubTab('kpi', kpiBtn);
-    } else {
-      var activeName = activeSubBtn.id.replace('stb-','');
-      switchSubTab(activeName, activeSubBtn);
+    var kpiBtn = document.getElementById('stb-kpi');
+    if(kpiBtn){ 
+      document.querySelectorAll('.sub-tab-btn').forEach(b=>b.classList.remove('active'));
+      kpiBtn.classList.add('active');
     }
+    document.querySelectorAll('.sub-content').forEach(p=>{ p.style.display='none'; });
+    var subKpi = document.getElementById('sub-kpi');
+    if(subKpi) subKpi.style.display='block';
+    renderKPI();
   }
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
@@ -4840,24 +5736,20 @@ async function saveEmpSettings(){
   if(email) updates.email = email;
   if(password) updates.password = password;
 
-  // Gọi Supabase Admin API qua Edge Function hoặc update profile
-  // Vì không có service_role key ở frontend, chỉ update profiles table
-  var {error} = await sb.from('profiles').update({email}).eq('id', uid);
-  if(error){ toast('Lỗi: '+error.message,'error'); return; }
-
-  // Update email trong auth (chỉ được nếu là user hiện tại)
-  if(uid === curProfile.id && email !== curProfile.email){
-    var {error:authErr} = await sb.auth.updateUser({email});
-    if(authErr) toast('Lưu profile OK. Lỗi update email auth: '+authErr.message,'error');
-    else toast('Đã cập nhật email thành công');
-  } else if(password && uid === curProfile.id){
-    var {error:pwErr} = await sb.auth.updateUser({password});
-    if(pwErr) toast('Lỗi đổi mật khẩu: '+pwErr.message,'error');
-    else toast('Đã đổi mật khẩu thành công');
-  } else {
-    toast('Đã lưu thông tin profile. Để đổi email/pass người khác cần service key.');
-  }
-  // Refresh cache
+  // Gọi Edge Function admin-user-management
+  var {data:{session}} = await sb.auth.getSession();
+  var token = session?.access_token;
+  var payload = {action:'update_user', target_user_id:uid};
+  if(email) payload.email = email;
+  if(password) payload.password = password;
+  var resp = await fetch('https://jggfmpihfisbusnbzyoi.supabase.co/functions/v1/admin-user-management', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M'},
+    body:JSON.stringify(payload)
+  });
+  var result = await resp.json();
+  if(!resp.ok||result.error){ toast('Lỗi: '+(result.error||resp.status),'error'); return; }
+  toast('Đã cập nhật tài khoản thành công');
   allProfilesMap[uid] = {...(allProfilesMap[uid]||{}), email};
 }
 
@@ -4885,10 +5777,17 @@ async function doTransferAccount(){
   // Update email của NV mới = email của NV cũ
   var oldEmail = oldP && oldP.email;
   if(!oldEmail){ toast('NV cũ không có email trong hệ thống','error'); return; }
-  var {error} = await sb.from('profiles').update({email: oldEmail}).eq('id', newId);
-  if(error){ toast('Lỗi: '+error.message,'error'); return; }
+  var {data:{session}} = await sb.auth.getSession();
+  var token = session?.access_token;
+  var resp = await fetch('https://jggfmpihfisbusnbzyoi.supabase.co/functions/v1/admin-user-management', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M'},
+    body:JSON.stringify({action:'transfer_account', old_user_id:oldId, new_user_id:newId})
+  });
+  var result = await resp.json();
+  if(!resp.ok||result.error){ toast('Lỗi: '+(result.error||resp.status),'error'); return; }
   closeModal('transfer-modal');
-  toast('Đã gán tài khoản thành công. NV mới dùng email: '+oldEmail);
+  toast('Đã gán tài khoản. NV mới dùng email: '+result.email);
 }
 
 // Query preset runner
