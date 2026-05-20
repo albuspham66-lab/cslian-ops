@@ -4020,17 +4020,44 @@ function subscribeGlobalNotif(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'}, function(payload){
       var msg = payload.new;
       if(!curProfile || msg.user_id === curProfile.id) return;
-      if(msg.room === _chatRoom) return; // đang xem room này rồi, handled bởi room channel
-      // Tăng badge room khác
+      // Tăng badge
       if(_chatUnread[msg.room] !== undefined){
         _chatUnread[msg.room] = (_chatUnread[msg.room]||0)+1;
       } else {
         _chatUnread[msg.room] = 1;
       }
       updateChatBadges();
+      // Nếu đang xem đúng room này thì không toast
+      var isChatOpen = document.getElementById('page-chat') && 
+        document.getElementById('page-chat').classList.contains('active');
+      if(isChatOpen && msg.room === _chatRoom) return;
+      // In-app toast (hoạt động mọi thiết bị kể cả iOS)
       playNotifSound();
       sendBrowserNotif(msg);
+      // Đổi title tab để thông báo
+      var prof=allProfilesMap[msg.user_id]||{};
+      var name=prof.biet_danh||prof.ho_ten||'Ai đó';
+      flashTitle('💬 '+name+' nhắn tin');
     }).subscribe();
+}
+
+// Flash title để thông báo (hiệu quả trên cả desktop lẫn mobile)
+var _titleFlashTimer = null;
+var _origTitle = document.title;
+function flashTitle(msg){
+  if(_titleFlashTimer) clearInterval(_titleFlashTimer);
+  var count = 0;
+  _titleFlashTimer = setInterval(function(){
+    document.title = count%2===0 ? msg : _origTitle;
+    count++;
+    if(count >= 8){ clearInterval(_titleFlashTimer); document.title = _origTitle; }
+  }, 1000);
+  // Dừng flash khi user focus lại
+  window.addEventListener('focus', function stopFlash(){
+    clearInterval(_titleFlashTimer);
+    document.title = _origTitle;
+    window.removeEventListener('focus', stopFlash);
+  });
 }
 
 function sendBrowserNotif(msg){
@@ -4038,17 +4065,16 @@ function sendBrowserNotif(msg){
   var senderName = prof.biet_danh||prof.ho_ten||'Ai đó';
   var roomName = (ROOM_META[msg.room]||{}).name || msg.room;
   var body = msg.content || '📷 Đã gửi một ảnh';
-  // In-app toast notification (hoạt động trên mọi thiết bị)
+  // In-app toast (mọi thiết bị, kể cả iOS PWA)
   showChatToast(senderName, roomName, body, msg.room);
-  // Browser notification (desktop Chrome/Firefox)
+  // Web Notification (chỉ Chrome desktop/Android, iOS không hỗ trợ trong PWA)
   if('Notification' in window && Notification.permission === 'granted'){
     try {
       var n = new Notification('💬 '+senderName+' — '+roomName, {
-        body: body, icon: 'icon-192.png', silent: false,
-        tag: 'chat-'+msg.room // nhóm theo room, tránh spam
+        body: body, icon: 'icon-192.png', tag: 'chat-'+msg.room
       });
       n.onclick = function(){ window.focus(); switchTabByName('chat'); n.close(); };
-    } catch(e){}
+    } catch(e){ /* iOS throws, ignore */ }
   }
 }
 
@@ -4100,9 +4126,10 @@ function subscribeChatRealtime(){
     })
     .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'}, function(payload){
       var id = payload.old.id;
-      _chatMessages = _chatMessages.filter(function(m){ return m.id!==id; });
+      // Chỉ xóa nếu element vẫn còn (chưa bị deleteChatMsg xóa rồi)
       var el = document.getElementById('msg-'+id);
-      if(el) el.style.opacity='0', setTimeout(function(){ el.remove(); }, 200);
+      if(el){ el.style.opacity='0'; setTimeout(function(){ el.remove(); },150); }
+      _chatMessages = _chatMessages.filter(function(m){ return m.id!==id; });
     })
     .subscribe();
 }
@@ -4335,47 +4362,64 @@ function openMemberModal(){
   var roomMeta=ROOM_META[_chatRoom]||{};
   document.getElementById('member-modal-room-name').textContent=roomMeta.name||_chatRoom;
   var canManage=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
-  var isFixed=!!roomMeta.fixed;
-  var members=isFixed?activeProfiles().map(function(p){return p.id;}):(roomMeta.members||[]);
+  // Init members nếu chưa có (phòng fixed mặc định = toàn team)
+  if(!roomMeta.members){
+    ROOM_META[_chatRoom].members=activeProfiles().map(function(p){return p.id;});
+    roomMeta=ROOM_META[_chatRoom];
+  }
+  var members=roomMeta.members||[];
   var list=document.getElementById('member-list');
   if(list) list.innerHTML=members.length?members.map(function(uid){
     var p=allProfilesMap[uid]||{ho_ten:'?',ma_nv:'?'};
-    var canRemove=canManage&&!isFixed&&uid!==curProfile.id;
+    var roleColor=p.role==='manager'?'var(--manager)':p.role==='leader'?'var(--leader)':'var(--accent)';
+    var ci=avColor(allProfiles.findIndex(function(x){return x.id===uid;}));
+    var canRemove=canManage&&uid!==curProfile.id;
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
-      +'<div style="width:28px;height:28px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.ho_ten||'?')+'</div>'
-      +'<div style="flex:1;font-size:13px">'+(p.biet_danh||p.ho_ten)+' <span style="color:var(--text3);font-size:11px">('+p.ma_nv+')</span></div>'
-      +(canRemove?'<button class="btn-sm btn-danger" onclick="removeMember(\''+uid+'\')" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
+      +'<div style="width:28px;height:28px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.ho_ten||'?')+'</div>'
+      +'<div style="flex:1;font-size:13px">'+(p.biet_danh||p.ho_ten)
+        +' <span style="font-size:10px;color:'+roleColor+';font-weight:600">'+(p.role||'')+'</span>'
+        +' <span style="color:var(--text3);font-size:11px">('+p.ma_nv+')</span></div>'
+      +(canRemove?'<button class="btn-sm btn-danger" onclick="removeMember(this.dataset.uid)" data-uid="'+uid+'" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
       +'</div>';
   }).join(''):'<div class="empty">Chưa có thành viên</div>';
   var addWrap=document.getElementById('add-member-wrap');
-  if(addWrap) addWrap.style.display=(canManage&&!isFixed)?'block':'none';
+  if(addWrap) addWrap.style.display=canManage?'block':'none';
   var addList=document.getElementById('add-member-list');
-  if(addList&&canManage&&!isFixed){
+  if(addList&&canManage){
     var existing=new Set(members);
     var notIn=activeProfiles().filter(function(p){return !existing.has(p.id);});
     addList.innerHTML=notIn.length?notIn.map(function(p){
-      return '<button class="btn-sm" onclick="addMember(\''+p.id+'\')" style="font-size:11px">+ '+(p.biet_danh||p.ho_ten)+'</button>';
-    }).join(''):'<div style="font-size:12px;color:var(--text2)">Tất cả đã trong phòng</div>';
+      return '<button class="btn-sm" onclick="addMember(this.dataset.uid)" data-uid="'+p.id+'" style="font-size:11px;margin:2px">+ '+(p.biet_danh||p.ho_ten)+'</button>';
+    }).join(''):'<div style="font-size:12px;color:var(--text2);padding:4px 0">Tất cả đã trong phòng ✓</div>';
   }
   document.getElementById('member-modal').classList.add('open');
 }
 
-async function addMember(uid){
+async function addMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(uidOrEl.dataset?uidOrEl.dataset.uid:uidOrEl);
   if(!ROOM_META[_chatRoom]) return;
   if(!ROOM_META[_chatRoom].members) ROOM_META[_chatRoom].members=[];
   if(ROOM_META[_chatRoom].members.includes(uid)) return;
   ROOM_META[_chatRoom].members.push(uid);
+  // Xóa flag fixed để cho phép lưu
+  var wasFixed = ROOM_META[_chatRoom].fixed;
+  ROOM_META[_chatRoom].fixed = false;
   await saveRoomMembers(_chatRoom);
-  toast('Đã thêm thành viên');
+  ROOM_META[_chatRoom].fixed = wasFixed;
+  var p=allProfilesMap[uid]||{};
+  toast('Đã thêm '+(p.biet_danh||p.ho_ten||'thành viên'));
   openMemberModal();
 }
 
-async function removeMember(uid){
+async function removeMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(uidOrEl.dataset?uidOrEl.dataset.uid:uidOrEl);
   if(!ROOM_META[_chatRoom]||!ROOM_META[_chatRoom].members) return;
-  if(!confirm('Xóa thành viên khỏi phòng này?')) return;
+  var p=allProfilesMap[uid]||{};
+  if(!confirm('Xóa '+(p.biet_danh||p.ho_ten||'thành viên')+' khỏi phòng?')) return;
   ROOM_META[_chatRoom].members=ROOM_META[_chatRoom].members.filter(function(id){return id!==uid;});
+  var wasFixed = ROOM_META[_chatRoom].fixed;
+  ROOM_META[_chatRoom].fixed = false;
   await saveRoomMembers(_chatRoom);
-  toast('Đã xóa thành viên');
+  ROOM_META[_chatRoom].fixed = wasFixed;
+  toast('Đã xóa '+(p.biet_danh||p.ho_ten||'thành viên'));
   openMemberModal();
 }
 
@@ -4414,8 +4458,17 @@ async function loadRoomMembers(){
 // ---- Delete message ----
 async function deleteChatMsg(id){
   if(!confirm('Xóa tin nhắn này?')) return;
+  // Xóa DOM ngay lập tức không chờ Realtime
+  var el = document.getElementById('msg-'+id);
+  if(el){ el.style.transition='opacity .15s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); },150); }
+  _chatMessages = _chatMessages.filter(function(m){ return m.id!==id; });
+  // Gọi Supabase async (Realtime DELETE event sẽ bị dedup)
   var {error}=await sb.from('messages').delete().eq('id',id);
-  if(error) toast('Lỗi: '+error.message,'error');
+  if(error){
+    toast('Lỗi xóa: '+error.message,'error');
+    // Reload lại nếu lỗi
+    loadChatMessages();
+  }
 }
 
 // ---- Keyboard ----
