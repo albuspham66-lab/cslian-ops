@@ -494,12 +494,9 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   </div>
 
   <div class="nav" id="main-nav">
-    <button class="nav-btn active" onclick="switchTab('checkin',this)">👆 Check in/out</button>
-    <button class="nav-btn" onclick="switchTab('attendance',this)">📅 Chấm công</button>
+    <button class="nav-btn active" onclick="switchTab('attendance',this)">📅 Chấm công</button>
     <button class="nav-btn" onclick="switchTab('orders',this)">📦 Đơn hàng</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('kpi',this)" style="display:none">📊 KPI</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Bảng lương</button>
-    <button class="nav-btn nav-mgr" onclick="switchTab('reviews',this)" style="display:none">🏆 Nghiệm thu</button>
+    <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Lương & KPI</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
@@ -511,7 +508,9 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   <div class="content">
 
     <!-- CHECK IN/OUT -->
-    <div id="page-checkin" class="page-content active">
+    <!-- CHẤM CÔNG (gộp check in/out) -->
+    <div id="page-attendance" class="page-content active">
+      <div style="margin-bottom:20px">
       <div class="ci-hero">
         <div class="ci-top">
           <div>
@@ -533,8 +532,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
-    <!-- CHẤM CÔNG -->
-    <div id="page-attendance" class="page-content">
+      </div>
       <div class="page-header">
         <div><h2>Bảng chấm công</h2><div class="page-sub" id="att-emp-info"></div></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -567,7 +565,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
-    <!-- ĐƠN HÀNG -->
+    </div>
+
     <div id="page-orders" class="page-content">
       <div class="page-header">
         <div><h2>Đơn hàng</h2><div class="page-sub">Import Excel tổng hợp đơn hàng tháng</div></div>
@@ -655,7 +654,14 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     </div>
 
     <!-- KPI -->
-    <div id="page-kpi" class="page-content">
+    <!-- LƯƠNG & KPI (gộp 3 tab) -->
+    <div id="page-salary" class="page-content">
+      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px;gap:0">
+        <button class="stb active" id="stb-kpi" onclick="doSubTab('kpi',this)" style="background:none;border:none;border-bottom:2px solid var(--accent);padding:10px 20px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;font-family:inherit;margin-bottom:-2px">📊 KPI</button>
+        <button class="stb" id="stb-reviews" onclick="doSubTab('reviews',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">🏆 Nghiệm thu</button>
+        <button class="stb" id="stb-luong" onclick="doSubTab('luong',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">💰 Bảng lương</button>
+      </div>
+      <div id="stc-kpi" style="display:block">
       <div class="page-header">
         <div><h2>KPI tháng</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -672,7 +678,22 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     </div>
 
     <!-- LƯƠNG -->
-    <div id="page-salary" class="page-content">
+      </div>
+      <div id="stc-reviews" style="display:none">
+      <div class="page-header">
+        <div><h2>Nghiệm thu Quý & Năm</h2></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="rev-emp-sel" onchange="renderReviews()"></select>
+          <select id="rev-nam-sel" onchange="renderReviews()"></select>
+          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
+        </div>
+      </div>
+      <div id="reviews-display"></div>
+    </div>
+
+    <!-- DAILY TRACKING -->
+      </div>
+      <div id="stc-luong" style="display:none">
       <div class="page-header">
         <div><h2>Bảng lương</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -692,19 +713,9 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     </div>
 
     <!-- NGHIỆM THU -->
-    <div id="page-reviews" class="page-content">
-      <div class="page-header">
-        <div><h2>Nghiệm thu Quý & Năm</h2></div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="rev-emp-sel" onchange="renderReviews()"></select>
-          <select id="rev-nam-sel" onchange="renderReviews()"></select>
-          <button class="btn-sm btn-primary" onclick="openReviewForm()">+ Tạo nghiệm thu</button>
-        </div>
       </div>
-      <div id="reviews-display"></div>
     </div>
 
-    <!-- DAILY TRACKING -->
     <div id="page-daily" class="page-content">
       <div class="page-header">
         <div><h2>Daily Tracking</h2><div class="page-sub" id="daily-sub">Tổng hợp KPI theo khoảng thời gian</div></div>
@@ -2950,6 +2961,29 @@ async function toggleEmpStatus(id,newStatus,ngayNghi){
 }
 
 // NAV
+function doSubTab(name, el){
+  // Đổi active button
+  document.querySelectorAll('.stb').forEach(function(b){
+    b.style.borderBottomColor = 'transparent';
+    b.style.color = 'var(--text2)';
+    b.style.fontWeight = '500';
+  });
+  el.style.borderBottomColor = 'var(--accent)';
+  el.style.color = 'var(--accent)';
+  el.style.fontWeight = '600';
+  // Đổi content
+  ['stc-kpi','stc-reviews','stc-luong'].forEach(function(id){
+    var el2 = document.getElementById(id);
+    if(el2) el2.style.display = 'none';
+  });
+  var target = document.getElementById('stc-'+name);
+  if(target) target.style.display = 'block';
+  // Render
+  if(name==='kpi') renderKPI();
+  else if(name==='reviews') renderReviews();
+  else if(name==='luong') renderSalary();
+}
+
 function switchTab(name,el){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
@@ -2957,11 +2991,18 @@ function switchTab(name,el){
   document.getElementById('page-'+name).classList.add('active');
   const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
   if(name==='checkin'){renderCheckinPage();renderAllLog();}
-  else if(name==='attendance'){document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';renderAttTable();}
+  else if(name==='attendance'){
+    document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';
+    renderAttTable();
+    renderCheckinPage();
+    renderAllLog();
+  }
   else if(name==='orders'){document.getElementById('ord-emp-sel-wrap').style.display=isMgr?'block':'none';renderOrders();}
-  else if(name==='kpi')renderKPI();
-  else if(name==='salary')renderSalary();
-  else if(name==='reviews')renderReviews();
+  else if(name==='salary'){
+    // Mặc định hiện sub-tab KPI
+    var kpibtn = document.getElementById('stb-kpi');
+    if(kpibtn) doSubTab('kpi', kpibtn);
+  }
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
