@@ -61,6 +61,9 @@
   padding:6px 0 max(6px,env(safe-area-inset-bottom));
   justify-content:space-around;align-items:flex-end;
 }
+@media(max-width:768px){
+  #mobile-nav{display:flex!important;}
+}
 .mn-item{
   display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:6px 12px;border:none;background:none;cursor:pointer;
@@ -307,8 +310,8 @@ textarea{resize:vertical;min-height:70px;}
 </nav>
 
 <!-- MOBILE MORE MENU -->
-<div id="mobile-more" style="display:none;position:fixed;bottom:72px;left:0;right:0;z-index:199;background:var(--bg2);border-top:1px solid var(--border2);padding:12px 16px;display:none;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+<div id="mobile-more" style="display:none;position:fixed;bottom:72px;left:0;right:0;z-index:199;background:var(--bg2);border-top:1px solid var(--border2);padding:12px 16px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:max(0px,env(safe-area-inset-bottom));">
     <button onclick="mobileGoto('profit',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">💹 Lợi nhuận</button>
     <button onclick="mobileGoto('salary',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">💰 Bảng lương</button>
     <button onclick="mobileGoto('staff',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">👥 Nhân sự</button>
@@ -1195,6 +1198,7 @@ function selectMonth(m) {
     else rangeFrom = {...rangeTo};
   }
   updateRangeLabels();
+  syncMobileLabels();
   buildMonthPicker();
   document.getElementById('month-dropdown').classList.remove('show');
 }
@@ -2254,7 +2258,7 @@ function mobileGoto(id, btn) {
 }
 function showMobileMore() {
   const m = document.getElementById('mobile-more');
-  m.style.display = m.style.display==='grid' ? 'none' : 'grid';
+  m.style.display = m.style.display==='none' || m.style.display==='' ? 'grid' : 'none';
 }
 function hideMobileMore() {
   document.getElementById('mobile-more').style.display='none';
@@ -2265,11 +2269,7 @@ document.addEventListener('click', e => {
     more.style.display='none';
   }
 });
-
-// Sync mobile range labels
-const _origUpdateRangeLabels = updateRangeLabels;
-function updateRangeLabels() {
-  _origUpdateRangeLabels();
+function syncMobileLabels() {
   const ml = document.getElementById('mob-from-lbl');
   const ml2 = document.getElementById('mob-to-lbl');
   if(ml) ml.textContent = `T${rangeFrom.month}/${rangeFrom.year}`;
@@ -2307,7 +2307,7 @@ if('serviceWorker' in navigator) {
 }
 
 updateRangeLabels();
-updateRangeLabels(); // sync mobile labels
+syncMobileLabels();
 loadAll();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
