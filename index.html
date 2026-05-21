@@ -1487,6 +1487,8 @@ function updateCIButtons(rec){
   } else if(rec&&rec.checkin_time){
     btnIn.className='ci-btn btn-dis';btnIn.disabled=true;
     btnOut.className='ci-btn btn-out';btnOut.disabled=false;
+    // Invalidate attendance cache (current user, current month)
+    if(curProfile){ var k=curProfile.id+'-'+curYear+'-'+curMonth; delete _attCache[k]; }
     chips=`<span class="status-chip chip-in">✅ Check in: ${rec.checkin_time.slice(0,5)}</span>
            <span class="status-chip chip-wait">⏳ Chờ check out</span>`;
     const [ch,cm]=rec.checkin_time.split(':').map(Number);
@@ -1494,6 +1496,8 @@ function updateCIButtons(rec){
   } else {
     btnIn.className='ci-btn btn-in';btnIn.disabled=false;
     btnOut.className='ci-btn btn-dis';btnOut.disabled=true;
+    // Invalidate attendance cache (current user, current month)
+    if(curProfile){ var k=curProfile.id+'-'+curYear+'-'+curMonth; delete _attCache[k]; }
     chips=`<span class="status-chip chip-wait">📍 Chưa check in hôm nay</span>`;
   }
   row.innerHTML=chips;
@@ -1563,6 +1567,7 @@ function calcDayLogic(rec,empType){
   return{hours:k*2,salary:k*2*LUONG_GIO,isLate,lateMin};
 }
 
+var _attCache={};
 async function renderAttTable(){
   const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
   const empId=isMgr?(document.getElementById('att-emp-sel').value||curProfile.id):curProfile.id;
@@ -1570,7 +1575,19 @@ async function renderAttTable(){
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
   document.getElementById('att-emp-info').textContent=`${emp.ho_ten} · ${emp.ma_nv}`;
   const from=`${curYear}-${pad2(curMonth+1)}-01`,last=new Date(curYear,curMonth+1,0).getDate(),to=`${curYear}-${pad2(curMonth+1)}-${pad2(last)}`;
-  const {data:rows}=await sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to);
+  const cacheKey=empId+'-'+curYear+'-'+curMonth;
+  let rows;
+  if(_attCache[cacheKey]){
+    rows=_attCache[cacheKey];
+  } else {
+    // Show loading skeleton
+    const tbodyEl=document.getElementById('att-tbody');
+    if(tbodyEl) tbodyEl.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)"><div class="spinner" style="display:inline-block;margin-right:8px"></div>Đang tải...</td></tr>';
+    const {data}=await sb.from('attendance').select('date,status,checkin_time,checkout_time,note').eq('user_id',empId).gte('date',from).lte('date',to);
+    rows=data;
+    _attCache[cacheKey]=rows;
+    setTimeout(()=>{ delete _attCache[cacheKey]; }, 30000);
+  }
   const recMap={};(rows||[]).forEach(r=>recMap[r.date]=r);
   const today=new Date(),todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
   let totalH=0,totalS=0,late=0,np=0,nl=0,nkp=0,wd=0,tbody='';
@@ -1664,6 +1681,8 @@ async function saveDay(){
   if(error){toast('Lỗi: '+error.message,'error');return;}
   toast('Đã lưu — '+st);
   closeModal('day-modal');
+  // Invalidate attendance cache for this employee
+  Object.keys(_attCache).forEach(function(k){ if(k.startsWith(empId)) delete _attCache[k]; });
   await renderAttTable();
 }
 
@@ -1677,6 +1696,8 @@ async function deleteDay(){
   if(error){toast('Lỗi xóa: '+error.message,'error');return;}
   editingDay=null;
   toast('Đã xóa ngày '+ds);
+  // Invalidate attendance cache
+  Object.keys(_attCache).forEach(function(k){ if(k.startsWith(empId)) delete _attCache[k]; });
   await renderAttTable();
 }
 
@@ -4045,37 +4066,35 @@ function playNotifSound(){
 
 // ---- Init chat ----
 async function initChat(){
-  // Luôn load lại tin nhắn mỗi khi mở tab chat (không cache)
   _chatUnread[_chatRoom] = 0; updateChatBadges();
   if(!_chatInitialized){
     _chatInitialized = true;
-  // Show create room button for manager
-  if(curProfile && curProfile.role==='manager'){
-    var el = document.getElementById('chat-create-room-wrap');
-    if(el) el.style.display='block';
-  }
-  await loadChatMessages();
-  subscribeChatRealtime();
-  subscribeTypingChannel();
+    // Show create room button for manager
+    if(curProfile && curProfile.role==='manager'){
+      var el = document.getElementById('chat-create-room-wrap');
+      if(el) el.style.display='block';
+    }
     updateMemberBtn();
     // Hide manager room for sale
     var mgrBtn = document.getElementById('room-btn-manager');
     if(mgrBtn && curProfile && curProfile.role==='sale'){
       mgrBtn.style.display='none';
     }
+    // Load rooms + messages + subscribe song song
+    await Promise.all([loadRoomMembers(), loadDynamicRooms()]);
+    renderDynamicRooms();
+    await loadChatMessages();
+    subscribeChatRealtime();
+    subscribeTypingChannel();
+    subscribeGlobalNotif();
     // Request notification permission
     if('Notification' in window && Notification.permission === 'default'){
       Notification.requestPermission();
     }
-    // Load room members config
-    await loadRoomMembers();
-    // Subscribe realtime + typing + global notif once
-    subscribeChatRealtime();
-    subscribeTypingChannel();
-    subscribeGlobalNotif();
+  } else {
+    // Tab đã init: chỉ reload messages
+    await loadChatMessages();
   }
-  // Luôn reload messages mỗi lần mở tab
-  await loadChatMessages();
 }
 
 // ---- Load messages (last 80) ----
@@ -4525,13 +4544,10 @@ async function createRoom(){
   var memberIds=[curProfile.id];
   document.querySelectorAll('#cr-members-list .cr-members-chip.selected').forEach(function(chip){ memberIds.push(chip.dataset.uid); });
   var roomId='room-'+Date.now();
-  // Lưu vào messages với type đặc biệt (hoặc dùng localStorage để đơn giản)
-  // Store room metadata in Supabase via a special message
-  var {error} = await sb.from('messages').insert({
-    user_id:curProfile.id, content:JSON.stringify({_type:'room_create',id:roomId,name,icon,members:memberIds}),
-    room:'_system', image_url:null
-  });
-  // Add to local ROOM_META và render
+  // Lưu persistent vào _sys_rooms (tồn tại qua refresh)
+  var payload={content:'room:'+roomId+':'+JSON.stringify({name,icon,members:memberIds}), room:'_sys_rooms', user_id:curProfile.id, image_url:null};
+  var {error}=await sb.from('messages').insert(payload);
+  if(error){toast('Lỗi tạo phòng: '+error.message,'error');return;}
   ROOM_META[roomId]={icon,name,desc:'Phòng riêng',fixed:false,members:memberIds};
   _chatUnread[roomId]=0;
   renderDynamicRooms();
@@ -4631,6 +4647,25 @@ async function saveRoomMembers(roomId){
   } else {
     await sb.from('messages').insert(payload);
   }
+}
+
+// Load dynamic rooms từ _sys_rooms khi init
+async function loadDynamicRooms(){
+  var {data}=await sb.from('messages').select('content,user_id')
+    .eq('room','_sys_rooms').like('content','room:%');
+  if(!data) return;
+  data.forEach(function(row){
+    try{
+      var firstColon=row.content.indexOf(':');
+      var secondColon=row.content.indexOf(':',firstColon+1);
+      var roomId=row.content.slice(firstColon+1,secondColon);
+      var meta=JSON.parse(row.content.slice(secondColon+1));
+      if(roomId&&meta.name){
+        ROOM_META[roomId]={icon:meta.icon||'💼',name:meta.name,desc:'Phòng riêng',fixed:false,members:meta.members||[]};
+        if(_chatUnread[roomId]===undefined) _chatUnread[roomId]=0;
+      }
+    }catch(e){}
+  });
 }
 
 // Load members từ Supabase khi init
