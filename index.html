@@ -1545,8 +1545,10 @@ async function doCheckOut(){
 function calcKhung(ci,co){
   if(!ci||!co)return 0;
   const [ch,cm]=ci.split(':').map(Number),[oh,om]=co.split(':').map(Number);
-  const ciOff=ch>=22?(ch-22)*60+cm:(ch+2)*60+cm,coOff=(oh+2)*60+om;
-  let k=0;[[0,120],[120,240],[240,360],[360,480]].forEach(([s,e])=>{if(ciOff<=s&&coOff>=e)k++;});
+  const ciOff=ch>=22?(ch-22)*60+cm:0;
+  if((oh>8||(oh===8&&om>=30))&&oh<22)return 0;
+  const coOff=oh>=22?(oh-22)*60+om:(oh+8)*60+om;
+  let k=0;[[0,120],[120,240],[240,360],[360,480]].forEach(function(r){if(ciOff<=r[0]&&coOff>=r[1])k++;});
   return k;
 }
 function calcDayLogic(rec,empType){
