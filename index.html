@@ -168,6 +168,14 @@ tfoot td{background:var(--bg3);padding:10px 12px;font-weight:600;border-top:1px 
 .btn-success{background:linear-gradient(135deg,#22c77a,#059669);border:none;color:#fff}
 .btn-success:hover{opacity:.9}
 .btn-danger{background:linear-gradient(135deg,#ff5c5c,#dc2626);border:none;color:#fff}
+.btn-danger:hover{opacity:.9}
+/* Modal action buttons (mbtn) */
+.mbtn{display:inline-flex;align-items:center;gap:5px;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all .15s;font-family:'Be Vietnam Pro',sans-serif}
+.mbtn:hover{background:var(--bg4);color:var(--text)}
+.mbtn-p{background:linear-gradient(135deg,var(--accent),#7c3aed);border:none;color:#fff}
+.mbtn-p:hover{opacity:.9}
+.mbtn-danger{background:linear-gradient(135deg,#ff5c5c,#dc2626);border:none;color:#fff}
+.mbtn-danger:hover{opacity:.9}
 .icon-btn{background:none;border:none;cursor:pointer;color:var(--text2);padding:4px 6px;border-radius:5px;font-size:14px;transition:all .15s}
 .icon-btn:hover{background:var(--bg4);color:var(--text)}
 
@@ -374,6 +382,23 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .chat-date-sep::before,.chat-date-sep::after{content:'';position:absolute;top:50%;width:calc(50% - 50px);height:1px;background:var(--border)}
 .chat-date-sep::before{left:0}.chat-date-sep::after{right:0}
 .chat-typing{font-size:11px;color:var(--text3);padding:0 16px 6px;min-height:20px}
+/* Reply UI */
+.chat-reply-bar{display:flex;align-items:center;gap:8px;background:var(--bg3);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:8px;font-size:12px;color:var(--text2)}
+.chat-reply-bar .reply-name{font-weight:700;color:var(--accent);margin-right:4px}
+.chat-reply-bar .reply-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+.chat-reply-bar .reply-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:auto}
+.chat-reply-bar .reply-close:hover{color:var(--danger)}
+/* Reply quote inside bubble */
+.msg-reply-quote{background:rgba(0,0,0,.15);border-left:3px solid rgba(255,255,255,.4);border-radius:0 6px 6px 0;padding:5px 8px;margin-bottom:6px;font-size:11px;line-height:1.4;cursor:pointer}
+.chat-msg.other .msg-reply-quote{background:var(--bg2);border-left-color:var(--accent)}
+.msg-reply-quote .rq-name{font-weight:700;color:var(--accent);margin-bottom:1px}
+.chat-msg.mine .msg-reply-quote .rq-name{color:rgba(255,255,255,.8)}
+.msg-reply-quote .rq-text{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.chat-msg.mine .msg-reply-quote .rq-text{color:rgba(255,255,255,.65)}
+/* Reply hover action */
+.chat-msg:hover .reply-btn{opacity:1}
+.reply-btn{opacity:0;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;padding:3px 7px;cursor:pointer;transition:all .15s;flex-shrink:0;align-self:center}
+.reply-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cr-icon-opt{font-size:22px;cursor:pointer;padding:6px 8px;border-radius:8px;border:2px solid transparent;transition:all .15s;user-select:none}
 .cr-icon-opt:hover{background:var(--bg3);transform:scale(1.1)}
 .cr-icon-opt.selected{border-color:var(--accent);background:var(--accent-glow)}
@@ -884,6 +909,11 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <div class="chat-messages" id="chat-messages"></div>
           <div class="chat-typing" id="chat-typing"></div>
           <div class="chat-input-area">
+            <div id="chat-reply-bar" style="display:none" class="chat-reply-bar">
+              <span>↩️</span>
+              <span>Trả lời <span class="reply-name" id="reply-bar-name"></span><span class="reply-text" id="reply-bar-text"></span></span>
+              <button class="reply-close" onclick="cancelReply()" title="Huỷ reply">✕</button>
+            </div>
             <div id="chat-img-preview-wrap"></div>
             <div class="chat-input-row">
               <button class="chat-img-btn" onclick="document.getElementById('chat-file-input').click()" title="Gửi ảnh">📎</button>
@@ -3961,6 +3991,7 @@ document.addEventListener('click',function(e){
 var _chatRoom = 'general';
 var _chatChannel = null;
 var _chatMessages = [];
+var _chatReplyTo = null; // {id, name, text}
 var _chatUnread = {'general':0,'thong-bao':0,'manager':0};
 var _chatPendingImage = null;
 var _chatTypingChannel = null;
@@ -4092,12 +4123,32 @@ function buildMsgHTML(msg){
   var canDel = isMine || (curProfile && curProfile.role==='manager');
   var delBtn = canDel ? '<button onclick="deleteChatMsg(\''+msg.id+'\')" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:10px;cursor:pointer;padding:0 2px;margin-left:6px;line-height:1" title="Xóa">✕</button>' : '';
 
-  var bubble = '';
+  // Reply quote block
+  var quoteHtml = '';
+  if(msg.reply_to_id){
+    var qMsg = _chatMessages.find(function(m){ return m.id===msg.reply_to_id; });
+    var qName = '?', qText = '(Tin nhắn đã xóa)';
+    if(qMsg){
+      var qProf = qMsg.profiles || allProfilesMap[qMsg.user_id] || {};
+      qName = qProf.biet_danh || qProf.ho_ten || '?';
+      qText = (qMsg.image_url && !qMsg.content) ? '📷 Ảnh' : (qMsg.content||'').slice(0,80);
+    }
+    quoteHtml = '<div class="msg-reply-quote" onclick="scrollToMsg(\''+msg.reply_to_id+'\')">'
+      +'<div class="rq-name">'+escapeHtml(qName)+'</div>'
+      +'<div class="rq-text">'+escapeHtml(qText)+'</div></div>';
+  }
+
+  var bubble = quoteHtml;
   if(msg.content) bubble += '<div>'+escapeHtml(msg.content).replace(/\n/g,'<br>')+'</div>';
   if(msg.image_url) bubble += '<img src="'+msg.image_url+'" loading="lazy" onclick="openImgFullscreen(this.src)" alt="ảnh" style="max-width:220px;max-height:180px;border-radius:10px;display:block;margin-top:6px;cursor:pointer"/>';
 
+  var rName = escapeHtml(name).replace(/'/g,'&#39;');
+  var rText = escapeHtml((msg.content||'').slice(0,60)).replace(/'/g,'&#39;');
+  var replyBtn = '<button class="reply-btn" onclick="setReply(\''+msg.id+'\',\''+rName+'\',\''+rText+'\')" title="Trả lời">↩ Reply</button>';
+
   if(isMine){
     return '<div class="chat-msg mine" id="msg-'+msg.id+'">'
+      +replyBtn
       +'<div style="flex:1;min-width:0;text-align:right">'
       +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
       +'<div class="chat-meta">'+timeStr+'</div>'
@@ -4112,6 +4163,7 @@ function buildMsgHTML(msg){
       +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
       +'<div class="chat-meta">'+timeStr+'</div>'
       +'</div>'
+      +replyBtn
       +'</div>';
   }
 }
@@ -4285,7 +4337,7 @@ async function sendChatMessage(){
 
   // Insert + select ngay để lấy ID và timestamp thật
   var {data:newMsg, error} = await sb.from('messages')
-    .insert({user_id:curProfile.id, content:savedContent||null, image_url:imageUrl||null, room:_chatRoom})
+    .insert({user_id:curProfile.id, content:savedContent||null, image_url:imageUrl||null, room:_chatRoom, reply_to_id:_chatReplyTo?_chatReplyTo.id:null})
     .select('*, profiles(ho_ten,biet_danh,role,ma_nv)')
     .single();
 
@@ -4299,12 +4351,38 @@ async function sendChatMessage(){
       _chatMessages.push(newMsg);
       appendSingleMsg(newMsg);
     }
+    cancelReply();
   }
   if(btn) btn.disabled = false;
 }
 
+// ---- Reply helpers ----
+function setReply(msgId, senderName, msgText){
+  _chatReplyTo = {id: msgId, name: senderName, text: msgText};
+  var bar = document.getElementById('chat-reply-bar');
+  var barName = document.getElementById('reply-bar-name');
+  var barText = document.getElementById('reply-bar-text');
+  if(bar){ bar.style.display='flex'; }
+  if(barName){ barName.textContent = senderName+': '; }
+  if(barText){ barText.textContent = msgText || '📷 Ảnh'; }
+  var ta = document.getElementById('chat-textarea');
+  if(ta) ta.focus();
+}
+function cancelReply(){
+  _chatReplyTo = null;
+  var bar = document.getElementById('chat-reply-bar');
+  if(bar) bar.style.display='none';
+}
+function scrollToMsg(msgId){
+  var el = document.getElementById('msg-'+msgId);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.style.transition='background .2s';
+  el.style.background='rgba(79,127,255,0.15)';
+  setTimeout(function(){ el.style.background=''; }, 1200);
+}
 
-// ---- Upload image ----
+
 async function uploadChatImage(pendingImg){
   var file = pendingImg.compressed || pendingImg.file;
   var ext = (file.name.split('.').pop()||'jpg').toLowerCase();
