@@ -58,19 +58,22 @@
   display:none;
   position:fixed;bottom:0;left:0;right:0;z-index:200;
   background:var(--bg2);border-top:1px solid var(--border2);
-  padding:6px 0 max(6px,env(safe-area-inset-bottom));
-  justify-content:space-around;align-items:flex-end;
+  padding:4px 8px max(8px,env(safe-area-inset-bottom));
+  justify-content:space-between;align-items:center;
+  gap:0;
 }
 @media(max-width:768px){
   #mobile-nav{display:flex!important;}
 }
 .mn-item{
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:6px 12px;border:none;background:none;cursor:pointer;
-  color:var(--text3);font-family:inherit;font-size:10px;font-weight:500;
-  transition:color .15s;min-width:52px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;
+  color:var(--text3);font-family:inherit;font-size:9px;font-weight:500;
+  transition:color .15s;min-width:0;max-width:72px;white-space:nowrap;
+  overflow:hidden;
 }
-.mn-item svg{width:22px;height:22px;flex-shrink:0;}
+.mn-item svg{width:20px;height:20px;flex-shrink:0;}
+.mn-item span{font-size:9px;line-height:1;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .mn-item.on{color:var(--blue2);}
 .mn-item:active{opacity:0.7;}
 
@@ -289,23 +292,23 @@ textarea{resize:vertical;min-height:70px;}
 <nav id="mobile-nav">
   <button class="mn-item on" onclick="mobileGoto('dashboard',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    Dashboard
+    <span>Dashboard</span>
   </button>
   <button class="mn-item" onclick="mobileGoto('orders',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-    Đơn hàng
+    <span>Đơn hàng</span>
   </button>
   <button class="mn-item" onclick="mobileGoto('expense',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-    Chi phí
+    <span>Chi phí</span>
   </button>
   <button class="mn-item" onclick="mobileGoto('analytics',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    Phân tích
+    <span>Phân tích</span>
   </button>
   <button class="mn-item" onclick="showMobileMore()">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
-    Thêm
+    <span>Thêm</span>
   </button>
 </nav>
 
