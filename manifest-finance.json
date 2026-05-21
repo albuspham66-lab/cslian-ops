@@ -1,0 +1,39 @@
+{
+  "name": "C-Slian Finance",
+  "short_name": "C-Slian",
+  "description": "Hệ thống quản lý tài chính C-Slian",
+  "start_url": "/cslian-ops/cslian-finance.html",
+  "scope": "/cslian-ops/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "icon-finance-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-finance-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/cslian-ops/cslian-finance.html#dashboard",
+      "description": "Xem tổng quan tài chính"
+    },
+    {
+      "name": "Chi phí",
+      "url": "/cslian-ops/cslian-finance.html#expense",
+      "description": "Thêm chi phí mới"
+    }
+  ],
+  "categories": ["finance", "business", "productivity"]
+}
