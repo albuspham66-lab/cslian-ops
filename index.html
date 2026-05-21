@@ -533,7 +533,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
-      </div>
       <div class="page-header">
         <div><h2>Bảng chấm công</h2><div class="page-sub" id="att-emp-info"></div></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -566,7 +565,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
-    </div>
 
     <div id="page-orders" class="page-content">
       <div class="page-header">
@@ -657,7 +655,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <!-- KPI -->
     <!-- LƯƠNG & KPI (gộp 3 tab) -->
     <div id="page-salary" class="page-content">
-      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px;gap:0">
+      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px">
         <button class="stb active" id="stb-kpi" onclick="doSubTab('kpi',this)" style="background:none;border:none;border-bottom:2px solid var(--accent);padding:10px 20px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;font-family:inherit;margin-bottom:-2px">📊 KPI</button>
         <button class="stb" id="stb-reviews" onclick="doSubTab('reviews',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">🏆 Nghiệm thu</button>
         <button class="stb" id="stb-luong" onclick="doSubTab('luong',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">💰 Bảng lương</button>
@@ -676,9 +674,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </div>
       </div>
       <div id="kpi-display"></div>
-    </div>
-
-    <!-- LƯƠNG -->
       </div>
       <div id="stc-reviews" style="display:none">
       <div class="page-header">
@@ -690,9 +685,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </div>
       </div>
       <div id="reviews-display"></div>
-    </div>
-
-    <!-- DAILY TRACKING -->
       </div>
       <div id="stc-luong" style="display:none">
       <div class="page-header">
@@ -711,9 +703,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="salary-display"></div>
       <!-- Phiếu lương để print -->
       <div class="phieu-luong" id="phieu-luong-print"></div>
-    </div>
-
-    <!-- NGHIỆM THU -->
       </div>
     </div>
 
