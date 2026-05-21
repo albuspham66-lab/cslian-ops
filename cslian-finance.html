@@ -2,8 +2,14 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>C-Slian · Finance</title>
+<meta name="theme-color" content="#07090f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="C-Slian">
+<link rel="manifest" href="manifest-finance.json">
+<link rel="apple-touch-icon" href="icon-finance-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Clash+Display:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -19,6 +25,68 @@
   --r:10px; --rsm:6px; --rlg:14px; --rxl:18px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width:768px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border);flex-direction:row;align-items:center;padding:0;position:sticky;top:0;z-index:100;overflow-x:auto;overflow-y:hidden;}
+  .sidebar .s-head{display:none;}
+  .sidebar .month-picker-wrap{display:none;}
+  .sidebar .s-nav{display:none;}
+  .sidebar .s-foot{display:none;}
+  .main{padding-bottom:80px;}
+  .page{padding:16px;}
+  .mrow{grid-template-columns:1fr 1fr!important;}
+  .mrow.c3{grid-template-columns:1fr 1fr!important;}
+  .g2{grid-template-columns:1fr!important;}
+  .g3{grid-template-columns:1fr!important;}
+  .fgrid2{grid-template-columns:1fr!important;}
+  .fgrid3{grid-template-columns:1fr!important;}
+  .ph{flex-direction:column;align-items:flex-start;}
+  .ph-right{flex-wrap:wrap;}
+  .staff-grid{grid-template-columns:1fr 1fr!important;}
+  .mc-val{font-size:16px!important;}
+  thead th{font-size:10px!important;padding:7px 8px!important;}
+  tbody td{font-size:12px!important;padding:9px 8px!important;}
+
+  /* Bottom navigation */
+  #mobile-nav{display:flex;}
+  /* Hide sidebar on mobile - show bottom nav instead */
+}
+
+/* Bottom nav */
+#mobile-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--bg2);border-top:1px solid var(--border2);
+  padding:6px 0 max(6px,env(safe-area-inset-bottom));
+  justify-content:space-around;align-items:flex-end;
+}
+.mn-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 12px;border:none;background:none;cursor:pointer;
+  color:var(--text3);font-family:inherit;font-size:10px;font-weight:500;
+  transition:color .15s;min-width:52px;
+}
+.mn-item svg{width:22px;height:22px;flex-shrink:0;}
+.mn-item.on{color:var(--blue2);}
+.mn-item:active{opacity:0.7;}
+
+/* Mobile month picker - top bar */
+#mobile-topbar{
+  display:none;
+  position:sticky;top:0;z-index:100;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:10px 16px;
+  align-items:center;justify-content:space-between;gap:8px;
+}
+@media(max-width:768px){
+  #mobile-topbar{display:flex;}
+  .shell{display:block;}
+  .sidebar{display:none;}
+}
+.mobile-range{display:flex;align-items:center;gap:6px;font-size:13px;}
+.mobile-range button{background:none;border:none;color:var(--blue2);font-weight:500;font-size:13px;font-family:inherit;cursor:pointer;padding:4px 8px;background:var(--bluebg);border-radius:var(--rsm);}
+
 html,body{height:100%;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:3px;}
@@ -203,6 +271,53 @@ textarea{resize:vertical;min-height:70px;}
 </style>
 </head>
 <body>
+<!-- MOBILE TOP BAR -->
+<div id="mobile-topbar">
+  <div style="font-family:'Clash Display',sans-serif;font-size:17px;font-weight:700;color:var(--text);">C-<span style="color:var(--blue2);">Slian</span></div>
+  <div class="mobile-range">
+    <button onclick="toggleMonthPicker('from')" id="mob-from-lbl">T5/2026</button>
+    <span style="color:var(--text3);">→</span>
+    <button onclick="toggleMonthPicker('to')" id="mob-to-lbl">T5/2026</button>
+    <button onclick="applyRange()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--rsm);padding:5px 10px;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;margin-left:4px;">OK</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav id="mobile-nav">
+  <button class="mn-item on" onclick="mobileGoto('dashboard',this)">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </button>
+  <button class="mn-item" onclick="mobileGoto('orders',this)">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    Đơn hàng
+  </button>
+  <button class="mn-item" onclick="mobileGoto('expense',this)">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    Chi phí
+  </button>
+  <button class="mn-item" onclick="mobileGoto('analytics',this)">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Phân tích
+  </button>
+  <button class="mn-item" onclick="showMobileMore()">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+    Thêm
+  </button>
+</nav>
+
+<!-- MOBILE MORE MENU -->
+<div id="mobile-more" style="display:none;position:fixed;bottom:72px;left:0;right:0;z-index:199;background:var(--bg2);border-top:1px solid var(--border2);padding:12px 16px;display:none;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <button onclick="mobileGoto('profit',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">💹 Lợi nhuận</button>
+    <button onclick="mobileGoto('salary',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">💰 Bảng lương</button>
+    <button onclick="mobileGoto('staff',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">👥 Nhân sự</button>
+    <button onclick="mobileGoto('mapview',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">🗺️ Bản đồ</button>
+    <button onclick="mobileGoto('report',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">📊 Báo cáo</button>
+    <button onclick="mobileGoto('settings',null);hideMobileMore()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:12px;border-radius:var(--r);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;">⚙️ Cài đặt</button>
+  </div>
+</div>
+
 <div class="shell">
 
 <!-- ═══ SIDEBAR ═══ -->
@@ -2129,16 +2244,70 @@ function highlightState(code) {
   document.getElementById('map-detail-body').closest('.card').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function buildMapSaleFilter() {
-  const sel = document.getElementById('map-sale-filter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Tất cả Sale</option>' +
-    allProfiles.filter(p=>p.role==='sale').map(p=>
-      `<option value="${p.id}" ${p.id===cur?'selected':''}>${p.ho_ten}</option>`
-    ).join('');
+
+// ── MOBILE NAV ──
+function mobileGoto(id, btn) {
+  goto(id);
+  document.querySelectorAll('.mn-item').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  hideMobileMore();
+}
+function showMobileMore() {
+  const m = document.getElementById('mobile-more');
+  m.style.display = m.style.display==='grid' ? 'none' : 'grid';
+}
+function hideMobileMore() {
+  document.getElementById('mobile-more').style.display='none';
+}
+document.addEventListener('click', e => {
+  const more = document.getElementById('mobile-more');
+  if(more && !e.target.closest('#mobile-more') && !e.target.closest('.mn-item:last-child')) {
+    more.style.display='none';
+  }
+});
+
+// Sync mobile range labels
+const _origUpdateRangeLabels = updateRangeLabels;
+function updateRangeLabels() {
+  _origUpdateRangeLabels();
+  const ml = document.getElementById('mob-from-lbl');
+  const ml2 = document.getElementById('mob-to-lbl');
+  if(ml) ml.textContent = `T${rangeFrom.month}/${rangeFrom.year}`;
+  if(ml2) ml2.textContent = `T${rangeTo.month}/${rangeTo.year}`;
+}
+
+// ── PERFORMANCE: Debounce filterProducts search ──
+let _prodSearchTimer;
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('prod-search');
+  if(searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(_prodSearchTimer);
+      _prodSearchTimer = setTimeout(filterProducts, 300);
+    });
+  }
+});
+
+// ── PERFORMANCE: Cache commission data ──
+let _commCache = null, _commCacheKey = '';
+function getCommissionCached() {
+  const key = fromKey()+toKey();
+  if(_commCache && _commCacheKey===key) return _commCache;
+  _commCache = calcCommission();
+  _commCacheKey = key;
+  return _commCache;
+}
+
+// Register service worker for PWA
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', {scope: '/cslian-ops/'})
+      .catch(()=>{});
+  });
 }
 
 updateRangeLabels();
+updateRangeLabels(); // sync mobile labels
 loadAll();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
