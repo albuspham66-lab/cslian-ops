@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#0d0f14"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="C-Slian"/>
 <link rel="manifest" href="manifest.json"/>
@@ -831,8 +832,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </a>
       </div>
       <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
-        allow="clipboard-read;clipboard-write" allowfullscreen
-        onload="onIframeLoad('crm')" onerror="onIframeError('crm')"></iframe>
+        allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
     </div>
 
     <!-- FINANCE -->
@@ -851,8 +851,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </a>
       </div>
       <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
-        allow="clipboard-read;clipboard-write" allowfullscreen
-        onload="onIframeLoad('finance')" onerror="onIframeError('finance')"></iframe>
+        allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
     </div>
 
     <div id="page-chat" class="page-content">
@@ -4649,20 +4648,21 @@ function loadIframeTab(name, url){
   var iframe = document.getElementById(name+'-iframe');
   if(!iframe) return;
   // Đã load rồi thì không load lại
-  if(iframe.src && iframe.src !== window.location.href){ return; }
+  if(iframe.src && iframe.src !== window.location.href && iframe.src !== ''){ return; }
   if(loading) loading.style.display='flex';
   if(blocked) blocked.style.display='none';
+  // Gắn event listeners trực tiếp (không dùng inline onload)
+  iframe.onload = function(){ onIframeLoad(name); };
+  iframe.onerror = function(){ onIframeError(name); };
   iframe.src = url;
-  // Timeout 8s: nếu onload chưa fire → có thể bị block
+  // Timeout 8s fallback
   iframe._loadTimer = setTimeout(function(){
-    // Kiểm tra iframe có content không
     try {
       var h = iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.body;
       if(!h || !h.innerHTML){ onIframeError(name); }
       else { onIframeLoad(name); }
     } catch(e) {
-      // Cross-origin error = đã load được (không bị block)
-      onIframeLoad(name);
+      onIframeLoad(name); // cross-origin = load OK
     }
   }, 8000);
 }
