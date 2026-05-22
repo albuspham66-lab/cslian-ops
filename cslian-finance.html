@@ -2366,7 +2366,17 @@ async function fetchCRM(path){
 // Load companies từ CRM để lấy logo
 async function loadMinvCompanies(){
   if(MINV_COMPANIES.length)return;
-  try{MINV_COMPANIES=await fetchCRM('companies?is_active=eq.true&select=id,name,address,phone,logo_url');}catch(e){}
+  try{
+    const data=await fetchCRM('companies?is_active=eq.true&select=*');
+    console.log('[MINV] Companies from CRM:', data);
+    MINV_COMPANIES=(data||[]).map(c=>({
+      id:c.id,
+      name:c.name||c.company_name||'',
+      address:c.address||c.company_address||'',
+      phone:c.phone||c.phone_number||'',
+      logo_url:c.logo_url||c.logo||''
+    }));
+  }catch(e){console.warn('loadMinvCompanies error:',e);}
 }
 
 async function loadMinvInvoices(){
