@@ -760,7 +760,8 @@ textarea{resize:vertical;min-height:72px;}
       <div class="ph-title">Quản lý Sản phẩm</div>
       <div class="ph-sub">Danh mục sản phẩm theo Vendor · Lịch sử giá</div>
     </div>
-    <div class="ph-right">
+    <div class="ph-right" style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-sm" onclick="syncAllProductsToCRM()" style="border-color:rgba(59,126,244,0.4);color:var(--blue2);font-size:12px;" title="Sync toàn bộ sản phẩm sang CRM">⟳ Sync All → CRM</button>
       <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
     </div>
   </div>
@@ -1985,8 +1986,64 @@ async function saveProduct(){
       toast('Đã thêm sản phẩm','green');
     }
     closeModal('m-prod');filterProducts();renderProducts();
+    // Sync sang CRM sau khi save thành công
+    const savedProduct = isEdit
+      ? allProducts.find(p=>p.id===id)
+      : allProducts[allProducts.length-1];
+    if(savedProduct) syncProductToCRM(savedProduct).catch(e=>console.warn('Sync CRM warn:',e));
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
+
+async function syncProductToCRM(product){
+  // Edge Function trên Ops project (jggfmpih)
+  const EDGE_URL = SUPA_URL + '/functions/v1/sync-product-to-crm';
+  try{
+    const res = await fetch(EDGE_URL,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+SUPA_KEY,
+      },
+      body: JSON.stringify(product),
+    });
+    const json = await res.json();
+    if(res.ok){
+      toast('✓ Đã sync sang CRM','green');
+    } else {
+      console.warn('Sync CRM failed:',json);
+      toast('Lưu OK — sync CRM thất bại','amber');
+    }
+  }catch(e){
+    console.warn('syncProductToCRM error:',e);
+    toast('Lưu OK — không kết nối được CRM','amber');
+  }
+}
+
+// Sync toàn bộ products hiện tại sang CRM (dùng cho lần đầu hoặc re-sync)
+async function syncAllProductsToCRM(){
+  if(!allProducts.length){toast('Không có sản phẩm','amber');return;}
+  toast('Đang sync '+allProducts.length+' sản phẩm...','blue');
+  const EDGE_URL = SUPA_URL + '/functions/v1/sync-product-to-crm';
+  try{
+    const res = await fetch(EDGE_URL,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+SUPA_KEY,
+      },
+      body: JSON.stringify(allProducts),
+    });
+    const json = await res.json();
+    if(res.ok){
+      toast('✓ Đã sync '+json.synced+' sản phẩm sang CRM','green');
+    } else {
+      toast('Sync CRM thất bại: '+JSON.stringify(json),'red');
+    }
+  }catch(e){
+    toast('Lỗi kết nối: '+e.message,'red');
+  }
+}
+
 async function showPriceHistory(id,name){
   setTxt('ph-title','Lịch sử giá · '+name);
   document.getElementById('ph-body').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);"><span class="spin"></span> Đang tải...</td></tr>`;
