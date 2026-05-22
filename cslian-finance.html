@@ -37,7 +37,7 @@ html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:va
 /* ── SHELL ── */
 .shell{display:flex;height:100vh;overflow:hidden;}
 .sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;overflow-x:hidden;}
-.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg);}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg);min-width:0;}
 
 /* ── SIDEBAR ── */
 .s-head{padding:22px 18px 16px;}
@@ -273,12 +273,12 @@ textarea{resize:vertical;min-height:72px;}
 
 /* ── MOBILE ── */
 @media(max-width:768px){
-  .sidebar{display:none;}
-  .shell{display:block;}
-  .main{height:100vh;}
-  #mobile-topbar{display:flex;}
-  #mobile-nav{display:flex;}
-  .page{padding:16px;padding-bottom:80px;}
+  .sidebar{display:none!important;}
+  .shell{display:flex;flex-direction:column;height:100vh;}
+  .main{flex:1;overflow-y:auto;height:0;}
+  #mobile-topbar{display:flex!important;}
+  #mobile-nav{display:flex!important;}
+  .page{padding:16px;padding-bottom:84px;}
   .mrow-4{grid-template-columns:1fr 1fr;}
   .mrow-3{grid-template-columns:1fr 1fr;}
   .g2,.g3{grid-template-columns:1fr;}
@@ -286,8 +286,10 @@ textarea{resize:vertical;min-height:72px;}
   .ph{flex-direction:column;align-items:flex-start;}
   .ph-right{flex-wrap:wrap;}
   .staff-grid{grid-template-columns:1fr 1fr;}
+  .g-header{padding:10px 14px;flex-wrap:wrap;gap:8px;}
+  .g-header-right{display:none;}
 }
-#mobile-topbar{display:none;position:sticky;top:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 16px;align-items:center;justify-content:space-between;gap:8px;}
+#mobile-topbar{display:none;position:sticky;top:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 16px;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;}
 #mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border2);padding:4px 8px max(8px,env(safe-area-inset-bottom));justify-content:space-between;align-items:center;}
 .mn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;color:var(--text3);font-family:var(--font-body);font-size:9px;font-weight:500;transition:color .15s;}
 .mn-item svg{width:20px;height:20px;flex-shrink:0;}
@@ -325,7 +327,7 @@ textarea{resize:vertical;min-height:72px;}
   </button>
   <button class="mn-item" onclick="mobileGoto('finance',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-    <span>Tài chính</span>
+    <span>Chi phí</span>
   </button>
   <button class="mn-item" onclick="mobileGoto('hr',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -563,7 +565,7 @@ textarea{resize:vertical;min-height:72px;}
 <div class="page" id="pg-finance">
   <div class="ph">
     <div class="ph-left">
-      <div class="ph-title">Chi phí & Lợi nhuận</div>
+      <div class="ph-title">Chi phí</div>
       <div class="ph-sub">Quản lý chi tiêu và phân tích lợi nhuận</div>
     </div>
     <div class="ph-right">
@@ -1150,6 +1152,9 @@ async function loadAll(){
     ]);
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
+    // Merge birthday từ localStorage (vì Supabase profiles chưa có cột birthday)
+    const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+    allProfiles.forEach(p=>{if(bdStore[p.id])p.birthday=bdStore[p.id];});
     prevOrders=pOrders||[]; prevExpenses=pExpenses||[]; prevSalary=pSalary||[];
     filteredOrders=allOrders; filteredExpenses=allExpenses;
     setConn('ok','Supabase · Đã kết nối');
@@ -1757,26 +1762,37 @@ async function toggleSalaryApproval(id,current){
 
 function renderPerformance(){
   const agentStats={};
-  allProfiles.forEach(p=>{agentStats[p.id]={name:p.ho_ten,rev:0,done:0,total_orders:0,bonus:0};});
+  allProfiles.forEach(p=>{agentStats[p.id]={name:p.ho_ten,rev:0,rev_done:0,done:0,total_orders:0,bonus:0};});
   ordByDate().forEach(o=>{if(agentStats[o.user_id])agentStats[o.user_id].total_orders++;});
-  doneOrders().forEach(o=>{if(agentStats[o.user_id]){agentStats[o.user_id].rev+=(o.total||0);agentStats[o.user_id].done++;}});
+  doneOrders().forEach(o=>{
+    if(agentStats[o.user_id]){
+      agentStats[o.user_id].rev+=(o.total||0);
+      agentStats[o.user_id].rev_done+=(o.total||0);
+      agentStats[o.user_id].done++;
+    }
+  });
+  // Cộng thêm doanh số đơn chưa tất toán vào rev (doanh số tổng)
+  ordByDate().filter(o=>!o.da_tat_toan).forEach(o=>{
+    if(agentStats[o.user_id])agentStats[o.user_id].rev+=(o.total||0);
+  });
   allSalary.forEach(s=>{if(agentStats[s.user_id])agentStats[s.user_id].bonus+=(s.p3a_total_usd||0);});
   const agents=Object.values(agentStats).filter(a=>a.total_orders>0);
 
   // Performance table
-  document.getElementById('perf-body').innerHTML=agents.sort((a,b)=>b.rev-a.rev).map(a=>{
-    const aov=a.done>0?a.rev/a.done:0;
-    const targetPct=Math.round(a.rev/CFG.target*100);
+  document.getElementById('perf-body').innerHTML=agents.sort((a,b)=>b.rev_done-a.rev_done).map(a=>{
+    const aov=a.done>0?a.rev_done/a.done:0;
+    const targetPct=Math.round(a.rev_done/CFG.target*100);
+    // Tỷ lệ TT = số đơn tất toán / tổng số đơn trong kỳ
     const ttRate=a.total_orders>0?Math.round(a.done/a.total_orders*100):0;
     return`<tr>
       <td><b>${a.name}</b></td>
       <td class="num" style="color:var(--green2);">${fmtUSD(a.rev)}</td>
-      <td class="num" style="color:var(--blue2);">${fmtUSD(a.done*(a.rev/Math.max(1,a.done)))}</td>
+      <td class="num" style="color:var(--blue2);">${fmtUSD(a.rev_done)}</td>
       <td class="num">${a.total_orders}</td>
       <td class="num">${fmtUSD(aov)}</td>
       <td class="num"><span class="b ${targetPct>=100?'b-green':targetPct>=80?'b-amber':'b-red'}">${targetPct}%</span></td>
       <td class="num" style="color:var(--amber2);">${fmtUSD(a.bonus)}</td>
-      <td class="num"><span class="b ${ttRate>=80?'b-green':ttRate>=60?'b-amber':'b-red'}">${ttRate}%</span></td>
+      <td class="num"><span class="b ${ttRate>=80?'b-green':ttRate>=60?'b-amber':'b-red'}" title="${a.done}/${a.total_orders} đơn">${ttRate}%</span></td>
     </tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px;">Chưa có dữ liệu.</td></tr>';
 
@@ -1831,11 +1847,18 @@ function openStaffEdit(uid){
 }
 async function saveStaff(){
   const id=document.getElementById('se-id').value;
-  const data={ho_ten:document.getElementById('se-name').value,biet_danh:document.getElementById('se-nick').value,birthday:document.getElementById('se-birthday').value||null,start_date:document.getElementById('se-start').value||null,role:document.getElementById('se-role').value,lever:parseInt(document.getElementById('se-lever').value)||1,contract_type:document.getElementById('se-contract').value,ma_nv:document.getElementById('se-code').value};
+  const birthday=document.getElementById('se-birthday').value||null;
+  // Birthday không có trong schema Supabase — lưu localStorage
+  if(birthday){
+    const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+    bdStore[id]=birthday;
+    localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
+  }
+  const data={ho_ten:document.getElementById('se-name').value,biet_danh:document.getElementById('se-nick').value,start_date:document.getElementById('se-start').value||null,role:document.getElementById('se-role').value,lever:parseInt(document.getElementById('se-lever').value)||1,contract_type:document.getElementById('se-contract').value,ma_nv:document.getElementById('se-code').value};
   try{
     await sbPatch('profiles',`id=eq.${id}`,data);
     const idx=allProfiles.findIndex(p=>p.id===id);
-    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data};
+    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data,birthday};
     closeModal('m-staff-edit');renderHR();renderSettings();
     toast('Đã cập nhật nhân viên','green');
   }catch(e){toast('Lỗi: '+e.message,'red');}
