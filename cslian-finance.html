@@ -1000,7 +1000,7 @@ textarea{resize:vertical;min-height:72px;}
 
       <!-- RIGHT PREVIEW -->
       <div style="flex:1;min-width:0;">
-        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow-x:auto;">
+        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
           <div id="minv-preview" style="padding:36px;font-family:Arial,sans-serif;color:#333;min-height:600px;">
             <div style="text-align:center;color:#ccc;padding:60px 0;font-size:14px;">Chưa có dữ liệu</div>
           </div>
@@ -2366,17 +2366,7 @@ async function fetchCRM(path){
 // Load companies từ CRM để lấy logo
 async function loadMinvCompanies(){
   if(MINV_COMPANIES.length)return;
-  try{
-    const data=await fetchCRM('companies?is_active=eq.true&select=*');
-    console.log('[MINV] Companies from CRM:',data);
-    MINV_COMPANIES=(Array.isArray(data)?data:[]).map(c=>({
-      id:c.id,
-      name:c.name||c.company_name||'',
-      address:c.address||c.company_address||'',
-      phone:c.phone||c.phone_number||'',
-      logo_url:c.logo_url||c.logo||''
-    }));
-  }catch(e){console.warn('loadMinvCompanies:',e);}
+  try{MINV_COMPANIES=await fetchCRM('companies?is_active=eq.true&select=id,name,address,phone,logo_url');}catch(e){}
 }
 
 async function loadMinvInvoices(){
@@ -2487,7 +2477,7 @@ async function openMinvCreate(){
 }
 function closeMinvModal(){document.getElementById('m-minv').style.display='none';}
 
-// Fix 1: Search khách hàng - dùng fetch trực tiếp thay vì fetchCRM wrapper
+// Fix 1: Customer search với đúng field names CRM
 let minvCustTimer=null;
 async function searchMinvCustomer(){
   const q=document.getElementById('minv-cust-search').value.trim();
@@ -2496,30 +2486,36 @@ async function searchMinvCustomer(){
   if(q.length<2){res.style.display='none';return;}
   minvCustTimer=setTimeout(async()=>{
     try{
-      // Search theo tên hoặc SĐT
-      const url=`${CRM_URL_MI}/rest/v1/customers?or=(ten_kh.ilike.*${encodeURIComponent(q)}*,so_dien_thoai.ilike.*${encodeURIComponent(q)}*)&limit=8&select=id,ten_kh,so_dien_thoai,cellphone,address,city,state`;
+      // CRM dùng customer_name, cellphone, business_phone (không có ten_kh, address, city)
+      const url=`${CRM_URL_MI}/rest/v1/customers?or=(customer_name.ilike.*${encodeURIComponent(q)}*,cellphone.ilike.*${encodeURIComponent(q)}*,business_phone.ilike.*${encodeURIComponent(q)}*)&limit=8&select=id,customer_name,business_name,cellphone,business_phone,state`;
       const r=await fetch(url,{headers:{'apikey':CRM_KEY_MI,'Authorization':'Bearer '+CRM_KEY_MI,'Accept':'application/json'}});
+      if(!r.ok){res.innerHTML=`<div style="padding:10px 12px;color:var(--red2);font-size:12px;">Lỗi ${r.status}</div>`;res.style.display='block';return;}
       const data=await r.json();
       if(!Array.isArray(data)||!data.length){res.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px;">Không tìm thấy</div>';res.style.display='block';return;}
       res.innerHTML=data.map(c=>{
-        const safe=JSON.stringify(c).replace(/'/g,"\\'");
+        const safe=JSON.stringify(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const displayName=c.customer_name||c.business_name||'—';
+        const displayPhone=c.cellphone||c.business_phone||'';
         return`<div onclick='selectMinvCustomer(${safe})' style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-          <div style="font-weight:600;color:var(--text);">${c.ten_kh||'—'}</div>
-          <div style="color:var(--text2);">${c.so_dien_thoai||''} ${c.city?'· '+c.city:''}</div>
+          <div style="font-weight:600;color:var(--text);">${displayName}</div>
+          <div style="color:var(--text2);">${displayPhone}${c.state?' · '+c.state:''}</div>
         </div>`;
       }).join('');
       res.style.display='block';
-    }catch(e){console.error('Customer search error:',e);res.innerHTML='<div style="padding:10px 12px;color:var(--red2);font-size:12px;">Lỗi kết nối CRM</div>';res.style.display='block';}
+    }catch(e){console.error('Customer search:',e);res.innerHTML='<div style="padding:10px 12px;color:var(--red2);font-size:12px;">Lỗi kết nối CRM</div>';res.style.display='block';}
   },350);
 }
 function selectMinvCustomer(c){
-  document.getElementById('minv-cust-results').style.display='none';document.getElementById('minv-cust-search').value='';
+  document.getElementById('minv-cust-results').style.display='none';
+  document.getElementById('minv-cust-search').value='';
   document.getElementById('minv-cust-selected').style.display='block';
-  document.getElementById('minv-cust-name').textContent=c.ten_kh;
-  document.getElementById('minv-cust-info').textContent=[c.so_dien_thoai,c.address,c.city,c.state].filter(Boolean).join(' · ');
-  document.getElementById('minv-cust-ten').value=c.ten_kh||'';
-  document.getElementById('minv-cust-phone').value=c.so_dien_thoai||c.cellphone||'';
-  document.getElementById('minv-cust-addr').value=[c.address,c.city,c.state].filter(Boolean).join(', ')||'';
+  const name=c.customer_name||c.business_name||'';
+  const phone=c.cellphone||c.business_phone||'';
+  document.getElementById('minv-cust-name').textContent=name;
+  document.getElementById('minv-cust-info').textContent=[phone,c.state].filter(Boolean).join(' · ');
+  document.getElementById('minv-cust-ten').value=name;
+  document.getElementById('minv-cust-phone').value=phone;
+  document.getElementById('minv-cust-addr').value=c.state||'';
   renderMinvPreview();
 }
 function clearMinvCustomer(){
@@ -2572,26 +2568,51 @@ function updateMinvItem(id,field,val){
   item[field]=parseFloat(val)||0;
   item.amount=Math.max(0,item.qty*item.unit_price-item.discount);
   item.profit=item.amount-item.cost*item.qty;
-  renderMinvItems();calcMinvTotals();renderMinvPreview();
+  // Không renderMinvItems() để tránh mất focus khi đang nhập
+  // Chỉ update summary dòng hiện tại
+  const wrap=document.querySelector(`[data-item-id="${id}"]`);
+  if(wrap){
+    const amtEl=wrap.querySelector('.item-amount');
+    const profEl=wrap.querySelector('.item-profit');
+    if(amtEl)amtEl.textContent='Amount: '+fmtUSD(item.amount);
+    if(profEl){profEl.textContent='Profit: '+fmtUSD(item.profit);profEl.style.color=item.profit>=0?'var(--green2)':'var(--red2)';}
+  }
+  calcMinvTotals();renderMinvPreview();
+}
+function updateMinvItemBlur(id){
+  // Re-render đầy đủ khi rời khỏi field (onblur) để sync lại giá trị
+  renderMinvItems();
 }
 function renderMinvItems(){
   const wrap=document.getElementById('minv-items-list');
   if(!minvItems.length){wrap.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Chưa có sản phẩm</div>';return;}
   wrap.innerHTML=minvItems.map(it=>`
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;">
+    <div data-item-id="${it._id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;margin-bottom:6px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${it.name} <span style="font-size:10px;color:var(--text3);">${it.sku}</span></div>
         <button onclick="removeMinvItem(${it._id})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;">×</button>
       </div>
       <div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr;gap:6px;font-size:11px;">
-        <div><label style="color:var(--text3);">QTY</label><input type="number" min="1" value="${it.qty}" oninput="updateMinvItem(${it._id},'qty',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Price</label><input type="number" min="0" value="${it.unit_price}" oninput="updateMinvItem(${it._id},'unit_price',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Cost${it.cost_editable?' ✏':' 🔒'}</label><input type="number" min="0" value="${it.cost}" ${it.cost_editable?'':'readonly'} oninput="updateMinvItem(${it._id},'cost',this.value)" style="width:100%;padding:4px;background:${it.cost_editable?'var(--bg2)':'var(--bg3)'};border:1px solid var(--border2);border-radius:4px;color:${it.cost_editable?'var(--text)':'var(--text3)'};font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Disc.$</label><input type="number" min="0" value="${it.discount}" oninput="updateMinvItem(${it._id},'discount',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">QTY</label><input type="number" min="1" value="${it.qty}"
+          oninput="updateMinvItem(${it._id},'qty',this.value)"
+          onblur="updateMinvItemBlur(${it._id})"
+          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Price</label><input type="number" min="0" value="${it.unit_price}"
+          oninput="updateMinvItem(${it._id},'unit_price',this.value)"
+          onblur="updateMinvItemBlur(${it._id})"
+          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Cost${it.cost_editable?' ✏':' 🔒'}</label><input type="number" min="0" value="${it.cost}" ${it.cost_editable?'':'readonly'}
+          oninput="updateMinvItem(${it._id},'cost',this.value)"
+          onblur="updateMinvItemBlur(${it._id})"
+          style="width:100%;padding:4px;background:${it.cost_editable?'var(--bg2)':'var(--bg3)'};border:1px solid var(--border2);border-radius:4px;color:${it.cost_editable?'var(--text)':'var(--text3)'};font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Disc.$</label><input type="number" min="0" value="${it.discount}"
+          oninput="updateMinvItem(${it._id},'discount',this.value)"
+          onblur="updateMinvItemBlur(${it._id})"
+          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;">
-        <span style="color:var(--text3);">Amount: <strong style="color:var(--text);">${fmtUSD(it.amount)}</strong></span>
-        <span style="color:var(--text3);">Profit: <strong style="color:${it.profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(it.profit)}</strong></span>
+        <span class="item-amount" style="color:var(--text3);">Amount: <strong style="color:var(--text);">${fmtUSD(it.amount)}</strong></span>
+        <span class="item-profit" style="color:var(--text3);">Profit: <strong style="color:${it.profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(it.profit)}</strong></span>
       </div>
     </div>`).join('');
 }
@@ -2662,8 +2683,8 @@ function renderMinvPreview(){
       ${phone?`<div>Phone: ${phone}</div>`:''}
       ${addr?`<div>Address: ${addr}</div>`:''}
     </div>
-    <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
-      <colgroup><col style="width:62px"><col style="min-width:160px"><col style="width:40px"><col style="width:90px"><col style="width:72px"><col style="width:90px"><col class="manager-cost-col" style="width:72px"><col class="manager-cost-col" style="width:90px"></colgroup>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
+      <colgroup><col style="width:62px"><col><col style="width:40px"><col style="width:82px"><col style="width:70px"><col style="width:82px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:82px"></colgroup>
       <thead><tr style="background:${RED};color:#fff;">
         <th style="padding:8px 6px;text-align:left;">IMAGE</th>
         <th style="padding:8px 6px;text-align:left;">DESCRIPTION</th>
