@@ -302,6 +302,11 @@ textarea{resize:vertical;min-height:72px;}
 .act-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px 7px;border-radius:4px;font-size:13px;transition:all .12s;}
 .act-btn:hover{background:var(--surface);color:var(--text);}
 .act-del:hover{background:var(--redbg);color:var(--red2);}
+/* Manager Invoice Preview - force light theme */
+#minv-preview{background:#fff !important;color:#222 !important;}
+#minv-preview table th{color:#fff !important;}
+#minv-preview table td{color:#222 !important;background:#fff !important;}
+#minv-preview a{color:#c0392b;}
 </style>
 </head>
 <body>
@@ -2631,14 +2636,14 @@ function renderMinvPreview(){
     <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
       <colgroup><col style="width:62px"><col><col style="width:40px"><col style="width:82px"><col style="width:70px"><col style="width:82px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:82px"></colgroup>
       <thead><tr style="background:${RED};color:#fff;">
-        <th style="padding:8px 6px;text-align:left;">IMAGE</th>
-        <th style="padding:8px 6px;text-align:left;">DESCRIPTION</th>
-        <th style="padding:8px 6px;text-align:center;">QTY</th>
-        <th style="padding:8px 6px;text-align:right;">UNIT PRICE</th>
-        <th style="padding:8px 6px;text-align:right;">DISCOUNT</th>
-        <th style="padding:8px 6px;text-align:right;">AMOUNT</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;">COST</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;">PROFIT</th>
+        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">IMAGE</th>
+        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">DESCRIPTION</th>
+        <th style="padding:8px 6px;text-align:center;color:#fff;font-weight:600;">QTY</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">UNIT PRICE</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">DISCOUNT</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">AMOUNT</th>
+        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">COST</th>
+        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">PROFIT</th>
       </tr></thead>
       <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Chưa có sản phẩm</td></tr>'}</tbody>
     </table>
