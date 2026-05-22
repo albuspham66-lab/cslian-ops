@@ -2419,6 +2419,7 @@ function renderMinvList(){
       <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">
         <button onclick="editMinv('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bluebg);border:1px solid var(--blueborder);border-radius:4px;color:var(--blue2);cursor:pointer;">Sửa</button>
         <button onclick="printMinvById('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;">In</button>
+        <button onclick="deleteMinv('${inv.id}','${inv.po_number}')" style="padding:4px 10px;font-size:11px;background:var(--redbg);border:1px solid var(--redborder);border-radius:4px;color:var(--red2);cursor:pointer;">Xóa</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -2715,6 +2716,16 @@ async function editMinv(id){
 }
 
 // Fix 4: Print - ẩn header ngày giờ browser và Gross Profit block
+async function deleteMinv(id,poNum){
+  if(!confirm(`Xóa invoice ${poNum}? Hành động này không thể hoàn tác.`))return;
+  try{
+    await fetch(`${CFG.url}/rest/v1/manager_invoice_items?invoice_id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
+    await fetch(`${CFG.url}/rest/v1/manager_invoices?id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
+    allMinvInvoices=allMinvInvoices.filter(i=>i.id!==id);
+    renderMinvList();renderMinvSummary();
+    toast('Đã xóa invoice '+poNum,'green');
+  }catch(e){toast('Lỗi xóa: '+e.message,'red');}
+}
 async function printMinv(){
   renderMinvPreview();
   const el=document.getElementById('minv-preview');
@@ -2804,6 +2815,7 @@ function renderMinvList(){
       <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">
         <button onclick="editMinv('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bluebg);border:1px solid var(--blueborder);border-radius:4px;color:var(--blue2);cursor:pointer;">Sửa</button>
         <button onclick="printMinvById('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;">In</button>
+        <button onclick="deleteMinv('${inv.id}','${inv.po_number}')" style="padding:4px 10px;font-size:11px;background:var(--redbg);border:1px solid var(--redborder);border-radius:4px;color:var(--red2);cursor:pointer;">Xóa</button>
       </div></td>
     </tr>`;
   }).join('');
