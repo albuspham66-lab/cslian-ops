@@ -302,6 +302,11 @@ textarea{resize:vertical;min-height:72px;}
 .act-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px 7px;border-radius:4px;font-size:13px;transition:all .12s;}
 .act-btn:hover{background:var(--surface);color:var(--text);}
 .act-del:hover{background:var(--redbg);color:var(--red2);}
+/* Manager Invoice Preview - force light theme */
+#minv-preview{background:#fff !important;color:#222 !important;}
+#minv-preview table th{color:#fff !important;}
+#minv-preview table td{color:#222 !important;background:#fff !important;}
+#minv-preview a{color:#c0392b;}
 </style>
 </head>
 <body>
@@ -924,27 +929,12 @@ textarea{resize:vertical;min-height:72px;}
           <input type="date" id="minv-date" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;box-sizing:border-box;">
         </div>
 
-        <!-- Customer section -->
+        <!-- Customer section - nhập tay trực tiếp -->
         <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
           <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;">KHÁCH HÀNG</label>
-          <div style="position:relative;">
-            <input id="minv-cust-search" placeholder="Tìm từ CRM (tên, SĐT)..." oninput="searchMinvCustomer()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
-            <div id="minv-cust-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rsm);z-index:10;max-height:160px;overflow-y:auto;"></div>
-          </div>
-          <div id="minv-cust-selected" style="display:none;margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--rsm);font-size:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span id="minv-cust-name" style="color:var(--blue2);font-weight:600;"></span>
-              <button onclick="clearMinvCustomer()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;">×</button>
-            </div>
-            <div id="minv-cust-info" style="color:var(--text2);font-size:11px;margin-top:2px;"></div>
-          </div>
-        </div>
-
-        <!-- Manual customer fields -->
-        <div id="minv-cust-manual">
-          <input id="minv-cust-ten" placeholder="Tên khách hàng *" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
-          <input id="minv-cust-phone" placeholder="Số điện thoại" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
-          <input id="minv-cust-addr" placeholder="Địa chỉ" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+          <input id="minv-cust-ten" placeholder="Tên khách hàng *" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+          <input id="minv-cust-phone" placeholder="Số điện thoại" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+          <input id="minv-cust-addr" placeholder="Địa chỉ / State" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
         </div>
 
         <!-- Products -->
@@ -2471,56 +2461,16 @@ async function openMinvCreate(){
   // Inject company selector
   const compWrap=document.getElementById('minv-company-wrap');
   if(compWrap)compWrap.innerHTML=getMinvCompanyHtml();
-  clearMinvCustomer();document.getElementById('minv-cust-search').value='';document.getElementById('minv-prod-search').value='';
+  clearMinvCustomer();document.getElementById('minv-prod-search').value='';
   renderMinvItems();calcMinvTotals();renderMinvPreview();
   document.getElementById('m-minv').style.display='flex';
 }
 function closeMinvModal(){document.getElementById('m-minv').style.display='none';}
 
-// Fix 1: Customer search với đúng field names CRM
-let minvCustTimer=null;
-async function searchMinvCustomer(){
-  const q=document.getElementById('minv-cust-search').value.trim();
-  const res=document.getElementById('minv-cust-results');
-  clearTimeout(minvCustTimer);
-  if(q.length<2){res.style.display='none';return;}
-  minvCustTimer=setTimeout(async()=>{
-    try{
-      // CRM dùng customer_name, cellphone, business_phone (không có ten_kh, address, city)
-      const url=`${CRM_URL_MI}/rest/v1/customers?or=(customer_name.ilike.*${encodeURIComponent(q)}*,cellphone.ilike.*${encodeURIComponent(q)}*,business_phone.ilike.*${encodeURIComponent(q)}*)&limit=8&select=id,customer_name,business_name,cellphone,business_phone,state`;
-      const r=await fetch(url,{headers:{'apikey':CRM_KEY_MI,'Authorization':'Bearer '+CRM_KEY_MI,'Accept':'application/json'}});
-      if(!r.ok){res.innerHTML=`<div style="padding:10px 12px;color:var(--red2);font-size:12px;">Lỗi ${r.status}</div>`;res.style.display='block';return;}
-      const data=await r.json();
-      if(!Array.isArray(data)||!data.length){res.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px;">Không tìm thấy</div>';res.style.display='block';return;}
-      res.innerHTML=data.map(c=>{
-        const safe=JSON.stringify(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        const displayName=c.customer_name||c.business_name||'—';
-        const displayPhone=c.cellphone||c.business_phone||'';
-        return`<div onclick='selectMinvCustomer(${safe})' style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-          <div style="font-weight:600;color:var(--text);">${displayName}</div>
-          <div style="color:var(--text2);">${displayPhone}${c.state?' · '+c.state:''}</div>
-        </div>`;
-      }).join('');
-      res.style.display='block';
-    }catch(e){console.error('Customer search:',e);res.innerHTML='<div style="padding:10px 12px;color:var(--red2);font-size:12px;">Lỗi kết nối CRM</div>';res.style.display='block';}
-  },350);
-}
-function selectMinvCustomer(c){
-  document.getElementById('minv-cust-results').style.display='none';
-  document.getElementById('minv-cust-search').value='';
-  document.getElementById('minv-cust-selected').style.display='block';
-  const name=c.customer_name||c.business_name||'';
-  const phone=c.cellphone||c.business_phone||'';
-  document.getElementById('minv-cust-name').textContent=name;
-  document.getElementById('minv-cust-info').textContent=[phone,c.state].filter(Boolean).join(' · ');
-  document.getElementById('minv-cust-ten').value=name;
-  document.getElementById('minv-cust-phone').value=phone;
-  document.getElementById('minv-cust-addr').value=c.state||'';
-  renderMinvPreview();
-}
 function clearMinvCustomer(){
-  document.getElementById('minv-cust-selected').style.display='none';
-  document.getElementById('minv-cust-ten').value='';document.getElementById('minv-cust-phone').value='';document.getElementById('minv-cust-addr').value='';
+  document.getElementById('minv-cust-ten').value='';
+  document.getElementById('minv-cust-phone').value='';
+  document.getElementById('minv-cust-addr').value='';
 }
 
 function searchMinvProduct(){
@@ -2686,14 +2636,14 @@ function renderMinvPreview(){
     <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
       <colgroup><col style="width:62px"><col><col style="width:40px"><col style="width:82px"><col style="width:70px"><col style="width:82px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:82px"></colgroup>
       <thead><tr style="background:${RED};color:#fff;">
-        <th style="padding:8px 6px;text-align:left;">IMAGE</th>
-        <th style="padding:8px 6px;text-align:left;">DESCRIPTION</th>
-        <th style="padding:8px 6px;text-align:center;">QTY</th>
-        <th style="padding:8px 6px;text-align:right;">UNIT PRICE</th>
-        <th style="padding:8px 6px;text-align:right;">DISCOUNT</th>
-        <th style="padding:8px 6px;text-align:right;">AMOUNT</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;">COST</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;">PROFIT</th>
+        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">IMAGE</th>
+        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">DESCRIPTION</th>
+        <th style="padding:8px 6px;text-align:center;color:#fff;font-weight:600;">QTY</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">UNIT PRICE</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">DISCOUNT</th>
+        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">AMOUNT</th>
+        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">COST</th>
+        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">PROFIT</th>
       </tr></thead>
       <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Chưa có sản phẩm</td></tr>'}</tbody>
     </table>
@@ -2873,7 +2823,7 @@ async function openMinvCreate(){
   document.getElementById('minv-date').value=new Date().toISOString().slice(0,10);
   document.getElementById('minv-rep').value=currentUser?.name||'Calvin';
   document.getElementById('minv-tax').value='0';document.getElementById('minv-deposit').value='0';document.getElementById('minv-note').value='';
-  clearMinvCustomer();document.getElementById('minv-cust-search').value='';document.getElementById('minv-prod-search').value='';
+  clearMinvCustomer();document.getElementById('minv-prod-search').value='';
   renderMinvItems();calcMinvTotals();renderMinvPreview();
   document.getElementById('m-minv').style.display='flex';
 }
