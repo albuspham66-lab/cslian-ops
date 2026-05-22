@@ -322,7 +322,7 @@ textarea{resize:vertical;min-height:72px;}
     </div>
     <div style="margin-bottom:24px;">
       <label style="font-size:11px;color:var(--text2);letter-spacing:0.5px;display:block;margin-bottom:6px;">PIN</label>
-      <input id="login-pin" type="password" maxlength="8" placeholder="••••••" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:18px;letter-spacing:6px;outline:none;box-sizing:border-box;" onkeydown="if(event.key==='Enter')doLogin()">
+      <input id="login-pin" type="password" maxlength="8" placeholder="••••••" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:18px;letter-spacing:6px;outline:none;box-sizing:border-box;">
     </div>
     <button onclick="doLogin()" style="width:100%;padding:12px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-body);">Đăng nhập</button>
     <div id="login-err" style="margin-top:12px;text-align:center;font-size:12px;color:var(--red2);display:none;">PIN không đúng. Vui lòng thử lại.</div>
@@ -2340,6 +2340,9 @@ async function doLogin(){
   loadAll();
 }
 function logoutFinance(){sessionStorage.removeItem('cslian_finance_user');currentUser=null;location.reload();}
+// Attach Enter key sau khi doLogin đã định nghĩa
+document.getElementById('login-pin').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('login-user').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('login-pin').focus();});
 (function(){
   const saved=sessionStorage.getItem('cslian_finance_user');
   if(saved){try{currentUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';}catch(e){}}
