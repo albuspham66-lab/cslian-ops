@@ -304,7 +304,31 @@ textarea{resize:vertical;min-height:72px;}
 .act-del:hover{background:var(--redbg);color:var(--red2);}
 </style>
 </head>
-<body><!-- MOBILE TOP BAR -->
+<body>
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:0;">
+  <div style="width:340px;padding:40px 36px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rlg);box-shadow:0 32px 80px rgba(0,0,0,0.5);">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;">C-<span style="color:var(--blue2);">Slian</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:1px;">FINANCE · INTERNAL</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:11px;color:var(--text2);letter-spacing:0.5px;display:block;margin-bottom:6px;">TÀI KHOẢN</label>
+      <select id="login-user" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:14px;outline:none;">
+        <option value="">-- Chọn tài khoản --</option>
+        <option value="calvin">Calvin (Manager)</option>
+        <option value="baonam">Bảo Nam (Leader)</option>
+      </select>
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="font-size:11px;color:var(--text2);letter-spacing:0.5px;display:block;margin-bottom:6px;">PIN</label>
+      <input id="login-pin" type="password" maxlength="8" placeholder="••••••" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:18px;letter-spacing:6px;outline:none;box-sizing:border-box;" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-body);">Đăng nhập</button>
+    <div id="login-err" style="margin-top:12px;text-align:center;font-size:12px;color:var(--red2);display:none;">PIN không đúng. Vui lòng thử lại.</div>
+  </div>
+</div>
+<!-- MOBILE TOP BAR -->
 <div id="mobile-topbar">
   <div style="font-family:var(--font-display);font-size:17px;font-weight:800;color:var(--text);">C-<span style="color:var(--blue2);">Slian</span></div>
   <div style="display:flex;align-items:center;gap:6px;">
@@ -370,6 +394,10 @@ textarea{resize:vertical;min-height:72px;}
     <button class="s-item" data-pg="products">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Sản phẩm
+    </button>
+    <button class="s-item" data-pg="minv">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Manager Inv.
     </button>
     <button class="s-item" data-pg="settings">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -760,8 +788,7 @@ textarea{resize:vertical;min-height:72px;}
       <div class="ph-title">Quản lý Sản phẩm</div>
       <div class="ph-sub">Danh mục sản phẩm theo Vendor · Lịch sử giá</div>
     </div>
-    <div class="ph-right" style="display:flex;gap:8px;align-items:center;">
-      <button class="btn btn-sm" onclick="syncAllProductsToCRM()" style="border-color:rgba(59,126,244,0.4);color:var(--blue2);font-size:12px;" title="Sync toàn bộ sản phẩm sang CRM">⟳ Sync All → CRM</button>
+    <div class="ph-right">
       <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
     </div>
   </div>
@@ -815,6 +842,171 @@ textarea{resize:vertical;min-height:72px;}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:12px;color:var(--text2);" id="prod-count">—</div>
       <div style="display:flex;gap:6px;" id="prod-pagination"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 7: MANAGER INVOICE ══ -->
+<div class="page" id="pg-minv">
+  <div class="page-header" style="margin-bottom:16px;">
+    <div>
+      <div class="page-title">Manager Invoice</div>
+      <div class="page-sub" id="minv-sub">Quản lý đơn hàng nội bộ</div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openMinvCreate()">+ Tạo Invoice</button>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+    <select id="minv-f-status" onchange="renderMinvList()" style="padding:7px 10px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);">
+      <option value="">Tất cả Status</option>
+      <option value="Pending">Pending</option>
+      <option value="Closedeal">Closedeal</option>
+      <option value="Cancel">Cancel</option>
+    </select>
+    <select id="minv-f-rep" onchange="renderMinvList()" style="padding:7px 10px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);">
+      <option value="">Tất cả Sale Rep</option>
+      <option value="Calvin">Calvin</option>
+      <option value="Bảo Nam">Bảo Nam</option>
+    </select>
+    <input id="minv-f-search" placeholder="Tìm PO, khách hàng..." oninput="renderMinvList()" style="padding:7px 11px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);width:200px;">
+  </div>
+
+  <!-- Summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="minv-summary"></div>
+
+  <!-- Invoice list -->
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:var(--bg3);">
+          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">PO Number</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Ngày</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Khách hàng</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Sale Rep</th>
+          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Total</th>
+          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Cost</th>
+          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Profit</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2);font-weight:500;">Status</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2);font-weight:500;">Tác vụ</th>
+        </tr>
+      </thead>
+      <tbody id="minv-tbody"></tbody>
+    </table>
+    <div id="minv-empty" style="text-align:center;padding:32px;color:var(--text3);display:none;">Chưa có invoice nào</div>
+  </div>
+</div>
+
+<!-- Modal: Tạo/Edit Manager Invoice -->
+<div class="modal-bg" id="m-minv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto;">
+  <div style="display:flex;min-height:100%;align-items:flex-start;justify-content:center;padding:20px;">
+    <div style="width:100%;max-width:1100px;display:flex;gap:16px;align-items:flex-start;">
+
+      <!-- LEFT FORM -->
+      <div style="width:340px;flex-shrink:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:20px;position:sticky;top:20px;">
+        <div style="font-size:14px;font-weight:700;color:var(--blue2);margin-bottom:16px;" id="minv-form-title">Tạo Invoice mới</div>
+
+        <!-- Sale Rep -->
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;">SALE REP</label>
+          <select id="minv-rep" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
+            <option value="Calvin">Calvin</option>
+            <option value="Bảo Nam">Bảo Nam</option>
+          </select>
+        </div>
+
+        <!-- Date -->
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;">NGÀY</label>
+          <input type="date" id="minv-date" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;box-sizing:border-box;">
+        </div>
+
+        <!-- Customer section -->
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;">KHÁCH HÀNG</label>
+          <div style="position:relative;">
+            <input id="minv-cust-search" placeholder="Tìm từ CRM (tên, SĐT)..." oninput="searchMinvCustomer()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+            <div id="minv-cust-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rsm);z-index:10;max-height:160px;overflow-y:auto;"></div>
+          </div>
+          <div id="minv-cust-selected" style="display:none;margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--rsm);font-size:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span id="minv-cust-name" style="color:var(--blue2);font-weight:600;"></span>
+              <button onclick="clearMinvCustomer()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;">×</button>
+            </div>
+            <div id="minv-cust-info" style="color:var(--text2);font-size:11px;margin-top:2px;"></div>
+          </div>
+        </div>
+
+        <!-- Manual customer fields -->
+        <div id="minv-cust-manual">
+          <input id="minv-cust-ten" placeholder="Tên khách hàng *" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+          <input id="minv-cust-phone" placeholder="Số điện thoại" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+          <input id="minv-cust-addr" placeholder="Địa chỉ" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+        </div>
+
+        <!-- Products -->
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;">SẢN PHẨM</label>
+          <div style="position:relative;">
+            <input id="minv-prod-search" placeholder="Tìm SKU, tên sản phẩm..." oninput="searchMinvProduct()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+            <div id="minv-prod-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rsm);z-index:10;max-height:200px;overflow-y:auto;"></div>
+          </div>
+          <div id="minv-items-list" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <!-- Totals -->
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+            <span style="color:var(--text2);">Subtotal</span>
+            <span id="minv-subtotal" style="color:var(--text);">$0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+            <span style="color:var(--text2);">Total Cost</span>
+            <span id="minv-totalcost" style="color:var(--text2);">$0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px;">
+            <span style="color:var(--text);">Gross Profit</span>
+            <span id="minv-profit" style="color:var(--green2);">$0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:12px;">
+            <span style="color:var(--text2);">Margin</span>
+            <span id="minv-margin" style="color:var(--text2);">0%</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div>
+              <label style="font-size:10px;color:var(--text3);">Tax ($)</label>
+              <input type="number" id="minv-tax" value="0" min="0" oninput="calcMinvTotals()" style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--text3);">Deposit ($)</label>
+              <input type="number" id="minv-deposit" value="0" min="0" oninput="calcMinvTotals()" style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);">Ghi chú</label>
+            <input id="minv-note" placeholder="Ghi chú..." style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-top:4px;">
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="closeMinvModal()" style="flex:1;padding:9px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text2);font-size:12px;cursor:pointer;">Huỷ</button>
+          <button onclick="saveMinv()" style="flex:2;padding:9px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:12px;font-weight:600;cursor:pointer;" id="minv-save-btn">💾 Lưu Invoice</button>
+        </div>
+      </div>
+
+      <!-- RIGHT PREVIEW -->
+      <div style="flex:1;min-width:0;">
+        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+          <div id="minv-preview" style="padding:36px;font-family:Arial,sans-serif;color:#333;min-height:600px;">
+            <div style="text-align:center;color:#ccc;padding:60px 0;font-size:14px;">Chưa có dữ liệu</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+          <button onclick="renderMinvPreview()" style="padding:9px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text2);font-size:12px;cursor:pointer;">👁 Preview</button>
+          <button onclick="printMinv()" style="padding:9px 16px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">🖨 In PDF</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1986,64 +2178,8 @@ async function saveProduct(){
       toast('Đã thêm sản phẩm','green');
     }
     closeModal('m-prod');filterProducts();renderProducts();
-    // Sync sang CRM sau khi save thành công
-    const savedProduct = isEdit
-      ? allProducts.find(p=>p.id===id)
-      : allProducts[allProducts.length-1];
-    if(savedProduct) syncProductToCRM(savedProduct).catch(e=>console.warn('Sync CRM warn:',e));
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
-
-async function syncProductToCRM(product){
-  // Edge Function trên Ops project (jggfmpih)
-  const EDGE_URL = SUPA_URL + '/functions/v1/sync-product-to-crm';
-  try{
-    const res = await fetch(EDGE_URL,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+SUPA_KEY,
-      },
-      body: JSON.stringify(product),
-    });
-    const json = await res.json();
-    if(res.ok){
-      toast('✓ Đã sync sang CRM','green');
-    } else {
-      console.warn('Sync CRM failed:',json);
-      toast('Lưu OK — sync CRM thất bại','amber');
-    }
-  }catch(e){
-    console.warn('syncProductToCRM error:',e);
-    toast('Lưu OK — không kết nối được CRM','amber');
-  }
-}
-
-// Sync toàn bộ products hiện tại sang CRM (dùng cho lần đầu hoặc re-sync)
-async function syncAllProductsToCRM(){
-  if(!allProducts.length){toast('Không có sản phẩm','amber');return;}
-  toast('Đang sync '+allProducts.length+' sản phẩm...','blue');
-  const EDGE_URL = SUPA_URL + '/functions/v1/sync-product-to-crm';
-  try{
-    const res = await fetch(EDGE_URL,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+SUPA_KEY,
-      },
-      body: JSON.stringify(allProducts),
-    });
-    const json = await res.json();
-    if(res.ok){
-      toast('✓ Đã sync '+json.synced+' sản phẩm sang CRM','green');
-    } else {
-      toast('Sync CRM thất bại: '+JSON.stringify(json),'red');
-    }
-  }catch(e){
-    toast('Lỗi kết nối: '+e.message,'red');
-  }
-}
-
 async function showPriceHistory(id,name){
   setTxt('ph-title','Lịch sử giá · '+name);
   document.getElementById('ph-body').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);"><span class="spin"></span> Đang tải...</td></tr>`;
@@ -2168,6 +2304,340 @@ function mobileGoto(id,btn){
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{scope:'/cslian-ops/'}).catch(()=>{}));
 }
+
+// ─── LOGIN ───
+const USERS = {
+  calvin: { name:'Calvin', role:'Manager', pinHash:'' },
+  baonam: { name:'Bảo Nam', role:'Leader', pinHash:'' }
+};
+let currentUser = null;
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+window.getHash=async function(pin){const h=await sha256(pin);console.log('Hash cho PIN:',h);return h;};
+async function doLogin(){
+  const uid=document.getElementById('login-user').value;
+  const pin=document.getElementById('login-pin').value;
+  const err=document.getElementById('login-err');
+  err.style.display='none';
+  if(!uid||!pin){err.textContent='Vui lòng chọn tài khoản và nhập PIN.';err.style.display='block';return;}
+  const user=USERS[uid];
+  if(!user){err.style.display='block';return;}
+  const hash=await sha256(pin);
+  if(user.pinHash&&hash!==user.pinHash){err.textContent='PIN không đúng. Vui lòng thử lại.';err.style.display='block';return;}
+  currentUser={id:uid,...user};
+  sessionStorage.setItem('cslian_finance_user',JSON.stringify(currentUser));
+  document.getElementById('login-screen').style.display='none';
+  document.querySelector('.s-foot').insertAdjacentHTML('afterbegin',
+    `<div style="padding:8px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);margin-bottom:4px;">
+      <span style="color:var(--green2);">●</span> ${user.name} · ${user.role}
+      <button onclick="logoutFinance()" style="float:right;background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;">Đăng xuất</button>
+    </div>`);
+  loadAll();
+}
+function logoutFinance(){sessionStorage.removeItem('cslian_finance_user');currentUser=null;location.reload();}
+(function(){
+  const saved=sessionStorage.getItem('cslian_finance_user');
+  if(saved){try{currentUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';}catch(e){}}
+})();
+
+// ─── MANAGER INVOICE ───
+const CRM_URL_MI='https://ajsakaddylbpppxlidfe.supabase.co';
+const CRM_KEY_MI='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2FrYWRkeWxicHBweGxpZGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NTQ5MDgsImV4cCI6MjA2MTAzMDkwOH0.lFp_YSG_vBXCaOJNYuHSAVqRkEwvh3vcXJWXqOYHKHQ';
+let minvItems=[],minvEditId=null,allMinvInvoices=[],minvImgCache={};
+async function fetchCRM(path){const r=await fetch(`${CRM_URL_MI}/rest/v1/${path}`,{headers:{'apikey':CRM_KEY_MI,'Authorization':'Bearer '+CRM_KEY_MI}});return r.json();}
+async function loadMinvInvoices(){
+  try{
+    const[invRes,itemRes]=await Promise.all([sb('manager_invoices','select=*&order=created_at.desc'),sb('manager_invoice_items','select=*')]);
+    allMinvInvoices=invRes||[];
+    const itemMap={};(itemRes||[]).forEach(it=>{if(!itemMap[it.invoice_id])itemMap[it.invoice_id]=[];itemMap[it.invoice_id].push(it);});
+    allMinvInvoices.forEach(inv=>{inv._items=itemMap[inv.id]||[];});
+    renderMinvList();renderMinvSummary();
+  }catch(e){console.error('loadMinvInvoices',e);}
+}
+function renderMinvSummary(){
+  const status=document.getElementById('minv-f-status').value;
+  const rep=document.getElementById('minv-f-rep').value;
+  let list=allMinvInvoices;
+  if(status)list=list.filter(i=>i.status===status);
+  if(rep)list=list.filter(i=>i.sale_rep===rep);
+  const total=list.reduce((s,i)=>s+(i.grand_total||0),0);
+  const cost=list.reduce((s,i)=>s+(i.total_cost||0),0);
+  const profit=total-cost;
+  const margin=total>0?((profit/total)*100).toFixed(1):0;
+  document.getElementById('minv-summary').innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">TỔNG ĐƠN</div><div style="font-size:20px;font-weight:700;color:var(--text);">${list.length}</div></div>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">DOANH THU</div><div style="font-size:20px;font-weight:700;color:var(--blue2);">${fmtUSD(total)}</div></div>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">GROSS PROFIT</div><div style="font-size:20px;font-weight:700;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</div></div>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">MARGIN</div><div style="font-size:20px;font-weight:700;color:${margin>=20?'var(--green2)':'var(--amber2)'};">${margin}%</div></div>`;
+}
+function renderMinvList(){
+  const status=document.getElementById('minv-f-status').value;
+  const rep=document.getElementById('minv-f-rep').value;
+  const q=(document.getElementById('minv-f-search').value||'').toLowerCase();
+  let list=allMinvInvoices;
+  if(status)list=list.filter(i=>i.status===status);
+  if(rep)list=list.filter(i=>i.sale_rep===rep);
+  if(q)list=list.filter(i=>(i.po_number||'').toLowerCase().includes(q)||(i.customer_name||'').toLowerCase().includes(q));
+  renderMinvSummary();
+  const tbody=document.getElementById('minv-tbody');
+  const empty=document.getElementById('minv-empty');
+  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const ss={Pending:'color:var(--amber2);background:var(--amberbg)',Closedeal:'color:var(--green2);background:var(--greenbg)',Cancel:'color:var(--red2);background:var(--redbg)'};
+  tbody.innerHTML=list.map(inv=>{
+    const profit=(inv.grand_total||0)-(inv.total_cost||0);
+    return`<tr style="border-top:1px solid var(--border);">
+      <td style="padding:10px 12px;font-weight:600;color:var(--blue2);">${inv.po_number||'—'}</td>
+      <td style="padding:10px 12px;color:var(--text2);">${inv.invoice_date||'—'}</td>
+      <td style="padding:10px 12px;color:var(--text);">${inv.customer_name||'—'}</td>
+      <td style="padding:10px 12px;color:var(--text2);">${inv.sale_rep||'—'} <span style="font-size:10px;color:var(--text3);">by ${inv.created_by||'—'}</span></td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtUSD(inv.grand_total||0)}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--text2);">${fmtUSD(inv.total_cost||0)}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</td>
+      <td style="padding:10px 12px;text-align:center;">
+        <select onchange="updateMinvStatus('${inv.id}',this.value)" style="padding:3px 6px;font-size:11px;border-radius:4px;border:1px solid var(--border2);${ss[inv.status]||''};cursor:pointer;">
+          <option ${inv.status==='Pending'?'selected':''}>Pending</option>
+          <option ${inv.status==='Closedeal'?'selected':''}>Closedeal</option>
+          <option ${inv.status==='Cancel'?'selected':''}>Cancel</option>
+        </select>
+      </td>
+      <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">
+        <button onclick="editMinv('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bluebg);border:1px solid var(--blueborder);border-radius:4px;color:var(--blue2);cursor:pointer;">Sửa</button>
+        <button onclick="printMinvById('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;">In</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+async function updateMinvStatus(id,status){await sbPatch('manager_invoices','id=eq.'+id,{status});const inv=allMinvInvoices.find(i=>i.id===id);if(inv)inv.status=status;renderMinvList();toast('Đã cập nhật status','green');}
+async function genMinvPoNumber(){
+  const t=new Date();
+  const yy=String(t.getFullYear()).slice(2),mm=String(t.getMonth()+1).padStart(2,'0'),dd=String(t.getDate()).padStart(2,'0');
+  const prefix=`INVC01${yy}${mm}${dd}`;
+  const existing=allMinvInvoices.filter(i=>(i.po_number||'').startsWith(prefix));
+  return`${prefix}-${String(existing.length+1).padStart(2,'0')}`;
+}
+async function openMinvCreate(){
+  minvEditId=null;minvItems=[];
+  document.getElementById('minv-form-title').textContent='Tạo Invoice mới';
+  document.getElementById('minv-save-btn').textContent='💾 Lưu Invoice';
+  document.getElementById('minv-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('minv-rep').value=currentUser?.name||'Calvin';
+  document.getElementById('minv-tax').value='0';document.getElementById('minv-deposit').value='0';document.getElementById('minv-note').value='';
+  clearMinvCustomer();document.getElementById('minv-cust-search').value='';document.getElementById('minv-prod-search').value='';
+  renderMinvItems();calcMinvTotals();renderMinvPreview();
+  document.getElementById('m-minv').style.display='flex';
+}
+function closeMinvModal(){document.getElementById('m-minv').style.display='none';}
+let minvCustTimer=null;
+async function searchMinvCustomer(){
+  const q=document.getElementById('minv-cust-search').value.trim();
+  clearTimeout(minvCustTimer);
+  if(q.length<2){document.getElementById('minv-cust-results').style.display='none';return;}
+  minvCustTimer=setTimeout(async()=>{
+    const data=await fetchCRM(`customers?or=(ten_kh.ilike.*${encodeURIComponent(q)}*,so_dien_thoai.ilike.*${encodeURIComponent(q)}*)&limit=8&select=id,ten_kh,so_dien_thoai,cellphone,address,city,state`);
+    const res=document.getElementById('minv-cust-results');
+    if(!data||!data.length){res.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px;">Không tìm thấy</div>';res.style.display='block';return;}
+    res.innerHTML=data.map(c=>`<div onclick='selectMinvCustomer(${JSON.stringify(c)})' style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+      <div style="font-weight:600;color:var(--text);">${c.ten_kh}</div><div style="color:var(--text2);">${c.so_dien_thoai||''} ${c.city?'· '+c.city:''}</div></div>`).join('');
+    res.style.display='block';
+  },300);
+}
+function selectMinvCustomer(c){
+  document.getElementById('minv-cust-results').style.display='none';document.getElementById('minv-cust-search').value='';
+  document.getElementById('minv-cust-selected').style.display='block';
+  document.getElementById('minv-cust-name').textContent=c.ten_kh;
+  document.getElementById('minv-cust-info').textContent=[c.so_dien_thoai,c.address,c.city,c.state].filter(Boolean).join(' · ');
+  document.getElementById('minv-cust-ten').value=c.ten_kh||'';
+  document.getElementById('minv-cust-phone').value=c.so_dien_thoai||c.cellphone||'';
+  document.getElementById('minv-cust-addr').value=[c.address,c.city,c.state].filter(Boolean).join(', ')||'';
+  renderMinvPreview();
+}
+function clearMinvCustomer(){
+  document.getElementById('minv-cust-selected').style.display='none';
+  document.getElementById('minv-cust-ten').value='';document.getElementById('minv-cust-phone').value='';document.getElementById('minv-cust-addr').value='';
+}
+function searchMinvProduct(){
+  const q=(document.getElementById('minv-prod-search').value||'').toLowerCase();
+  const res=document.getElementById('minv-prod-results');
+  if(q.length<1){res.style.display='none';return;}
+  const found=allProducts.filter(p=>(p.ten_sp||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)).slice(0,10);
+  if(!found.length){res.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px;">Không tìm thấy</div>';res.style.display='block';return;}
+  res.innerHTML=found.map(p=>`<div onclick='addMinvItem(${JSON.stringify(p)})' style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+    <div style="font-weight:600;color:var(--text);">${p.ten_sp}</div><div style="color:var(--text2);">${p.sku} · Bán: ${fmtUSD(p.gia_ban||0)} · Cost: ${fmtUSD(p.vendor_cost||0)}</div></div>`).join('');
+  res.style.display='block';
+}
+async function addMinvItem(p){
+  document.getElementById('minv-prod-results').style.display='none';document.getElementById('minv-prod-search').value='';
+  let imgUrl=minvImgCache[p.sku]||null;
+  if(!imgUrl&&imgUrl!==''){
+    try{const data=await fetchCRM(`products?sku=eq.${encodeURIComponent(p.sku)}&select=image_url&limit=1`);imgUrl=(data&&data[0])?data[0].image_url:null;minvImgCache[p.sku]=imgUrl||'';}catch(e){}
+  }
+  const isShipping=(p.sku||'').toUpperCase().includes('SHIP');
+  minvItems.push({_id:Date.now(),product_id:p.id,sku:p.sku,name:p.ten_sp,image_url:imgUrl||null,qty:1,unit_price:p.gia_ban||0,cost:isShipping?0:(p.vendor_cost||0),cost_editable:isShipping,discount:0,amount:p.gia_ban||0,profit:(p.gia_ban||0)-(p.vendor_cost||0)});
+  renderMinvItems();calcMinvTotals();renderMinvPreview();
+}
+function removeMinvItem(id){minvItems=minvItems.filter(i=>i._id!==id);renderMinvItems();calcMinvTotals();renderMinvPreview();}
+function updateMinvItem(id,field,val){
+  const item=minvItems.find(i=>i._id===id);if(!item)return;
+  item[field]=parseFloat(val)||0;
+  item.amount=Math.max(0,item.qty*item.unit_price-item.discount);
+  item.profit=item.amount-item.cost*item.qty;
+  renderMinvItems();calcMinvTotals();renderMinvPreview();
+}
+function renderMinvItems(){
+  const wrap=document.getElementById('minv-items-list');
+  if(!minvItems.length){wrap.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Chưa có sản phẩm</div>';return;}
+  wrap.innerHTML=minvItems.map(it=>`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${it.name} <span style="font-size:10px;color:var(--text3);">${it.sku}</span></div>
+        <button onclick="removeMinvItem(${it._id})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr;gap:6px;font-size:11px;">
+        <div><label style="color:var(--text3);">QTY</label><input type="number" min="1" value="${it.qty}" oninput="updateMinvItem(${it._id},'qty',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Price</label><input type="number" min="0" value="${it.unit_price}" oninput="updateMinvItem(${it._id},'unit_price',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Cost${it.cost_editable?' ✏':' 🔒'}</label><input type="number" min="0" value="${it.cost}" ${it.cost_editable?'':'readonly'} oninput="updateMinvItem(${it._id},'cost',this.value)" style="width:100%;padding:4px;background:${it.cost_editable?'var(--bg2)':'var(--bg3)'};border:1px solid var(--border2);border-radius:4px;color:${it.cost_editable?'var(--text)':'var(--text3)'};font-size:11px;box-sizing:border-box;"></div>
+        <div><label style="color:var(--text3);">Disc.$</label><input type="number" min="0" value="${it.discount}" oninput="updateMinvItem(${it._id},'discount',this.value)" style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;">
+        <span style="color:var(--text3);">Amount: <strong style="color:var(--text);">${fmtUSD(it.amount)}</strong></span>
+        <span style="color:var(--text3);">Profit: <strong style="color:${it.profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(it.profit)}</strong></span>
+      </div>
+    </div>`).join('');
+}
+function calcMinvTotals(){
+  const subtotal=minvItems.reduce((s,i)=>s+(i.amount||0),0);
+  const totalCost=minvItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+  const tax=parseFloat(document.getElementById('minv-tax').value)||0;
+  const grandTotal=subtotal+tax;
+  const profit=grandTotal-totalCost;
+  const margin=grandTotal>0?((profit/grandTotal)*100).toFixed(1):0;
+  document.getElementById('minv-subtotal').textContent=fmtUSD(subtotal);
+  document.getElementById('minv-totalcost').textContent=fmtUSD(totalCost);
+  document.getElementById('minv-profit').textContent=fmtUSD(profit);
+  document.getElementById('minv-profit').style.color=profit>=0?'var(--green2)':'var(--red2)';
+  document.getElementById('minv-margin').textContent=margin+'%';
+  return{subtotal,totalCost,tax,grandTotal,profit,margin};
+}
+function renderMinvPreview(){
+  const name=document.getElementById('minv-cust-ten').value||'—';
+  const phone=document.getElementById('minv-cust-phone').value||'';
+  const addr=document.getElementById('minv-cust-addr').value||'';
+  const rep=document.getElementById('minv-rep').value;
+  const date=document.getElementById('minv-date').value||new Date().toISOString().slice(0,10);
+  const note=document.getElementById('minv-note').value||'';
+  const{subtotal,totalCost,tax,grandTotal,profit,margin}=calcMinvTotals();
+  const deposit=parseFloat(document.getElementById('minv-deposit').value)||0;
+  const poNum=minvEditId?(allMinvInvoices.find(i=>i.id===minvEditId)||{}).po_number||'(Auto)':'(Auto)';
+  const RED='#c0392b';
+  const rows=minvItems.map(it=>`<tr>
+    <td style="padding:8px;border-bottom:1px solid #eee;">${it.image_url?`<img src="${it.image_url}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">`:'<div style="width:50px;height:50px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;">📦</div>'}</td>
+    <td style="padding:8px;border-bottom:1px solid #eee;font-size:13px;">${it.name}<br><span style="font-size:10px;color:#999;">${it.sku}</span></td>
+    <td style="padding:8px;text-align:center;border-bottom:1px solid #eee;">${it.qty}</td>
+    <td style="padding:8px;text-align:right;border-bottom:1px solid #eee;">$${it.unit_price.toLocaleString()}</td>
+    <td style="padding:8px;text-align:right;border-bottom:1px solid #eee;">$${it.discount.toLocaleString()}</td>
+    <td style="padding:8px;text-align:right;border-bottom:1px solid #eee;font-weight:700;">$${it.amount.toLocaleString()}</td>
+    <td class="manager-cost-col" style="padding:8px;text-align:right;border-bottom:1px solid #eee;color:#888;">$${it.cost.toLocaleString()}</td>
+    <td class="manager-cost-col" style="padding:8px;text-align:right;border-bottom:1px solid #eee;font-weight:600;color:${it.profit>=0?'#27ae60':'#e74c3c'};">$${it.profit.toLocaleString()}</td>
+  </tr>`).join('');
+  document.getElementById('minv-preview').innerHTML=`<div style="font-family:Arial,sans-serif;color:#333;max-width:760px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div><div style="font-size:18px;font-weight:700;color:${RED};">BolsaBeauty LLC</div><div style="font-size:11px;color:#666;">8102 Washington Ave, Midway City, CA 92655</div><div style="font-size:11px;color:#666;">(949) 816-1167</div></div>
+      <img src="https://ajsakaddylbpppxlidfe.supabase.co/storage/v1/object/public/company-logos/bolsabeauty-logo.png" style="height:50px;object-fit:contain;" onerror="this.style.display='none'">
+    </div>
+    <hr style="border-color:#ddd;margin-bottom:14px;">
+    <div style="font-size:24px;font-weight:700;color:${RED};margin-bottom:14px;">INVOICE</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:11px;">
+      <div><div style="color:${RED};font-weight:700;font-size:10px;">DATE</div><div>${date}</div></div>
+      <div><div style="color:${RED};font-weight:700;font-size:10px;">PO NUMBER</div><div>${poNum}</div></div>
+      <div><div style="color:${RED};font-weight:700;font-size:10px;">SALE REP</div><div>${rep}</div></div>
+    </div>
+    <div style="background:${RED};color:#fff;padding:6px 10px;font-size:11px;font-weight:700;margin-bottom:8px;">BILL TO</div>
+    <div style="margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:700;color:${RED};font-size:14px;">${name}</div>
+      ${phone?`<div>Phone: ${phone}</div>`:''}${addr?`<div>Address: ${addr}</div>`:''}
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
+      <colgroup><col style="width:62px"><col><col style="width:44px"><col style="width:80px"><col style="width:70px"><col style="width:80px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:80px"></colgroup>
+      <thead><tr style="background:${RED};color:#fff;">
+        <th style="padding:8px;text-align:left;">IMAGE</th><th style="padding:8px;text-align:left;">DESCRIPTION</th>
+        <th style="padding:8px;text-align:center;">QTY</th><th style="padding:8px;text-align:right;">UNIT PRICE</th>
+        <th style="padding:8px;text-align:right;">DISCOUNT</th><th style="padding:8px;text-align:right;">AMOUNT</th>
+        <th class="manager-cost-col" style="padding:8px;text-align:right;background:#8b0000;">COST</th>
+        <th class="manager-cost-col" style="padding:8px;text-align:right;background:#8b0000;">PROFIT</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Chưa có sản phẩm</td></tr>'}</tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;"><div style="width:280px;font-size:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
+      ${tax?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Tax</span><span>$${tax.toLocaleString()}</span></div>`:''}
+      <div style="font-size:20px;font-weight:700;color:${RED};text-align:right;margin-bottom:4px;">$${grandTotal.toLocaleString()}</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Deposit</span><span>$${deposit.toLocaleString()}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Balance Due</span><span style="color:${RED};">$${(grandTotal-deposit).toLocaleString()}</span></div>
+      <div class="manager-cost-col" style="margin-top:10px;padding:8px;background:#f9f9f9;border-radius:4px;border:1px solid #e0e0e0;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#666;">Total Cost</span><span>$${totalCost.toLocaleString()}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Gross Profit</span><span style="color:${profit>=0?'#27ae60':'#e74c3c'};">$${profit.toLocaleString()} (${margin}%)</span></div>
+      </div>
+    </div></div>
+    ${note?`<div style="margin-top:12px;font-size:11px;color:#666;font-style:italic;">Ghi chú: ${note}</div>`:''}
+    <hr style="border-color:#ddd;margin-top:16px;">
+    <div style="text-align:center;font-style:italic;font-size:12px;color:${RED};font-weight:600;padding:8px 0;">'Thank You for Your Business'</div>
+  </div>`;
+}
+async function saveMinv(){
+  const name=document.getElementById('minv-cust-ten').value.trim();
+  if(!name){toast('Vui lòng nhập tên khách hàng','amber');return;}
+  if(!minvItems.length){toast('Vui lòng thêm sản phẩm','amber');return;}
+  const{subtotal,totalCost,tax,grandTotal,profit}=calcMinvTotals();
+  const deposit=parseFloat(document.getElementById('minv-deposit').value)||0;
+  const poNum=minvEditId?(allMinvInvoices.find(i=>i.id===minvEditId)||{}).po_number||await genMinvPoNumber():await genMinvPoNumber();
+  const invData={po_number:poNum,invoice_date:document.getElementById('minv-date').value,sale_rep:document.getElementById('minv-rep').value,created_by:currentUser?.name||'Manager',customer_name:name,customer_phone:document.getElementById('minv-cust-phone').value||null,customer_address:document.getElementById('minv-cust-addr').value||null,subtotal,tax,grand_total:grandTotal,total_cost:totalCost,gross_profit:profit,deposit,note:document.getElementById('minv-note').value||null,status:'Pending'};
+  try{
+    let invId=minvEditId;
+    if(minvEditId){
+      await sbPatch('manager_invoices','id=eq.'+minvEditId,invData);
+      await fetch(`${CFG.url}/rest/v1/manager_invoice_items?invoice_id=eq.${minvEditId}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
+    } else {
+      const res=await sbInsert('manager_invoices',invData);invId=res.id;
+    }
+    await fetch(`${CFG.url}/rest/v1/manager_invoice_items`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(minvItems.map(it=>({invoice_id:invId,product_id:it.product_id||null,sku:it.sku,name:it.name,image_url:it.image_url||null,qty:it.qty,unit_price:it.unit_price,cost:it.cost,discount:it.discount,amount:it.amount,profit:it.profit})))});
+    closeMinvModal();await loadMinvInvoices();toast(minvEditId?'Đã cập nhật invoice':'Đã tạo invoice mới','green');minvEditId=null;
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+async function editMinv(id){
+  const inv=allMinvInvoices.find(i=>i.id===id);if(!inv)return;
+  minvEditId=id;
+  minvItems=(inv._items||[]).map(it=>({_id:Date.now()+Math.random(),product_id:it.product_id,sku:it.sku,name:it.name,image_url:it.image_url,qty:it.qty,unit_price:it.unit_price,cost:it.cost,cost_editable:(it.sku||'').toUpperCase().includes('SHIP'),discount:it.discount,amount:it.amount,profit:it.profit}));
+  document.getElementById('minv-form-title').textContent='Sửa · '+inv.po_number;
+  document.getElementById('minv-save-btn').textContent='💾 Cập nhật';
+  document.getElementById('minv-date').value=inv.invoice_date||'';
+  document.getElementById('minv-rep').value=inv.sale_rep||'Calvin';
+  document.getElementById('minv-tax').value=inv.tax||0;
+  document.getElementById('minv-deposit').value=inv.deposit||0;
+  document.getElementById('minv-note').value=inv.note||'';
+  document.getElementById('minv-cust-ten').value=inv.customer_name||'';
+  document.getElementById('minv-cust-phone').value=inv.customer_phone||'';
+  document.getElementById('minv-cust-addr').value=inv.customer_address||'';
+  clearMinvCustomer();renderMinvItems();calcMinvTotals();renderMinvPreview();
+  document.getElementById('m-minv').style.display='flex';
+}
+async function printMinv(){
+  renderMinvPreview();
+  const el=document.getElementById('minv-preview');
+  const imgs=Array.from(el.querySelectorAll('img'));
+  const orig=imgs.map(i=>i.src);
+  await Promise.all(imgs.map(async img=>{if(!img.src||img.src.startsWith('data:'))return;try{const r=await fetch(img.src);const b=await r.blob();img.src=await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(b);});}catch(e){}}));
+  const html=el.innerHTML;
+  imgs.forEach((img,i)=>img.src=orig[i]);
+  const pw=window.open('','_blank','width=900,height=700');
+  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice</title><style>body{margin:0;padding:20px;background:#fff;font-family:Arial,sans-serif}@media print{.manager-cost-col{display:none!important}body{padding:0}}</style></head><body>${html}</body></html>`);
+  pw.document.close();pw.onload=()=>{pw.focus();pw.print();pw.onafterprint=()=>pw.close();};
+}
+async function printMinvById(id){await editMinv(id);setTimeout(()=>printMinv(),400);}
+const _origRenderPage=renderPage;
+renderPage=function(id){if(id==='minv'){loadMinvInvoices();return;}_origRenderPage(id);};
 
 // ─── INIT ───
 updateRangeLabels();
