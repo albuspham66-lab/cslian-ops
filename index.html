@@ -3290,18 +3290,18 @@ async function loadDimData(ngay){
     return `<tr>
       <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
         ${hint1}
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift1" value="${ct1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift1" value="${ct1}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift2" value="${ck2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift2" value="${ck2}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
         ${hint2}
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift2" value="${ct2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift2" value="${ct2}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')""/>
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
         <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="potential_calls" value="${pot}" placeholder="0" style="width:60px"/>
@@ -3325,7 +3325,10 @@ async function loadDimData(ngay){
 function getDimInputs(uid){
   var inputs={};
   document.querySelectorAll('.dim-input[data-uid="'+uid+'"]').forEach(function(el){
-    inputs[el.dataset.field]=parseInt(el.value)||0;
+    var v=el.value.trim();
+    // talktime dùng parseFloat (có thể có số thập phân), còn lại dùng parseInt
+    var isFloat=el.dataset.field==='cum_talk_shift1'||el.dataset.field==='cum_talk_shift2';
+    inputs[el.dataset.field]=isFloat?(parseFloat(v)||0):(parseInt(v)||0);
   });
   return inputs;
 }
