@@ -3143,8 +3143,12 @@ function isHoliday(dateStr,holidaySet){
   return holidaySet&&holidaySet.has(dateStr);
 }
 
+function parseLocalDate(dateStr){
+  var p=dateStr.split('-');
+  return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+}
 function isWorkDay(dateStr,holidaySet){
-  var d=new Date(dateStr);
+  var d=parseLocalDate(dateStr);
   var dow=d.getDay();
   if(dow===0||dow===6)return false;
   if(isHoliday(dateStr,holidaySet))return false;
@@ -3152,9 +3156,9 @@ function isWorkDay(dateStr,holidaySet){
 }
 
 function getWorkDays(fromDate,toDate,holidaySet){
-  var days=[],d=new Date(fromDate),to=new Date(toDate);
+  var days=[],d=parseLocalDate(fromDate),to=parseLocalDate(toDate);
   while(d<=to){
-    var ds=d.toISOString().slice(0,10);
+    var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     if(isWorkDay(ds,holidaySet))days.push(ds);
     d.setDate(d.getDate()+1);
   }
@@ -3251,12 +3255,13 @@ async function loadDimData(ngay){
   // Load existing data for this date + prev workday data
   var holidays=await loadHolidays();
 
-  // Find prev work day
+  // Find prev work day — parse local để tránh lệch timezone UTC
   var prevDay='';
-  var d=new Date(ngay);
+  var parts=ngay.split('-');
+  var d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
   d.setDate(d.getDate()-1);
   for(var i=0;i<14;i++){
-    var ds=d.toISOString().slice(0,10);
+    var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     if(isWorkDay(ds,holidays)){prevDay=ds;break;}
     d.setDate(d.getDate()-1);
   }
