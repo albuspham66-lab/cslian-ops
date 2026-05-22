@@ -1000,7 +1000,7 @@ textarea{resize:vertical;min-height:72px;}
 
       <!-- RIGHT PREVIEW -->
       <div style="flex:1;min-width:0;">
-        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow-x:auto;">
           <div id="minv-preview" style="padding:36px;font-family:Arial,sans-serif;color:#333;min-height:600px;">
             <div style="text-align:center;color:#ccc;padding:60px 0;font-size:14px;">Chưa có dữ liệu</div>
           </div>
@@ -2368,15 +2368,15 @@ async function loadMinvCompanies(){
   if(MINV_COMPANIES.length)return;
   try{
     const data=await fetchCRM('companies?is_active=eq.true&select=*');
-    console.log('[MINV] Companies from CRM:', data);
-    MINV_COMPANIES=(data||[]).map(c=>({
+    console.log('[MINV] Companies from CRM:',data);
+    MINV_COMPANIES=(Array.isArray(data)?data:[]).map(c=>({
       id:c.id,
       name:c.name||c.company_name||'',
       address:c.address||c.company_address||'',
       phone:c.phone||c.phone_number||'',
       logo_url:c.logo_url||c.logo||''
     }));
-  }catch(e){console.warn('loadMinvCompanies error:',e);}
+  }catch(e){console.warn('loadMinvCompanies:',e);}
 }
 
 async function loadMinvInvoices(){
@@ -2662,8 +2662,8 @@ function renderMinvPreview(){
       ${phone?`<div>Phone: ${phone}</div>`:''}
       ${addr?`<div>Address: ${addr}</div>`:''}
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
-      <colgroup><col style="width:62px"><col><col style="width:40px"><col style="width:82px"><col style="width:70px"><col style="width:82px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:82px"></colgroup>
+    <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
+      <colgroup><col style="width:62px"><col style="min-width:160px"><col style="width:40px"><col style="width:90px"><col style="width:72px"><col style="width:90px"><col class="manager-cost-col" style="width:72px"><col class="manager-cost-col" style="width:90px"></colgroup>
       <thead><tr style="background:${RED};color:#fff;">
         <th style="padding:8px 6px;text-align:left;">IMAGE</th>
         <th style="padding:8px 6px;text-align:left;">DESCRIPTION</th>
