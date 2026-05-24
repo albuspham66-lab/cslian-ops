@@ -1374,19 +1374,41 @@ async function loadAll(){
     while(mkKey(py,pm)<=prev.to){prevMonths.push(mkKey(py,pm));pm++;if(pm>12){pm=1;py++;}}
     const prevOrFilter=prevMonths.map(m=>`thang.eq.${m},thang_bonus.eq.${m}`).join(',');
 
-    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary]=await Promise.all([
+    const[orders,expenses,profiles,salary,kpi,products,orderItems,pOrders,pExpenses,pSalary]=await Promise.all([
       sb('orders',`select=*&or=(${orFilter})&order=order_date.desc`),
       sb('expenses',`select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
       sb('profiles',`select=*&order=ho_ten.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('products',`select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,gia_tot_nhat,vendor_cost,commission_rate,mau_variant,active&order=vendor.asc,ten_sp.asc`),
+      sb('order_items',`select=order_id,product_id,vendor,amount,so_luong,gia_ban_thuc`).catch(()=>[]),
       prevOrFilter?sb('orders',`select=total,da_tat_toan,thang,thang_bonus&or=(${prevOrFilter})`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
     ]);
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
+    // Gắn order_items vào từng order để tính commission và vendor revenue
+    const itemsByOrder={};
+    (orderItems||[]).forEach(function(it){
+      if(!itemsByOrder[it.order_id])itemsByOrder[it.order_id]=[];
+      itemsByOrder[it.order_id].push(it);
+    });
+    allOrders.forEach(function(o){
+      o._items=itemsByOrder[o.id]||[];
+      if(!(o.doanh_thu_bolsa||o.doanh_thu_ons||o.doanh_thu_tspa)&&o._items.length>0){
+        let bolsa=0,ons=0,tspa=0;
+        o._items.forEach(function(it){
+          const prod=allProducts.find(function(p){return p.id===it.product_id;});
+          const vendor=it.vendor||(prod?prod.vendor:'');
+          const amt=(it.gia_ban_thuc||0)*(it.so_luong||1);
+          if(vendor==='BOLSA')bolsa+=amt;
+          else if(vendor==='ONS')ons+=amt;
+          else if(vendor==='TSPA')tspa+=amt;
+        });
+        if(bolsa+ons+tspa>0){o.doanh_thu_bolsa=bolsa;o.doanh_thu_ons=ons;o.doanh_thu_tspa=tspa;}
+      }
+    });
     // Merge birthday từ localStorage (vì Supabase profiles chưa có cột birthday)
     const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
     allProfiles.forEach(p=>{if(bdStore[p.id])p.birthday=bdStore[p.id];});
@@ -1713,7 +1735,10 @@ function renderOrders(){
   const debt=pendingOrders().reduce((s,o)=>s+Math.abs(o.balance||0),0);
   setTxt('ord-debt',fmtUSD(debt));
 
-  const agents=[...new Set(allProfiles.map(p=>p.ho_ten))];
+  // Agent dropdown: từ profiles + sale_rep_name của orders không có profile
+  const profileAgents=allProfiles.map(p=>p.ho_ten);
+  const repAgents=allOrders.filter(o=>!o.user_id&&o.sale_rep_name).map(o=>o.sale_rep_name);
+  const agents=[...new Set([...profileAgents,...repAgents])];
   const sel=document.getElementById('ord-agent-f');
   const cur=sel.value;
   sel.innerHTML='<option value="">Tất cả Agent</option>'+agents.map(a=>`<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
@@ -1726,7 +1751,11 @@ function filterOrders(){
   const status=document.getElementById('ord-status-f').value;
   const vendor=document.getElementById('ord-vendor-f').value;
   let f=allOrders;
-  if(agent)f=f.filter(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return p&&p.ho_ten===agent;});
+  if(agent)f=f.filter(o=>{
+    const p=allProfiles.find(x=>x.id===o.user_id);
+    const agentName=p?p.ho_ten:(o.sale_rep_name||'');
+    return agentName===agent;
+  });
   if(status==='done')f=f.filter(o=>o.da_tat_toan);
   if(status==='pending')f=f.filter(o=>!o.da_tat_toan);
   if(vendor==='BOLSA')f=f.filter(o=>(o.doanh_thu_bolsa||0)>0);
@@ -1796,11 +1825,15 @@ async function saveEditOrder(){
   const thang=document.getElementById('eo-thang').value||'';
   const da_tat_toan=document.getElementById('eo-status').value==='true';
   const user_id=document.getElementById('eo-agent').value||null;
+  const sel_agent=allProfiles.find(p=>p.id===user_id);
+  const sale_rep_name=sel_agent?sel_agent.ho_ten:(user_id?null:null);
   const data={
     ten_tiem:document.getElementById('eo-ten-tiem').value.trim(),
     order_date:document.getElementById('eo-date').value,
     thang,thang_bonus:thang,
-    total,shipping,balance,da_tat_toan,user_id,
+    total,shipping,balance,da_tat_toan,
+    user_id:user_id||null,
+    sale_rep_name:sel_agent?sel_agent.ho_ten:null,
   };
   try{
     await sbPatch('orders','id=eq.'+_editOrderId,data);
