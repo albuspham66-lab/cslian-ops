@@ -1024,30 +1024,28 @@ textarea{resize:vertical;min-height:72px;}
 
 <!-- ══ MODAL: EDIT ORDER ══ -->
 <div class="modal-bg" id="m-edit-order">
-  <div class="modal" style="max-width:520px;">
-    <div class="modal-title">✏️ Chỉnh sửa đơn hàng</div>
+  <div class="modal" style="max-width:480px;width:100%;">
+    <div class="modal-title">✏️ Chỉnh sửa đơn hàng — <span id="eo-title"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
-      <div class="field"><label>Mã đơn</label><input id="eo-ma-don" readonly style="opacity:0.5;cursor:not-allowed;"></div>
-      <div class="field"><label>Ngày</label><input type="date" id="eo-date"></div>
-      <div class="field"><label>Shop / Tên tiệm</label><input id="eo-ten-tiem" placeholder="Tên tiệm..."></div>
-      <div class="field"><label>Agent</label>
-        <select id="eo-agent">
+      <div class="field"><label>Ngày lên đơn</label><input type="date" id="eo-date"></div>
+      <div class="field"><label>Tháng HT</label><input id="eo-thang" placeholder="2026-05"></div>
+      <div class="field" style="grid-column:span 2;"><label>Shop / Tên tiệm</label><input id="eo-ten-tiem" placeholder="Tên tiệm..."></div>
+      <div class="field" style="grid-column:span 2;"><label>Agent</label>
+        <select id="eo-agent" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
           <option value="">— Không có —</option>
         </select>
       </div>
       <div class="field"><label>Total ($)</label><input type="number" id="eo-total" min="0"></div>
       <div class="field"><label>Shipping ($)</label><input type="number" id="eo-shipping" min="0"></div>
-      <div class="field"><label>Deposit ($)</label><input type="number" id="eo-deposit" min="0"></div>
       <div class="field"><label>Balance ($)</label><input type="number" id="eo-balance"></div>
-      <div class="field"><label>Tháng HT</label><input id="eo-thang" placeholder="2026-05"></div>
       <div class="field"><label>Tình trạng</label>
-        <select id="eo-status">
+        <select id="eo-status" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
           <option value="false">Pending</option>
           <option value="true">Tất toán</option>
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+    <div class="modal-actions">
       <button class="btn" onclick="closeModal('m-edit-order')">Huỷ</button>
       <button class="btn btn-primary" onclick="saveEditOrder()">💾 Lưu</button>
     </div>
@@ -1776,26 +1774,23 @@ function openEditOrder(id){
   const o=allOrders.find(x=>x.id===id);
   if(!o){toast('Không tìm thấy đơn','red');return;}
   _editOrderId=id;
-  document.getElementById('eo-ma-don').value=o.ma_don||'';
+  document.getElementById('eo-title').textContent=o.ma_don||'';
   document.getElementById('eo-date').value=o.order_date||'';
   document.getElementById('eo-ten-tiem').value=o.ten_tiem||'';
   document.getElementById('eo-total').value=o.total||0;
   document.getElementById('eo-shipping').value=o.shipping||0;
-  document.getElementById('eo-deposit').value=o.deposit||0;
   document.getElementById('eo-balance').value=o.balance||0;
   document.getElementById('eo-thang').value=o.thang_bonus||o.thang||'';
   document.getElementById('eo-status').value=o.da_tat_toan?'true':'false';
-  // Populate agent dropdown
   const sel=document.getElementById('eo-agent');
   sel.innerHTML='<option value="">— Không có —</option>'
     +allProfiles.map(p=>`<option value="${p.id}"${o.user_id===p.id?' selected':''}>${p.ho_ten}</option>`).join('');
   openModal('m-edit-order');
 }
 async function saveEditOrder(){
-  if(!_editOrderId){return;}
+  if(!_editOrderId)return;
   const total=parseFloat(document.getElementById('eo-total').value)||0;
   const shipping=parseFloat(document.getElementById('eo-shipping').value)||0;
-  const deposit=parseFloat(document.getElementById('eo-deposit').value)||0;
   const balance=parseFloat(document.getElementById('eo-balance').value)||0;
   const thang=document.getElementById('eo-thang').value||'';
   const da_tat_toan=document.getElementById('eo-status').value==='true';
@@ -1803,16 +1798,13 @@ async function saveEditOrder(){
   const data={
     ten_tiem:document.getElementById('eo-ten-tiem').value.trim(),
     order_date:document.getElementById('eo-date').value,
-    thang,
-    thang_bonus:thang,
-    total,shipping,deposit,balance,da_tat_toan,
-    user_id,
+    thang,thang_bonus:thang,
+    total,shipping,balance,da_tat_toan,user_id,
   };
   try{
     await sbPatch('orders','id=eq.'+_editOrderId,data);
-    // Update local
     const idx=allOrders.findIndex(o=>o.id===_editOrderId);
-    if(idx>=0)allOrders[idx]={...allOrders[idx],...data};
+    if(idx>=0)allOrders[idx]=Object.assign({},allOrders[idx],data);
     closeModal('m-edit-order');
     filterOrders();
     toast('Đã cập nhật đơn hàng','green');
