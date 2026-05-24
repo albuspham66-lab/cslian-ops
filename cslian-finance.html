@@ -1825,22 +1825,26 @@ async function saveEditOrder(){
   const thang=document.getElementById('eo-thang').value||'';
   const da_tat_toan=document.getElementById('eo-status').value==='true';
   const user_id=document.getElementById('eo-agent').value||null;
-  const sel_agent=allProfiles.find(p=>p.id===user_id);
-  const sale_rep_name=sel_agent?sel_agent.ho_ten:(user_id?null:null);
+  const sel_agent=allProfiles.find(function(p){return p.id===user_id;});
+  // Chỉ gửi các field chắc chắn có trong bảng orders
   const data={
     ten_tiem:document.getElementById('eo-ten-tiem').value.trim(),
     order_date:document.getElementById('eo-date').value,
-    thang,thang_bonus:thang,
-    total,shipping,balance,da_tat_toan,
+    thang:thang,thang_bonus:thang,
+    total:total,shipping:shipping,balance:balance,
+    da_tat_toan:da_tat_toan,
     user_id:user_id||null,
-    sale_rep_name:sel_agent?sel_agent.ho_ten:null,
   };
   try{
     await sbPatch('orders','id=eq.'+_editOrderId,data);
-    const idx=allOrders.findIndex(o=>o.id===_editOrderId);
-    if(idx>=0)allOrders[idx]=Object.assign({},allOrders[idx],data);
+    // Cập nhật local với tên agent để hiển thị ngay
+    const idx=allOrders.findIndex(function(o){return o.id===_editOrderId;});
+    if(idx>=0){
+      Object.assign(allOrders[idx],data);
+      if(sel_agent)allOrders[idx].sale_rep_name=sel_agent.ho_ten;
+    }
     closeModal('m-edit-order');
-    filterOrders();
+    filterOrders();renderOrders();
     toast('Đã cập nhật đơn hàng','green');
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
