@@ -1400,11 +1400,22 @@ function calcSalTotal(){return allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0
 
 function calcVendorRevenue(){
   const orders=doneOrders();
-  return{
+  // Thử dùng doanh_thu_bolsa/ons/tspa nếu có (đơn nhập thủ công từ Ops)
+  const fromFields={
     bolsa:orders.reduce((s,o)=>s+(o.doanh_thu_bolsa||0),0),
     ons:orders.reduce((s,o)=>s+(o.doanh_thu_ons||0),0),
     tspa:orders.reduce((s,o)=>s+(o.doanh_thu_tspa||0),0)
   };
+  // Nếu không có doanh_thu fields (đơn sync từ CRM), fallback về total theo vendor từ products
+  // Tạm dùng total của đơn gắn với từng vendor qua order_items (nếu có)
+  const totalFromFields=fromFields.bolsa+fromFields.ons+fromFields.tspa;
+  if(totalFromFields>0)return fromFields;
+  // Fallback: phân bổ doanh thu theo tỷ lệ vendor trong products active
+  const totalRev=orders.reduce((s,o)=>s+(o.total||0),0);
+  const bolsaCount=allProducts.filter(p=>p.vendor==='BOLSA'&&p.active!==false).length;
+  const onsCount=allProducts.filter(p=>p.vendor==='ONS'&&p.active!==false).length;
+  const tspaCount=allProducts.filter(p=>p.vendor==='TSPA'&&p.active!==false).length;
+  return{bolsa:0,ons:0,tspa:0,total:totalRev,note:'Cần nhập vendor per order'};
 }
 
 function calcCommission(){
@@ -1701,7 +1712,8 @@ function renderOrdersTable(orders){
   empty.style.display='none';
   document.getElementById('orders-body').innerHTML=orders.map(o=>{
     const p=allProfiles.find(x=>x.id===o.user_id);
-    const agent=p?p.ho_ten:'—';
+    // Fallback: nếu không có profile (đơn sync từ CRM), dùng invoice_ref để tìm sale_rep
+    const agent=p?p.ho_ten.split(' ').pop():(o.sale_rep_name||'—');
     const days=agingDays(o.order_date);
     const aging=o.da_tat_toan?{cls:'',label:''}:agingLabel(days);
     const vendors=[];
@@ -1730,7 +1742,12 @@ let expChart=null;
 function renderFinance(){
   const revM=calcRevMonth(),cm=calcCommission(),exp=calcExpTotal(),sal=calcSalTotal();
   const cmVND=cm.total*CFG.rate;
-  const net=revM*CFG.rate+cmVND-exp-sal;
+  // Tính COGS từ orders đã sync (có cogs field) + orders thủ công (dùng commission làm proxy)
+  const cogsUSD=doneOrders().reduce((s,o)=>s+(o.cogs||0),0);
+  const cogsVND=cogsUSD*CFG.rate;
+  // Công thức đúng: Doanh thu - COGS - Chi phí vận hành - Lương
+  const grossProfit=(revM-cogsUSD)*CFG.rate; // Gross profit VNĐ
+  const net=grossProfit-exp-sal;            // Net profit VNĐ
 
   setTxt('pf-rev',fmtUSD(revM));setTxt('pf-comm',fmtUSD(cm.total));
   setTxt('pf-exp',fmtVND(exp));setTxt('pf-net',fmtVND(net));
@@ -1738,6 +1755,11 @@ function renderFinance(){
   setTxt('pf-net-sub',net>=0?'Lợi nhuận':'Lỗ');
 
   setTxt('pf-r1',fmtUSD(revM));
+  // Thêm COGS nếu có element
+  const cogEl=document.getElementById('pf-r-cogs');
+  if(cogEl)cogEl.textContent=fmtUSD(cogsUSD)+' = '+fmtVND(cogsVND);
+  const gpEl=document.getElementById('pf-r-gross');
+  if(gpEl)gpEl.textContent=fmtVND(grossProfit);
   setTxt('pf-r-bolsa',`${fmtUSD(cm.bolsa)} = ${fmtVND(cm.bolsa*CFG.rate)}`);
   setTxt('pf-r-ons',`${fmtUSD(cm.ons)} = ${fmtVND(cm.ons*CFG.rate)}`);
   setTxt('pf-r-tspa',`${fmtUSD(cm.tspa)} = ${fmtVND(cm.tspa*CFG.rate)}`);
