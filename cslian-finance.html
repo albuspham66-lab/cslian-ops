@@ -186,6 +186,7 @@ textarea{resize:vertical;min-height:72px;}
 
 /* ── MODAL ── */
 .mbg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
 .mbg.show{display:flex;}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rxl);padding:26px 28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .modal-lg{width:680px;}
@@ -1023,9 +1024,9 @@ textarea{resize:vertical;min-height:72px;}
 </div>
 
 <!-- ══ MODAL: EDIT ORDER ══ -->
-<div class="modal-bg" id="m-edit-order">
+<div class="mbg" id="m-edit-order">
   <div class="modal" style="max-width:480px;width:100%;">
-    <div class="modal-title">✏️ Chỉnh sửa đơn hàng — <span id="eo-title"></span></div>
+    <div class="modal-title">✏️ Chỉnh sửa — <span id="eo-title"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
       <div class="field"><label>Ngày lên đơn</label><input type="date" id="eo-date"></div>
       <div class="field"><label>Tháng HT</label><input id="eo-thang" placeholder="2026-05"></div>
