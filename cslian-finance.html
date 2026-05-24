@@ -3011,38 +3011,63 @@ function closeMinvModal(){document.getElementById('m-minv').style.display='none'
 updateRangeLabels();
 loadAll();
 
-// ─── REALTIME ───
-// Orders: cập nhật ngay khi Edge Function sync invoice vào
-const _sbClient=supabase.createClient(SUPA_URL,SUPA_KEY);
-_sbClient.channel('finance-orders-rt')
-  .on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},function(payload){
-    if(!allOrders.find(function(o){return o.id===payload.new.id;})){
-      allOrders.unshift(payload.new);
-      renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
-      toast('📥 Đơn mới: '+payload.new.ma_don,'blue');
-    }
-  })
-  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},function(payload){
-    const idx=allOrders.findIndex(function(o){return o.id===payload.new.id;});
-    if(idx>=0)allOrders[idx]=payload.new;
-    renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
-  })
-  .subscribe();
-
-// Products: cập nhật ngay khi add/edit sản phẩm
-_sbClient.channel('finance-products-rt')
-  .on('postgres_changes',{event:'INSERT',schema:'public',table:'products'},function(payload){
-    if(!allProducts.find(function(p){return p.id===payload.new.id;})){
-      allProducts.push(payload.new);
-      if(document.querySelector('#pg-products.on'))renderPage('products');
-    }
-  })
-  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'products'},function(payload){
-    const idx=allProducts.findIndex(function(p){return p.id===payload.new.id;});
-    if(idx>=0)allProducts[idx]=payload.new;
-    if(document.querySelector('#pg-products.on'))renderPage('products');
-  })
-  .subscribe();
+// ─── REALTIME (dùng Supabase Realtime WebSocket) ───
+(function initRealtime(){
+  try{
+    const wsUrl='wss://jggfmpihfisbusnbzyoi.supabase.co/realtime/v1/websocket?apikey='+SUPA_KEY+'&vsn=1.0.0';
+    const ws=new WebSocket(wsUrl);
+    let heartbeat;
+    ws.onopen=function(){
+      // Join orders channel
+      ws.send(JSON.stringify({topic:'realtime:public:orders',event:'phx_join',payload:{},ref:'1'}));
+      // Join products channel
+      ws.send(JSON.stringify({topic:'realtime:public:products',event:'phx_join',payload:{},ref:'2'}));
+      heartbeat=setInterval(function(){
+        ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'}));
+      },30000);
+    };
+    ws.onmessage=function(e){
+      try{
+        const msg=JSON.parse(e.data);
+        if(msg.event!=='INSERT'&&msg.event!=='UPDATE'&&msg.event!=='DELETE')return;
+        const rec=msg.payload&&msg.payload.record;
+        const old=msg.payload&&msg.payload.old_record;
+        if(!rec&&!old)return;
+        if(msg.topic==='realtime:public:orders'){
+          if(msg.event==='INSERT'){
+            if(!allOrders.find(function(o){return o.id===rec.id;})){
+              allOrders.unshift(rec);
+              renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
+              toast('📥 Đơn mới: '+(rec.ma_don||''),'blue');
+            }
+          }else if(msg.event==='UPDATE'){
+            const idx=allOrders.findIndex(function(o){return o.id===rec.id;});
+            if(idx>=0)allOrders[idx]=Object.assign({},allOrders[idx],rec);
+            renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
+          }else if(msg.event==='DELETE'&&old){
+            allOrders=allOrders.filter(function(o){return o.id!==old.id;});
+          }
+        }else if(msg.topic==='realtime:public:products'){
+          if(msg.event==='INSERT'){
+            if(!allProducts.find(function(p){return p.id===rec.id;}))allProducts.push(rec);
+          }else if(msg.event==='UPDATE'){
+            const idx=allProducts.findIndex(function(p){return p.id===rec.id;});
+            if(idx>=0)allProducts[idx]=Object.assign({},allProducts[idx],rec);
+          }else if(msg.event==='DELETE'&&old){
+            allProducts=allProducts.filter(function(p){return p.id!==old.id;});
+          }
+          if(document.querySelector('#pg-products.on'))renderPage('products');
+        }
+      }catch(err){console.warn('Realtime parse error:',err);}
+    };
+    ws.onclose=function(){
+      clearInterval(heartbeat);
+      // Reconnect sau 5s
+      setTimeout(initRealtime,5000);
+    };
+    ws.onerror=function(e){console.warn('Realtime WS error:',e);};
+  }catch(e){console.warn('Realtime init failed:',e);}
+})();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
