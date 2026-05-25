@@ -1409,9 +1409,9 @@ async function loadAll(){
         if(bolsa+ons+tspa>0){o.doanh_thu_bolsa=bolsa;o.doanh_thu_ons=ons;o.doanh_thu_tspa=tspa;}
       }
     });
-    // Merge birthday từ localStorage (vì Supabase profiles chưa có cột birthday)
+    // birthday giờ có trong Supabase profiles — fallback localStorage nếu cột chưa có
     const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
-    allProfiles.forEach(p=>{if(bdStore[p.id])p.birthday=bdStore[p.id];});
+    allProfiles.forEach(p=>{if(!p.birthday&&bdStore[p.id])p.birthday=bdStore[p.id];});
     prevOrders=pOrders||[]; prevExpenses=pExpenses||[]; prevSalary=pSalary||[];
     filteredOrders=allOrders; filteredExpenses=allExpenses;
     setConn('ok','Supabase · Đã kết nối');
@@ -2184,20 +2184,40 @@ function openStaffEdit(uid){
 async function saveStaff(){
   const id=document.getElementById('se-id').value;
   const birthday=document.getElementById('se-birthday').value||null;
-  // Birthday không có trong schema Supabase — lưu localStorage
-  if(birthday){
-    const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
-    bdStore[id]=birthday;
-    localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
-  }
-  const data={ho_ten:document.getElementById('se-name').value,biet_danh:document.getElementById('se-nick').value,start_date:document.getElementById('se-start').value||null,role:document.getElementById('se-role').value,lever:parseInt(document.getElementById('se-lever').value)||1,contract_type:document.getElementById('se-contract').value,ma_nv:document.getElementById('se-code').value};
+  const data={
+    ho_ten:document.getElementById('se-name').value,
+    biet_danh:document.getElementById('se-nick').value,
+    start_date:document.getElementById('se-start').value||null,
+    role:document.getElementById('se-role').value,
+    lever:parseInt(document.getElementById('se-lever').value)||1,
+    contract_type:document.getElementById('se-contract').value,
+    ma_nv:document.getElementById('se-code').value,
+    birthday:birthday, // Lưu thẳng lên Supabase
+  };
   try{
     await sbPatch('profiles',`id=eq.${id}`,data);
     const idx=allProfiles.findIndex(p=>p.id===id);
-    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data,birthday};
+    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data};
     closeModal('m-staff-edit');renderHR();renderSettings();
     toast('Đã cập nhật nhân viên','green');
-  }catch(e){toast('Lỗi: '+e.message,'red');}
+  }catch(e){
+    // Fallback về localStorage nếu cột birthday chưa tồn tại trên Supabase
+    if(e.message&&e.message.includes('birthday')){
+      if(birthday){
+        const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+        bdStore[id]=birthday;
+        localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
+      }
+      const dataNobd={...data};delete dataNobd.birthday;
+      try{
+        await sbPatch('profiles',`id=eq.${id}`,dataNobd);
+        const idx=allProfiles.findIndex(p=>p.id===id);
+        if(idx>=0)allProfiles[idx]={...allProfiles[idx],...dataNobd,birthday};
+        closeModal('m-staff-edit');renderHR();renderSettings();
+        toast('Đã lưu (birthday dùng localStorage tạm)','amber');
+      }catch(e2){toast('Lỗi: '+e2.message,'red');}
+    }else{toast('Lỗi: '+e.message,'red');}
+  }
 }
 
 // ─── PRODUCTS ───
