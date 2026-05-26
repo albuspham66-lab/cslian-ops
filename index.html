@@ -1427,7 +1427,7 @@ async function loadAllProfiles(){
 
 function populateSelects(){
   const active=activeProfiles();
-  const opts=active.map(p=>`<option value="${p.id}">${p.ho_ten} (${p.ma_nv})</option>`).join('');
+  const opts=active.map(p=>`<option value="${p.id}">${p.full_name} (${p.employee_code})</option>`).join('');
   ['att-emp-sel','ord-emp-sel','kpi-emp-sel','sal-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
@@ -1457,8 +1457,8 @@ function getCaDate(now){
 // ============================================================
 async function renderCheckinPage(){
   const p=curProfile;
-  document.getElementById('ci-name').textContent=p.ho_ten;
-  document.getElementById('ci-role').textContent=`${p.ma_nv} · ${p.biet_danh||''}`;
+  document.getElementById('ci-name').textContent=p.full_name;
+  document.getElementById('ci-role').textContent=`${p.employee_code} · ${p.nickname||''}`;
   const rm={manager:{label:'Manager',bg:'var(--manager-bg)',color:'var(--manager)'},leader:{label:'Leader',bg:'var(--leader-bg)',color:'var(--leader)'},sale:{label:'Sale',bg:'var(--bg4)',color:'var(--text2)'}};
   const rv=rm[p.role]||rm.sale;
   // Lấy ngày ca đúng (ca đêm: 00:00-13:59 thuộc ca hôm trước)
@@ -1507,8 +1507,8 @@ function renderMyLogToday(rec,p){
   const el=document.getElementById('my-log-today');
   if(!rec||(!rec.checkin_time&&!rec.checkout_time)){el.innerHTML=`<div class="empty">Chưa có lịch sử hôm nay</div>`;return;}
   let html='';
-  if(rec.checkin_time)html+=`<div class="log-item"><span class="log-dot" style="background:var(--success)"></span><span class="log-badge lb-in">CHECK IN</span><span class="log-name">${p.ho_ten}</span><span class="log-time">${rec.checkin_time.slice(0,5)}</span></div>`;
-  if(rec.checkout_time)html+=`<div class="log-item"><span class="log-dot" style="background:var(--danger)"></span><span class="log-badge lb-out">CHECK OUT</span><span class="log-name">${p.ho_ten}</span><span class="log-time">${rec.checkout_time.slice(0,5)}</span></div>`;
+  if(rec.checkin_time)html+=`<div class="log-item"><span class="log-dot" style="background:var(--success)"></span><span class="log-badge lb-in">CHECK IN</span><span class="log-name">${p.full_name}</span><span class="log-time">${rec.checkin_time.slice(0,5)}</span></div>`;
+  if(rec.checkout_time)html+=`<div class="log-item"><span class="log-dot" style="background:var(--danger)"></span><span class="log-badge lb-out">CHECK OUT</span><span class="log-name">${p.full_name}</span><span class="log-time">${rec.checkout_time.slice(0,5)}</span></div>`;
   el.innerHTML=html;
 }
 
@@ -1573,7 +1573,7 @@ async function renderAttTable(){
   const empId=isMgr?(document.getElementById('att-emp-sel').value||curProfile.id):curProfile.id;
   document.getElementById('att-month-label').textContent=`Tháng ${curMonth+1}/${curYear}`;
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
-  document.getElementById('att-emp-info').textContent=`${emp.ho_ten} · ${emp.ma_nv}`;
+  document.getElementById('att-emp-info').textContent=`${emp.full_name} · ${emp.employee_code}`;
   const from=`${curYear}-${pad2(curMonth+1)}-01`,last=new Date(curYear,curMonth+1,0).getDate(),to=`${curYear}-${pad2(curMonth+1)}-${pad2(last)}`;
   const cacheKey=empId+'-'+curYear+'-'+curMonth;
   let rows;
@@ -1772,8 +1772,8 @@ function extractInvoiceData(text){
   items.forEach(function(item){
     var it=(item.tenSP||'').toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
     var prod=allProducts.find(function(p){
-      if(!p.ten_sp)return false;
-      var pn=p.ten_sp.toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
+      if(!p.name)return false;
+      var pn=p.name.toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
       return pn===it||(it.length>=6&&pn.includes(it.slice(0,10)))||(pn.length>=6&&it.includes(pn.slice(0,10)));
     });
     if(prod){
@@ -1864,14 +1864,14 @@ function showProductSuggest(idx,query){
   if(results.length===0){box.style.display='none';return;}
   box.style.display='block';
   box.innerHTML=results.map(p=>`
-    <div onclick="selectProduct(${idx},'${p.ten_sp.replace(/'/g,"\'")}',${p.gia_ban||0})"
+    <div onclick="selectProduct(${idx},'${p.name.replace(/'/g,"\'")}',${p.sale_price||0})"
       style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
       <div>
-        <div style="font-weight:500">${p.ten_sp}</div>
+        <div style="font-weight:500">${p.name}</div>
         <div style="font-size:10px;color:var(--text2)">${p.sku} · <span class="pill pill-${(p.vendor||'').toLowerCase()}">${p.vendor||''}</span></div>
       </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--success);white-space:nowrap">${usd(p.gia_ban||0)}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--success);white-space:nowrap">${usd(p.sale_price||0)}</div>
     </div>`).join('');
 }
 
@@ -1880,7 +1880,7 @@ function selectProduct(idx,tenSP,giaGoc){
   pendingInvoice.items[idx].tenSP=tenSP;
   pendingInvoice.items[idx].giaGoc=giaGoc;
   // Find product for vendor info
-  const prod=allProducts.find(p=>p.ten_sp===tenSP);
+  const prod=allProducts.find(p=>p.name===tenSP);
   if(prod)pendingInvoice.items[idx].vendor=prod.vendor;
   document.getElementById('suggest-'+idx).style.display='none';
   renderInvoicePreview();
@@ -1935,7 +1935,7 @@ async function saveInvoice(){
   // Calculate vendor totals
   let dtBolsa=0,dtOns=0,dtTspa=0,soGiuong=0;
   inv.items.forEach(item=>{
-    const prod=allProducts.find(p=>p.ten_sp&&item.tenSP&&p.ten_sp.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
+    const prod=allProducts.find(p=>p.name&&item.tenSP&&p.name.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
     const amt=(item.qty||1)*(item.unitPrice||0);
     const vendor=prod?prod.vendor:(item.tenSP||'').includes('Headspa')||item.tenSP.includes('Bed')?'BOLSA':'TSPA';
     if(vendor==='BOLSA'){dtBolsa+=amt;if(prod&&prod.la_bolsa)soGiuong+=(item.qty||1);}
@@ -1958,7 +1958,7 @@ async function saveInvoice(){
 
   // Save order items
   const itemsToSave=inv.items.filter(i=>i.tenSP&&i.unitPrice>0).map(item=>{
-    const prod=allProducts.find(p=>p.ten_sp&&p.ten_sp.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
+    const prod=allProducts.find(p=>p.name&&p.name.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
     const giaGoc=item.giaGoc||prod?.gia_ban||0;
     const chenh=Math.max(0,(item.unitPrice||0)-giaGoc);
     return{order_id:order.id,product_id:prod?.id||null,ten_sp_invoice:item.tenSP,so_luong:item.qty||1,
@@ -2232,21 +2232,21 @@ async function saveExcelData(){
     var aN=n(agentName);
     console.log('Matching agent norm:',aN,'from:',agentName);
     var emp=allProfiles.find(function(p){
-      var pN=n(p.ho_ten), bN=n(p.biet_danh);
+      var pN=n(p.full_name), bN=n(p.nickname);
       return pN===aN||bN===aN||pN.includes(aN)||aN.includes(pN)
         ||(aN.length>=4&&pN.includes(aN.slice(0,5)))
         ||(aN.length>=4&&bN.includes(aN));
     });
     if(!emp){
       emp=allProfiles.find(function(p){
-        return n(p.ma_nv)===aN||n(p.email).startsWith(aN);
+        return n(p.employee_code)===aN||n(p.email).startsWith(aN);
       });
     }
     if(!emp){
       console.warn('Agent không tìm thấy:',agentName,'normalized:',aN);
       console.warn('allProfiles count:',allProfiles.length);
       console.warn('Available (normalized):',allProfiles.map(function(p){
-        return {raw:p.ho_ten, norm:n(p.ho_ten), codes:[...(p.ho_ten||'').normalize('NFC').toLowerCase()].map(function(c){return c.charCodeAt(0);})};
+        return {raw:p.full_name, norm:n(p.full_name), codes:[...(p.full_name||'').normalize('NFC').toLowerCase()].map(function(c){return c.charCodeAt(0);})};
       }));
       errors++;
       continue;
@@ -2327,7 +2327,7 @@ async function renderOrders(){
   const totalBonus=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
   const totalBonus2=list.reduce((s,o)=>s+(o.tong_bonus_usd||0),0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
-  const tatToanCount=list.filter(o=>o.da_tat_toan||o.balance===0).length;
+  const tatToanCount=list.filter(o=>o.is_settled||o.balance===0).length;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
@@ -2336,13 +2336,13 @@ async function renderOrders(){
 
   if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="11" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
-    const tatToan=o.da_tat_toan||o.balance===0;
+    const tatToan=o.is_settled||o.balance===0;
     return `<tr>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.ma_don}</td>
-      <td style="font-weight:500;font-size:12px">${o.ten_tiem}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no}</td>
+      <td style="font-weight:500;font-size:12px">${o.shop_name}</td>
       <td style="font-size:12px;color:var(--text2)">${o.profiles?.ho_ten||'—'}</td>
       <td style="font-size:11px">${o.order_date||'—'}</td>
-      <td style="font-size:11px;color:var(--accent)">${o.thang_bonus||'—'}</td>
+      <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.tong_bonus_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
@@ -2410,7 +2410,7 @@ function calcKPIScore(data){
 function openKPIForm(){
   const empId=document.getElementById('kpi-emp-sel').value;
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
-  document.getElementById('kpi-modal-title').textContent=`${emp.ho_ten} — Tháng ${kpiMonth+1}/${kpiYear}`;
+  document.getElementById('kpi-modal-title').textContent=`${emp.full_name} — Tháng ${kpiMonth+1}/${kpiYear}`;
   document.getElementById('kpi-modal').classList.add('open');
 }
 
@@ -2602,7 +2602,7 @@ async function renderSalary(){
       <div class="stat-card"><div class="stat-label">⭐ Lever P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
     </div>
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.ho_ten} · Tháng ${thang}</div>
+      <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.full_name} · Tháng ${thang}</div>
       <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
       <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn uống, đi lại</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
       <div class="salary-row"><span class="salary-label">P2B — Phụ cấp chức năng</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
@@ -2659,9 +2659,9 @@ async function exportPhieuLuong(){
     <div class="pl-confidential">🔒 Tài liệu bảo mật — Không chia sẻ với người khác</div>
 
     <div class="pl-info-grid">
-      <div class="pl-info-row"><span class="pl-info-label">Mã nhân viên:</span><span class="pl-info-val">${emp.ma_nv||'—'}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Mã nhân viên:</span><span class="pl-info-val">${emp.employee_code||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Tháng lương:</span><span class="pl-info-val">${thang}</span></div>
-      <div class="pl-info-row"><span class="pl-info-label">Họ và tên:</span><span class="pl-info-val">${emp.ho_ten||'—'}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Họ và tên:</span><span class="pl-info-val">${emp.full_name||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Công chuẩn:</span><span class="pl-info-val">22 ngày</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Chức danh:</span><span class="pl-info-val">${{manager:'Manager',leader:'Leader',sale:'Sale'}[emp.role]||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Ngày công TT:</span><span class="pl-info-val">${sal.ngay_cong_thuc_te||0} ngày</span></div>
@@ -2728,7 +2728,7 @@ async function exportPhieuLuong(){
 <html lang="vi">
 <head>
 <meta charset="UTF-8"/>
-<title>Phiếu lương — ${emp.ho_ten} — ${thang}</title>
+<title>Phiếu lương — ${emp.full_name} — ${thang}</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -2778,7 +2778,7 @@ function changeMonthSal(d){salMonth+=d;if(salMonth>11){salMonth=0;salYear++;}if(
 // REVIEWS
 // ============================================================
 function openReviewForm(){
-  document.getElementById('rm-emp').innerHTML=allProfiles.map(p=>`<option value="${p.id}">${p.ho_ten}</option>`).join('');
+  document.getElementById('rm-emp').innerHTML=allProfiles.map(p=>`<option value="${p.id}">${p.full_name}</option>`).join('');
   rmToggle();
   document.getElementById('review-modal').classList.add('open');
 }
@@ -2853,7 +2853,7 @@ async function renderReviews(){
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
             <div>
               <div style="font-size:15px;font-weight:700">${r.loai==='quy'?`Quý ${r.quy} — ${r.ky}`:`Năm ${r.nam}`}</div>
-              <div style="font-size:12px;color:var(--text2);margin-top:3px">${emp.ho_ten} · ${r.xep_loai}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px">${emp.full_name} · ${r.xep_loai}</div>
             </div>
             <div style="font-size:36px;font-weight:700;color:${scoreColor}">${r.diem_tb}đ</div>
           </div>
@@ -2923,10 +2923,10 @@ function renderEmpGrid(){
     }
 
     return `<div style="background:var(--bg3);border:1px solid ${isInactive?'var(--border)':'var(--border)'};border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;opacity:${isInactive?'0.6':'1'}">
-      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${isInactive?'rgba(255,255,255,0.05)':c.bg};color:${isInactive?'var(--text3)':c.color};flex-shrink:0">${initials(p.ho_ten)}</div>
+      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;background:${isInactive?'rgba(255,255,255,0.05)':c.bg};color:${isInactive?'var(--text3)':c.color};flex-shrink:0">${initials(p.full_name)}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:600">${p.ho_ten} <span style="font-size:12px;color:var(--text2)">(${p.biet_danh||''})</span>${isInactive?'<span style="font-size:10px;background:var(--danger-bg);color:var(--danger);border-radius:4px;padding:1px 6px;margin-left:6px">Đã nghỉ</span>':''}</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.ma_nv} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
+        <div style="font-size:14px;font-weight:600">${p.full_name} <span style="font-size:12px;color:var(--text2)">(${p.nickname||''})</span>${isInactive?'<span style="font-size:10px;background:var(--danger-bg);color:var(--danger);border-radius:4px;padding:1px 6px;margin-left:6px">Đã nghỉ</span>':''}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.employee_code} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Vào: ${startDate} · ${contractLabel}${ngayNghi}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">${actions}</div>
@@ -2940,14 +2940,14 @@ async function openEditProfile(id){
   const p=allProfilesMap[id]||allProfiles.find(x=>x.id===id);
   if(!p)return;
   document.getElementById('ep-id').textContent=p.id;
-  document.getElementById('ep-name').value=p.ho_ten||'';
-  document.getElementById('ep-biet-danh').value=p.biet_danh||'';
-  document.getElementById('ep-ma-nv').value=p.ma_nv||'';
+  document.getElementById('ep-name').value=p.full_name||'';
+  document.getElementById('ep-biet-danh').value=p.nickname||'';
+  document.getElementById('ep-ma-nv').value=p.employee_code||'';
   document.getElementById('ep-role').value=p.role||'sale';
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
   document.getElementById('ep-contract').value=p.contract_type||'chinh-thuc';
-  document.getElementById('ep-modal-title').textContent=p.ho_ten;
+  document.getElementById('ep-modal-title').textContent=p.full_name;
   document.getElementById('emp-profile-modal').classList.add('open');
 }
 
@@ -2963,7 +2963,7 @@ async function saveEmpProfile(){
   if(!hoTen){toast('Nhập họ tên','error');return;}
   if(!id){toast('Lỗi: không tìm thấy ID','error');return;}
   const {error}=await sb.from('profiles').update({
-    ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,
+    full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,
     start_date:startDate||null,contract_type:contractType
   }).eq('id',id);
   if(error){toast('Lỗi: '+error.message,'error');return;}
@@ -2971,7 +2971,7 @@ async function saveEmpProfile(){
   closeModal('emp-profile-modal');
   // Realtime will refresh, but update local cache immediately
   var idx=allProfiles.findIndex(p=>p.id===id);
-  if(idx>=0)Object.assign(allProfiles[idx],{ho_ten:hoTen,biet_danh:bietDanh,ma_nv:maNV,role,lever,start_date:startDate||null,contract_type:contractType});
+  if(idx>=0)Object.assign(allProfiles[idx],{full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,start_date:startDate||null,contract_type:contractType});
   buildProfilesMap();populateSelects();renderEmpGrid();
 }
 
@@ -2980,7 +2980,7 @@ function openDeactivateModal(id){
   var p=allProfilesMap[id];
   if(!p)return;
   var ngay=getTodayVN();
-  if(!confirm('Xác nhận nghỉ việc cho '+p.ho_ten+'?\nNgày nghỉ: '+ngay+'\n\nNhân viên sẽ bị ẩn khỏi hệ thống nhưng lịch sử vẫn giữ nguyên.')){return;}
+  if(!confirm('Xác nhận nghỉ việc cho '+p.full_name+'?\nNgày nghỉ: '+ngay+'\n\nNhân viên sẽ bị ẩn khỏi hệ thống nhưng lịch sử vẫn giữ nguyên.')){return;}
   toggleEmpStatus(id,'inactive',ngay);
 }
 
@@ -2991,7 +2991,7 @@ async function toggleEmpStatus(id,newStatus,ngayNghi){
   var {error}=await sb.from('profiles').update(updateData).eq('id',id);
   if(error){toast('Lỗi: '+error.message,'error');return;}
   var p=allProfilesMap[id];
-  toast(newStatus==='inactive'?'Đã đánh dấu nghỉ việc: '+(p?p.ho_ten:''):'Đã kích hoạt lại: '+(p?p.ho_ten:''));
+  toast(newStatus==='inactive'?'Đã đánh dấu nghỉ việc: '+(p?p.full_name:''):'Đã kích hoạt lại: '+(p?p.full_name:''));
   // Update local immediately
   var idx=allProfiles.findIndex(p=>p.id===id);
   if(idx>=0)Object.assign(allProfiles[idx],updateData);
@@ -3143,12 +3143,8 @@ function isHoliday(dateStr,holidaySet){
   return holidaySet&&holidaySet.has(dateStr);
 }
 
-function parseLocalDate(dateStr){
-  var p=dateStr.split('-');
-  return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
-}
 function isWorkDay(dateStr,holidaySet){
-  var d=parseLocalDate(dateStr);
+  var d=new Date(dateStr);
   var dow=d.getDay();
   if(dow===0||dow===6)return false;
   if(isHoliday(dateStr,holidaySet))return false;
@@ -3156,9 +3152,9 @@ function isWorkDay(dateStr,holidaySet){
 }
 
 function getWorkDays(fromDate,toDate,holidaySet){
-  var days=[],d=parseLocalDate(fromDate),to=parseLocalDate(toDate);
+  var days=[],d=new Date(fromDate),to=new Date(toDate);
   while(d<=to){
-    var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var ds=d.toISOString().slice(0,10);
     if(isWorkDay(ds,holidaySet))days.push(ds);
     d.setDate(d.getDate()+1);
   }
@@ -3255,13 +3251,12 @@ async function loadDimData(ngay){
   // Load existing data for this date + prev workday data
   var holidays=await loadHolidays();
 
-  // Find prev work day — parse local để tránh lệch timezone UTC
+  // Find prev work day
   var prevDay='';
-  var parts=ngay.split('-');
-  var d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  var d=new Date(ngay);
   d.setDate(d.getDate()-1);
   for(var i=0;i<14;i++){
-    var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var ds=d.toISOString().slice(0,10);
     if(isWorkDay(ds,holidays)){prevDay=ds;break;}
     d.setDate(d.getDate()-1);
   }
@@ -3293,20 +3288,20 @@ async function loadDimData(ngay){
     var hint2=p.cum_calls_shift2?`<div style="font-size:9px;color:var(--text3)">hôm trước: ${p.cum_calls_shift2}</div>`:'';
 
     return `<tr>
-      <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>
+      <td style="padding:8px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap">${emp.full_name}<br><span style="font-size:10px;color:var(--text2)">${emp.employee_code}</span></td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift1" value="${ck1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
         ${hint1}
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift1" value="${ct1}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift1" value="${ct1}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift2" value="${ck2}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')"/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_calls_shift2" value="${ck2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
         ${hint2}
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
-        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift2" value="${ct2}" placeholder="0" style="width:70px" oninput="updateDimDelta('${emp.id}')" onchange="updateDimDelta('${emp.id}')""/>
+        <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="cum_talk_shift2" value="${ct2}" placeholder="0" style="width:70px" onchange="updateDimDelta('${emp.id}')"/>
       </td>
       <td style="padding:4px;border:1px solid var(--border)">
         <input type="number" min="0" class="dim-input" data-uid="${emp.id}" data-field="potential_calls" value="${pot}" placeholder="0" style="width:60px"/>
@@ -3330,10 +3325,7 @@ async function loadDimData(ngay){
 function getDimInputs(uid){
   var inputs={};
   document.querySelectorAll('.dim-input[data-uid="'+uid+'"]').forEach(function(el){
-    var v=el.value.trim();
-    // talktime dùng parseFloat (có thể có số thập phân), còn lại dùng parseInt
-    var isFloat=el.dataset.field==='cum_talk_shift1'||el.dataset.field==='cum_talk_shift2';
-    inputs[el.dataset.field]=isFloat?(parseFloat(v)||0):(parseInt(v)||0);
+    inputs[el.dataset.field]=parseInt(el.value)||0;
   });
   return inputs;
 }
@@ -3360,7 +3352,7 @@ function updateAllDimDeltas(sales,prevMap){
     var dt1=Math.max(0,vals.cum_talk_shift1-(p.cum_talk_shift1||0));
     var dk2=Math.max(0,vals.cum_calls_shift2-(p.cum_calls_shift2||0));
     var dt2=Math.max(0,vals.cum_talk_shift2-(p.cum_talk_shift2||0));
-    return (emp.biet_danh||emp.ho_ten)+': K1 '+dk1+'c/'+fmtMinutes(dt1)+' | K2 '+dk2+'c/'+fmtMinutes(dt2);
+    return (emp.nickname||emp.full_name)+': K1 '+dk1+'c/'+fmtMinutes(dt1)+' | K2 '+dk2+'c/'+fmtMinutes(dt2);
   });
   document.getElementById('dim-delta-preview').innerHTML='<b style="color:var(--accent)">Preview delta sẽ lưu:</b> '+lines.join(' &nbsp;·&nbsp; ');
 }
@@ -3480,7 +3472,7 @@ async function renderDaily(){
 // ---- Shared helpers ----
 function empNameCell(emp,sticky){
   var s=sticky?'position:sticky;left:0;background:var(--bg2);z-index:1;':'';
-  return `<td style="padding:7px 8px;border:1px solid var(--border);font-weight:500;white-space:nowrap;${s}">${emp.ho_ten}<br><span style="font-size:10px;color:var(--text2)">${emp.ma_nv}</span></td>`;
+  return `<td style="padding:7px 8px;border:1px solid var(--border);font-weight:500;white-space:nowrap;${s}">${emp.full_name}<br><span style="font-size:10px;color:var(--text2)">${emp.employee_code}</span></td>`;
 }
 function aggTracks(userDays){
   var c=0,t=0,pot=0,bg=0;
@@ -3669,7 +3661,7 @@ function buildPersonBlock(emp,groups,planCalls,planTalk,planPot,planBG,trackMap)
   }).join('');
 
   return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px">
-    <div style="padding:7px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">${emp.ho_ten} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.ma_nv}</span></div>
+    <div style="padding:7px 12px;background:var(--bg4);font-weight:600;font-size:13px;border-bottom:1px solid var(--border)">${emp.full_name} <span style="font-size:11px;color:var(--text2);font-weight:400">${emp.employee_code}</span></div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>${groupHeaderRow}${subHeaderRow}</thead>
       <tbody>${dataRows}</tbody>
@@ -3923,9 +3915,9 @@ async function renderDashboard(){
       <div style="background:var(--bg4);border-radius:8px;height:16px;overflow:hidden"><div style="height:100%;border-radius:8px;background:linear-gradient(90deg,${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'},${pctDon>=100?'#059669':pctDon>=70?'#d97706':'#dc2626'});width:${Math.min(100,pctDon)}%;transition:width .5s"></div></div>
       <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:700;color:${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'}">${pctDon.toFixed(1)}%</div></div>`;
 
-  var vendorBolsa=ords.reduce(function(s,o){return s+(o.doanh_thu_bolsa||0);},0);
-  var vendorOns=ords.reduce(function(s,o){return s+(o.doanh_thu_ons||0);},0);
-  var vendorTspa=ords.reduce(function(s,o){return s+(o.doanh_thu_tspa||0);},0);
+  var vendorBolsa=ords.reduce(function(s,o){return s+(o.revenue_bolsa||0);},0);
+  var vendorOns=ords.reduce(function(s,o){return s+(o.revenue_ons||0);},0);
+  var vendorTspa=ords.reduce(function(s,o){return s+(o.revenue_tspa||0);},0);
   var vendorTotal=vendorBolsa+vendorOns+vendorTspa||1;
   function vendorBar(val,total,color){var pct=Math.round(val/total*100);return `<div style="margin-top:6px;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${color};width:${Math.min(100,pct)}%;transition:width .5s"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}% t\u1ED5ng DT</div>`;}
   document.getElementById('dash-vendor').innerHTML=`
@@ -3965,7 +3957,7 @@ async function renderDashboard(){
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Potential</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${tPot}</div><div style="font-size:10px;color:var(--text3)">${dt.length} ng\u01B0\u1EDDi nh\u1EADp</div></div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">B\u00E1o gi\u00E1</div><div style="font-size:20px;font-weight:700;color:var(--warn)">${tBG}</div><div style="font-size:10px;color:var(--text3)">t\u1ED5ng team</div></div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Talktime</div><div style="font-size:20px;font-weight:700;color:${gapColor(tTalk,120*salesCount)}">${tTalk}'</div><div style="font-size:10px;color:var(--text3)">Target: ${120*salesCount}'</div></div>
-    </div><div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){var p=d.profiles;var ok=d.total_calls>=40&&d.talktime_phut>=120;return '<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid '+(ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)')+';border-radius:20px;font-size:11px"><span style="color:'+(ok?'var(--success)':'var(--danger)')+'\">'+(ok?'\u2713':'!')+'</span><span>'+(p?p.biet_danh||p.ho_ten:'\u2014')+'</span><span style="color:var(--text3)">'+d.total_calls+'c/'+d.talktime_phut+"'</span></div>";}).join('')}</div>`;
+    </div><div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){var p=d.profiles;var ok=d.total_calls>=40&&d.talktime_phut>=120;return '<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid '+(ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)')+';border-radius:20px;font-size:11px"><span style="color:'+(ok?'var(--success)':'var(--danger)')+'\">'+(ok?'\u2713':'!')+'</span><span>'+(p?p.nickname||p.full_name:'\u2014')+'</span><span style="color:var(--text3)">'+d.total_calls+'c/'+d.talktime_phut+"'</span></div>";}).join('')}</div>`;
 
   // Leaderboard — Leader + Sale, 1 board, no Manager
   var lbMap={};
@@ -3991,7 +3983,7 @@ async function renderDashboard(){
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${bc};border-radius:${isTop?'10px':'8px'};margin-bottom:8px${isTop?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
       <div style="font-size:${isTop?'22px':'14px'};flex-shrink:0;width:30px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${s.emp.ho_ten} ${rb} <span style="font-size:11px;color:var(--text2)">(${s.emp.ma_nv})</span></div>
+        <div style="font-size:13px;font-weight:600">${s.emp.full_name} ${rb} <span style="font-size:11px;color:var(--text2)">(${s.emp.employee_code})</span></div>
         <div style="margin-top:4px;background:var(--bg4);border-radius:4px;height:5px;overflow:hidden"><div style="height:100%;background:${i===0?'linear-gradient(90deg,var(--warn),#d97706)':i===1?'linear-gradient(90deg,#9ca3af,#6b7280)':i===2?'linear-gradient(90deg,#c9a227,#92550a)':'var(--accent)'};width:${Math.min(100,pct)}%"></div></div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -4524,8 +4516,8 @@ function openCreateRoomModal(){
     var ci=avColor(allProfiles.findIndex(function(x){return x.id===p.id;}));
     return '<div class="cr-members-chip" data-uid="'+p.id+'" onclick="toggleChip(this)">'
       +'<div class="chip-check"></div>'
-      +'<div style="width:22px;height:22px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">'+initials(p.ho_ten||'?')+'</div>'
-      +(p.biet_danh||p.ho_ten)+' <span style="color:var(--text3);font-size:10px">('+p.ma_nv+')</span>'
+      +'<div style="width:22px;height:22px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">'+initials(p.full_name||'?')+'</div>'
+      +(p.nickname||p.full_name)+' <span style="color:var(--text3);font-size:10px">('+p.employee_code+')</span>'
       +'</div>';
   }).join('');
   document.getElementById('create-room-modal').classList.add('open');
@@ -4587,15 +4579,15 @@ function openMemberModal(){
   var members=roomMeta.members||[];
   var list=document.getElementById('member-list');
   if(list) list.innerHTML=members.length?members.map(function(uid){
-    var p=allProfilesMap[uid]||{ho_ten:'?',ma_nv:'?'};
+    var p=allProfilesMap[uid]||{full_name:'?',employee_code:'?'};
     var roleColor=p.role==='manager'?'var(--manager)':p.role==='leader'?'var(--leader)':'var(--accent)';
     var ci=avColor(allProfiles.findIndex(function(x){return x.id===uid;}));
     var canRemove=canManage&&uid!==curProfile.id;
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
-      +'<div style="width:28px;height:28px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.ho_ten||'?')+'</div>'
-      +'<div style="flex:1;font-size:13px">'+(p.biet_danh||p.ho_ten)
+      +'<div style="width:28px;height:28px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.full_name||'?')+'</div>'
+      +'<div style="flex:1;font-size:13px">'+(p.nickname||p.full_name)
         +' <span style="font-size:10px;color:'+roleColor+';font-weight:600">'+(p.role||'')+'</span>'
-        +' <span style="color:var(--text3);font-size:11px">('+p.ma_nv+')</span></div>'
+        +' <span style="color:var(--text3);font-size:11px">('+p.employee_code+')</span></div>'
       +(canRemove?'<button class="btn-sm btn-danger" onclick="removeMember(this.dataset.uid)" data-uid="'+uid+'" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
       +'</div>';
   }).join(''):'<div class="empty">Chưa có thành viên</div>';
@@ -4606,7 +4598,7 @@ function openMemberModal(){
     var existing=new Set(members);
     var notIn=activeProfiles().filter(function(p){return !existing.has(p.id);});
     addList.innerHTML=notIn.length?notIn.map(function(p){
-      return '<button class="btn-sm" onclick="addMember(this.dataset.uid)" data-uid="'+p.id+'" style="font-size:11px;margin:2px">+ '+(p.biet_danh||p.ho_ten)+'</button>';
+      return '<button class="btn-sm" onclick="addMember(this.dataset.uid)" data-uid="'+p.id+'" style="font-size:11px;margin:2px">+ '+(p.nickname||p.full_name)+'</button>';
     }).join(''):'<div style="font-size:12px;color:var(--text2);padding:4px 0">Tất cả đã trong phòng ✓</div>';
   }
   document.getElementById('member-modal').classList.add('open');
@@ -4623,20 +4615,20 @@ async function addMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(ui
   await saveRoomMembers(_chatRoom);
   ROOM_META[_chatRoom].fixed = wasFixed;
   var p=allProfilesMap[uid]||{};
-  toast('Đã thêm '+(p.biet_danh||p.ho_ten||'thành viên'));
+  toast('Đã thêm '+(p.nickname||p.full_name||'thành viên'));
   openMemberModal();
 }
 
 async function removeMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(uidOrEl.dataset?uidOrEl.dataset.uid:uidOrEl);
   if(!ROOM_META[_chatRoom]||!ROOM_META[_chatRoom].members) return;
   var p=allProfilesMap[uid]||{};
-  if(!confirm('Xóa '+(p.biet_danh||p.ho_ten||'thành viên')+' khỏi phòng?')) return;
+  if(!confirm('Xóa '+(p.nickname||p.full_name||'thành viên')+' khỏi phòng?')) return;
   ROOM_META[_chatRoom].members=ROOM_META[_chatRoom].members.filter(function(id){return id!==uid;});
   var wasFixed = ROOM_META[_chatRoom].fixed;
   ROOM_META[_chatRoom].fixed = false;
   await saveRoomMembers(_chatRoom);
   ROOM_META[_chatRoom].fixed = wasFixed;
-  toast('Đã xóa '+(p.biet_danh||p.ho_ten||'thành viên'));
+  toast('Đã xóa '+(p.nickname||p.full_name||'thành viên'));
   openMemberModal();
 }
 
