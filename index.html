@@ -1507,8 +1507,8 @@ function updateCIButtons(rec){
     btnIn.className='ci-btn btn-dis';btnIn.disabled=true;
     btnOut.className='ci-btn btn-dis';btnOut.disabled=true;
     const r=calcDayLogic(rec,curProfile.type||curProfile.role);
-    chips=`<span class="status-chip chip-in">✅ Check in: ${rec.checkin_time.slice(0,5)}</span>
-           <span class="status-chip chip-out">🚪 Check out: ${rec.checkout_time.slice(0,5)}</span>
+    chips=`<span class="status-chip chip-in">✅ Check in: ${(rec.checkin_time||'').slice(0,5)}</span>
+           <span class="status-chip chip-out">🚪 Check out: ${(rec.checkout_time||'').slice(0,5)}</span>
            <span class="status-chip chip-earn">💰 ${r.hours}h · ${vnd(r.salary)}</span>`;
     if(r.isLate)chips+=`<span class="status-chip chip-late">⚠️ Trễ ${r.lateMin} phút</span>`;
   } else if(rec&&fmtTime(rec.checkin_time)){
@@ -1516,7 +1516,7 @@ function updateCIButtons(rec){
     btnOut.className='ci-btn btn-out';btnOut.disabled=false;
     // Invalidate attendance cache (current user, current month)
     if(curProfile){ var k=curProfile.id+'-'+curYear+'-'+curMonth; delete _attCache[k]; }
-    chips=`<span class="status-chip chip-in">✅ Check in: ${rec.checkin_time.slice(0,5)}</span>
+    chips=`<span class="status-chip chip-in">✅ Check in: ${(rec.checkin_time||'').slice(0,5)}</span>
            <span class="status-chip chip-wait">⏳ Chờ check out</span>`;
     const _ciStr=fmtTime(rec.checkin_time)?(rec.checkin_time.includes('T')||rec.checkin_time.length>8?pad2(new Date(fmtTime(rec.checkin_time)).getUTCHours())+':'+pad2(new Date(fmtTime(rec.checkin_time)).getUTCMinutes()):rec.checkin_time.slice(0,5)):'00:00';
     const [ch,cm]=_ciStr.split(':').map(Number);
@@ -1535,8 +1535,8 @@ function renderMyLogToday(rec,p){
   const el=document.getElementById('my-log-today');
   if(!rec||(!fmtTime(rec.checkin_time)&&!fmtTime(rec.checkout_time))){el.innerHTML=`<div class="empty">Chưa có lịch sử hôm nay</div>`;return;}
   let html='';
-  if(fmtTime(rec.checkin_time))html+=`<div class="log-item"><span class="log-dot" style="background:var(--success)"></span><span class="log-badge lb-in">CHECK IN</span><span class="log-name">${p.full_name}</span><span class="log-time">${rec.checkin_time.slice(0,5)}</span></div>`;
-  if(fmtTime(rec.checkout_time))html+=`<div class="log-item"><span class="log-dot" style="background:var(--danger)"></span><span class="log-badge lb-out">CHECK OUT</span><span class="log-name">${p.full_name}</span><span class="log-time">${rec.checkout_time.slice(0,5)}</span></div>`;
+  if(fmtTime(rec.checkin_time))html+=`<div class="log-item"><span class="log-dot" style="background:var(--success)"></span><span class="log-badge lb-in">CHECK IN</span><span class="log-name">${p.full_name}</span><span class="log-time">${(rec.checkin_time||'').slice(0,5)}</span></div>`;
+  if(fmtTime(rec.checkout_time))html+=`<div class="log-item"><span class="log-dot" style="background:var(--danger)"></span><span class="log-badge lb-out">CHECK OUT</span><span class="log-name">${p.full_name}</span><span class="log-time">${(rec.checkout_time||'').slice(0,5)}</span></div>`;
   el.innerHTML=html;
 }
 
@@ -1647,7 +1647,7 @@ async function renderAttTable(){
     if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="7" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
     let ciShow='—',coShow='—',hShow='—',sShow='—',statusHtml='',noteHtml='';
     if(rec){
-      ciShow=fmtTime(rec.checkin_time)?rec.checkin_time.slice(0,5):'—';coShow=fmtTime(rec.checkout_time)?rec.checkout_time.slice(0,5):'—';
+      ciShow=fmtTime(rec.checkin_time)?(rec.checkin_time||'').slice(0,5):'—';coShow=fmtTime(rec.checkout_time)?(rec.checkout_time||'').slice(0,5):'—';
       if(rec.status==='NL'||hl){statusHtml=`<span class="pill pill-nl">NL</span>`;nl++;totalH+=8;totalS+=LUONG_NGAY;hShow='8h';sShow=vnd(LUONG_NGAY);}
       else if(rec.status==='NP'){statusHtml=`<span class="pill pill-np">NP</span>`;np++;totalH+=r.hours;totalS+=r.salary;hShow=r.hours+'h';sShow=vnd(r.salary);}
       else if(rec.status==='NKP'){statusHtml=`<span class="pill pill-nkp">NKP</span>`;nkp++;}
