@@ -1986,6 +1986,7 @@ async function saveProduct(){
       const res=await sbInsert('products',data);
       if(res&&res[0])allProducts.push(res[0]);
       toast('Đã thêm sản phẩm','green');
+      syncProductToCRM({...data,id:res?.[0]?.id});
     }
     closeModal('m-prod');filterProducts();renderProducts();
   }catch(e){toast('Lỗi: '+e.message,'red');}
@@ -2116,6 +2117,20 @@ if('serviceWorker' in navigator){
 }
 
 // ─── INIT ───
+// ── SYNC PRODUCT TO CRM ──────────────────────────────────────
+async function syncProductToCRM(product){
+  try{
+    const FINANCE_EDGE='https://jggfmpihfisbusnbzyoi.supabase.co/functions/v1/sync-product-to-crm';
+    const r=await fetch(FINANCE_EDGE,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${CFG.key}`},
+      body:JSON.stringify(product)
+    });
+    const d=await r.json();
+    if(!r.ok)console.warn('[sync-product-to-crm] failed',d);
+    else console.log('[sync-product-to-crm] OK',d.sku);
+  }catch(e){console.warn('[sync-product-to-crm] error',e.message);}
+}
 updateRangeLabels();
 loadAll();
 </script>
