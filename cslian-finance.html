@@ -549,7 +549,7 @@ textarea{resize:vertical;min-height:72px;}
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
           <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th>
-          <th>Aging</th><th>Tình trạng</th>
+          <th>Aging</th><th>Tình trạng</th><th></th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -1519,6 +1519,10 @@ function renderOrdersTable(orders){
       <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
       <td>${o.is_settled?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
       <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'Tất toán':'Pending'}</span></td>
+      <td><div style="display:flex;gap:4px;">
+        <button class="act-btn" onclick="openOrderEdit('${o.id}')" title="Sửa">✏️</button>
+        <button class="act-btn" onclick="deleteOrder('${o.id}','${o.invoice_no||''}')" title="Xóa" style="color:var(--red2)">🗑</button>
+      </div></td>
     </tr>`;
   }).join('');
 }
@@ -2133,10 +2137,103 @@ async function syncProductToCRM(product){
     else console.log('[sync-product-to-crm] OK',d.sku);
   }catch(e){console.warn('[sync-product-to-crm] error',e.message);}
 }
+
+// ── ORDER EDIT / DELETE ───────────────────────────────────────
+function openOrderEdit(id){
+  const o=allOrders.find(x=>String(x.id)===String(id));
+  if(!o){toast('Không tìm thấy đơn hàng','red');return;}
+  document.getElementById('oe-id').value=o.id;
+  document.getElementById('oe-invoice-no').value=o.invoice_no||'';
+  document.getElementById('oe-shop-name').value=o.shop_name||'';
+  document.getElementById('oe-order-date').value=o.order_date||'';
+  document.getElementById('oe-billing-month').value=o.billing_month||'';
+  document.getElementById('oe-total-amount').value=o.total_amount||0;
+  document.getElementById('oe-balance-due').value=o.balance_due||0;
+  document.getElementById('oe-cogs').value=o.cogs||0;
+  document.getElementById('oe-gross-profit').value=o.gross_profit||0;
+  document.getElementById('oe-rev-bolsa').value=o.revenue_bolsa||0;
+  document.getElementById('oe-rev-ons').value=o.revenue_ons||0;
+  document.getElementById('oe-rev-tspa').value=o.revenue_tspa||0;
+  document.getElementById('oe-sale-rep-name').value=o.sale_rep_name||'';
+  document.getElementById('oe-is-settled').value=String(o.is_settled||false);
+  openModal('m-order-edit');
+}
+
+async function saveOrderEdit(){
+  const id=document.getElementById('oe-id').value;
+  const data={
+    invoice_no:    document.getElementById('oe-invoice-no').value.trim()||null,
+    shop_name:     document.getElementById('oe-shop-name').value.trim(),
+    order_date:    document.getElementById('oe-order-date').value||null,
+    billing_month: document.getElementById('oe-billing-month').value.trim(),
+    total_amount:  parseFloat(document.getElementById('oe-total-amount').value)||0,
+    balance_due:   parseFloat(document.getElementById('oe-balance-due').value)||0,
+    cogs:          parseFloat(document.getElementById('oe-cogs').value)||0,
+    gross_profit:  parseFloat(document.getElementById('oe-gross-profit').value)||0,
+    revenue_bolsa: parseFloat(document.getElementById('oe-rev-bolsa').value)||0,
+    revenue_ons:   parseFloat(document.getElementById('oe-rev-ons').value)||0,
+    revenue_tspa:  parseFloat(document.getElementById('oe-rev-tspa').value)||0,
+    sale_rep_name: document.getElementById('oe-sale-rep-name').value.trim()||null,
+    is_settled:    document.getElementById('oe-is-settled').value==='true',
+  };
+  try{
+    await sbPatch('orders',`id=eq.${id}`,data);
+    const idx=allOrders.findIndex(o=>String(o.id)===String(id));
+    if(idx>=0)allOrders[idx]={...allOrders[idx],...data};
+    closeModal('m-order-edit');
+    filterOrders();renderOrders();renderDashboard();
+    toast('Đã cập nhật đơn hàng','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
+async function deleteOrder(id,invoiceNo){
+  if(!confirm(`Xóa đơn hàng ${invoiceNo||id}? Hành động này không thể hoàn tác.`))return;
+  try{
+    await sbDelete('orders',id);
+    allOrders=allOrders.filter(o=>String(o.id)!==String(id));
+    filterOrders();renderOrders();renderDashboard();
+    toast('Đã xóa đơn hàng','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
 updateRangeLabels();
 loadAll();
 </script>
 <!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- Modal: Sửa đơn hàng -->
+<div class="mbg" id="m-order-edit">
+  <div class="modal modal-lg">
+    <div class="modal-title">✏️ Chỉnh sửa đơn hàng</div>
+    <input type="hidden" id="oe-id">
+    <div class="fgrid2" style="margin-bottom:12px;">
+      <div class="fg"><label class="fl">Invoice No</label><input id="oe-invoice-no"></div>
+      <div class="fg"><label class="fl">Shop Name</label><input id="oe-shop-name"></div>
+      <div class="fg"><label class="fl">Ngày đơn</label><input type="date" id="oe-order-date"></div>
+      <div class="fg"><label class="fl">Tháng HT</label><input id="oe-billing-month" placeholder="2026-05"></div>
+      <div class="fg"><label class="fl">Total ($)</label><input type="number" id="oe-total-amount"></div>
+      <div class="fg"><label class="fl">Balance Due ($)</label><input type="number" id="oe-balance-due"></div>
+      <div class="fg"><label class="fl">COGS ($)</label><input type="number" id="oe-cogs"></div>
+      <div class="fg"><label class="fl">Gross Profit ($)</label><input type="number" id="oe-gross-profit"></div>
+      <div class="fg"><label class="fl">Revenue BOLSA ($)</label><input type="number" id="oe-rev-bolsa"></div>
+      <div class="fg"><label class="fl">Revenue ONS ($)</label><input type="number" id="oe-rev-ons"></div>
+      <div class="fg"><label class="fl">Revenue TSPA ($)</label><input type="number" id="oe-rev-tspa"></div>
+      <div class="fg"><label class="fl">Sale Rep</label><input id="oe-sale-rep-name"></div>
+    </div>
+    <div class="fgrid2" style="margin-bottom:16px;">
+      <div class="fg"><label class="fl">Tình trạng</label>
+        <select id="oe-is-settled">
+          <option value="false">Pending</option>
+          <option value="true">Tất toán</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-order-edit')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveOrderEdit()">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
