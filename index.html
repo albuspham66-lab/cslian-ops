@@ -2983,7 +2983,8 @@ async function openEditProfile(id){
   document.getElementById('ep-role').value=p.role||'sale';
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
-  document.getElementById('ep-contract').value=p.contract_type||'chinh-thuc';
+  const ctMap={'official':'chinh-thuc','probation':'thu-viec'};
+  document.getElementById('ep-contract').value=ctMap[p.contract_type]||p.contract_type||'chinh-thuc';
   // Birthday từ localStorage (chưa có cột trong DB)
   const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
   document.getElementById('ep-birthday').value=bdStore[p.id]||p.birthday||'';
@@ -2999,7 +3000,8 @@ async function saveEmpProfile(){
   const role=document.getElementById('ep-role').value;
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
-  const contractType=document.getElementById('ep-contract').value;
+  const contractTypeRaw=document.getElementById('ep-contract').value;
+  const contractType=contractTypeRaw==='chinh-thuc'?'official':contractTypeRaw==='thu-viec'?'probation':contractTypeRaw;
   const birthday=document.getElementById('ep-birthday').value||null;
   if(!hoTen){toast('Nhập họ tên','error');return;}
   if(!id){toast('Lỗi: không tìm thấy ID','error');return;}
