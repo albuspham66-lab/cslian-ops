@@ -683,7 +683,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px">
         <button class="stb active" id="stb-kpi" onclick="doSubTab('kpi',this)" style="background:none;border:none;border-bottom:2px solid var(--accent);padding:10px 20px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;font-family:inherit;margin-bottom:-2px">📊 KPI</button>
         <button class="stb" id="stb-reviews" onclick="doSubTab('reviews',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">🏆 Nghiệm thu</button>
-        <button class="stb" id="stb-targets" onclick="doSubTab('targets',this);renderTargets()" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">🎯 Target</button>
         <button class="stb" id="stb-luong" onclick="doSubTab('luong',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;margin-bottom:-2px">💰 Bảng lương</button>
       </div>
       <div id="stc-kpi" style="display:block">
@@ -723,9 +722,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <button class="mnbtn" onclick="changeMonthSal(1)">›</button>
           </div>
           <button class="btn-sm btn-success" onclick="calcAndSaveSalary()">⚡ Tính lương</button>
-          <button class="btn-sm btn-primary" onclick="exportSalaryPDF()">🖨️ Xuất phiếu PDF</button>
+          <button class="btn-sm btn-primary" onclick="exportPhieuLuong()">🖨️ Xuất phiếu PDF</button>
         </div>
-      <div id="stc-targets" style="display:none"><div id="targets-display"></div></div>
       </div>
       <div id="salary-display"></div>
       <!-- Phiếu lương để print -->
@@ -1997,12 +1995,12 @@ async function saveInvoice(){
   // Total = subtotal + tax - extra_discount
   var finalTotal=inv.total||(inv.subtotal+(inv.tax||0)-(inv.extra_discount||0));
   const {data:order,error}=await sb.from('orders').insert({
-    ma_don:maDon,ten_tiem:tenTiem,user_id:curProfile.id,
-    order_date:orderDate,thang,
-    subtotal:inv.subtotal,tax:inv.tax||0,
-    extra_discount:inv.extra_discount||0,
-    total:finalTotal,
-    tong_chenh_lech:0,bonus_chenh_lech:inv.bonus_chenh_lech||0
+    invoice_no:maDon,shop_name:tenTiem,user_id:curProfile.id,
+    order_date:orderDate,billing_month:thang,
+    total_amount:finalTotal,
+    balance_due:finalTotal,
+    is_settled:false,
+    revenue_bolsa:dtBolsa,revenue_ons:dtOns,revenue_tspa:dtTspa
   }).select().single();
 
   if(error){toast('Lỗi lưu đơn: '+error.message,'error');return;}
@@ -2309,34 +2307,22 @@ async function saveExcelData(){
     var thangBonus=balance===0?monthVal:null;
 
     var orderData={
-      ma_don:poNum,
-      ten_tiem:nickName||poNum,
+      invoice_no:poNum,
+      shop_name:nickName||poNum,
       user_id:emp.id,
       order_date:dateVal||new Date().toISOString().slice(0,10),
-      thang:thangDoanh,
-      thang_bonus:thangBonus,
-      subtotal:bolsa+ons+tspa,
-      tax:0,
-      total:totalAmt,
-      shipping:shipping,
-      doanh_thu_bolsa:bolsa,
-      doanh_thu_ons:ons,
-      doanh_thu_tspa:tspa,
-      so_giuong_bolsa:headspaQty,
-      bonus_headspa_usd:bonusHeadspa,
-      bonus_ons_tspa_usd:bonus05+bonus1,
-      bonus_extra_usd:extraBonus,
-      truy_thu_usd:truyThu,
-      tong_bonus_usd:totalBonus,
-      balance:balance,
-      da_tat_toan:balance===0,
-      state:state,
-      ghi_chu:note,
-      da_duyet:false
+      billing_month:thangDoanh,
+      total_amount:totalAmt,
+      balance_due:Math.max(0,balance),
+      is_settled:balance===0,
+      revenue_bolsa:bolsa,
+      revenue_ons:ons,
+      revenue_tspa:tspa,
+      sale_rep_name:agentName||null
     };
 
     console.log('Saving order:',poNum,'for',agentName,'emp:',emp?emp.id:'NOT FOUND');
-    var res=await sb.from('orders').upsert(orderData,{onConflict:'ma_don'});
+    var res=await sb.from('orders').upsert(orderData,{onConflict:'invoice_no'});
     if(res.error){
       console.error('Error saving',poNum,':',res.error.message,res.error.details);
       errors++;
@@ -2366,7 +2352,7 @@ async function renderOrders(){
   document.getElementById('ord-month-label').textContent=`Tháng ${ordMonth+1}/${ordYear}`;
   const thang=monthStr(ordYear,ordMonth);
 
-  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('thang',thang).order('created_at',{ascending:false});
+  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).order('order_date',{ascending:false});
   if(!isMgr)query=query.eq('user_id',curProfile.id);
   else if(empId)query=query.eq('user_id',empId);
 
@@ -2378,7 +2364,7 @@ async function renderOrders(){
   const totalBonus=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
   const totalBonus2=list.reduce((s,o)=>s+(o.tong_bonus_usd||0),0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
-  const tatToanCount=list.filter(o=>o.is_settled||o.balance===0).length;
+  const tatToanCount=list.filter(o=>o.is_settled||o.is_settled||o.balance_due===0).length;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
@@ -2387,14 +2373,14 @@ async function renderOrders(){
 
   if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="11" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
-    const tatToan=o.is_settled||o.balance===0;
+    const tatToan=o.is_settled||o.is_settled||o.balance_due===0;
     return `<tr>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no||'—'}</td>
       <td style="font-weight:500;font-size:12px">${o.shop_name}</td>
       <td style="font-size:12px;color:var(--text2)">${o.profiles?.full_name||'—'}</td>
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.tong_bonus_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance||0)}</td>
@@ -2547,51 +2533,6 @@ function changeMonthKPI(d){kpiMonth+=d;if(kpiMonth>11){kpiMonth=0;kpiYear++;}if(
 // ============================================================
 // SALARY CALCULATION
 // ============================================================
-
-// ── XUẤT PHIẾU LƯƠNG ─────────────────────────────────────────
-async function exportSalaryPDF(){
-  const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
-  const thang=monthStr(salYear,salMonth);
-  const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-  const emp=allProfiles.find(p=>p.id===empId)||curProfile;
-  if(!sal){toast('Chưa có bảng lương tháng này','error');return;}
-  const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>Phiếu lương ${thang}</title>
-  <style>
-    body{font-family:Arial,sans-serif;padding:32px;max-width:600px;margin:0 auto}
-    h2{text-align:center;color:#1a1a2e}
-    .header{text-align:center;margin-bottom:24px}
-    table{width:100%;border-collapse:collapse;margin-top:16px}
-    th{background:#1a1a2e;color:#fff;padding:8px 12px;text-align:left}
-    td{padding:8px 12px;border-bottom:1px solid #eee}
-    .total{font-weight:bold;font-size:16px;color:#1a7a45}
-    .footer{margin-top:32px;text-align:center;color:#888;font-size:12px}
-  </style></head><body>
-  <div class="header">
-    <h2>PHIẾU LƯƠNG THÁNG ${thang}</h2>
-    <p><b>${emp?.full_name||'—'}</b> · ${emp?.employee_code||''} · ${emp?.role||''}</p>
-  </div>
-  <table>
-    <tr><th colspan="2">CHI TIẾT LƯƠNG</th></tr>
-    <tr><td>Ngày công thực tế</td><td>${sal.ngay_cong_thuc_te||0} ngày</td></tr>
-    <tr><td>P1 - Lương cơ bản</td><td>${(sal.p1_thuc_te||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P2A - Phụ cấp cơ bản</td><td>${(sal.p2a||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P2B - Phụ cấp trách nhiệm</td><td>${(sal.p2b||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P2C - Phụ cấp Lever</td><td>${(sal.p2c||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P3B - Chuyên cần</td><td>${(sal.p3b_chuyen_can||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P3C - KPI</td><td>${(sal.p3c_kpi||0).toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td>P3A - Bonus USD</td><td>$${(sal.p3a_total_usd||0).toFixed(2)} = ${p3aVnd.toLocaleString('vi-VN')}đ</td></tr>
-    <tr><td colspan="2" class="total">TỔNG LƯƠNG: ${(sal.tong_luong_vnd||0).toLocaleString('vi-VN')}đ</td></tr>
-  </table>
-  <div class="footer">C-Slian · Phiếu lương tháng ${thang} · In lúc ${new Date().toLocaleString('vi-VN')}</div>
-  </body></html>`;
-  const w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  w.print();
-}
-
 async function calcAndSaveSalary(){
   const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
   if(!empId){toast('Vui lòng chọn nhân viên','error');return;}
@@ -2624,7 +2565,7 @@ async function calcAndSaveSalary(){
   }
 
   let heCoP1=1.0;
-  if(emp.contract_type==='probation'||emp.contract_type==='thu-viec'){
+  if((emp.contract_type||'chinh-thuc')==='thu-viec'){
     heCoP1=0.85;
   }
 
@@ -2637,7 +2578,7 @@ async function calcAndSaveSalary(){
 
   const ords=ordersRes.data||[];
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
-  const dtSubtotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
+  const dtSubtotal=ords.reduce((s,o)=>s+(o.subtotal||0),0);
   const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
   const datTarget=dtTotal>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
@@ -2651,8 +2592,8 @@ async function calcAndSaveSalary(){
   else if(soGiuong<40)bolsaBonus=soGiuong*20+200;
   else bolsaBonus=soGiuong*25+250;
 
-  const dtBolsa=ords.reduce((s,o)=>s+(o.revenue_bolsa||0),0);
-  const dtOnsTspa=ords.reduce((s,o)=>s+(o.revenue_ons||0)+(o.revenue_tspa||0),0);
+  const dtBolsa=ords.reduce((s,o)=>s+(o.subtotal||0)*(items.some(i=>i.order_id===o.id&&i.la_bolsa)?1:0),0);
+  const dtOnsTspa=dtSubtotal-dtBolsa;
   const onsTspaBonus=dtOnsTspa*0.01;
 
   let vuotBonus=0;
@@ -2716,7 +2657,7 @@ async function renderSalary(){
 function vndFmt(n){return Math.round(n||0).toLocaleString('vi-VN')+'đ';}
 function usdFmt(n){return '$'+Number(n||0).toFixed(2);}
 
-async function exportSalaryPDF(){
+async function exportPhieuLuong(){
   const empId=document.getElementById('sal-emp-sel').value||curProfile?.id;
   if(!empId){toast('Chọn nhân viên trước','error');return;}
   const thang=monthStr(salYear,salMonth);
@@ -3128,7 +3069,7 @@ function doSubTab(name, el){
   el.style.color = 'var(--accent)';
   el.style.fontWeight = '600';
   // Đổi content
-  ['stc-kpi','stc-reviews','stc-luong','stc-targets'].forEach(function(id){
+  ['stc-kpi','stc-reviews','stc-luong'].forEach(function(id){
     var el2 = document.getElementById(id);
     if(el2) el2.style.display = 'none';
   });
@@ -4010,7 +3951,7 @@ async function renderDashboard(){
   var planDon=tgt.target_don_hang*planMonths;
   var ords=ordersRes.data||[];
 
-  var totalDS=ords.reduce(function(s,o){return s+(o.total||0);},0);
+  var totalDS=ords.reduce(function(s,o){return s+(o.total_amount||0);},0);
   var totalDon=ords.length;
   var aov=totalDon>0?totalDS/totalDon:0;
   var totalBaoGia=(dailyAllRes.data||[]).reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
@@ -4045,7 +3986,7 @@ async function renderDashboard(){
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#a78bfa;text-transform:uppercase;margin-bottom:6px">TSPA</div><div style="font-size:20px;font-weight:700;color:#a78bfa">$${vendorTspa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorTspa,vendorTotal,'#8b5cf6')}</div>`;
 
   var monthlyData={};
-  ords.forEach(function(o){var m=o.order_date?o.order_date.slice(0,7):'';if(!m)return;if(!monthlyData[m])monthlyData[m]={ds:0,don:0};monthlyData[m].ds+=(o.total||0);monthlyData[m].don++;});
+  ords.forEach(function(o){var m=o.order_date?o.order_date.slice(0,7):'';if(!m)return;if(!monthlyData[m])monthlyData[m]={ds:0,don:0};monthlyData[m].ds+=(o.total_amount||0);monthlyData[m].don++;});
   var allMonths=[],cur=new Date(fromDate.slice(0,7)+'-01'),toD=new Date(toDate.slice(0,7)+'-01');
   while(cur<=toD){allMonths.push(cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0'));cur.setMonth(cur.getMonth()+1);}
   var labels=allMonths.map(function(m){return m.slice(5)+'/'+m.slice(0,4);});
@@ -4085,7 +4026,7 @@ async function renderDashboard(){
     var prof=o.profiles||allProfiles.find(function(p){return p.id===uid;});
     if(!prof||prof.role==='manager')return;
     if(!lbMap[uid])lbMap[uid]={emp:prof,ds:0,don:0};
-    lbMap[uid].ds+=(o.total||0);
+    lbMap[uid].ds+=(o.total_amount||0);
     lbMap[uid].don++;
   });
   allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).forEach(function(p){
