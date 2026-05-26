@@ -961,7 +961,6 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
-    <div id="p-debug" style="display:none;background:var(--redbg);border:1px solid var(--redborder);border-radius:6px;padding:8px 12px;font-size:11px;color:var(--red2);margin-top:12px;font-family:monospace;"></div>
     <div class="mfoot">
       <button type="button" class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
       <button type="button" class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
@@ -1964,7 +1963,7 @@ function editProduct(id){
   document.getElementById('p-id').value=p.id;document.getElementById('p-sku').value=p.sku||'';
   document.getElementById('p-name').value=p.name||'';document.getElementById('p-vendor').value=p.vendor||'BOLSA';
   document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
-  const editCommPct=p.commission_rate!=null?p.commission_rate*100:3;document.getElementById('p-commission').value=editCommPct.toFixed(1);
+  const editComm=p.commission_rate!=null?p.commission_rate*100:3;document.getElementById('p-commission').value=editComm.toFixed(1);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-note-wrap').style.display='block';
@@ -1974,20 +1973,11 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const skuEl=document.getElementById('p-sku');
-  const nameEl=document.getElementById('p-name');
-  const skuVal=(skuEl?skuEl.value:'').trim();
-  const nameVal=(nameEl?nameEl.value:'').trim();
-  console.log('[saveProduct] sku='+JSON.stringify(skuVal)+' name='+JSON.stringify(nameVal)+' id='+JSON.stringify(id));
-  const dbg=document.getElementById('p-debug');
-  if(!skuEl||!nameEl){const msg='Lỗi DOM: p-sku='+(skuEl?'OK':'NULL')+', p-name='+(nameEl?'OK':'NULL');if(dbg){dbg.style.display='block';dbg.textContent=msg;}toast(msg,'red');return;}
-  if(!skuVal||!nameVal){
-    const msg='DEBUG → SKU: "'+skuVal+'" ('+skuVal.length+' chars) | Tên: "'+nameVal+'" ('+nameVal.length+' chars)';
-    if(dbg){dbg.style.display='block';dbg.textContent=msg;}
-    if(!skuVal){toast('Vui lòng nhập SKU','amber');skuEl.focus();return;}
-    if(!nameVal){toast('Vui lòng nhập tên sản phẩm','amber');nameEl.focus();return;}
-  }
-  if(dbg)dbg.style.display='none';
+  const skuVal=(document.getElementById('p-sku').value||'').trim();
+  const nameVal=(document.getElementById('p-name').value||'').trim();
+  console.log('[saveProduct] SKU='+JSON.stringify(skuVal)+' Name='+JSON.stringify(nameVal)+' isEdit='+isEdit);
+  if(!skuVal){toast('Vui lòng nhập SKU','amber');document.getElementById('p-sku').focus();return;}
+  if(!nameVal){toast('Vui lòng nhập tên sản phẩm','amber');document.getElementById('p-name').focus();return;}
   const commRaw=parseFloat(document.getElementById('p-commission').value);
   const commRate=isNaN(commRaw)?0.03:commRaw/100;
   const data={sku:skuVal,name:nameVal,vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:commRate,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
