@@ -1345,7 +1345,7 @@ function renderTopStates(){
 
 function renderAgingWidget(){
   const pending=pendingOrders();
-  const totDebt=pending.reduce((s,o)=>s+(o.balance_due_due||0),0);
+  const totDebt=pending.reduce((s,o)=>s+(o.balance_due||0),0);
   setTxt('dash-debt-tot',fmtUSD(totDebt));
   if(!pending.length){setHTML('dash-aging','<div style="color:var(--text3);font-size:13px;padding:12px 0;">Không có công nợ đang mở. 🎉</div>');return;}
   const bands={ok:[],warn:[],crit:[]};
@@ -1356,7 +1356,7 @@ function renderAgingWidget(){
     else if(b.cls==='aging-warn')bands.warn.push(o);
     else bands.crit.push(o);
   });
-  const sumBand=arr=>arr.reduce((s,o)=>s+(o.balance_due_due||0),0);
+  const sumBand=arr=>arr.reduce((s,o)=>s+(o.balance_due||0),0);
   const html=[];
   if(bands.crit.length)html.push(`<div class="aging-row"><span class="aging-band aging-crit">⚠️ > 30 ngày</span><span style="flex:1;font-size:12px;color:var(--text2);">${bands.crit.length} đơn</span><span style="color:var(--red2);font-weight:600;font-size:13px;">${fmtUSD(sumBand(bands.crit))}</span></div>`);
   if(bands.warn.length)html.push(`<div class="aging-row"><span class="aging-band aging-warn">⏳ 15–30 ngày</span><span style="flex:1;font-size:12px;color:var(--text2);">${bands.warn.length} đơn</span><span style="color:var(--amber2);font-weight:600;font-size:13px;">${fmtUSD(sumBand(bands.warn))}</span></div>`);
@@ -1391,7 +1391,7 @@ function renderAlerts(){
   // Overdue debt > 30 days
   const crit=pendingOrders().filter(o=>agingDays(o.order_date)>30);
   if(crit.length>0){
-    const tot=crit.reduce((s,o)=>s+(o.balance_due_due||0),0);
+    const tot=crit.reduce((s,o)=>s+(o.balance_due||0),0);
     alerts.push({cls:'warn-debt',icon:'⚠️',title:`${crit.length} đơn công nợ quá 30 ngày`,sub:`Tổng: ${fmtUSD(tot)} · Cần follow up ngay`});
   }
 
@@ -1464,7 +1464,7 @@ function renderOrders(){
   setTxt('ord-total',orders.length);
   setTxt('ord-done',orders.filter(o=>o.is_settled).length);
   setTxt('ord-pend',orders.filter(o=>!o.is_settled).length);
-  const debt=pendingOrders().reduce((s,o)=>s+(o.balance_due_due||0),0);
+  const debt=pendingOrders().reduce((s,o)=>s+(o.balance_due||0),0);
   setTxt('ord-debt',fmtUSD(debt));
 
   const agents=[...new Set(allProfiles.map(p=>p.full_name))];
