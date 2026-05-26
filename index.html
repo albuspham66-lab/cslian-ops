@@ -1338,7 +1338,7 @@ async function initApp(user){
   curUser=user;
   const [profRes, prodsRes, profilesRes] = await Promise.all([
     sb.from('profiles').select('*').eq('id',user.id).single(),
-    sb.from('products').select('*').eq('active',true),
+    sb.from('products').select('*').eq('is_active',true),
     sb.from('profiles').select('*').order('employee_code')
   ]);
   curProfile=profRes.data;
