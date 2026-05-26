@@ -1372,9 +1372,10 @@ function renderAlerts(){
   allProfiles.forEach(p=>{
     if(!p.birthday)return;
     const bd=new Date(p.birthday);
-    if(bd.getMonth()+1===curM){
-      const daysLeft=bd.getDate()-now.getDate();
-      alerts.push({cls:'warn-birthday',icon:'🎂',title:`Sinh nhật: ${p.full_name}`,sub:`Ngày ${bd.getDate()}/${curM} · ${daysLeft>0?`Còn ${daysLeft} ngày`:'Hôm nay!'}`});
+    const bdThisYear=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());
+    const daysLeft=Math.round((bdThisYear-now)/(1000*60*60*24));
+    if(daysLeft>=0&&daysLeft<=7){
+      alerts.push({cls:'warn-birthday',icon:'🎂',title:`Sinh nhật: ${p.full_name}`,sub:`Ngày ${bd.getDate()}/${bd.getMonth()+1} · ${daysLeft===0?'Hôm nay!':'Còn '+daysLeft+' ngày'}`});
     }
   });
 
