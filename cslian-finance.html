@@ -1132,21 +1132,21 @@ async function loadAll(){
   try{
     const fk=fromKey(),tk=toKey();
     const months=monthsInRange();
-    const orFilter=months.map(m=>`billing_month.eq.${m}`).join(',');
+    const orFilter=`billing_month=in.(${months.join(',')})`;
     const prev=prevRangeKeys();
     const prevMonths=[];
     let[py,pm]=[]; py=parseInt(prev.from.split('-')[0]);pm=parseInt(prev.from.split('-')[1]);
     while(mkKey(py,pm)<=prev.to){prevMonths.push(mkKey(py,pm));pm++;if(pm>12){pm=1;py++;}}
-    const prevOrFilter=prevMonths.map(m=>`billing_month.eq.${m}`).join(',');
+    const prevOrFilter=prevMonths.length?`billing_month=in.(${prevMonths.join(',')})`:'billing_month=eq.__none__';
 
     const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary]=await Promise.all([
-      sb('orders',`select=*&or=(${orFilter})&order=order_date.desc`),
+      sb('orders',`select=*&${orFilter}&order=order_date.desc`),
       sb('expenses',`select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
       sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active&order=vendor.asc,name.asc`),
-      prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&or=(${prevOrFilter})`).catch(()=>[]):[],
+      prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
     ]);
