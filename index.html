@@ -1339,7 +1339,7 @@ async function initApp(user){
   const [profRes, prodsRes, profilesRes] = await Promise.all([
     sb.from('profiles').select('*').eq('id',user.id).single(),
     sb.from('products').select('*').eq('active',true),
-    sb.from('profiles').select('*').order('ma_nv')
+    sb.from('profiles').select('*').order('employee_code')
   ]);
   curProfile=profRes.data;
   allProducts=prodsRes.data||[];
@@ -1351,9 +1351,9 @@ async function initApp(user){
 
   const c=avColor(Math.max(0,allProfiles.findIndex(p=>p.id===user.id)));
   const av=document.getElementById('tb-avatar');
-  av.textContent=initials(curProfile.ho_ten);
+  av.textContent=initials(curProfile.full_name);
   av.style.background=c.bg;av.style.color=c.color;
-  document.getElementById('tb-name').textContent=curProfile.biet_danh||curProfile.ho_ten;
+  document.getElementById('tb-name').textContent=curProfile.nickname||curProfile.full_name;
   document.getElementById('tb-role').textContent={manager:'🔑 Manager',leader:'⭐ Leader',sale:'💼 Sale'}[curProfile.role]||curProfile.role;
 
   if(curProfile.role==='manager'||curProfile.role==='leader'){
@@ -1405,7 +1405,7 @@ function initRealtime(){
 }
 
 async function refreshProfiles(){
-  var {data}=await sb.from('profiles').select('*').order('ma_nv');
+  var {data}=await sb.from('profiles').select('*').order('employee_code');
   if(!data)return;
   allProfiles=data;
   buildProfilesMap();
@@ -1417,7 +1417,7 @@ async function refreshProfiles(){
 async function loadAllProfiles(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){setTimeout(loadAllProfiles,500);return;}
-  const {data,error}=await sb.from('profiles').select('*').order('ma_nv');
+  const {data,error}=await sb.from('profiles').select('*').order('employee_code');
   if(error){if(curProfile)allProfiles=[curProfile];}
   else{allProfiles=data||[];}
   buildProfilesMap();
@@ -1513,13 +1513,13 @@ function renderMyLogToday(rec,p){
 }
 
 async function renderAllLog(){
-  const {data:logs}=await sb.from('check_log').select('*,profiles(ho_ten)').order('timestamp',{ascending:false}).limit(25);
+  const {data:logs}=await sb.from('check_log').select('*,profiles(full_name)').order('timestamp',{ascending:false}).limit(25);
   const el=document.getElementById('all-log-list');
   if(!logs||!logs.length){el.innerHTML=`<div class="empty">Chưa có lịch sử</div>`;return;}
   el.innerHTML=logs.map(l=>{
     const ts=new Date(l.timestamp);
     const t=`${pad2(ts.getHours())}:${pad2(ts.getMinutes())} ${pad2(ts.getDate())}/${pad2(ts.getMonth()+1)}`;
-    return `<div class="log-item"><span class="log-dot" style="background:${l.type==='in'?'var(--success)':'var(--danger)'}"></span><span class="log-badge ${l.type==='in'?'lb-in':'lb-out'}">${l.type==='in'?'CHECK IN':'CHECK OUT'}</span><span class="log-name">${l.profiles?.ho_ten||'—'}</span><span class="log-time">${t}</span></div>`;
+    return `<div class="log-item"><span class="log-dot" style="background:${l.type==='in'?'var(--success)':'var(--danger)'}"></span><span class="log-badge ${l.type==='in'?'lb-in':'lb-out'}">${l.type==='in'?'CHECK IN':'CHECK OUT'}</span><span class="log-name">${l.profiles?.full_name||'—'}</span><span class="log-time">${t}</span></div>`;
   }).join('');
 }
 
@@ -2315,7 +2315,7 @@ async function renderOrders(){
   document.getElementById('ord-month-label').textContent=`Tháng ${ordMonth+1}/${ordYear}`;
   const thang=monthStr(ordYear,ordMonth);
 
-  let query=sb.from('orders').select('*,profiles(ho_ten,ma_nv)').eq('thang',thang).order('created_at',{ascending:false});
+  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('thang',thang).order('created_at',{ascending:false});
   if(!isMgr)query=query.eq('user_id',curProfile.id);
   else if(empId)query=query.eq('user_id',empId);
 
@@ -2340,7 +2340,7 @@ async function renderOrders(){
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no}</td>
       <td style="font-weight:500;font-size:12px">${o.shop_name}</td>
-      <td style="font-size:12px;color:var(--text2)">${o.profiles?.ho_ten||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${o.profiles?.full_name||'—'}</td>
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total)}</td>
@@ -2838,7 +2838,7 @@ async function saveReview(){
 async function renderReviews(){
   const empId=document.getElementById('rev-emp-sel').value;
   const nam=parseInt(document.getElementById('rev-nam-sel').value)||new Date().getFullYear();
-  const {data:revs}=await sb.from('reviews').select('*,profiles(ho_ten)').eq('user_id',empId).eq('nam',nam).order('ky');
+  const {data:revs}=await sb.from('reviews').select('*,profiles(full_name)').eq('user_id',empId).eq('nam',nam).order('ky');
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
   const list=revs||[];
   if(list.length===0){
@@ -3882,7 +3882,7 @@ async function renderDashboard(){
 
   var [tgt, ordersRes, dailyAllRes, dailyTodayRes] = await Promise.all([
     getTarget(fromMonth),
-    sb.from('orders').select('*,profiles(ho_ten,ma_nv,biet_danh,role)').gte('order_date',fromDate).lte('order_date',toDate),
+    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role)').gte('order_date',fromDate).lte('order_date',toDate),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
     sb.from('daily_tracking').select('*').eq('ngay',today)
   ]);
@@ -4102,7 +4102,7 @@ async function loadChatMessages(){
   var el = document.getElementById('chat-messages');
   if(el) el.innerHTML = '<div class="loading"><div class="spinner"></div>Đang tải...</div>';
   var {data, error} = await sb.from('messages')
-    .select('*, profiles(ho_ten, biet_danh, role, ma_nv)')
+    .select('*, profiles(full_name, nickname, role, employee_code)')
     .eq('room', _chatRoom)
     .order('created_at', {ascending:false})
     .limit(80);
@@ -4134,7 +4134,7 @@ function renderChatMessages(scrollBottom){
 function buildMsgHTML(msg){
   var isMine = curProfile && msg.user_id === curProfile.id;
   var prof = msg.profiles || allProfilesMap[msg.user_id] || {};
-  var name = prof.biet_danh || prof.ho_ten || '?';
+  var name = prof.nickname || prof.full_name || '?';
   var roleColor = prof.role==='manager'?'var(--manager)':prof.role==='leader'?'var(--leader)':'var(--accent)';
   var ci = avColor(allProfiles.findIndex(function(p){ return p.id===msg.user_id; }));
   var timeStr = msg.created_at ? formatChatTime(msg.created_at) : '';
@@ -4148,7 +4148,7 @@ function buildMsgHTML(msg){
     var qName = '?', qText = '(Tin nhắn đã xóa)';
     if(qMsg){
       var qProf = qMsg.profiles || allProfilesMap[qMsg.user_id] || {};
-      qName = qProf.biet_danh || qProf.ho_ten || '?';
+      qName = qProf.nickname || qProf.full_name || '?';
       qText = (qMsg.image_url && !qMsg.content) ? '📷 Ảnh' : (qMsg.content||'').slice(0,80);
     }
     quoteHtml = '<div class="msg-reply-quote" onclick="scrollToMsg(\''+msg.reply_to_id+'\')">'
@@ -4171,11 +4171,11 @@ function buildMsgHTML(msg){
       +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
       +'<div class="chat-meta">'+timeStr+'</div>'
       +'</div>'
-      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.ho_ten||name)+'</div>'
+      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.full_name||name)+'</div>'
       +'</div>';
   } else {
     return '<div class="chat-msg other" id="msg-'+msg.id+'">'
-      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.ho_ten||name)+'</div>'
+      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.full_name||name)+'</div>'
       +'<div style="flex:1;min-width:0">'
       +'<div class="chat-sender" style="color:'+roleColor+'">'+escapeHtml(name)+'</div>'
       +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
@@ -4210,7 +4210,7 @@ function subscribeGlobalNotif(){
       sendBrowserNotif(msg);
       // Đổi title tab để thông báo
       var prof=allProfilesMap[msg.user_id]||{};
-      var name=prof.biet_danh||prof.ho_ten||'Ai đó';
+      var name=prof.nickname||prof.full_name||'Ai đó';
       flashTitle('💬 '+name+' nhắn tin');
     }).subscribe();
 }
@@ -4236,7 +4236,7 @@ function flashTitle(msg){
 
 function sendBrowserNotif(msg){
   var prof = allProfilesMap[msg.user_id]||{};
-  var senderName = prof.biet_danh||prof.ho_ten||'Ai đó';
+  var senderName = prof.nickname||prof.full_name||'Ai đó';
   var roomName = (ROOM_META[msg.room]||{}).name || msg.room;
   var body = msg.content || '📷 Đã gửi một ảnh';
   // In-app toast (mọi thiết bị, kể cả iOS PWA)
@@ -4356,7 +4356,7 @@ async function sendChatMessage(){
   // Insert + select ngay để lấy ID và timestamp thật
   var {data:newMsg, error} = await sb.from('messages')
     .insert({user_id:curProfile.id, content:savedContent||null, image_url:imageUrl||null, room:_chatRoom, reply_to_id:_chatReplyTo?_chatReplyTo.id:null})
-    .select('*, profiles(ho_ten,biet_danh,role,ma_nv)')
+    .select('*, profiles(full_name,nickname,role,employee_code)')
     .single();
 
   if(error){
@@ -4460,7 +4460,7 @@ function onChatTyping(){
   if(!_chatTypingChannel||!curProfile) return;
   if(_typingDebounce) clearTimeout(_typingDebounce);
   _typingDebounce=setTimeout(function(){
-    _chatTypingChannel.send({type:'broadcast',event:'typing',payload:{user_id:curProfile.id,name:curProfile.biet_danh||curProfile.ho_ten}});
+    _chatTypingChannel.send({type:'broadcast',event:'typing',payload:{user_id:curProfile.id,name:curProfile.nickname||curProfile.full_name}});
   },300);
 }
 
