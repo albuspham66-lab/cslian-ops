@@ -2958,7 +2958,7 @@ function renderEmpGrid(){
     const isInactive=p.status==='inactive';
     const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>'};
     const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
-    const isThuViec=(p.contract_type||'thu-viec')==='thu-viec';
+    const isThuViec=p.contract_type==='probation'||p.contract_type==='thu-viec';
     const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
     const ngayNghi=p.ngay_nghi_viec?'<span style="color:var(--danger);font-size:11px"> · Nghỉ: '+p.ngay_nghi_viec+'</span>':'';
     // Birthday
