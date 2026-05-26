@@ -938,7 +938,7 @@ textarea{resize:vertical;min-height:72px;}
 </div>
 
 <!-- NOTES PAGE -->
-<div class="page" id="pg-notes">
+<div class="page" id="pg-notes" style="max-width:100%;overflow-x:hidden;">
   <div class="ph">
     <div><div class="ph-title">📝 Ghi chú</div><div class="ph-sub">Checklist cá nhân Manager</div></div>
     <div class="ph-right">
@@ -2177,7 +2177,8 @@ async function renderNotes(){
   const el=document.getElementById('notes-list');
   if(!el)return;
   el.innerHTML='<div class="loader"><div class="spinner"></div>Đang tải...</div>';
-  const {data:notes=[],error}=await fetch(`${CFG.url}/rest/v1/notes?user_id=eq.${await getUserId()}&order=deadline.asc,created_at.desc`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}}).then(r=>r.json()).then(d=>({data:d})).catch(e=>({data:[],error:e}));
+  const notesRes=await fetch(`${CFG.url}/rest/v1/notes?order=deadline.asc,created_at.desc`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+  const notes=notesRes.ok?(await notesRes.json()):[];
   
   const today=new Date();today.setHours(0,0,0,0);
   const total=notes.length,done=notes.filter(n=>n.is_done).length;
@@ -2241,13 +2242,10 @@ function getDaysLeft(deadline){
   return Math.round((d-today)/(1000*60*60*24));
 }
 
-async function getUserId(){
-  // Lấy từ Supabase session
-  try{
-    const r=await fetch(`${CFG.url}/auth/v1/user`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
-    const u=await r.json();
-    return u.id||'anonymous';
-  }catch{return 'anonymous';}
+function getUserId(){
+  // Lấy từ localStorage session (Finance dùng anon key, không có auth session)
+  // Dùng fixed manager ID từ profiles
+  return '88d8e3fe-7368-4571-9a47-af8429d0f808'; // Calvin - Manager
 }
 
 let _editingNoteId=null;
@@ -2289,8 +2287,7 @@ async function saveNote(){
       await fetch(`${CFG.url}/rest/v1/notes?id=eq.${id}`,{method:'PATCH',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json'},body:JSON.stringify(data)});
       toast('Đã cập nhật ghi chú','green');
     } else {
-      const uid=await getUserId();
-      await fetch(`${CFG.url}/rest/v1/notes`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({...data,user_id:uid,is_done:false})});
+      await fetch(`${CFG.url}/rest/v1/notes`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({...data,user_id:getUserId(),is_done:false})});
       toast('Đã thêm ghi chú','green');
     }
     closeModal('m-note');
