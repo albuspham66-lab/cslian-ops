@@ -1983,6 +1983,7 @@ async function saveProduct(){
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
       toast('Đã cập nhật sản phẩm','green');
       syncProductToCRM({...data,id});
+      syncProductToCRM({...data,id});
     }else{
       const res=await sbInsert('products',data);
       if(res&&res[0])allProducts.push(res[0]);
