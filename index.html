@@ -1197,6 +1197,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </select>
       </div>
       <div class="form-f"><label>Ngày bắt đầu làm việc</label><input type="date" id="ep-start-date"/></div>
+      <div class="form-f"><label>Ngày sinh</label><input type="date" id="ep-birthday"/></div>
       <div class="form-f"><label>Loại hợp đồng</label>
         <select id="ep-contract">
           <option value="chinh-thuc">Chính thức</option>
@@ -1338,7 +1339,7 @@ async function initApp(user){
   curUser=user;
   const [profRes, prodsRes, profilesRes] = await Promise.all([
     sb.from('profiles').select('*').eq('id',user.id).single(),
-    sb.from('products').select('*').eq('is_active',true),
+    sb.from('products').select('*').eq('active',true),
     sb.from('profiles').select('*').order('employee_code')
   ]);
   curProfile=profRes.data;
@@ -2949,6 +2950,9 @@ async function openEditProfile(id){
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
   document.getElementById('ep-contract').value=p.contract_type||'chinh-thuc';
+  // Birthday từ localStorage (chưa có cột trong DB)
+  const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+  document.getElementById('ep-birthday').value=bdStore[p.id]||p.birthday||'';
   document.getElementById('ep-modal-title').textContent=p.full_name;
   document.getElementById('emp-profile-modal').classList.add('open');
 }
@@ -2962,8 +2966,15 @@ async function saveEmpProfile(){
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
   const contractType=document.getElementById('ep-contract').value;
+  const birthday=document.getElementById('ep-birthday').value||null;
   if(!hoTen){toast('Nhập họ tên','error');return;}
   if(!id){toast('Lỗi: không tìm thấy ID','error');return;}
+  // Lưu birthday vào localStorage
+  if(birthday){
+    const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+    bdStore[id]=birthday;
+    localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
+  }
   const {error}=await sb.from('profiles').update({
     full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,
     start_date:startDate||null,contract_type:contractType
