@@ -902,6 +902,18 @@ textarea{resize:vertical;min-height:72px;}
   </div>
 </div>
 
+<!-- NOTES PAGE -->
+<div class="page" id="pg-notes" style="overflow-x:hidden;">
+  <div class="ph">
+    <div><div class="ph-title">📝 Ghi chú</div><div class="ph-sub">Checklist cá nhân Manager</div></div>
+    <div class="ph-right">
+      <button class="btn btn-primary btn-sm" onclick="openNoteModal()">+ Thêm ghi chú</button>
+    </div>
+  </div>
+  <div class="mrow mrow-4" id="notes-stats" style="margin-bottom:20px"></div>
+  <div id="notes-list"><div class="loader"><div class="spinner"></div>Đang tải...</div></div>
+</div>
+
 </div><!-- /main -->
 </div><!-- /shell -->
 
@@ -935,18 +947,6 @@ textarea{resize:vertical;min-height:72px;}
       <button class="btn btn-primary" onclick="addExpense()">Thêm</button>
     </div>
   </div>
-</div>
-
-<!-- NOTES PAGE -->
-<div class="page" id="pg-notes" style="overflow-x:hidden;">
-  <div class="ph">
-    <div><div class="ph-title">📝 Ghi chú</div><div class="ph-sub">Checklist cá nhân Manager</div></div>
-    <div class="ph-right">
-      <button class="btn btn-primary btn-sm" onclick="openNoteModal()">+ Thêm ghi chú</button>
-    </div>
-  </div>
-  <div class="mrow mrow-4" id="notes-stats" style="margin-bottom:20px"></div>
-  <div id="notes-list"><div class="loader"><div class="spinner"></div>Đang tải...</div></div>
 </div>
 
 <!-- Modal: Cài đặt ngân sách -->
