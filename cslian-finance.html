@@ -962,8 +962,8 @@ textarea{resize:vertical;min-height:72px;}
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
     <div class="mfoot">
-      <button class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
-      <button class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
+      <button type="button" class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
+      <button type="button" class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
     </div>
   </div>
 </div>
@@ -1973,8 +1973,13 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
-  if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
+  const skuVal=document.getElementById('p-sku').value.trim();
+  const nameVal=document.getElementById('p-name').value.trim();
+  if(!skuVal){toast('Vui lòng nhập SKU','amber');document.getElementById('p-sku').focus();return;}
+  if(!nameVal){toast('Vui lòng nhập tên sản phẩm','amber');document.getElementById('p-name').focus();return;}
+  const commRaw=parseFloat(document.getElementById('p-commission').value);
+  const commRate=isNaN(commRaw)?0.03:commRaw/100;
+  const data={sku:skuVal,name:nameVal,vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:commRate,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
   try{
     if(isEdit){
       const old=allProducts.find(p=>p.id===id);
