@@ -2031,7 +2031,7 @@ function renderSettings(){
       <td style="font-size:12px;color:var(--text2);">${p.start_date||'—'}</td>
       <td style="font-size:12px;color:${p.birthday?'var(--pink)':'var(--text3)'};">${bd}</td>
       <td><span class="b b-gray" style="font-size:10px;">${p.contract_type||'—'}</span></td>
-      <td><button class="btn btn-ghost btn-xs" onclick="openStaffEdit('${p.id}')">✏️ Sửa</button></td>
+      <td><span style="font-size:11px;color:var(--text3);">—</span></td>
     </tr>`;
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Chưa có dữ liệu.</td></tr>';
 }
