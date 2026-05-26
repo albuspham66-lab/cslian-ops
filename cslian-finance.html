@@ -302,6 +302,28 @@ textarea{resize:vertical;min-height:72px;}
 .act-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px 7px;border-radius:4px;font-size:13px;transition:all .12s;}
 .act-btn:hover{background:var(--surface);color:var(--text);}
 .act-del:hover{background:var(--redbg);color:var(--red2);}
+
+/* ── NOTES ── */
+.note-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;margin-bottom:10px;display:flex;align-items:flex-start;gap:14px;transition:all .15s;position:relative;overflow:hidden;}
+.note-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+.note-item.overdue::before{background:var(--red2);}
+.note-item.urgent::before{background:#ff6b35;}
+.note-item.soon::before{background:var(--amber2);}
+.note-item.upcoming::before{background:#a8c7ff;}
+.note-item.done::before{background:var(--green2);}
+.note-item.done .note-title{text-decoration:line-through;color:var(--muted);}
+.note-cb{width:18px;height:18px;border-radius:4px;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.note-cb.checked{background:var(--green2);border-color:var(--green2);}
+.note-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.note-content-text{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.5;}
+.note-meta{display:flex;align-items:center;gap:10px;font-size:11px;flex-wrap:wrap;}
+.note-deadline{font-family:var(--mono);padding:2px 8px;border-radius:4px;font-weight:600;}
+.note-deadline.overdue{background:var(--redbg);color:var(--red2);}
+.note-deadline.urgent{background:rgba(255,107,53,0.15);color:#ff6b35;}
+.note-deadline.soon{background:var(--amberbg);color:var(--amber2);}
+.note-deadline.upcoming{background:var(--bluebg);color:var(--blue2);}
+.note-deadline.done{background:var(--greenbg);color:var(--green2);}
+.note-actions{margin-left:auto;display:flex;gap:4px;flex-shrink:0;}
 </style>
 </head>
 <body><!-- MOBILE TOP BAR -->
@@ -370,6 +392,10 @@ textarea{resize:vertical;min-height:72px;}
     <button class="s-item" data-pg="products">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Sản phẩm
+    </button>
+    <button class="s-item" data-pg="notes">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Ghi chú
     </button>
     <button class="s-item" data-pg="settings">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -549,7 +575,7 @@ textarea{resize:vertical;min-height:72px;}
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
           <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th>
-          <th>Aging</th><th>Tình trạng</th><th></th>
+          <th>Aging</th><th>Tình trạng</th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -909,6 +935,18 @@ textarea{resize:vertical;min-height:72px;}
       <button class="btn btn-primary" onclick="addExpense()">Thêm</button>
     </div>
   </div>
+</div>
+
+<!-- NOTES PAGE -->
+<div class="page" id="pg-notes">
+  <div class="ph">
+    <div><div class="ph-title">📝 Ghi chú</div><div class="ph-sub">Checklist cá nhân Manager</div></div>
+    <div class="ph-right">
+      <button class="btn btn-primary btn-sm" onclick="openNoteModal()">+ Thêm ghi chú</button>
+    </div>
+  </div>
+  <div class="mrow mrow-4" id="notes-stats" style="margin-bottom:20px"></div>
+  <div id="notes-list"><div class="loader"><div class="spinner"></div>Đang tải...</div></div>
 </div>
 
 <!-- Modal: Cài đặt ngân sách -->
@@ -1416,6 +1454,20 @@ function renderAlerts(){
     }
   });
 
+    // Notes sắp đến hạn
+  try{
+    const uid=await getUserId();
+    const r=await fetch(`${CFG.url}/rest/v1/notes?user_id=eq.${uid}&is_done=eq.false&deadline=not.is.null&select=title,deadline`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+    const notes=await r.json();
+    (notes||[]).forEach(n=>{
+      const days=getDaysLeft(n.deadline);
+      if(days!==null&&days<=3&&days>=0){
+        alerts.push({cls:'warn-debt',icon:'📝',title:`Ghi chú sắp đến hạn: ${n.title}`,sub:`Deadline: ${n.deadline} · ${days===0?'Hôm nay!':'Còn '+days+' ngày'}`});
+      } else if(days!==null&&days<0){
+        alerts.push({cls:'warn-debt',icon:'⚠️',title:`Ghi chú quá hạn: ${n.title}`,sub:`Deadline: ${n.deadline} · Quá ${Math.abs(days)} ngày`});
+      }
+    });
+  }catch(e){}
   if(!alerts.length){
     setHTML('dash-alerts','<div style="color:var(--text3);font-size:13px;padding:12px 0;text-align:center;">Không có cảnh báo nào. Mọi thứ đang ổn! ✅</div>');
     return;
@@ -1519,10 +1571,6 @@ function renderOrdersTable(orders){
       <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
       <td>${o.is_settled?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
       <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'Tất toán':'Pending'}</span></td>
-      <td><div style="display:flex;gap:4px;">
-        <button class="act-btn" onclick="openOrderEdit('${o.id}')" title="Sửa">✏️</button>
-        <button class="act-btn" onclick="deleteOrder('${o.id}','${o.invoice_no||''}')" title="Xóa" style="color:var(--red2)">🗑</button>
-      </div></td>
     </tr>`;
   }).join('');
 }
@@ -2123,6 +2171,147 @@ if('serviceWorker' in navigator){
 }
 
 // ─── INIT ───
+
+// ── NOTES / CHECKLIST ────────────────────────────────────────
+async function renderNotes(){
+  const el=document.getElementById('notes-list');
+  if(!el)return;
+  el.innerHTML='<div class="loader"><div class="spinner"></div>Đang tải...</div>';
+  const {data:notes=[],error}=await fetch(`${CFG.url}/rest/v1/notes?user_id=eq.${await getUserId()}&order=deadline.asc,created_at.desc`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}}).then(r=>r.json()).then(d=>({data:d})).catch(e=>({data:[],error:e}));
+  
+  const today=new Date();today.setHours(0,0,0,0);
+  const total=notes.length,done=notes.filter(n=>n.is_done).length;
+  const overdue=notes.filter(n=>!n.is_done&&n.deadline&&new Date(n.deadline)<today).length;
+  const upcoming=notes.filter(n=>!n.is_done&&n.deadline&&getDaysLeft(n.deadline)<=7&&getDaysLeft(n.deadline)>=0).length;
+
+  setHTML('notes-stats',`
+    <div class="mc blue"><div class="mc-lbl">Tổng ghi chú</div><div class="mc-val">${total}</div></div>
+    <div class="mc green"><div class="mc-lbl">Hoàn thành</div><div class="mc-val">${done}</div></div>
+    <div class="mc amber"><div class="mc-lbl">Sắp đến hạn</div><div class="mc-val">${upcoming}</div></div>
+    <div class="mc red"><div class="mc-lbl">Quá hạn</div><div class="mc-val">${overdue}</div></div>
+  `);
+
+  if(!notes.length){el.innerHTML='<div class="empty" style="padding:48px;text-align:center;color:var(--muted);">Chưa có ghi chú nào. Nhấn <b>+ Thêm ghi chú</b> để bắt đầu.</div>';return;}
+
+  // Nhóm: quá hạn + sắp hạn trước, done sau
+  const active=notes.filter(n=>!n.is_done).sort((a,b)=>{
+    const da=a.deadline?new Date(a.deadline):new Date('9999-12-31');
+    const db=b.deadline?new Date(b.deadline):new Date('9999-12-31');
+    return da-db;
+  });
+  const doneList=notes.filter(n=>n.is_done);
+  const sorted=[...active,...doneList];
+
+  el.innerHTML=sorted.map(n=>{
+    const days=n.deadline?getDaysLeft(n.deadline):null;
+    let statusCls='upcoming',deadlineLabel='';
+    if(n.is_done){statusCls='done';deadlineLabel='✅ Hoàn thành';}
+    else if(days===null){statusCls='upcoming';deadlineLabel='';}
+    else if(days<0){statusCls='overdue';deadlineLabel=`⚠️ Quá hạn ${Math.abs(days)} ngày`;}
+    else if(days===0){statusCls='urgent';deadlineLabel='🔴 Hôm nay!';}
+    else if(days<=3){statusCls='urgent';deadlineLabel=`🟠 Còn ${days} ngày`;}
+    else if(days<=7){statusCls='soon';deadlineLabel=`🟡 Còn ${days} ngày`;}
+    else{statusCls='upcoming';deadlineLabel=`📅 Còn ${days} ngày`;}
+
+    return `<div class="note-item ${statusCls}">
+      <div class="note-cb ${n.is_done?'checked':''}" onclick="toggleNote('${n.id}',${!n.is_done})">
+        ${n.is_done?'<svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" fill="none"/></svg>':''}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="note-title">${n.title||'—'}</div>
+        ${n.content?`<div class="note-content-text">${n.content}</div>`:''}
+        <div class="note-meta">
+          ${n.deadline?`<span class="note-deadline ${statusCls}">${deadlineLabel}</span>`:''}
+          ${n.deadline?`<span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${n.deadline}</span>`:''}
+          <span style="font-size:10px;color:var(--muted)">${new Date(n.created_at).toLocaleDateString('vi-VN')}</span>
+        </div>
+      </div>
+      <div class="note-actions">
+        <button class="act-btn" onclick="openNoteModal('${n.id}')">✏️</button>
+        <button class="act-btn" onclick="deleteNote('${n.id}')" style="color:var(--red2)">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getDaysLeft(deadline){
+  if(!deadline)return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=new Date(deadline);d.setHours(0,0,0,0);
+  return Math.round((d-today)/(1000*60*60*24));
+}
+
+async function getUserId(){
+  // Lấy từ Supabase session
+  try{
+    const r=await fetch(`${CFG.url}/auth/v1/user`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+    const u=await r.json();
+    return u.id||'anonymous';
+  }catch{return 'anonymous';}
+}
+
+let _editingNoteId=null;
+function openNoteModal(id){
+  _editingNoteId=id||null;
+  setTxt('m-note-title',id?'✏️ Sửa ghi chú':'📝 Thêm ghi chú');
+  document.getElementById('note-id').value=id||'';
+  if(id){
+    // Load existing note data
+    fetch(`${CFG.url}/rest/v1/notes?id=eq.${id}&select=*`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}})
+      .then(r=>r.json()).then(data=>{
+        const n=data[0];if(!n)return;
+        document.getElementById('note-title-input').value=n.title||'';
+        document.getElementById('note-content').value=n.content||'';
+        document.getElementById('note-deadline').value=n.deadline||'';
+        document.getElementById('note-priority').value=n.priority||'normal';
+      });
+  } else {
+    document.getElementById('note-title-input').value='';
+    document.getElementById('note-content').value='';
+    document.getElementById('note-deadline').value='';
+    document.getElementById('note-priority').value='normal';
+  }
+  openModal('m-note');
+}
+
+async function saveNote(){
+  const id=document.getElementById('note-id').value;
+  const title=document.getElementById('note-title-input').value.trim();
+  if(!title){toast('Nhập tiêu đề ghi chú','amber');return;}
+  const data={
+    title,
+    content:document.getElementById('note-content').value.trim()||null,
+    deadline:document.getElementById('note-deadline').value||null,
+    priority:document.getElementById('note-priority').value,
+  };
+  try{
+    if(id){
+      await fetch(`${CFG.url}/rest/v1/notes?id=eq.${id}`,{method:'PATCH',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json'},body:JSON.stringify(data)});
+      toast('Đã cập nhật ghi chú','green');
+    } else {
+      const uid=await getUserId();
+      await fetch(`${CFG.url}/rest/v1/notes`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({...data,user_id:uid,is_done:false})});
+      toast('Đã thêm ghi chú','green');
+    }
+    closeModal('m-note');
+    renderNotes();
+    // Check dashboard alerts
+    renderDashboard();
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
+async function toggleNote(id,isDone){
+  await fetch(`${CFG.url}/rest/v1/notes?id=eq.${id}`,{method:'PATCH',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json'},body:JSON.stringify({is_done:isDone})});
+  renderNotes();
+}
+
+async function deleteNote(id){
+  if(!confirm('Xóa ghi chú này?'))return;
+  await fetch(`${CFG.url}/rest/v1/notes?id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+  toast('Đã xóa','green');
+  renderNotes();
+}
+
 // ── SYNC PRODUCT TO CRM ──────────────────────────────────────
 async function syncProductToCRM(product){
   try{
@@ -2137,101 +2326,42 @@ async function syncProductToCRM(product){
     else console.log('[sync-product-to-crm] OK',d.sku);
   }catch(e){console.warn('[sync-product-to-crm] error',e.message);}
 }
-
-// ── ORDER EDIT / DELETE ───────────────────────────────────────
-function openOrderEdit(id){
-  const o=allOrders.find(x=>String(x.id)===String(id));
-  if(!o){toast('Không tìm thấy đơn hàng','red');return;}
-  document.getElementById('oe-id').value=o.id;
-  document.getElementById('oe-invoice-no').value=o.invoice_no||'';
-  document.getElementById('oe-shop-name').value=o.shop_name||'';
-  document.getElementById('oe-order-date').value=o.order_date||'';
-  document.getElementById('oe-billing-month').value=o.billing_month||'';
-  document.getElementById('oe-total-amount').value=o.total_amount||0;
-  document.getElementById('oe-balance-due').value=o.balance_due||0;
-  document.getElementById('oe-cogs').value=o.cogs||0;
-  document.getElementById('oe-gross-profit').value=o.gross_profit||0;
-  document.getElementById('oe-rev-bolsa').value=o.revenue_bolsa||0;
-  document.getElementById('oe-rev-ons').value=o.revenue_ons||0;
-  document.getElementById('oe-rev-tspa').value=o.revenue_tspa||0;
-  document.getElementById('oe-sale-rep-name').value=o.sale_rep_name||'';
-  document.getElementById('oe-is-settled').value=String(o.is_settled||false);
-  openModal('m-order-edit');
-}
-
-async function saveOrderEdit(){
-  const id=document.getElementById('oe-id').value;
-  const data={
-    invoice_no:    document.getElementById('oe-invoice-no').value.trim()||null,
-    shop_name:     document.getElementById('oe-shop-name').value.trim(),
-    order_date:    document.getElementById('oe-order-date').value||null,
-    billing_month: document.getElementById('oe-billing-month').value.trim(),
-    total_amount:  parseFloat(document.getElementById('oe-total-amount').value)||0,
-    balance_due:   parseFloat(document.getElementById('oe-balance-due').value)||0,
-    cogs:          parseFloat(document.getElementById('oe-cogs').value)||0,
-    gross_profit:  parseFloat(document.getElementById('oe-gross-profit').value)||0,
-    revenue_bolsa: parseFloat(document.getElementById('oe-rev-bolsa').value)||0,
-    revenue_ons:   parseFloat(document.getElementById('oe-rev-ons').value)||0,
-    revenue_tspa:  parseFloat(document.getElementById('oe-rev-tspa').value)||0,
-    sale_rep_name: document.getElementById('oe-sale-rep-name').value.trim()||null,
-    is_settled:    document.getElementById('oe-is-settled').value==='true',
-  };
-  try{
-    await sbPatch('orders',`id=eq.${id}`,data);
-    const idx=allOrders.findIndex(o=>String(o.id)===String(id));
-    if(idx>=0)allOrders[idx]={...allOrders[idx],...data};
-    closeModal('m-order-edit');
-    filterOrders();renderOrders();renderDashboard();
-    toast('Đã cập nhật đơn hàng','green');
-  }catch(e){toast('Lỗi: '+e.message,'red');}
-}
-
-async function deleteOrder(id,invoiceNo){
-  if(!confirm(`Xóa đơn hàng ${invoiceNo||id}? Hành động này không thể hoàn tác.`))return;
-  try{
-    await sbDelete('orders',id);
-    allOrders=allOrders.filter(o=>String(o.id)!==String(id));
-    filterOrders();renderOrders();renderDashboard();
-    toast('Đã xóa đơn hàng','green');
-  }catch(e){toast('Lỗi: '+e.message,'red');}
-}
-
 updateRangeLabels();
 loadAll();
 </script>
 <!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-<!-- Modal: Sửa đơn hàng -->
-<div class="mbg" id="m-order-edit">
-  <div class="modal modal-lg">
-    <div class="modal-title">✏️ Chỉnh sửa đơn hàng</div>
-    <input type="hidden" id="oe-id">
-    <div class="fgrid2" style="margin-bottom:12px;">
-      <div class="fg"><label class="fl">Invoice No</label><input id="oe-invoice-no"></div>
-      <div class="fg"><label class="fl">Shop Name</label><input id="oe-shop-name"></div>
-      <div class="fg"><label class="fl">Ngày đơn</label><input type="date" id="oe-order-date"></div>
-      <div class="fg"><label class="fl">Tháng HT</label><input id="oe-billing-month" placeholder="2026-05"></div>
-      <div class="fg"><label class="fl">Total ($)</label><input type="number" id="oe-total-amount"></div>
-      <div class="fg"><label class="fl">Balance Due ($)</label><input type="number" id="oe-balance-due"></div>
-      <div class="fg"><label class="fl">COGS ($)</label><input type="number" id="oe-cogs"></div>
-      <div class="fg"><label class="fl">Gross Profit ($)</label><input type="number" id="oe-gross-profit"></div>
-      <div class="fg"><label class="fl">Revenue BOLSA ($)</label><input type="number" id="oe-rev-bolsa"></div>
-      <div class="fg"><label class="fl">Revenue ONS ($)</label><input type="number" id="oe-rev-ons"></div>
-      <div class="fg"><label class="fl">Revenue TSPA ($)</label><input type="number" id="oe-rev-tspa"></div>
-      <div class="fg"><label class="fl">Sale Rep</label><input id="oe-sale-rep-name"></div>
+<!-- Modal: Thêm/Sửa ghi chú -->
+<div class="mbg" id="m-note">
+  <div class="modal">
+    <div class="modal-title" id="m-note-title">📝 Thêm ghi chú</div>
+    <input type="hidden" id="note-id">
+    <div class="fg" style="margin-bottom:12px;">
+      <label class="fl">Tiêu đề</label>
+      <input id="note-title-input" placeholder="Tên công việc...">
+    </div>
+    <div class="fg" style="margin-bottom:12px;">
+      <label class="fl">Nội dung</label>
+      <textarea id="note-content" placeholder="Chi tiết..." rows="3"></textarea>
     </div>
     <div class="fgrid2" style="margin-bottom:16px;">
-      <div class="fg"><label class="fl">Tình trạng</label>
-        <select id="oe-is-settled">
-          <option value="false">Pending</option>
-          <option value="true">Tất toán</option>
+      <div class="fg">
+        <label class="fl">Deadline</label>
+        <input type="date" id="note-deadline">
+      </div>
+      <div class="fg">
+        <label class="fl">Ưu tiên</label>
+        <select id="note-priority">
+          <option value="normal">Bình thường</option>
+          <option value="high">Cao</option>
+          <option value="urgent">Khẩn cấp</option>
         </select>
       </div>
     </div>
     <div class="mfoot">
-      <button class="btn btn-ghost" onclick="closeModal('m-order-edit')">Huỷ</button>
-      <button class="btn btn-primary" onclick="saveOrderEdit()">Lưu thay đổi</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-note')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveNote()">Lưu ghi chú</button>
     </div>
   </div>
 </div>
