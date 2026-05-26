@@ -1971,13 +1971,13 @@ async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
   const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
-  if(!data.sku||!data.ten_sp){toast('Vui lòng nhập SKU và tên','amber');return;}
+  if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
       const old=allProducts.find(p=>p.id===id);
       const note=document.getElementById('p-note').value.trim();
-      if(old&&(old.gia_ban!==data.gia_ban||old.vendor_cost!==data.vendor_cost||old.commission_rate!==data.commission_rate)){
-        await sbInsert('product_price_history',{product_id:id,sku:data.sku,ten_sp:data.name,gia_ban_cu:old.gia_ban,gia_ban_moi:data.gia_ban,vendor_cost_cu:old.vendor_cost,vendor_cost_moi:data.vendor_cost,commission_rate_cu:old.commission_rate,commission_rate_moi:data.commission_rate,changed_by:'Manager',ghi_chu:note||null});
+      if(old&&(old.sale_price!==data.sale_price||old.vendor_cost!==data.vendor_cost||old.commission_rate!==data.commission_rate)){
+        await sbInsert('product_price_history',{product_id:id,sku:data.sku,ten_sp:data.name,gia_ban_cu:old.sale_price,gia_ban_moi:data.sale_price,vendor_cost_cu:old.vendor_cost,vendor_cost_moi:data.vendor_cost,commission_rate_cu:old.commission_rate,commission_rate_moi:data.commission_rate,changed_by:'Manager',ghi_chu:note||null});
       }
       await sbPatch('products',`id=eq.${id}`,data);
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
