@@ -1465,8 +1465,9 @@ async function renderCheckinPage(){
     const bdVal=p.birthday||(bdStore[p.id]||null);
     if(!bdVal)return;
     const bd=new Date(bdVal);
+    const today=new Date(ciNow.getFullYear(),ciNow.getMonth(),ciNow.getDate());
     const bdThisYear=new Date(ciNow.getFullYear(),bd.getMonth(),bd.getDate());
-    const daysLeft=Math.round((bdThisYear-ciNow)/(1000*60*60*24));
+    const daysLeft=Math.round((bdThisYear-today)/(1000*60*60*24));
     if(daysLeft===0)bdAlerts.push(`🎂 Hôm nay là sinh nhật <b>${p.full_name}</b>!`);
     else if(daysLeft>0&&daysLeft<=7)bdAlerts.push(`🎂 Sinh nhật <b>${p.full_name}</b> · Còn ${daysLeft} ngày (${bd.getDate()}/${bd.getMonth()+1})`);
   });
@@ -2965,8 +2966,9 @@ function renderEmpGrid(){
     const bdVal=p.birthday||(bdStore[p.id]||null);
     const bdDate=bdVal?new Date(bdVal):null;
     const bdNow=new Date();
+    const bdToday=new Date(bdNow.getFullYear(),bdNow.getMonth(),bdNow.getDate());
     const bdThisYear=bdDate?new Date(bdNow.getFullYear(),bdDate.getMonth(),bdDate.getDate()):null;
-    const bdDaysLeft=bdThisYear?Math.round((bdThisYear-bdNow)/(1000*60*60*24)):null;
+    const bdDaysLeft=bdThisYear?Math.round((bdThisYear-bdToday)/(1000*60*60*24)):null;
     const bdLabel=bdDate?`🎂 ${bdDate.getDate()}/${bdDate.getMonth()+1}/${bdDate.getFullYear()}${bdDaysLeft===0?' · <span style="color:var(--warn)">Hôm nay!</span>':bdDaysLeft>0&&bdDaysLeft<=7?` · <span style="color:var(--accent)">Còn ${bdDaysLeft} ngày</span>`:''}`:'';
 
     var actions=`<button class="btn-sm" onclick="openEditProfile('${p.id}')" style="font-size:11px;padding:4px 9px">✏️ Sửa</button>`;
@@ -3100,6 +3102,7 @@ function switchTab(name,el){
   if(name==='checkin'){renderCheckinPage();renderAllLog();}
   else if(name==='attendance'){
     document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';
+    _attCache={};
     renderAttTable();
     renderCheckinPage();
     renderAllLog();
