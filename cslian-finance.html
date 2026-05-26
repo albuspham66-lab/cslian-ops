@@ -1,10 +1,7 @@
-<!DOCTYPE html><!-- v5.1 -->
+<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>C-Slian · Finance v5</title>
 <meta name="theme-color" content="#060810">
@@ -962,8 +959,8 @@ textarea{resize:vertical;min-height:72px;}
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
     <div class="mfoot">
-      <button type="button" class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
-      <button type="button" class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
+      <button class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
     </div>
   </div>
 </div>
@@ -1963,7 +1960,7 @@ function editProduct(id){
   document.getElementById('p-id').value=p.id;document.getElementById('p-sku').value=p.sku||'';
   document.getElementById('p-name').value=p.name||'';document.getElementById('p-vendor').value=p.vendor||'BOLSA';
   document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
-  const editComm=p.commission_rate!=null?p.commission_rate*100:3;document.getElementById('p-commission').value=editComm.toFixed(1);
+  document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-note-wrap').style.display='block';
@@ -1973,14 +1970,8 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const skuVal=(document.getElementById('p-sku').value||'').trim();
-  const nameVal=(document.getElementById('p-name').value||'').trim();
-  console.log('[saveProduct] SKU='+JSON.stringify(skuVal)+' Name='+JSON.stringify(nameVal)+' isEdit='+isEdit);
-  if(!skuVal){toast('Vui lòng nhập SKU','amber');document.getElementById('p-sku').focus();return;}
-  if(!nameVal){toast('Vui lòng nhập tên sản phẩm','amber');document.getElementById('p-name').focus();return;}
-  const commRaw=parseFloat(document.getElementById('p-commission').value);
-  const commRate=isNaN(commRaw)?0.03:commRaw/100;
-  const data={sku:skuVal,name:nameVal,vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:commRate,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
+  if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
       const old=allProducts.find(p=>p.id===id);
@@ -1991,6 +1982,7 @@ async function saveProduct(){
       await sbPatch('products',`id=eq.${id}`,data);
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
       toast('Đã cập nhật sản phẩm','green');
+      syncProductToCRM({...data,id});
     }else{
       const res=await sbInsert('products',data);
       if(res&&res[0])allProducts.push(res[0]);
