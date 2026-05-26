@@ -1526,9 +1526,10 @@ async function renderAllLog(){
 async function doCheckIn(){
   const now=new Date(),ds=getCaDate(now);
   const t=`${pad2(now.getHours())}:${pad2(now.getMinutes())}:00`;
-  const {error}=await sb.from('attendance').upsert({user_id:curProfile.id,date:ds,checkin_time:t,status:'WD'},{onConflict:'user_id,date'});
+  const tsz=now.toISOString();
+  const {error}=await sb.from('attendance').upsert({user_id:curProfile.id,date:ds,checkin_time:tsz,status:'WD'},{onConflict:'user_id,date'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  await sb.from('check_log').insert({user_id:curProfile.id,type:'in'});
+  await sb.from('check_log').insert({user_id:curProfile.id,type:'in',timestamp:tsz});
   toast('Check in thành công lúc '+t.slice(0,5)+' — Ca ngày '+ds.slice(8)+'/'+ds.slice(5,7));
   renderCheckinPage();renderAllLog();
 }
@@ -1536,9 +1537,10 @@ async function doCheckIn(){
 async function doCheckOut(){
   const now=new Date(),ds=getCaDate(now);
   const t=`${pad2(now.getHours())}:${pad2(now.getMinutes())}:00`;
-  const {error}=await sb.from('attendance').update({checkout_time:t}).eq('user_id',curProfile.id).eq('date',ds);
+  const tsz=now.toISOString();
+  const {error}=await sb.from('attendance').update({checkout_time:tsz}).eq('user_id',curProfile.id).eq('date',ds);
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  await sb.from('check_log').insert({user_id:curProfile.id,type:'out'});
+  await sb.from('check_log').insert({user_id:curProfile.id,type:'out',timestamp:tsz});
   toast('Check out thành công lúc '+t.slice(0,5)+' — Ca ngày '+ds.slice(8)+'/'+ds.slice(5,7));
   renderCheckinPage();renderAllLog();
 }
