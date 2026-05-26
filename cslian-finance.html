@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>C-Slian · Finance v4</title>
+<title>C-Slian · Finance v5</title>
 <meta name="theme-color" content="#060810">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="C-Slian Finance">
+<meta name="apple-mobile-web-app-title" content="C-Slian Finance v5">
 <link rel="manifest" href="manifest-finance.json">
 <link rel="apple-touch-icon" href="icon-finance-192.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
@@ -186,7 +186,6 @@ textarea{resize:vertical;min-height:72px;}
 
 /* ── MODAL ── */
 .mbg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
 .mbg.show{display:flex;}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rxl);padding:26px 28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .modal-lg{width:680px;}
@@ -278,8 +277,7 @@ textarea{resize:vertical;min-height:72px;}
   .shell{display:flex;flex-direction:column;height:100vh;}
   .main{flex:1;overflow-y:auto;height:0;}
   #mobile-topbar{display:flex!important;}
-  #mobile-nav-wrap{display:block!important;}
-  #mobile-nav{display:block!important;}
+  #mobile-nav{display:flex!important;}
   .page{padding:16px;padding-bottom:84px;}
   .mrow-4{grid-template-columns:1fr 1fr;}
   .mrow-3{grid-template-columns:1fr 1fr;}
@@ -292,16 +290,10 @@ textarea{resize:vertical;min-height:72px;}
   .g-header-right{display:none;}
 }
 #mobile-topbar{display:none;position:sticky;top:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 16px;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;}
-#mobile-nav-wrap{display:none;}
-/* Mobile nav fade indicator - gợi ý có thể scroll */
-#mobile-nav-wrap{position:fixed;bottom:0;left:0;right:0;z-index:200;}
-#mobile-nav-wrap::after{content:'';position:absolute;right:0;top:0;bottom:0;width:28px;background:linear-gradient(to right,transparent,var(--bg2));pointer-events:none;}
-#mobile-nav{display:none;position:relative;bottom:auto;left:auto;right:auto;z-index:auto;background:var(--bg2);border-top:1px solid var(--border2);padding:4px 0 max(8px,env(safe-area-inset-bottom));overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;}
-#mobile-nav::-webkit-scrollbar{display:none;}
-.mn-item{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:62px;padding:5px 8px;border:none;background:none;cursor:pointer;color:var(--text3);font-family:var(--font-body);font-size:9px;font-weight:500;transition:color .15s;vertical-align:top;}
+#mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border2);padding:4px 8px max(8px,env(safe-area-inset-bottom));justify-content:space-between;align-items:center;}
+.mn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;padding:6px 2px;border:none;background:none;cursor:pointer;color:var(--text3);font-family:var(--font-body);font-size:9px;font-weight:500;transition:color .15s;}
 .mn-item svg{width:20px;height:20px;flex-shrink:0;}
 .mn-item.on{color:var(--blue2);}
-.mn-item.on svg{filter:drop-shadow(0 0 3px var(--blue2));}
 
 /* ── MISC ── */
 .chart-box{position:relative;width:100%;height:220px;}
@@ -310,38 +302,9 @@ textarea{resize:vertical;min-height:72px;}
 .act-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px 7px;border-radius:4px;font-size:13px;transition:all .12s;}
 .act-btn:hover{background:var(--surface);color:var(--text);}
 .act-del:hover{background:var(--redbg);color:var(--red2);}
-/* Manager Invoice Preview - force light theme */
-#minv-preview{background:#fff !important;color:#222 !important;}
-#minv-preview table th{color:#fff !important;}
-#minv-preview table td{color:#222 !important;background:#fff !important;}
-#minv-preview a{color:#c0392b;}
 </style>
 </head>
-<body>
-<!-- ═══ LOGIN SCREEN ═══ -->
-<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:0;">
-  <div style="width:340px;padding:40px 36px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rlg);box-shadow:0 32px 80px rgba(0,0,0,0.5);">
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;">C-<span style="color:var(--blue2);">Slian</span></div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:1px;">FINANCE · INTERNAL</div>
-    </div>
-    <div style="margin-bottom:16px;">
-      <label style="font-size:11px;color:var(--text2);letter-spacing:0.5px;display:block;margin-bottom:6px;">TÀI KHOẢN</label>
-      <select id="login-user" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:14px;outline:none;">
-        <option value="">-- Chọn tài khoản --</option>
-        <option value="calvin">Calvin (Manager)</option>
-        <option value="baonam">Bảo Nam (Leader)</option>
-      </select>
-    </div>
-    <div style="margin-bottom:24px;">
-      <label style="font-size:11px;color:var(--text2);letter-spacing:0.5px;display:block;margin-bottom:6px;">PIN</label>
-      <input id="login-pin" type="password" maxlength="8" placeholder="••••••" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:18px;letter-spacing:6px;outline:none;box-sizing:border-box;">
-    </div>
-    <button onclick="doLogin()" style="width:100%;padding:12px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-body);">Đăng nhập</button>
-    <div id="login-err" style="margin-top:12px;text-align:center;font-size:12px;color:var(--red2);display:none;">PIN không đúng. Vui lòng thử lại.</div>
-  </div>
-</div>
-<!-- MOBILE TOP BAR -->
+<body><!-- MOBILE TOP BAR -->
 <div id="mobile-topbar">
   <div style="font-family:var(--font-display);font-size:17px;font-weight:800;color:var(--text);">C-<span style="color:var(--blue2);">Slian</span></div>
   <div style="display:flex;align-items:center;gap:6px;">
@@ -353,7 +316,6 @@ textarea{resize:vertical;min-height:72px;}
 </div>
 
 <!-- BOTTOM NAV -->
-<div id="mobile-nav-wrap">
 <nav id="mobile-nav">
   <button class="mn-item on" onclick="mobileGoto('dashboard',this)">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -375,16 +337,7 @@ textarea{resize:vertical;min-height:72px;}
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
     <span>Sản phẩm</span>
   </button>
-  <button class="mn-item" onclick="mobileGoto('minv',this)">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    <span>Mgr Inv.</span>
-  </button>
-  <button class="mn-item" onclick="mobileGoto('settings',this)">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    <span>Cài đặt</span>
-  </button>
 </nav>
-</div>
 
 <div class="shell">
 <!-- ═══ SIDEBAR ═══ -->
@@ -417,10 +370,6 @@ textarea{resize:vertical;min-height:72px;}
     <button class="s-item" data-pg="products">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Sản phẩm
-    </button>
-    <button class="s-item" data-pg="minv">
-      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Manager Inv.
     </button>
     <button class="s-item" data-pg="settings">
       <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -600,7 +549,7 @@ textarea{resize:vertical;min-height:72px;}
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
           <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th>
-          <th>Aging</th><th>Tình trạng</th><th></th>
+          <th>Aging</th><th>Tình trạng</th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -811,8 +760,7 @@ textarea{resize:vertical;min-height:72px;}
       <div class="ph-title">Quản lý Sản phẩm</div>
       <div class="ph-sub">Danh mục sản phẩm theo Vendor · Lịch sử giá</div>
     </div>
-    <div class="ph-right" style="display:flex;gap:8px;align-items:center;">
-      <button class="btn btn-sm" onclick="syncAllProductsToCRM()" style="border-color:rgba(59,126,244,0.4);color:var(--blue2);font-size:12px;" title="Sync toàn bộ sản phẩm sang CRM">⟳ Sync All → CRM</button>
+    <div class="ph-right">
       <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
     </div>
   </div>
@@ -866,189 +814,6 @@ textarea{resize:vertical;min-height:72px;}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:12px;color:var(--text2);" id="prod-count">—</div>
       <div style="display:flex;gap:6px;" id="prod-pagination"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ TAB 7: MANAGER INVOICE ══ -->
-<div class="page" id="pg-minv">
-  <div class="page-header" style="margin-bottom:16px;">
-    <div>
-      <div class="page-title">Manager Invoice</div>
-      <div class="page-sub" id="minv-sub">Quản lý đơn hàng nội bộ</div>
-    </div>
-    <button class="btn btn-primary btn-sm" onclick="openMinvCreate()">+ Tạo Invoice</button>
-  </div>
-
-  <!-- Filters -->
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
-    <select id="minv-f-status" onchange="renderMinvList()" style="padding:7px 10px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);">
-      <option value="">Tất cả Status</option>
-      <option value="Pending">Pending</option>
-      <option value="Closedeal">Closedeal</option>
-      <option value="Cancel">Cancel</option>
-    </select>
-    <select id="minv-f-rep" onchange="renderMinvList()" style="padding:7px 10px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);">
-      <option value="">Tất cả Sale Rep</option>
-      <option value="Calvin">Calvin</option>
-      <option value="Bảo Nam">Bảo Nam</option>
-    </select>
-    <input id="minv-f-search" placeholder="Tìm PO, khách hàng..." oninput="renderMinvList()" style="padding:7px 11px;font-size:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);width:200px;">
-  </div>
-
-  <!-- Summary cards -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="minv-summary"></div>
-
-  <!-- Invoice list -->
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
-      <thead>
-        <tr style="background:var(--bg3);">
-          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">PO Number</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Ngày</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Khách hàng</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--text2);font-weight:500;">Sale Rep</th>
-          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Total</th>
-          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Cost</th>
-          <th style="padding:10px 12px;text-align:right;color:var(--text2);font-weight:500;">Profit</th>
-          <th style="padding:10px 12px;text-align:center;color:var(--text2);font-weight:500;">Status</th>
-          <th style="padding:10px 12px;text-align:center;color:var(--text2);font-weight:500;">Tác vụ</th>
-        </tr>
-      </thead>
-      <tbody id="minv-tbody"></tbody>
-    </table>
-    <div id="minv-empty" style="text-align:center;padding:32px;color:var(--text3);display:none;">Chưa có invoice nào</div>
-  </div>
-</div>
-
-<!-- Modal: Tạo/Edit Manager Invoice -->
-<div class="modal-bg" id="m-minv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto;">
-  <div style="display:flex;min-height:100%;align-items:flex-start;justify-content:center;padding:20px;">
-    <div style="width:100%;max-width:1100px;display:flex;gap:16px;align-items:flex-start;">
-
-      <!-- LEFT FORM -->
-      <div style="width:340px;flex-shrink:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:20px;position:sticky;top:20px;">
-        <div style="font-size:14px;font-weight:700;color:var(--blue2);margin-bottom:16px;" id="minv-form-title">Tạo Invoice mới</div>
-
-        <!-- Company selector -->
-        <div id="minv-company-wrap"></div>
-
-        <!-- Sale Rep -->
-        <div style="margin-bottom:12px;">
-          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;">SALE REP</label>
-          <select id="minv-rep" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
-            <option value="Calvin">Calvin</option>
-            <option value="Bảo Nam">Bảo Nam</option>
-          </select>
-        </div>
-
-        <!-- Date -->
-        <div style="margin-bottom:12px;">
-          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;">NGÀY</label>
-          <input type="date" id="minv-date" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;box-sizing:border-box;">
-        </div>
-
-        <!-- Customer section - nhập tay trực tiếp -->
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
-          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;">KHÁCH HÀNG</label>
-          <input id="minv-cust-ten" placeholder="Tên khách hàng *" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
-          <input id="minv-cust-phone" placeholder="Số điện thoại" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
-          <input id="minv-cust-addr" placeholder="Địa chỉ / State" oninput="renderMinvPreview()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
-        </div>
-
-        <!-- Products -->
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
-          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;">SẢN PHẨM</label>
-          <div style="position:relative;">
-            <input id="minv-prod-search" placeholder="Tìm SKU, tên sản phẩm..." oninput="searchMinvProduct()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
-            <div id="minv-prod-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rsm);z-index:10;max-height:200px;overflow-y:auto;"></div>
-          </div>
-          <div id="minv-items-list" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-
-        <!-- Totals -->
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
-            <span style="color:var(--text2);">Subtotal</span>
-            <span id="minv-subtotal" style="color:var(--text);">$0.00</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
-            <span style="color:var(--text2);">Total Cost</span>
-            <span id="minv-totalcost" style="color:var(--text2);">$0.00</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px;">
-            <span style="color:var(--text);">Gross Profit</span>
-            <span id="minv-profit" style="color:var(--green2);">$0.00</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:12px;">
-            <span style="color:var(--text2);">Margin</span>
-            <span id="minv-margin" style="color:var(--text2);">0%</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-            <div>
-              <label style="font-size:10px;color:var(--text3);">Tax ($)</label>
-              <input type="number" id="minv-tax" value="0" min="0" oninput="calcMinvTotals()" style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
-            </div>
-            <div>
-              <label style="font-size:10px;color:var(--text3);">Deposit ($)</label>
-              <input type="number" id="minv-deposit" value="0" min="0" oninput="calcMinvTotals()" style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:10px;color:var(--text3);">Ghi chú</label>
-            <input id="minv-note" placeholder="Ghi chú..." style="width:100%;padding:6px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:12px;box-sizing:border-box;margin-top:4px;">
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div style="display:flex;gap:8px;margin-top:16px;">
-          <button onclick="closeMinvModal()" style="flex:1;padding:9px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text2);font-size:12px;cursor:pointer;">Huỷ</button>
-          <button onclick="saveMinv()" style="flex:2;padding:9px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:12px;font-weight:600;cursor:pointer;" id="minv-save-btn">💾 Lưu Invoice</button>
-        </div>
-      </div>
-
-      <!-- RIGHT PREVIEW -->
-      <div style="flex:1;min-width:0;">
-        <div id="minv-preview-wrap" style="background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
-          <div id="minv-preview" style="padding:36px;font-family:Arial,sans-serif;color:#333;min-height:600px;">
-            <div style="text-align:center;color:#ccc;padding:60px 0;font-size:14px;">Chưa có dữ liệu</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
-          <button onclick="renderMinvPreview()" style="padding:9px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text2);font-size:12px;cursor:pointer;">👁 Preview</button>
-          <button onclick="printMinv()" style="padding:9px 16px;background:var(--blue);border:none;border-radius:var(--rsm);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">🖨 In PDF</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ MODAL: EDIT ORDER ══ -->
-<div class="mbg" id="m-edit-order">
-  <div class="modal" style="max-width:480px;width:100%;">
-    <div class="modal-title">✏️ Chỉnh sửa — <span id="eo-title"></span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
-      <div class="field"><label>Ngày lên đơn</label><input type="date" id="eo-date"></div>
-      <div class="field"><label>Tháng HT</label><input id="eo-thang" placeholder="2026-05"></div>
-      <div class="field" style="grid-column:span 2;"><label>Shop / Tên tiệm</label><input id="eo-ten-tiem" placeholder="Tên tiệm..."></div>
-      <div class="field" style="grid-column:span 2;"><label>Agent</label>
-        <select id="eo-agent" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
-          <option value="">— Không có —</option>
-        </select>
-      </div>
-      <div class="field"><label>Total ($)</label><input type="number" id="eo-total" min="0"></div>
-      <div class="field"><label>Shipping ($)</label><input type="number" id="eo-shipping" min="0"></div>
-      <div class="field"><label>Balance ($)</label><input type="number" id="eo-balance"></div>
-      <div class="field"><label>Tình trạng</label>
-        <select id="eo-status" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
-          <option value="false">Pending</option>
-          <option value="true">Tất toán</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('m-edit-order')">Huỷ</button>
-      <button class="btn btn-primary" onclick="saveEditOrder()">💾 Lưu</button>
     </div>
   </div>
 </div>
@@ -1233,7 +998,7 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div class="fg"><label class="fl">Lever (bậc)</label><input type="number" id="se-lever" min="1" max="5" value="1"></div>
       <div class="fg"><label class="fl">Loại hợp đồng</label>
-        <select id="se-contract"><option value="thu-viec">Thử việc</option><option value="chinh-thuc">Chính thức</option></select>
+        <select id="se-contract"><option value="probation">Thử việc</option><option value="official">Chính thức</option><option value="part-time">Part-time</option></select>
       </div>
       <div class="fg"><label class="fl">Mã nhân viên</label><input type="text" id="se-code"></div>
     </div>
@@ -1249,7 +1014,7 @@ textarea{resize:vertical;min-height:72px;}
 <script>
 // ─── CONFIG ───
 const SUPA_URL = 'https://jggfmpihfisbusnbzyoi.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M'; // v5 - schema mới
 
 let CFG = { url:SUPA_URL, key:SUPA_KEY, rate:25000, target:23500, extraPct:30, p1base:5310000 };
 try { const s=JSON.parse(localStorage.getItem('cslian_cfg_v4')||'{}'); CFG={...CFG,...s}; } catch(e){}
@@ -1367,51 +1132,29 @@ async function loadAll(){
   try{
     const fk=fromKey(),tk=toKey();
     const months=monthsInRange();
-    const orFilter=months.map(m=>`thang.eq.${m},thang_bonus.eq.${m}`).join(',');
+    const orFilter=months.map(m=>`billing_month.eq.${m}`).join(',');
     const prev=prevRangeKeys();
     const prevMonths=[];
     let[py,pm]=[]; py=parseInt(prev.from.split('-')[0]);pm=parseInt(prev.from.split('-')[1]);
     while(mkKey(py,pm)<=prev.to){prevMonths.push(mkKey(py,pm));pm++;if(pm>12){pm=1;py++;}}
-    const prevOrFilter=prevMonths.map(m=>`thang.eq.${m},thang_bonus.eq.${m}`).join(',');
+    const prevOrFilter=prevMonths.map(m=>`billing_month.eq.${m}`).join(',');
 
-    const[orders,expenses,profiles,salary,kpi,products,orderItems,pOrders,pExpenses,pSalary]=await Promise.all([
+    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary]=await Promise.all([
       sb('orders',`select=*&or=(${orFilter})&order=order_date.desc`),
       sb('expenses',`select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
-      sb('profiles',`select=*&order=ho_ten.asc`),
+      sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products',`select=id,sku,ten_sp,vendor,la_bolsa,gia_ban,gia_tot_nhat,vendor_cost,commission_rate,mau_variant,active&order=vendor.asc,ten_sp.asc`),
-      sb('order_items',`select=order_id,product_id,vendor,amount,so_luong,gia_ban_thuc`).catch(()=>[]),
-      prevOrFilter?sb('orders',`select=total,da_tat_toan,thang,thang_bonus&or=(${prevOrFilter})`).catch(()=>[]):[],
+      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active&order=vendor.asc,name.asc`),
+      prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&or=(${prevOrFilter})`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
     ]);
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
-    // Gắn order_items vào từng order để tính commission và vendor revenue
-    const itemsByOrder={};
-    (orderItems||[]).forEach(function(it){
-      if(!itemsByOrder[it.order_id])itemsByOrder[it.order_id]=[];
-      itemsByOrder[it.order_id].push(it);
-    });
-    allOrders.forEach(function(o){
-      o._items=itemsByOrder[o.id]||[];
-      if(!(o.doanh_thu_bolsa||o.doanh_thu_ons||o.doanh_thu_tspa)&&o._items.length>0){
-        let bolsa=0,ons=0,tspa=0;
-        o._items.forEach(function(it){
-          const prod=allProducts.find(function(p){return p.id===it.product_id;});
-          const vendor=it.vendor||(prod?prod.vendor:'');
-          const amt=(it.gia_ban_thuc||0)*(it.so_luong||1);
-          if(vendor==='BOLSA')bolsa+=amt;
-          else if(vendor==='ONS')ons+=amt;
-          else if(vendor==='TSPA')tspa+=amt;
-        });
-        if(bolsa+ons+tspa>0){o.doanh_thu_bolsa=bolsa;o.doanh_thu_ons=ons;o.doanh_thu_tspa=tspa;}
-      }
-    });
-    // birthday giờ có trong Supabase profiles — fallback localStorage nếu cột chưa có
+    // Merge birthday từ localStorage (vì Supabase profiles chưa có cột birthday)
     const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
-    allProfiles.forEach(p=>{if(!p.birthday&&bdStore[p.id])p.birthday=bdStore[p.id];});
+    allProfiles.forEach(p=>{if(bdStore[p.id])p.birthday=bdStore[p.id];});
     prevOrders=pOrders||[]; prevExpenses=pExpenses||[]; prevSalary=pSalary||[];
     filteredOrders=allOrders; filteredExpenses=allExpenses;
     setConn('ok','Supabase · Đã kết nối');
@@ -1440,49 +1183,38 @@ function agingLabel(days){
 }
 
 // ─── CALCS ───
-function ordByDate(){return allOrders.filter(o=>o.thang>=fromKey()&&o.thang<=toKey());}
-function ordByMonth(){return allOrders.filter(o=>{const k=o.thang_bonus||o.thang;return k>=fromKey()&&k<=toKey();});}
-function doneOrders(){return ordByMonth().filter(o=>o.da_tat_toan);}
-function pendingOrders(){return allOrders.filter(o=>!o.da_tat_toan&&(o.balance||0)<0);}
+function ordByDate(){return allOrders.filter(o=>(o.billing_month||o.order_date?.slice(0,7)||'')>=fromKey()&&(o.billing_month||o.order_date?.slice(0,7)||'')<=toKey());}
+function ordByMonth(){return allOrders.filter(o=>{const k=o.billing_month;return k>=fromKey()&&k<=toKey();});}
+function doneOrders(){return ordByMonth().filter(o=>o.is_settled);}
+function pendingOrders(){return allOrders.filter(o=>!o.is_settled&&(o.balance_due||0)>0);}
 
-function calcRevDate(){return ordByDate().reduce((s,o)=>s+(o.total||0),0);}
-function calcRevMonth(){return doneOrders().reduce((s,o)=>s+(o.total||0),0);}
+function calcRevDate(){return ordByDate().reduce((s,o)=>s+(o.total_amount||0),0);}
+function calcRevMonth(){return doneOrders().reduce((s,o)=>s+(o.total_amount||0),0);}
 function calcAOV(){const d=doneOrders();return d.length?calcRevMonth()/d.length:0;}
 function calcExpTotal(){return allExpenses.reduce((s,e)=>s+(e.so_tien||0),0);}
 function calcSalTotal(){return allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0);}
 
 function calcVendorRevenue(){
   const orders=doneOrders();
-  // Thử dùng doanh_thu_bolsa/ons/tspa nếu có (đơn nhập thủ công từ Ops)
-  const fromFields={
-    bolsa:orders.reduce((s,o)=>s+(o.doanh_thu_bolsa||0),0),
-    ons:orders.reduce((s,o)=>s+(o.doanh_thu_ons||0),0),
-    tspa:orders.reduce((s,o)=>s+(o.doanh_thu_tspa||0),0)
+  return{
+    bolsa:orders.reduce((s,o)=>s+(o.revenue_bolsa||0),0),
+    ons:orders.reduce((s,o)=>s+(o.revenue_ons||0),0),
+    tspa:orders.reduce((s,o)=>s+(o.revenue_tspa||0),0)
   };
-  // Nếu không có doanh_thu fields (đơn sync từ CRM), fallback về total theo vendor từ products
-  // Tạm dùng total của đơn gắn với từng vendor qua order_items (nếu có)
-  const totalFromFields=fromFields.bolsa+fromFields.ons+fromFields.tspa;
-  if(totalFromFields>0)return fromFields;
-  // Fallback: phân bổ doanh thu theo tỷ lệ vendor trong products active
-  const totalRev=orders.reduce((s,o)=>s+(o.total||0),0);
-  const bolsaCount=allProducts.filter(p=>p.vendor==='BOLSA'&&p.active!==false).length;
-  const onsCount=allProducts.filter(p=>p.vendor==='ONS'&&p.active!==false).length;
-  const tspaCount=allProducts.filter(p=>p.vendor==='TSPA'&&p.active!==false).length;
-  return{bolsa:0,ons:0,tspa:0,total:totalRev,note:'Cần nhập vendor per order'};
 }
 
 function calcCommission(){
   const orders=doneOrders();
-  const bolsaHeadspaProds=allProducts.filter(p=>p.la_bolsa&&p.vendor==='BOLSA');
+  const bolsaHeadspaProds=allProducts.filter(p=>p.is_bolsa&&p.vendor==='BOLSA');
   const avgBolsaCost=bolsaHeadspaProds.reduce((s,p)=>s+(p.vendor_cost||0),0)/Math.max(1,bolsaHeadspaProds.length);
   let bolsa=0,ons=0,tspa=0;
   orders.forEach(o=>{
     const beds=o.so_giuong_bolsa||0;
     bolsa+=beds*avgBolsaCost*0.07;
-    const otherBolsa=Math.max(0,(o.doanh_thu_bolsa||0)-beds*1500);
+    const otherBolsa=Math.max(0,(o.revenue_bolsa||0)-beds*1500);
     bolsa+=otherBolsa*0.05;
-    ons+=(o.doanh_thu_ons||0)*0.70*0.10;
-    tspa+=(o.doanh_thu_tspa||0)*0.04;
+    ons+=(o.revenue_ons||0)*0.70*0.10;
+    tspa+=(o.revenue_tspa||0)*0.04;
   });
   return{bolsa:Math.max(0,bolsa),ons,tspa,total:Math.max(0,bolsa)+ons+tspa};
 }
@@ -1493,10 +1225,10 @@ function calcDelta(cur,prev){
 }
 
 // Prev period calcs
-function prevRevDate(){return prevOrders.filter(o=>true).reduce((s,o)=>s+(o.total||0),0);}
-function prevRevMonth(){return prevOrders.filter(o=>o.da_tat_toan).reduce((s,o)=>s+(o.total||0),0);}
+function prevRevDate(){return prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);}
+function prevRevMonth(){return prevOrders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);}
 function prevOrdrCount(){return prevOrders.length;}
-function prevAOV(){const d=prevOrders.filter(o=>o.da_tat_toan);return d.length?prevRevMonth()/d.length:0;}
+function prevAOV(){const d=prevOrders.filter(o=>o.is_settled);return d.length?prevRevMonth()/d.length:0;}
 
 function deltaWidget(cur,prev){
   const d=calcDelta(cur,prev);
@@ -1546,18 +1278,18 @@ function renderDashboard(){
 function renderTop3(){
   const profiles=allProfiles;
   const agentStats={};
-  profiles.forEach(p=>{agentStats[p.id]={name:p.ho_ten,rev:0,orders:0,headspa:0,pedi:0};});
+  profiles.forEach(p=>{agentStats[p.id]={name:p.full_name,rev:0,orders:0,headspa:0,pedi:0};});
   doneOrders().forEach(o=>{
     const a=agentStats[o.user_id];
     if(a){
-      a.rev+=(o.total||0);a.orders++;
+      a.rev+=(o.total_amount||0);a.orders++;
       a.headspa+=(o.so_giuong_bolsa||0);
     }
   });
   // Pedicure: from order_items not available in initial fetch, use TSPA+ONS proxy
   doneOrders().forEach(o=>{
     const a=agentStats[o.user_id];
-    if(a)a.pedi+=(o.doanh_thu_ons||0)+(o.doanh_thu_tspa||0);
+    if(a)a.pedi+=(o.revenue_ons||0)+(o.revenue_tspa||0);
   });
 
   const sorted_rev=Object.values(agentStats).filter(a=>a.rev>0).sort((a,b)=>b.rev-a.rev).slice(0,3);
@@ -1595,7 +1327,7 @@ function renderTopStates(){
   doneOrders().forEach(o=>{
     const s=(o.state||'').toUpperCase().trim();
     if(!s)return;
-    stateData[s]=(stateData[s]||0)+(o.total||0);
+    stateData[s]=(stateData[s]||0)+(o.total_amount||0);
   });
   const top5=Object.entries(stateData).sort((a,b)=>b[1]-a[1]).slice(0,5);
   if(!top5.length){setHTML('dash-top-states','<div style="color:var(--text3);font-size:12px;padding:8px 0;">Chưa có dữ liệu state trong đơn hàng.</div>');return;}
@@ -1613,7 +1345,7 @@ function renderTopStates(){
 
 function renderAgingWidget(){
   const pending=pendingOrders();
-  const totDebt=pending.reduce((s,o)=>s+Math.abs(o.balance||0),0);
+  const totDebt=pending.reduce((s,o)=>s+(o.balance_due_due||0),0);
   setTxt('dash-debt-tot',fmtUSD(totDebt));
   if(!pending.length){setHTML('dash-aging','<div style="color:var(--text3);font-size:13px;padding:12px 0;">Không có công nợ đang mở. 🎉</div>');return;}
   const bands={ok:[],warn:[],crit:[]};
@@ -1624,7 +1356,7 @@ function renderAgingWidget(){
     else if(b.cls==='aging-warn')bands.warn.push(o);
     else bands.crit.push(o);
   });
-  const sumBand=arr=>arr.reduce((s,o)=>s+Math.abs(o.balance||0),0);
+  const sumBand=arr=>arr.reduce((s,o)=>s+(o.balance_due_due||0),0);
   const html=[];
   if(bands.crit.length)html.push(`<div class="aging-row"><span class="aging-band aging-crit">⚠️ > 30 ngày</span><span style="flex:1;font-size:12px;color:var(--text2);">${bands.crit.length} đơn</span><span style="color:var(--red2);font-weight:600;font-size:13px;">${fmtUSD(sumBand(bands.crit))}</span></div>`);
   if(bands.warn.length)html.push(`<div class="aging-row"><span class="aging-band aging-warn">⏳ 15–30 ngày</span><span style="flex:1;font-size:12px;color:var(--text2);">${bands.warn.length} đơn</span><span style="color:var(--amber2);font-weight:600;font-size:13px;">${fmtUSD(sumBand(bands.warn))}</span></div>`);
@@ -1642,7 +1374,7 @@ function renderAlerts(){
     const bd=new Date(p.birthday);
     if(bd.getMonth()+1===curM){
       const daysLeft=bd.getDate()-now.getDate();
-      alerts.push({cls:'warn-birthday',icon:'🎂',title:`Sinh nhật: ${p.ho_ten}`,sub:`Ngày ${bd.getDate()}/${curM} · ${daysLeft>0?`Còn ${daysLeft} ngày`:'Hôm nay!'}`});
+      alerts.push({cls:'warn-birthday',icon:'🎂',title:`Sinh nhật: ${p.full_name}`,sub:`Ngày ${bd.getDate()}/${curM} · ${daysLeft>0?`Còn ${daysLeft} ngày`:'Hôm nay!'}`});
     }
   });
 
@@ -1652,21 +1384,21 @@ function renderAlerts(){
     const sd=new Date(p.start_date);
     if(sd.getMonth()+1===curM&&sd.getDate()>=now.getDate()&&sd.getDate()<=now.getDate()+7){
       const yrs=curY-sd.getFullYear();
-      if(yrs>0)alerts.push({cls:'warn-target',icon:'🎉',title:`Kỷ niệm ${yrs} năm: ${p.ho_ten}`,sub:`Vào làm ${sd.toLocaleDateString('vi-VN')}`});
+      if(yrs>0)alerts.push({cls:'warn-target',icon:'🎉',title:`Kỷ niệm ${yrs} năm: ${p.full_name}`,sub:`Vào làm ${sd.toLocaleDateString('vi-VN')}`});
     }
   });
 
   // Overdue debt > 30 days
   const crit=pendingOrders().filter(o=>agingDays(o.order_date)>30);
   if(crit.length>0){
-    const tot=crit.reduce((s,o)=>s+Math.abs(o.balance||0),0);
+    const tot=crit.reduce((s,o)=>s+(o.balance_due_due||0),0);
     alerts.push({cls:'warn-debt',icon:'⚠️',title:`${crit.length} đơn công nợ quá 30 ngày`,sub:`Tổng: ${fmtUSD(tot)} · Cần follow up ngay`});
   }
 
   // Sale approaching target
   const agentStats={};
-  allProfiles.forEach(p=>{agentStats[p.id]={name:p.ho_ten,rev:0};});
-  doneOrders().forEach(o=>{if(agentStats[o.user_id])agentStats[o.user_id].rev+=(o.total||0);});
+  allProfiles.forEach(p=>{agentStats[p.id]={name:p.full_name,rev:0};});
+  doneOrders().forEach(o=>{if(agentStats[o.user_id])agentStats[o.user_id].rev+=(o.total_amount||0);});
   Object.values(agentStats).forEach(a=>{
     const pct=a.rev/CFG.target;
     if(pct>=0.8&&pct<1.0)alerts.push({cls:'warn-target',icon:'🎯',title:`${a.name} sắp đạt target`,sub:`${Math.round(pct*100)}% · Còn $${(CFG.target-a.rev).toFixed(0)}`});
@@ -1675,10 +1407,10 @@ function renderAlerts(){
 
   // Probation ending (< 2 months work)
   allProfiles.forEach(p=>{
-    if(p.contract_type==='thu-viec'&&p.start_date){
+    if(p.contract_type==='probation'&&p.start_date){
       const sd=new Date(p.start_date);
       const monthsIn=(now.getFullYear()-sd.getFullYear())*12+(now.getMonth()-sd.getMonth());
-      if(monthsIn>=1&&monthsIn<=2)alerts.push({cls:'warn-probation',icon:'📋',title:`${p.ho_ten} sắp hết thử việc`,sub:`Vào làm: ${sd.toLocaleDateString('vi-VN')} · ${2-monthsIn} tháng còn lại`});
+      if(monthsIn>=1&&monthsIn<=2)alerts.push({cls:'warn-probation',icon:'📋',title:`${p.full_name} sắp hết thử việc`,sub:`Vào làm: ${sd.toLocaleDateString('vi-VN')} · ${2-monthsIn} tháng còn lại`});
     }
   });
 
@@ -1697,9 +1429,9 @@ function renderTrendChart(){
   const months6=last6MonthKeys();
   const monthRevs=months6.map(mk=>{
     return allOrders.filter(o=>{
-      const k=o.thang_bonus||o.thang;
-      return k===mk&&o.da_tat_toan;
-    }).reduce((s,o)=>s+(o.total||0),0);
+      const k=o.billing_month;
+      return k===mk&&o.is_settled;
+    }).reduce((s,o)=>s+(o.total_amount||0),0);
   });
   const labels=months6.map(k=>{const[y,m]=k.split('-');return`T${parseInt(m)}/${y}`;});
   if(dashTrendChart)dashTrendChart.destroy();
@@ -1730,15 +1462,12 @@ function renderTrendChart(){
 function renderOrders(){
   const orders=allOrders;
   setTxt('ord-total',orders.length);
-  setTxt('ord-done',orders.filter(o=>o.da_tat_toan).length);
-  setTxt('ord-pend',orders.filter(o=>!o.da_tat_toan).length);
-  const debt=pendingOrders().reduce((s,o)=>s+Math.abs(o.balance||0),0);
+  setTxt('ord-done',orders.filter(o=>o.is_settled).length);
+  setTxt('ord-pend',orders.filter(o=>!o.is_settled).length);
+  const debt=pendingOrders().reduce((s,o)=>s+(o.balance_due_due||0),0);
   setTxt('ord-debt',fmtUSD(debt));
 
-  // Agent dropdown: từ profiles + sale_rep_name của orders không có profile
-  const profileAgents=allProfiles.map(p=>p.ho_ten);
-  const repAgents=allOrders.filter(o=>!o.user_id&&o.sale_rep_name).map(o=>o.sale_rep_name);
-  const agents=[...new Set([...profileAgents,...repAgents])];
+  const agents=[...new Set(allProfiles.map(p=>p.full_name))];
   const sel=document.getElementById('ord-agent-f');
   const cur=sel.value;
   sel.innerHTML='<option value="">Tất cả Agent</option>'+agents.map(a=>`<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
@@ -1751,16 +1480,12 @@ function filterOrders(){
   const status=document.getElementById('ord-status-f').value;
   const vendor=document.getElementById('ord-vendor-f').value;
   let f=allOrders;
-  if(agent)f=f.filter(o=>{
-    const p=allProfiles.find(x=>x.id===o.user_id);
-    const agentName=p?p.ho_ten:(o.sale_rep_name||'');
-    return agentName===agent;
-  });
-  if(status==='done')f=f.filter(o=>o.da_tat_toan);
-  if(status==='pending')f=f.filter(o=>!o.da_tat_toan);
-  if(vendor==='BOLSA')f=f.filter(o=>(o.doanh_thu_bolsa||0)>0);
-  if(vendor==='ONS')f=f.filter(o=>(o.doanh_thu_ons||0)>0);
-  if(vendor==='TSPA')f=f.filter(o=>(o.doanh_thu_tspa||0)>0);
+  if(agent)f=f.filter(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return p&&p.full_name===agent;});
+  if(status==='done')f=f.filter(o=>o.is_settled);
+  if(status==='pending')f=f.filter(o=>!o.is_settled);
+  if(vendor==='BOLSA')f=f.filter(o=>(o.revenue_bolsa||0)>0);
+  if(vendor==='ONS')f=f.filter(o=>(o.revenue_ons||0)>0);
+  if(vendor==='TSPA')f=f.filter(o=>(o.revenue_tspa||0)>0);
   filteredOrders=f;
   renderOrdersTable(f);
 }
@@ -1772,107 +1497,51 @@ function renderOrdersTable(orders){
   empty.style.display='none';
   document.getElementById('orders-body').innerHTML=orders.map(o=>{
     const p=allProfiles.find(x=>x.id===o.user_id);
-    // Fallback: nếu không có profile (đơn sync từ CRM), dùng invoice_ref để tìm sale_rep
-    const agent=p?p.ho_ten.split(' ').pop():(o.sale_rep_name||'—');
+    const agent=p?p.full_name:'—';
     const days=agingDays(o.order_date);
-    const aging=o.da_tat_toan?{cls:'',label:''}:agingLabel(days);
+    const aging=o.is_settled?{cls:'',label:''}:agingLabel(days);
     const vendors=[];
-    if((o.doanh_thu_bolsa||0)>0)vendors.push('<span class="b b-amber" style="font-size:10px;">BOLSA</span>');
-    if((o.doanh_thu_ons||0)>0)vendors.push('<span class="b b-blue" style="font-size:10px;">ONS</span>');
-    if((o.doanh_thu_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;">TSPA</span>');
+    if((o.revenue_bolsa||0)>0)vendors.push('<span class="b b-amber" style="font-size:10px;">BOLSA</span>');
+    if((o.revenue_ons||0)>0)vendors.push('<span class="b b-blue" style="font-size:10px;">ONS</span>');
+    if((o.revenue_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;">TSPA</span>');
     return`<tr>
-      <td style="color:var(--blue2);font-size:12px;font-weight:500;">${o.ma_don||'—'}</td>
+      <td style="color:var(--blue2);font-size:12px;font-weight:500;">${o.invoice_no||'—'}</td>
       <td style="color:var(--text2);font-size:12px;">${o.order_date||'—'}</td>
-      <td style="color:var(--text2);font-size:12px;">${o.thang_bonus||o.thang||'—'}</td>
+      <td style="color:var(--text2);font-size:12px;">${o.billing_month||'—'}</td>
       <td><span style="font-size:12px;">${agent}</span></td>
-      <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.ten_tiem||'—'}</td>
+      <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.shop_name||'—'}</td>
       <td>${vendors.join(' ')}</td>
-      <td class="num" style="color:var(--green2);">${fmtUSD(o.total)}</td>
+      <td class="num" style="color:var(--green2);">${fmtUSD(o.total_amount)}</td>
       <td class="num">${fmtUSD(o.shipping)}</td>
       <td class="num" style="color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
-      <td class="num" style="color:${(o.balance||0)<0?'var(--red2)':'var(--green2)'}">${fmtUSD(o.balance)}</td>
-      <td>${o.da_tat_toan?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
-      <td><span class="b ${o.da_tat_toan?'b-green':'b-amber'}">${o.da_tat_toan?'Tất toán':'Pending'}</span></td>
-      <td><button class="act-btn" onclick="openEditOrder('${o.id}')" title="Chỉnh sửa">✏️</button></td>
+      <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
+      <td>${o.is_settled?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
+      <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'Tất toán':'Pending'}</span></td>
     </tr>`;
   }).join('');
 }
 
-// ─── EDIT ORDER ───
-let _editOrderId=null;
-function openEditOrder(id){
-  const o=allOrders.find(x=>x.id===id);
-  if(!o){toast('Không tìm thấy đơn','red');return;}
-  _editOrderId=id;
-  document.getElementById('eo-title').textContent=o.ma_don||'';
-  document.getElementById('eo-date').value=o.order_date||'';
-  document.getElementById('eo-ten-tiem').value=o.ten_tiem||'';
-  document.getElementById('eo-total').value=o.total||0;
-  document.getElementById('eo-shipping').value=o.shipping||0;
-  document.getElementById('eo-balance').value=o.balance||0;
-  document.getElementById('eo-thang').value=o.thang_bonus||o.thang||'';
-  document.getElementById('eo-status').value=o.da_tat_toan?'true':'false';
-  const sel=document.getElementById('eo-agent');
-  sel.innerHTML='<option value="">— Không có —</option>'
-    +allProfiles.map(p=>`<option value="${p.id}"${o.user_id===p.id?' selected':''}>${p.ho_ten}</option>`).join('');
-  openModal('m-edit-order');
-}
-async function saveEditOrder(){
-  if(!_editOrderId)return;
-  const total=parseFloat(document.getElementById('eo-total').value)||0;
-  const shipping=parseFloat(document.getElementById('eo-shipping').value)||0;
-  const balance=parseFloat(document.getElementById('eo-balance').value)||0;
-  const thang=document.getElementById('eo-thang').value||'';
-  const da_tat_toan=document.getElementById('eo-status').value==='true';
-  const user_id=document.getElementById('eo-agent').value||null;
-  const sel_agent=allProfiles.find(function(p){return p.id===user_id;});
-  // Chỉ gửi các field chắc chắn có trong bảng orders
-  const data={
-    ten_tiem:document.getElementById('eo-ten-tiem').value.trim(),
-    order_date:document.getElementById('eo-date').value,
-    thang:thang,thang_bonus:thang,
-    total:total,shipping:shipping,balance:balance,
-    da_tat_toan:da_tat_toan,
-    user_id:user_id||null,
-  };
-  try{
-    await sbPatch('orders','id=eq.'+_editOrderId,data);
-    // Cập nhật local với tên agent để hiển thị ngay
-    const idx=allOrders.findIndex(function(o){return o.id===_editOrderId;});
-    if(idx>=0){
-      Object.assign(allOrders[idx],data);
-      if(sel_agent)allOrders[idx].sale_rep_name=sel_agent.ho_ten;
-    }
-    closeModal('m-edit-order');
-    filterOrders();renderOrders();
-    toast('Đã cập nhật đơn hàng','green');
-  }catch(e){toast('Lỗi: '+e.message,'red');}
-}
+// ─── FINANCE ───
 let expChart=null;
 function renderFinance(){
   const revM=calcRevMonth(),cm=calcCommission(),exp=calcExpTotal(),sal=calcSalTotal();
   const cmVND=cm.total*CFG.rate;
-  // Tính COGS từ orders đã sync (có cogs field) + orders thủ công (dùng commission làm proxy)
-  const cogsUSD=doneOrders().reduce((s,o)=>s+(o.cogs||0),0);
-  const cogsVND=cogsUSD*CFG.rate;
-  // Công thức đúng: Doanh thu - COGS - Chi phí vận hành - Lương
-  const grossProfit=(revM-cogsUSD)*CFG.rate; // Gross profit VNĐ
-  const net=grossProfit-exp-sal;            // Net profit VNĐ
+  const net=revM*CFG.rate+cmVND-exp-sal;
 
-  setTxt('pf-rev',fmtUSD(revM));setTxt('pf-comm',fmtUSD(cm.total));
+  const cogs=doneOrders().reduce((s,o)=>s+(o.cogs||0),0);
+  const gp=doneOrders().reduce((s,o)=>s+(o.gross_profit||0),0);
+  const gpVND=gp*CFG.rate;
+  const net=gpVND-exp-sal;
+  setTxt('pf-rev',fmtUSD(revM));
   setTxt('pf-exp',fmtVND(exp));setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
   setTxt('pf-net-sub',net>=0?'Lợi nhuận':'Lỗ');
 
   setTxt('pf-r1',fmtUSD(revM));
-  // Thêm COGS nếu có element
-  const cogEl=document.getElementById('pf-r-cogs');
-  if(cogEl)cogEl.textContent=fmtUSD(cogsUSD)+' = '+fmtVND(cogsVND);
-  const gpEl=document.getElementById('pf-r-gross');
-  if(gpEl)gpEl.textContent=fmtVND(grossProfit);
-  setTxt('pf-r-bolsa',`${fmtUSD(cm.bolsa)} = ${fmtVND(cm.bolsa*CFG.rate)}`);
-  setTxt('pf-r-ons',`${fmtUSD(cm.ons)} = ${fmtVND(cm.ons*CFG.rate)}`);
-  setTxt('pf-r-tspa',`${fmtUSD(cm.tspa)} = ${fmtVND(cm.tspa*CFG.rate)}`);
+  const vr=calcVendorRevenue();
+  setTxt('pf-r-bolsa',fmtUSD(vr.bolsa));
+  setTxt('pf-r-ons',fmtUSD(vr.ons));
+  setTxt('pf-r-tspa',fmtUSD(vr.tspa));
   const ops=allExpenses.filter(e=>e.loai==='ops').reduce((s,e)=>s+(e.so_tien||0),0);
   const inv=allExpenses.filter(e=>e.loai==='invest').reduce((s,e)=>s+(e.so_tien||0),0);
   setTxt('pf-r-ops',fmtVND(ops));setTxt('pf-r-inv',fmtVND(inv));
@@ -1997,15 +1666,15 @@ function renderStaff(){
   document.getElementById('staff-grid').innerHTML=allProfiles.map((p,i)=>{
     const sal=allSalary.find(s=>s.user_id===p.id);
     const kpi=allKpi.find(k=>k.user_id===p.id);
-    const initials=p.ho_ten.split(' ').slice(-2).map(w=>w[0]||'').join('').toUpperCase();
+    const initials=p.full_name.split(' ').slice(-2).map(w=>w[0]||'').join('').toUpperCase();
     const role=roleMap[p.role]||p.role||'—';
     const bd=p.birthday?new Date(p.birthday):null;
     const isBdThisMonth=bd&&(bd.getMonth()+1===new Date().getMonth()+1);
     return`<div class="staff-card" onclick="showStaffDetail('${p.id}')">
       ${isBdThisMonth?'<div style="position:absolute;top:10px;right:10px;font-size:16px;">🎂</div>':''}
       <div class="staff-av" style="background:${colors[i%5]};color:${tcolors[i%5]};">${initials}</div>
-      <div class="staff-name">${p.ho_ten}</div>
-      <div class="staff-role">${role} · Lever ${p.lever||1}${p.biet_danh?' · '+p.biet_danh:''}</div>
+      <div class="staff-name">${p.full_name}</div>
+      <div class="staff-role">${role} · Lever ${p.lever||1}${p.nickname?' · '+p.nickname:''}</div>
       ${bd?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">🎂 ${bd.getDate()}/${bd.getMonth()+1}/${bd.getFullYear()}</div>`:''}
       <div class="staff-stat">${sal?fmtVND(sal.tong_luong_vnd):'—'}</div>
       ${kpi?`<div style="font-size:11px;color:${(kpi.diem_tong||0)>=70?'var(--green2)':'var(--amber2)'};margin-top:4px;">KPI: ${kpi.diem_tong||0}đ · ${kpi.xep_loai||'—'}</div>`:''}
@@ -2018,11 +1687,12 @@ function showStaffDetail(uid){
   const sal=allSalary.find(s=>s.user_id===uid);
   const kpi=allKpi.find(k=>k.user_id===uid);
   const orders=allOrders.filter(o=>o.user_id===uid);
-  const totalRev=orders.filter(o=>o.da_tat_toan).reduce((s,o)=>s+(o.total||0),0);
+  const totalRev=orders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
   const bd=p.birthday?new Date(p.birthday).toLocaleDateString('vi-VN'):'—';
-  setTxt('sd-title',p.ho_ten+' — Chi tiết');
+  setTxt('sd-title',p.full_name+' — Chi tiết');
   setHTML('sd-info',`
-    <div class="sr"><span class="sl">Mã NV</span><span class="sv">${p.ma_nv||'—'}</span></div>
+    <div class="sr"><span class="sl">Mã NV</span><span class="sv">${p.employee_code||'—'}</span></div>
+    <div class="sr"><span class="sl">Biệt danh</span><span class="sv">${p.nickname||'—'}</span></div>
     <div class="sr"><span class="sl">Chức danh</span><span class="sv">${p.role||'—'}</span></div>
     <div class="sr"><span class="sl">Lever</span><span class="sv">${p.lever||1}</span></div>
     <div class="sr"><span class="sl">Loại HĐ</span><span class="sv">${p.contract_type||'—'}</span></div>
@@ -2069,7 +1739,7 @@ function renderSalary(){
     grand+=s.tong_luong_vnd||0;
     const p3total=(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0)+(s.p3a_chenh_lech_usd||0);
     return`<tr>
-      <td><b>${p?p.ho_ten:'—'}</b></td>
+      <td><b>${p?p.full_name:'—'}</b></td>
       <td style="font-size:12px;color:var(--text2);">${s.thang||'—'}</td>
       <td class="num"><span class="b b-teal" style="font-size:10px;">${s.ngay_cong_thuc_te||0}/22</span></td>
       <td class="num">${fmtVND(s.p1_thuc_te)}</td>
@@ -2098,18 +1768,18 @@ async function toggleSalaryApproval(id,current){
 
 function renderPerformance(){
   const agentStats={};
-  allProfiles.forEach(p=>{agentStats[p.id]={name:p.ho_ten,rev:0,rev_done:0,done:0,total_orders:0,bonus:0};});
+  allProfiles.forEach(p=>{agentStats[p.id]={name:p.full_name,rev:0,rev_done:0,done:0,total_orders:0,bonus:0};});
   ordByDate().forEach(o=>{if(agentStats[o.user_id])agentStats[o.user_id].total_orders++;});
   doneOrders().forEach(o=>{
     if(agentStats[o.user_id]){
-      agentStats[o.user_id].rev+=(o.total||0);
-      agentStats[o.user_id].rev_done+=(o.total||0);
+      agentStats[o.user_id].rev+=(o.total_amount||0);
+      agentStats[o.user_id].rev_done+=(o.total_amount||0);
       agentStats[o.user_id].done++;
     }
   });
   // Cộng thêm doanh số đơn chưa tất toán vào rev (doanh số tổng)
-  ordByDate().filter(o=>!o.da_tat_toan).forEach(o=>{
-    if(agentStats[o.user_id])agentStats[o.user_id].rev+=(o.total||0);
+  ordByDate().filter(o=>!o.is_settled).forEach(o=>{
+    if(agentStats[o.user_id])agentStats[o.user_id].rev+=(o.total_amount||0);
   });
   allSalary.forEach(s=>{if(agentStats[s.user_id])agentStats[s.user_id].bonus+=(s.p3a_total_usd||0);});
   const agents=Object.values(agentStats).filter(a=>a.total_orders>0);
@@ -2137,7 +1807,7 @@ function renderPerformance(){
   const datasets=agents.map((a,i)=>{
     const colors2=['#6fa0ff','#4ddea0','#b08aff','#f5b840','#f07977','#34d4e0'];
     const data=months6.map(mk=>{
-      return allOrders.filter(o=>o.user_id===allProfiles.find(p=>p.ho_ten===a.name)?.id&&(o.thang_bonus||o.thang)===mk&&o.da_tat_toan).reduce((s,o)=>s+(o.total||0),0);
+      return allOrders.filter(o=>o.user_id===allProfiles.find(p=>p.full_name===a.name)?.id&&(o.billing_month)===mk&&o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
     });
     return{label:a.name,data,borderColor:colors2[i%colors2.length],backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.4};
   });
@@ -2154,7 +1824,7 @@ function renderKPI(){
   document.getElementById('kpi-body').innerHTML=allKpi.map(k=>{
     const p=allProfiles.find(x=>x.id===k.user_id);
     return`<tr>
-      <td><b>${p?p.ho_ten:'—'}</b></td>
+      <td><b>${p?p.full_name:'—'}</b></td>
       <td style="font-size:12px;color:var(--text2);">${k.thang||'—'}</td>
       <td class="num" style="color:var(--amber2);">${fmtUSD(k.doanh_thu_bolsa)}</td>
       <td class="num" style="color:var(--blue2);">${fmtUSD(k.doanh_thu_ons)}</td>
@@ -2171,70 +1841,50 @@ function renderKPI(){
 function openStaffEdit(uid){
   const p=allProfiles.find(x=>x.id===uid);if(!p)return;
   document.getElementById('se-id').value=p.id;
-  document.getElementById('se-name').value=p.ho_ten||'';
-  document.getElementById('se-nick').value=p.biet_danh||'';
+  document.getElementById('se-name').value=p.full_name||'';
+  document.getElementById('se-nick').value=p.nickname||'';
   document.getElementById('se-birthday').value=p.birthday||'';
   document.getElementById('se-start').value=p.start_date||'';
   document.getElementById('se-role').value=p.role||'sale';
   document.getElementById('se-lever').value=p.lever||1;
-  document.getElementById('se-contract').value=p.contract_type||'chinh-thuc';
-  document.getElementById('se-code').value=p.ma_nv||'';
+  document.getElementById('se-contract').value=p.contract_type||'official';
+  document.getElementById('se-code').value=p.employee_code||'';
   openModal('m-staff-edit');
 }
 async function saveStaff(){
   const id=document.getElementById('se-id').value;
   const birthday=document.getElementById('se-birthday').value||null;
-  const data={
-    ho_ten:document.getElementById('se-name').value,
-    biet_danh:document.getElementById('se-nick').value,
-    start_date:document.getElementById('se-start').value||null,
-    role:document.getElementById('se-role').value,
-    lever:parseInt(document.getElementById('se-lever').value)||1,
-    contract_type:document.getElementById('se-contract').value,
-    ma_nv:document.getElementById('se-code').value,
-    birthday:birthday, // Lưu thẳng lên Supabase
-  };
+  // Birthday không có trong schema Supabase — lưu localStorage
+  if(birthday){
+    const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
+    bdStore[id]=birthday;
+    localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
+  }
+  const data={full_name:document.getElementById('se-name').value,nickname:document.getElementById('se-nick').value,start_date:document.getElementById('se-start').value||null,role:document.getElementById('se-role').value,lever:parseInt(document.getElementById('se-lever').value)||1,contract_type:document.getElementById('se-contract').value,employee_code:document.getElementById('se-code').value};
   try{
     await sbPatch('profiles',`id=eq.${id}`,data);
     const idx=allProfiles.findIndex(p=>p.id===id);
-    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data};
+    if(idx>=0)allProfiles[idx]={...allProfiles[idx],...data,birthday};
     closeModal('m-staff-edit');renderHR();renderSettings();
     toast('Đã cập nhật nhân viên','green');
-  }catch(e){
-    // Fallback về localStorage nếu cột birthday chưa tồn tại trên Supabase
-    if(e.message&&e.message.includes('birthday')){
-      if(birthday){
-        const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
-        bdStore[id]=birthday;
-        localStorage.setItem('cslian_birthdays',JSON.stringify(bdStore));
-      }
-      const dataNobd={...data};delete dataNobd.birthday;
-      try{
-        await sbPatch('profiles',`id=eq.${id}`,dataNobd);
-        const idx=allProfiles.findIndex(p=>p.id===id);
-        if(idx>=0)allProfiles[idx]={...allProfiles[idx],...dataNobd,birthday};
-        closeModal('m-staff-edit');renderHR();renderSettings();
-        toast('Đã lưu (birthday dùng localStorage tạm)','amber');
-      }catch(e2){toast('Lỗi: '+e2.message,'red');}
-    }else{toast('Lỗi: '+e.message,'red');}
-  }
+  }catch(e){toast('Lỗi: '+e.message,'red');}
 }
 
 // ─── PRODUCTS ───
 let prodFiltered2=[];
 function renderProducts(){
   // Vendor stats from allProducts
-  const bolsaActive=allProducts.filter(p=>p.vendor==='BOLSA'&&p.active!==false).length;
-  const onsActive=allProducts.filter(p=>p.vendor==='ONS'&&p.active!==false).length;
-  const tspaActive=allProducts.filter(p=>p.vendor==='TSPA'&&p.active!==false).length;
+  const bolsaActive=allProducts.filter(p=>p.vendor==='BOLSA'&&p.is_active!==false).length;
+  const onsActive=allProducts.filter(p=>p.vendor==='ONS'&&p.is_active!==false).length;
+  const tspaActive=allProducts.filter(p=>p.vendor==='TSPA'&&p.is_active!==false).length;
   setTxt('pv-bolsa',bolsaActive);setTxt('pv-ons',onsActive);setTxt('pv-tspa',tspaActive);
 
   // Vendor performance from orders
   const vr=calcVendorRevenue();
   const cm=calcCommission();
   const vendorRows=(vendor,rev,comm,color)=>{
-    const prods=allProducts.filter(p=>p.vendor===vendor&&p.active!==false);
-    const topOrders=doneOrders().filter(o=>(vendor==='BOLSA'?(o.doanh_thu_bolsa||0)>0:vendor==='ONS'?(o.doanh_thu_ons||0)>0:(o.doanh_thu_tspa||0)>0));
+    const prods=allProducts.filter(p=>p.vendor===vendor&&p.is_active!==false);
+    const topOrders=doneOrders().filter(o=>(vendor==='BOLSA'?(o.revenue_bolsa||0)>0:vendor==='ONS'?(o.revenue_ons||0)>0:(o.revenue_tspa||0)>0));
     return`<div class="sr"><span class="sl">Doanh thu kỳ</span><span class="sv" style="color:${color};">${fmtUSD(rev)}</span></div>
     <div class="sr"><span class="sl">Hoa hồng C-Slian</span><span class="sv" style="color:var(--teal2);">${fmtUSD(comm)}</span></div>
     <div class="sr"><span class="sl">Số đơn</span><span class="sv">${topOrders.length}</span></div>
@@ -2252,9 +1902,9 @@ function filterProducts(){
   const vendor=document.getElementById('prod-vendor-f')?.value||'';
   const status=document.getElementById('prod-status-f')?.value||'';
   prodFiltered2=allProducts.filter(p=>{
-    const mq=!q||(p.sku||'').toLowerCase().includes(q)||(p.ten_sp||'').toLowerCase().includes(q);
+    const mq=!q||(p.sku||'').toLowerCase().includes(q)||(p.name||'').toLowerCase().includes(q);
     const mv=!vendor||p.vendor===vendor;
-    const ms=!status||(status==='active'?p.active!==false:p.active===false);
+    const ms=!status||(status==='active'?p.is_active!==false:p.is_active===false);
     return mq&&mv&&ms;
   });
   prodPage=1;renderProdTable();
@@ -2269,15 +1919,15 @@ function renderProdTable(){
   setTxt('prod-count',`${total} sản phẩm · Trang ${prodPage}/${tp}`);
   document.getElementById('prod-tbl').innerHTML=page.map(p=>`<tr>
     <td style="font-size:11px;color:var(--blue2);font-weight:600;">${p.sku||'—'}</td>
-    <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.ten_sp||'—'}</td>
+    <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
     <td><span class="b ${p.vendor==='BOLSA'?'b-amber':p.vendor==='ONS'?'b-blue':'b-purple'} " style="font-size:10px;">${p.vendor||'—'}</span></td>
-    <td class="num" style="color:var(--green2);">${fmtUSD(p.gia_ban)}</td>
+    <td class="num" style="color:var(--green2);">${fmtUSD(p.sale_price)}</td>
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
     <td class="num" style="color:var(--teal2);">${p.commission_rate!=null?((p.commission_rate)*100).toFixed(1)+'%':'—'}</td>
-    <td style="text-align:center;">${p.la_bolsa?'<span class="b b-amber" style="font-size:10px;">✓</span>':'—'}</td>
-    <td><span class="b ${p.active!==false?'b-green':'b-gray'} " style="font-size:10px;">${p.active!==false?'Active':'Inactive'}</span></td>
+    <td style="text-align:center;">${p.is_bolsa?'<span class="b b-amber" style="font-size:10px;">✓</span>':'—'}</td>
+    <td><span class="b ${p.is_active!==false?'b-green':'b-gray'} " style="font-size:10px;">${p.is_active!==false?'Active':'Inactive'}</span></td>
     <td><div style="display:flex;gap:4px;">
-      <button class="act-btn" onclick="showPriceHistory('${p.id}','${(p.ten_sp||'').replace(/'/g,"\\'")}')">📋</button>
+      <button class="act-btn" onclick="showPriceHistory('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">📋</button>
       <button class="act-btn" onclick="editProduct('${p.id}')">✏️</button>
     </div></td>
   </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
@@ -2311,26 +1961,26 @@ function editProduct(id){
   const p=allProducts.find(x=>x.id===id);if(!p)return;
   setTxt('m-prod-title','Sửa sản phẩm');setTxt('m-prod-btn','Lưu thay đổi');
   document.getElementById('p-id').value=p.id;document.getElementById('p-sku').value=p.sku||'';
-  document.getElementById('p-name').value=p.ten_sp||'';document.getElementById('p-vendor').value=p.vendor||'BOLSA';
-  document.getElementById('p-gia-ban').value=p.gia_ban||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
+  document.getElementById('p-name').value=p.name||'';document.getElementById('p-vendor').value=p.vendor||'BOLSA';
+  document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
   document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
-  document.getElementById('p-variant').value=p.mau_variant||'';document.getElementById('p-active').value=p.active===false?'false':'true';
-  document.getElementById('p-la-bolsa').checked=!!p.la_bolsa;document.getElementById('p-note').value='';
+  document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
+  document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-note-wrap').style.display='block';
-  onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.la_bolsa;
+  onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
   openModal('m-prod');
 }
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),ten_sp:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,gia_ban:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,mau_variant:document.getElementById('p-variant').value.trim()||null,active:document.getElementById('p-active').value==='true',la_bolsa:document.getElementById('p-la-bolsa').checked};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
   if(!data.sku||!data.ten_sp){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
       const old=allProducts.find(p=>p.id===id);
       const note=document.getElementById('p-note').value.trim();
       if(old&&(old.gia_ban!==data.gia_ban||old.vendor_cost!==data.vendor_cost||old.commission_rate!==data.commission_rate)){
-        await sbInsert('product_price_history',{product_id:id,sku:data.sku,ten_sp:data.ten_sp,gia_ban_cu:old.gia_ban,gia_ban_moi:data.gia_ban,vendor_cost_cu:old.vendor_cost,vendor_cost_moi:data.vendor_cost,commission_rate_cu:old.commission_rate,commission_rate_moi:data.commission_rate,changed_by:'Manager',ghi_chu:note||null});
+        await sbInsert('product_price_history',{product_id:id,sku:data.sku,ten_sp:data.name,gia_ban_cu:old.gia_ban,gia_ban_moi:data.gia_ban,vendor_cost_cu:old.vendor_cost,vendor_cost_moi:data.vendor_cost,commission_rate_cu:old.commission_rate,commission_rate_moi:data.commission_rate,changed_by:'Manager',ghi_chu:note||null});
       }
       await sbPatch('products',`id=eq.${id}`,data);
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
@@ -2341,43 +1991,7 @@ async function saveProduct(){
       toast('Đã thêm sản phẩm','green');
     }
     closeModal('m-prod');filterProducts();renderProducts();
-    // Sync sang CRM sau khi save
-    const saved=isEdit?allProducts.find(p=>p.id===id):allProducts[allProducts.length-1];
-    if(saved)syncProductToCRM(saved).catch(e=>console.warn('Sync CRM:',e));
   }catch(e){toast('Lỗi: '+e.message,'red');}
-}
-
-async function syncProductToCRM(product){
-  const EDGE_URL=SUPA_URL+'/functions/v1/sync-product-to-crm';
-  try{
-    const res=await fetch(EDGE_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY},
-      body:JSON.stringify(product),
-    });
-    const json=await res.json();
-    if(res.ok){toast('✓ Đã sync sang CRM','green');}
-    else{console.warn('Sync CRM failed:',json);toast('Lưu OK — sync CRM thất bại','amber');}
-  }catch(e){
-    console.warn('syncProductToCRM error:',e);
-    toast('Lưu OK — không kết nối được CRM','amber');
-  }
-}
-
-async function syncAllProductsToCRM(){
-  if(!allProducts.length){toast('Không có sản phẩm','amber');return;}
-  toast('Đang sync '+allProducts.length+' sản phẩm...','blue');
-  const EDGE_URL=SUPA_URL+'/functions/v1/sync-product-to-crm';
-  try{
-    const res=await fetch(EDGE_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY},
-      body:JSON.stringify(allProducts),
-    });
-    const json=await res.json();
-    if(res.ok){toast('✓ Đã sync '+json.synced+' sản phẩm sang CRM','green');}
-    else{toast('Sync CRM thất bại','red');console.warn(json);}
-  }catch(e){toast('Lỗi kết nối: '+e.message,'red');}
 }
 async function showPriceHistory(id,name){
   setTxt('ph-title','Lịch sử giá · '+name);
@@ -2414,9 +2028,9 @@ function renderSettings(){
   document.getElementById('staff-cfg-body').innerHTML=allProfiles.map(p=>{
     const bd=p.birthday?new Date(p.birthday).toLocaleDateString('vi-VN'):'—';
     return`<tr>
-      <td style="font-size:12px;color:var(--blue2);">${p.ma_nv||'—'}</td>
-      <td><b>${p.ho_ten}</b></td>
-      <td style="color:var(--text2);font-size:12px;">${p.biet_danh||'—'}</td>
+      <td style="font-size:12px;color:var(--blue2);">${p.employee_code||'—'}</td>
+      <td><b>${p.full_name}</b></td>
+      <td style="color:var(--text2);font-size:12px;">${p.nickname||'—'}</td>
       <td><span class="b b-blue" style="font-size:10px;">${p.role||'—'}</span></td>
       <td style="text-align:center;">${p.lever||1}</td>
       <td style="font-size:12px;color:var(--text2);">${p.start_date||'—'}</td>
@@ -2447,7 +2061,7 @@ function exportCurrentCSV(){
   if(id==='orders'){
     filename=`cslian-orders-${fromKey()}`;
     rows=[['Mã đơn','Ngày lên','Tháng HT','Agent','Shop','Total USD','Shipping','Balance','Tất toán'],
-      ...allOrders.map(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return[o.ma_don,o.order_date,o.thang_bonus||o.thang,p?p.ho_ten:'—',o.ten_tiem,o.total,o.shipping,o.balance,o.da_tat_toan?'Yes':'No'];})];
+      ...allOrders.map(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return[o.invoice_no,o.order_date,o.billing_month,p?p.full_name:'—',o.shop_name,o.total,o.shipping,o.balance,o.is_settled?'Yes':'No'];})];
   }else if(id==='finance'){
     filename=`cslian-expenses-${fromKey()}`;
     rows=[['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền VNĐ'],
@@ -2455,7 +2069,7 @@ function exportCurrentCSV(){
   }else if(id==='hr'){
     filename=`cslian-salary-${fromKey()}`;
     rows=[['Nhân viên','Tháng','Ngày công','P1','P2','P3B+C','Bonus P3A USD','Tổng VNĐ','Đã duyệt'],
-      ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.ho_ten:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
+      ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
   }else{
     filename=`cslian-summary-${fromKey()}`;
     rows=[['Chỉ số','Giá trị'],['Doanh số',calcRevDate()],['Doanh thu tất toán',calcRevMonth()],['Tổng đơn',ordByDate().length],['AOV',calcAOV()],['Tổng chi phí',calcExpTotal()],['Tổng lương',calcSalTotal()]];
@@ -2496,17 +2110,7 @@ function toast(msg,type='green'){
 function mobileGoto(id,btn){
   goto(id);
   document.querySelectorAll('.mn-item').forEach(b=>b.classList.remove('on'));
-  if(btn){
-    btn.classList.add('on');
-    // Scroll tab active vào giữa màn hình
-    const nav=document.getElementById('mobile-nav');
-    if(nav){
-      const btnLeft=btn.offsetLeft;
-      const btnWidth=btn.offsetWidth;
-      const navWidth=nav.offsetWidth;
-      nav.scrollTo({left:btnLeft-(navWidth/2)+(btnWidth/2),behavior:'smooth'});
-    }
-  }
+  if(btn)btn.classList.add('on');
 }
 
 // ─── PWA ───
@@ -2514,610 +2118,9 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{scope:'/cslian-ops/'}).catch(()=>{}));
 }
 
-// ─── LOGIN ───
-const USERS = {
-  calvin: { name:'Calvin', role:'Manager', pinHash:'dc4bc886825c446e6ae02d4d0c6a8787af0395079effcc3afc0f8bdc40cbd161' },
-  baonam: { name:'Bảo Nam', role:'Leader', pinHash:'b280279a0ef279d0b9f0bdc4162591dbbc6312abac67120527b20d65c7de5dbf' }
-};
-let currentUser = null;
-async function sha256(str){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-window.getHash=async function(pin){const h=await sha256(pin);console.log('Hash cho PIN:',h);return h;};
-async function doLogin(){
-  const uid=document.getElementById('login-user').value;
-  const pin=document.getElementById('login-pin').value;
-  const err=document.getElementById('login-err');
-  err.style.display='none';
-  if(!uid||!pin){err.textContent='Vui lòng chọn tài khoản và nhập PIN.';err.style.display='block';return;}
-  const user=USERS[uid];
-  if(!user){err.style.display='block';return;}
-  const hash=await sha256(pin);
-  if(user.pinHash&&hash!==user.pinHash){err.textContent='PIN không đúng. Vui lòng thử lại.';err.style.display='block';return;}
-  currentUser={id:uid,...user};
-  sessionStorage.setItem('cslian_finance_user',JSON.stringify(currentUser));
-  document.getElementById('login-screen').style.display='none';
-  document.querySelector('.s-foot').insertAdjacentHTML('afterbegin',
-    `<div style="padding:8px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);margin-bottom:4px;">
-      <span style="color:var(--green2);">●</span> ${user.name} · ${user.role}
-      <button onclick="logoutFinance()" style="float:right;background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;">Đăng xuất</button>
-    </div>`);
-  loadAll();
-}
-function logoutFinance(){sessionStorage.removeItem('cslian_finance_user');currentUser=null;location.reload();}
-// Attach Enter key sau khi doLogin đã định nghĩa
-document.getElementById('login-pin').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
-document.getElementById('login-user').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('login-pin').focus();});
-(function(){
-  const saved=sessionStorage.getItem('cslian_finance_user');
-  if(saved){try{currentUser=JSON.parse(saved);document.getElementById('login-screen').style.display='none';}catch(e){}}
-})();
-
-// ─── MANAGER INVOICE ───
-const CRM_URL_MI='https://ajsakaddylbpppxlidfe.supabase.co';
-const CRM_KEY_MI='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2FrYWRkeWxicHBweGxpZGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA1MDUsImV4cCI6MjA5NDI2NjUwNX0.B_8YwhOD4MXMKFOc3T0lpuujAnhUnpSLGjo12hWsLdc';
-let minvItems=[],minvEditId=null,allMinvInvoices=[],minvImgCache={};
-let MINV_COMPANIES=[];
-
-// Fix 1: fetchCRM dùng Content-Type đúng và xử lý lỗi rõ hơn
-async function fetchCRM(path){
-  const r=await fetch(`${CRM_URL_MI}/rest/v1/${path}`,{
-    headers:{'apikey':CRM_KEY_MI,'Authorization':'Bearer '+CRM_KEY_MI,'Accept':'application/json'}
-  });
-  if(!r.ok){console.error('CRM fetch error:',r.status,path);return[];}
-  return r.json();
-}
-
-// Load companies từ CRM để lấy logo
-async function loadMinvCompanies(){
-  if(MINV_COMPANIES.length)return;
-  try{MINV_COMPANIES=await fetchCRM('companies?is_active=eq.true&select=id,name,address,phone,logo_url');}catch(e){}
-}
-
-async function loadMinvInvoices(){
-  try{
-    await loadMinvCompanies();
-    const[invRes,itemRes]=await Promise.all([sb('manager_invoices','select=*&order=created_at.desc'),sb('manager_invoice_items','select=*')]);
-    allMinvInvoices=invRes||[];
-    const itemMap={};(itemRes||[]).forEach(it=>{if(!itemMap[it.invoice_id])itemMap[it.invoice_id]=[];itemMap[it.invoice_id].push(it);});
-    allMinvInvoices.forEach(inv=>{inv._items=itemMap[inv.id]||[];});
-    renderMinvList();renderMinvSummary();
-  }catch(e){console.error('loadMinvInvoices',e);}
-}
-function renderMinvSummary(){
-  const status=document.getElementById('minv-f-status').value;
-  const rep=document.getElementById('minv-f-rep').value;
-  let list=allMinvInvoices;
-  if(status)list=list.filter(i=>i.status===status);
-  if(rep)list=list.filter(i=>i.sale_rep===rep);
-  const total=list.reduce((s,i)=>s+(i.grand_total||0),0);
-  const cost=list.reduce((s,i)=>s+(i.total_cost||0),0);
-  const profit=total-cost;
-  const margin=total>0?((profit/total)*100).toFixed(1):0;
-  document.getElementById('minv-summary').innerHTML=`
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">TỔNG ĐƠN</div><div style="font-size:20px;font-weight:700;color:var(--text);">${list.length}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">DOANH THU</div><div style="font-size:20px;font-weight:700;color:var(--blue2);">${fmtUSD(total)}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">GROSS PROFIT</div><div style="font-size:20px;font-weight:700;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">MARGIN</div><div style="font-size:20px;font-weight:700;color:${margin>=20?'var(--green2)':'var(--amber2)'};">${margin}%</div></div>`;
-}
-function renderMinvList(){
-  const status=document.getElementById('minv-f-status').value;
-  const rep=document.getElementById('minv-f-rep').value;
-  const q=(document.getElementById('minv-f-search').value||'').toLowerCase();
-  let list=allMinvInvoices;
-  if(status)list=list.filter(i=>i.status===status);
-  if(rep)list=list.filter(i=>i.sale_rep===rep);
-  if(q)list=list.filter(i=>(i.po_number||'').toLowerCase().includes(q)||(i.customer_name||'').toLowerCase().includes(q));
-  renderMinvSummary();
-  const tbody=document.getElementById('minv-tbody');
-  const empty=document.getElementById('minv-empty');
-  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-  const ss={Pending:'color:var(--amber2);background:var(--amberbg)',Closedeal:'color:var(--green2);background:var(--greenbg)',Cancel:'color:var(--red2);background:var(--redbg)'};
-  tbody.innerHTML=list.map(inv=>{
-    const profit=(inv.grand_total||0)-(inv.total_cost||0);
-    return`<tr style="border-top:1px solid var(--border);">
-      <td style="padding:10px 12px;font-weight:600;color:var(--blue2);">${inv.po_number||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text2);">${inv.invoice_date||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text);">${inv.customer_name||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text2);">${inv.sale_rep||'—'} <span style="font-size:10px;color:var(--text3);">by ${inv.created_by||'—'}</span></td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtUSD(inv.grand_total||0)}</td>
-      <td style="padding:10px 12px;text-align:right;color:var(--text2);">${fmtUSD(inv.total_cost||0)}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</td>
-      <td style="padding:10px 12px;text-align:center;">
-        <select onchange="updateMinvStatus('${inv.id}',this.value)" style="padding:3px 6px;font-size:11px;border-radius:4px;border:1px solid var(--border2);${ss[inv.status]||''};cursor:pointer;">
-          <option ${inv.status==='Pending'?'selected':''}>Pending</option>
-          <option ${inv.status==='Closedeal'?'selected':''}>Closedeal</option>
-          <option ${inv.status==='Cancel'?'selected':''}>Cancel</option>
-        </select>
-      </td>
-      <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">
-        <button onclick="editMinv('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bluebg);border:1px solid var(--blueborder);border-radius:4px;color:var(--blue2);cursor:pointer;">Sửa</button>
-        <button onclick="printMinvById('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;">In</button>
-        <button onclick="deleteMinv('${inv.id}','${inv.po_number}')" style="padding:4px 10px;font-size:11px;background:var(--redbg);border:1px solid var(--redborder);border-radius:4px;color:var(--red2);cursor:pointer;">Xóa</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-}
-async function updateMinvStatus(id,status){await sbPatch('manager_invoices','id=eq.'+id,{status});const inv=allMinvInvoices.find(i=>i.id===id);if(inv)inv.status=status;renderMinvList();toast('Đã cập nhật status','green');}
-async function genMinvPoNumber(){
-  const t=new Date();
-  const yy=String(t.getFullYear()).slice(2),mm=String(t.getMonth()+1).padStart(2,'0'),dd=String(t.getDate()).padStart(2,'0');
-  const prefix=`INVC01${yy}${mm}${dd}`;
-  const existing=allMinvInvoices.filter(i=>(i.po_number||'').startsWith(prefix));
-  return`${prefix}-${String(existing.length+1).padStart(2,'0')}`;
-}
-
-// Company selector state
-let minvSelectedCompany=null;
-function getMinvCompanyHtml(){
-  if(!MINV_COMPANIES.length)return'';
-  return`<div style="margin-bottom:12px;">
-    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;">CÔNG TY</label>
-    <select id="minv-company" onchange="onMinvCompanyChange()" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-size:13px;">
-      ${MINV_COMPANIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
-    </select>
-  </div>`;
-}
-function onMinvCompanyChange(){
-  const id=document.getElementById('minv-company')?.value;
-  minvSelectedCompany=MINV_COMPANIES.find(c=>c.id===id)||MINV_COMPANIES[0]||null;
-  renderMinvPreview();
-}
-
-async function openMinvCreate(){
-  minvEditId=null;minvItems=[];
-  await loadMinvCompanies();
-  minvSelectedCompany=MINV_COMPANIES[0]||null;
-  document.getElementById('minv-form-title').textContent='Tạo Invoice mới';
-  document.getElementById('minv-save-btn').textContent='💾 Lưu Invoice';
-  document.getElementById('minv-date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('minv-rep').value=currentUser?.name||'Calvin';
-  document.getElementById('minv-tax').value='0';document.getElementById('minv-deposit').value='0';document.getElementById('minv-note').value='';
-  // Inject company selector
-  const compWrap=document.getElementById('minv-company-wrap');
-  if(compWrap)compWrap.innerHTML=getMinvCompanyHtml();
-  clearMinvCustomer();document.getElementById('minv-prod-search').value='';
-  renderMinvItems();calcMinvTotals();renderMinvPreview();
-  document.getElementById('m-minv').style.display='flex';
-}
-function closeMinvModal(){document.getElementById('m-minv').style.display='none';}
-
-function clearMinvCustomer(){
-  document.getElementById('minv-cust-ten').value='';
-  document.getElementById('minv-cust-phone').value='';
-  document.getElementById('minv-cust-addr').value='';
-}
-
-function searchMinvProduct(){
-  const q=(document.getElementById('minv-prod-search').value||'').toLowerCase();
-  const res=document.getElementById('minv-prod-results');
-  if(q.length<1){res.style.display='none';return;}
-  const found=allProducts.filter(p=>(p.ten_sp||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)).slice(0,10);
-  if(!found.length){res.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px;">Không tìm thấy</div>';res.style.display='block';return;}
-  res.innerHTML=found.map(p=>{
-    const safe=JSON.stringify(p).replace(/'/g,"\\'");
-    return`<div onclick='addMinvItem(${safe})' style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-      <div style="font-weight:600;color:var(--text);">${p.ten_sp}</div>
-      <div style="color:var(--text2);">${p.sku} · Bán: ${fmtUSD(p.gia_ban||0)} · Cost: ${fmtUSD(p.vendor_cost||0)}</div>
-    </div>`;
-  }).join('');
-  res.style.display='block';
-}
-
-// Fix 2: Load image từ CRM - preload khi app khởi động
-async function preloadMinvImages(){
-  if(!allProducts.length)return;
-  const skus=allProducts.map(p=>p.sku).filter(Boolean);
-  if(!skus.length)return;
-  try{
-    // Batch fetch tất cả image từ CRM 1 lần
-    const data=await fetchCRM(`products?sku=in.(${skus.map(s=>encodeURIComponent(s)).join(',')})&select=sku,image_url&limit=500`);
-    if(Array.isArray(data))data.forEach(p=>{if(p.sku)minvImgCache[p.sku]=p.image_url||'';});
-  }catch(e){console.warn('preloadMinvImages error:',e);}
-}
-
-async function addMinvItem(p){
-  document.getElementById('minv-prod-results').style.display='none';document.getElementById('minv-prod-search').value='';
-  // Lấy image từ cache hoặc fetch riêng
-  let imgUrl=minvImgCache.hasOwnProperty(p.sku)?minvImgCache[p.sku]:undefined;
-  if(imgUrl===undefined){
-    try{const data=await fetchCRM(`products?sku=eq.${encodeURIComponent(p.sku)}&select=image_url&limit=1`);imgUrl=(Array.isArray(data)&&data[0])?data[0].image_url:null;minvImgCache[p.sku]=imgUrl||'';}catch(e){imgUrl=null;}
-  }
-  const isShipping=(p.sku||'').toUpperCase().includes('SHIP');
-  minvItems.push({_id:Date.now(),product_id:p.id,sku:p.sku,name:p.ten_sp,image_url:imgUrl||null,qty:1,unit_price:p.gia_ban||0,cost:isShipping?0:(p.vendor_cost||0),cost_editable:isShipping,discount:0,amount:p.gia_ban||0,profit:(p.gia_ban||0)-(p.vendor_cost||0)});
-  renderMinvItems();calcMinvTotals();renderMinvPreview();
-}
-function removeMinvItem(id){minvItems=minvItems.filter(i=>i._id!==id);renderMinvItems();calcMinvTotals();renderMinvPreview();}
-function updateMinvItem(id,field,val){
-  const item=minvItems.find(i=>i._id===id);if(!item)return;
-  item[field]=parseFloat(val)||0;
-  item.amount=Math.max(0,item.qty*item.unit_price-item.discount);
-  item.profit=item.amount-item.cost*item.qty;
-  // Không renderMinvItems() để tránh mất focus khi đang nhập
-  // Chỉ update summary dòng hiện tại
-  const wrap=document.querySelector(`[data-item-id="${id}"]`);
-  if(wrap){
-    const amtEl=wrap.querySelector('.item-amount');
-    const profEl=wrap.querySelector('.item-profit');
-    if(amtEl)amtEl.textContent='Amount: '+fmtUSD(item.amount);
-    if(profEl){profEl.textContent='Profit: '+fmtUSD(item.profit);profEl.style.color=item.profit>=0?'var(--green2)':'var(--red2)';}
-  }
-  calcMinvTotals();renderMinvPreview();
-}
-function updateMinvItemBlur(id){
-  // Re-render đầy đủ khi rời khỏi field (onblur) để sync lại giá trị
-  renderMinvItems();
-}
-function renderMinvItems(){
-  const wrap=document.getElementById('minv-items-list');
-  if(!minvItems.length){wrap.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px;">Chưa có sản phẩm</div>';return;}
-  wrap.innerHTML=minvItems.map(it=>`
-    <div data-item-id="${it._id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;margin-bottom:6px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${it.name} <span style="font-size:10px;color:var(--text3);">${it.sku}</span></div>
-        <button onclick="removeMinvItem(${it._id})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;">×</button>
-      </div>
-      <div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr;gap:6px;font-size:11px;">
-        <div><label style="color:var(--text3);">QTY</label><input type="number" min="1" value="${it.qty}"
-          oninput="updateMinvItem(${it._id},'qty',this.value)"
-          onblur="updateMinvItemBlur(${it._id})"
-          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Price</label><input type="number" min="0" value="${it.unit_price}"
-          oninput="updateMinvItem(${it._id},'unit_price',this.value)"
-          onblur="updateMinvItemBlur(${it._id})"
-          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Cost${it.cost_editable?' ✏':' 🔒'}</label><input type="number" min="0" value="${it.cost}" ${it.cost_editable?'':'readonly'}
-          oninput="updateMinvItem(${it._id},'cost',this.value)"
-          onblur="updateMinvItemBlur(${it._id})"
-          style="width:100%;padding:4px;background:${it.cost_editable?'var(--bg2)':'var(--bg3)'};border:1px solid var(--border2);border-radius:4px;color:${it.cost_editable?'var(--text)':'var(--text3)'};font-size:11px;box-sizing:border-box;"></div>
-        <div><label style="color:var(--text3);">Disc.$</label><input type="number" min="0" value="${it.discount}"
-          oninput="updateMinvItem(${it._id},'discount',this.value)"
-          onblur="updateMinvItemBlur(${it._id})"
-          style="width:100%;padding:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;box-sizing:border-box;"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;">
-        <span class="item-amount" style="color:var(--text3);">Amount: <strong style="color:var(--text);">${fmtUSD(it.amount)}</strong></span>
-        <span class="item-profit" style="color:var(--text3);">Profit: <strong style="color:${it.profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(it.profit)}</strong></span>
-      </div>
-    </div>`).join('');
-}
-function calcMinvTotals(){
-  const subtotal=minvItems.reduce((s,i)=>s+(i.amount||0),0);
-  const totalCost=minvItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
-  const tax=parseFloat(document.getElementById('minv-tax').value)||0;
-  const grandTotal=subtotal+tax;
-  const profit=grandTotal-totalCost;
-  const margin=grandTotal>0?((profit/grandTotal)*100).toFixed(1):0;
-  document.getElementById('minv-subtotal').textContent=fmtUSD(subtotal);
-  document.getElementById('minv-totalcost').textContent=fmtUSD(totalCost);
-  document.getElementById('minv-profit').textContent=fmtUSD(profit);
-  document.getElementById('minv-profit').style.color=profit>=0?'var(--green2)':'var(--red2)';
-  document.getElementById('minv-margin').textContent=margin+'%';
-  return{subtotal,totalCost,tax,grandTotal,profit,margin};
-}
-
-// Fix 3: Logo từ company, Fix 5: màu text đọc được (nền trắng)
-function renderMinvPreview(){
-  const co=minvSelectedCompany||{name:'BolsaBeauty LLC',address:'8102 Washington Ave, Midway City, CA 92655',phone:'(949) 816-1167',logo_url:''};
-  const name=document.getElementById('minv-cust-ten').value||'—';
-  const phone=document.getElementById('minv-cust-phone').value||'';
-  const addr=document.getElementById('minv-cust-addr').value||'';
-  const rep=document.getElementById('minv-rep').value;
-  const date=document.getElementById('minv-date').value||new Date().toISOString().slice(0,10);
-  const note=document.getElementById('minv-note').value||'';
-  const{subtotal,totalCost,tax,grandTotal,profit,margin}=calcMinvTotals();
-  const deposit=parseFloat(document.getElementById('minv-deposit').value)||0;
-  const poNum=minvEditId?(allMinvInvoices.find(i=>i.id===minvEditId)||{}).po_number||'(Auto)':'(Auto)';
-  const RED='#c0392b';
-  const rows=minvItems.map(it=>`<tr>
-    <td style="padding:8px 6px;border-bottom:1px solid #eee;">${it.image_url?`<img src="${it.image_url}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`:'<div style="width:52px;height:52px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div>'}</td>
-    <td style="padding:8px 6px;border-bottom:1px solid #eee;font-size:13px;color:#222;">${it.name}<br><span style="font-size:10px;color:#888;">${it.sku}</span></td>
-    <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #eee;color:#222;">${it.qty}</td>
-    <td style="padding:8px 6px;text-align:right;border-bottom:1px solid #eee;color:#222;">$${it.unit_price.toLocaleString()}</td>
-    <td style="padding:8px 6px;text-align:right;border-bottom:1px solid #eee;color:#222;">$${it.discount.toLocaleString()}</td>
-    <td style="padding:8px 6px;text-align:right;border-bottom:1px solid #eee;font-weight:700;color:#222;">$${it.amount.toLocaleString()}</td>
-    <td class="manager-cost-col" style="padding:8px 6px;text-align:right;border-bottom:1px solid #eee;color:#666;">$${it.cost.toLocaleString()}</td>
-    <td class="manager-cost-col" style="padding:8px 6px;text-align:right;border-bottom:1px solid #eee;font-weight:600;color:${it.profit>=0?'#27ae60':'#e74c3c'};">$${it.profit.toLocaleString()}</td>
-  </tr>`).join('');
-
-  // Fix 3: Logo — dùng logo_url từ company nếu có
-  const logoHtml=co.logo_url
-    ?`<img src="${co.logo_url}" style="height:56px;object-fit:contain;" onerror="this.style.display='none'">`
-    :`<div style="font-size:11px;color:#999;font-style:italic;">${co.name}</div>`;
-
-  document.getElementById('minv-preview').innerHTML=`
-  <div style="font-family:Arial,sans-serif;color:#222;background:#fff;padding:0;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
-      <div>
-        <div style="font-size:18px;font-weight:700;color:${RED};">${co.name}</div>
-        <div style="font-size:11px;color:#555;">${co.address||''}</div>
-        <div style="font-size:11px;color:#555;">${co.phone||''}</div>
-      </div>
-      ${logoHtml}
-    </div>
-    <hr style="border:none;border-top:1px solid #ddd;margin-bottom:14px;">
-    <div style="font-size:24px;font-weight:700;color:${RED};margin-bottom:14px;">INVOICE</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:11px;">
-      <div><div style="color:${RED};font-weight:700;font-size:10px;letter-spacing:0.5px;">DATE</div><div style="color:#222;">${date}</div></div>
-      <div><div style="color:${RED};font-weight:700;font-size:10px;letter-spacing:0.5px;">PO NUMBER</div><div style="color:#222;">${poNum}</div></div>
-      <div><div style="color:${RED};font-weight:700;font-size:10px;letter-spacing:0.5px;">SALE REP</div><div style="color:#222;">${rep}</div></div>
-    </div>
-    <div style="background:${RED};color:#fff;padding:6px 10px;font-size:11px;font-weight:700;margin-bottom:8px;">BILL TO</div>
-    <div style="margin-bottom:16px;font-size:12px;color:#222;">
-      <div style="font-weight:700;color:${RED};font-size:14px;">${name}</div>
-      ${phone?`<div>Phone: ${phone}</div>`:''}
-      ${addr?`<div>Address: ${addr}</div>`:''}
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;table-layout:fixed;">
-      <colgroup><col style="width:62px"><col><col style="width:40px"><col style="width:82px"><col style="width:70px"><col style="width:82px"><col class="manager-cost-col" style="width:70px"><col class="manager-cost-col" style="width:82px"></colgroup>
-      <thead><tr style="background:${RED};color:#fff;">
-        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">IMAGE</th>
-        <th style="padding:8px 6px;text-align:left;color:#fff;font-weight:600;">DESCRIPTION</th>
-        <th style="padding:8px 6px;text-align:center;color:#fff;font-weight:600;">QTY</th>
-        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">UNIT PRICE</th>
-        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">DISCOUNT</th>
-        <th style="padding:8px 6px;text-align:right;color:#fff;font-weight:600;">AMOUNT</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">COST</th>
-        <th class="manager-cost-col" style="padding:8px 6px;text-align:right;background:#8b0000;color:#fff;font-weight:600;">PROFIT</th>
-      </tr></thead>
-      <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">Chưa có sản phẩm</td></tr>'}</tbody>
-    </table>
-    <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px;">
-      <div style="flex:1;font-size:11px;color:#555;line-height:1.6;">
-        <p style="margin:0 0 3px;">* Includes a 12-month warranty and lifetime technical support.</p>
-        <p style="margin:0 0 3px;">* Order must be in full before delivery or ship.</p>
-        <p style="margin:0 0 3px;">* All custom made items are non-refundable or cancel.</p>
-        <p style="margin:0 0 3px;">* Returned item will be refunded less original shipping and 30% restocking fee.</p>
-      </div>
-      <div style="width:260px;font-size:12px;flex-shrink:0;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#444;"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
-        ${tax?`<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#444;"><span>Tax</span><span>$${tax.toLocaleString()}</span></div>`:''}
-        <div style="font-size:22px;font-weight:700;color:${RED};text-align:right;margin-bottom:6px;">$${grandTotal.toLocaleString()}</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#444;"><span>Deposit</span><span>$${deposit.toLocaleString()}</span></div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;color:#222;"><span>Balance Due</span><span style="color:${RED};">$${(grandTotal-deposit).toLocaleString()}</span></div>
-        <div class="manager-cost-col" style="margin-top:10px;padding:8px 10px;background:#fff8f0;border-radius:4px;border:1px solid #f0d0b0;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px;color:#666;font-size:11px;"><span>Total Cost</span><span>$${totalCost.toLocaleString()}</span></div>
-          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:12px;"><span style="color:#333;">Gross Profit</span><span style="color:${profit>=0?'#27ae60':'#e74c3c'};">$${profit.toLocaleString()} (${margin}%)</span></div>
-        </div>
-      </div>
-    </div>
-    ${note?`<div style="font-size:11px;color:#666;font-style:italic;margin-bottom:12px;">Ghi chú: ${note}</div>`:''}
-    <hr style="border:none;border-top:1px solid #ddd;">
-    <div style="text-align:center;font-style:italic;font-size:12px;color:${RED};font-weight:600;padding:8px 0;">'Thank You for Your Business'</div>
-  </div>`;
-}
-
-async function saveMinv(){
-  const name=document.getElementById('minv-cust-ten').value.trim();
-  if(!name){toast('Vui lòng nhập tên khách hàng','amber');return;}
-  if(!minvItems.length){toast('Vui lòng thêm sản phẩm','amber');return;}
-  const{subtotal,totalCost,tax,grandTotal,profit}=calcMinvTotals();
-  const deposit=parseFloat(document.getElementById('minv-deposit').value)||0;
-  const poNum=minvEditId?(allMinvInvoices.find(i=>i.id===minvEditId)||{}).po_number||await genMinvPoNumber():await genMinvPoNumber();
-  const invData={po_number:poNum,invoice_date:document.getElementById('minv-date').value,sale_rep:document.getElementById('minv-rep').value,created_by:currentUser?.name||'Manager',customer_name:name,customer_phone:document.getElementById('minv-cust-phone').value||null,customer_address:document.getElementById('minv-cust-addr').value||null,subtotal,tax,grand_total:grandTotal,total_cost:totalCost,gross_profit:profit,deposit,note:document.getElementById('minv-note').value||null,status:'Pending'};
-  try{
-    let invId=minvEditId;
-    if(minvEditId){
-      await sbPatch('manager_invoices','id=eq.'+minvEditId,invData);
-      await fetch(`${CFG.url}/rest/v1/manager_invoice_items?invoice_id=eq.${minvEditId}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
-    } else {
-      const res=await sbInsert('manager_invoices',invData);invId=res.id;
-    }
-    await fetch(`${CFG.url}/rest/v1/manager_invoice_items`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(minvItems.map(it=>({invoice_id:invId,product_id:it.product_id||null,sku:it.sku,name:it.name,image_url:it.image_url||null,qty:it.qty,unit_price:it.unit_price,cost:it.cost,discount:it.discount,amount:it.amount,profit:it.profit})))});
-    closeMinvModal();await loadMinvInvoices();toast(minvEditId?'Đã cập nhật invoice':'Đã tạo invoice mới','green');minvEditId=null;
-  }catch(e){toast('Lỗi: '+e.message,'red');}
-}
-async function editMinv(id){
-  const inv=allMinvInvoices.find(i=>i.id===id);if(!inv)return;
-  await loadMinvCompanies();
-  minvEditId=id;
-  minvItems=(inv._items||[]).map(it=>({_id:Date.now()+Math.random(),product_id:it.product_id,sku:it.sku,name:it.name,image_url:it.image_url,qty:it.qty,unit_price:it.unit_price,cost:it.cost,cost_editable:(it.sku||'').toUpperCase().includes('SHIP'),discount:it.discount,amount:it.amount,profit:it.profit}));
-  document.getElementById('minv-form-title').textContent='Sửa · '+inv.po_number;
-  document.getElementById('minv-save-btn').textContent='💾 Cập nhật';
-  document.getElementById('minv-date').value=inv.invoice_date||'';
-  document.getElementById('minv-rep').value=inv.sale_rep||'Calvin';
-  document.getElementById('minv-tax').value=inv.tax||0;
-  document.getElementById('minv-deposit').value=inv.deposit||0;
-  document.getElementById('minv-note').value=inv.note||'';
-  document.getElementById('minv-cust-ten').value=inv.customer_name||'';
-  document.getElementById('minv-cust-phone').value=inv.customer_phone||'';
-  document.getElementById('minv-cust-addr').value=inv.customer_address||'';
-  const compWrap=document.getElementById('minv-company-wrap');
-  if(compWrap)compWrap.innerHTML=getMinvCompanyHtml();
-  minvSelectedCompany=MINV_COMPANIES[0]||null;
-  clearMinvCustomer();renderMinvItems();calcMinvTotals();renderMinvPreview();
-  document.getElementById('m-minv').style.display='flex';
-}
-
-// Fix 4: Print - ẩn header ngày giờ browser và Gross Profit block
-async function deleteMinv(id,poNum){
-  if(!confirm(`Xóa invoice ${poNum}? Hành động này không thể hoàn tác.`))return;
-  try{
-    await fetch(`${CFG.url}/rest/v1/manager_invoice_items?invoice_id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
-    await fetch(`${CFG.url}/rest/v1/manager_invoices?id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':'Bearer '+CFG.key}});
-    allMinvInvoices=allMinvInvoices.filter(i=>i.id!==id);
-    renderMinvList();renderMinvSummary();
-    toast('Đã xóa invoice '+poNum,'green');
-  }catch(e){toast('Lỗi xóa: '+e.message,'red');}
-}
-async function printMinv(){
-  renderMinvPreview();
-  const el=document.getElementById('minv-preview');
-  const imgs=Array.from(el.querySelectorAll('img'));
-  const orig=imgs.map(i=>i.src);
-  await Promise.all(imgs.map(async img=>{
-    if(!img.src||img.src.startsWith('data:'))return;
-    try{const r=await fetch(img.src);const b=await r.blob();img.src=await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(b);});}catch(e){}
-  }));
-  const html=el.innerHTML;
-  imgs.forEach((img,i)=>img.src=orig[i]);
-  const pw=window.open('','_blank','width=900,height=700');
-  pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice</title>
-    <style>
-      body{margin:0;padding:24px 30px;background:#fff;font-family:Arial,sans-serif;}
-      /* Fix 4: Ẩn header/footer mặc định của browser khi in */
-      @page{margin:10mm 8mm;size:A4;}
-      @media print{
-        @page{margin:10mm 8mm;}
-        .manager-cost-col{display:none!important}
-        body{padding:0;}
-        /* Ẩn Gross Profit block khi in */
-        .manager-cost-col{display:none!important;}
-      }
-    </style>
-    </head><body>${html}</body></html>`);
-  pw.document.close();
-  pw.onload=()=>{pw.focus();pw.print();pw.onafterprint=()=>pw.close();};
-}
-async function printMinvById(id){
-  const inv=allMinvInvoices.find(i=>i.id===id);if(!inv)return;
-  await editMinv(id);setTimeout(()=>printMinv(),400);
-}
-
-const _origRenderPage=renderPage;
-renderPage=function(id){
-  if(id==='minv'){loadMinvInvoices();preloadMinvImages();return;}
-  _origRenderPage(id);
-};
-function renderMinvSummary(){
-  const status=document.getElementById('minv-f-status').value;
-  const rep=document.getElementById('minv-f-rep').value;
-  let list=allMinvInvoices;
-  if(status)list=list.filter(i=>i.status===status);
-  if(rep)list=list.filter(i=>i.sale_rep===rep);
-  const total=list.reduce((s,i)=>s+(i.grand_total||0),0);
-  const cost=list.reduce((s,i)=>s+(i.total_cost||0),0);
-  const profit=total-cost;
-  const margin=total>0?((profit/total)*100).toFixed(1):0;
-  document.getElementById('minv-summary').innerHTML=`
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">TỔNG ĐƠN</div><div style="font-size:20px;font-weight:700;color:var(--text);">${list.length}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">DOANH THU</div><div style="font-size:20px;font-weight:700;color:var(--blue2);">${fmtUSD(total)}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">GROSS PROFIT</div><div style="font-size:20px;font-weight:700;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</div></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">MARGIN</div><div style="font-size:20px;font-weight:700;color:${margin>=20?'var(--green2)':'var(--amber2)'};">${margin}%</div></div>`;
-}
-function renderMinvList(){
-  const status=document.getElementById('minv-f-status').value;
-  const rep=document.getElementById('minv-f-rep').value;
-  const q=(document.getElementById('minv-f-search').value||'').toLowerCase();
-  let list=allMinvInvoices;
-  if(status)list=list.filter(i=>i.status===status);
-  if(rep)list=list.filter(i=>i.sale_rep===rep);
-  if(q)list=list.filter(i=>(i.po_number||'').toLowerCase().includes(q)||(i.customer_name||'').toLowerCase().includes(q));
-  renderMinvSummary();
-  const tbody=document.getElementById('minv-tbody');
-  const empty=document.getElementById('minv-empty');
-  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-  const ss={Pending:'color:var(--amber2);background:var(--amberbg)',Closedeal:'color:var(--green2);background:var(--greenbg)',Cancel:'color:var(--red2);background:var(--redbg)'};
-  tbody.innerHTML=list.map(inv=>{
-    const profit=(inv.grand_total||0)-(inv.total_cost||0);
-    return`<tr style="border-top:1px solid var(--border);">
-      <td style="padding:10px 12px;font-weight:600;color:var(--blue2);">${inv.po_number||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text2);">${inv.invoice_date||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text);">${inv.customer_name||'—'}</td>
-      <td style="padding:10px 12px;color:var(--text2);">${inv.sale_rep||'—'} <span style="font-size:10px;color:var(--text3);">by ${inv.created_by||'—'}</span></td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtUSD(inv.grand_total||0)}</td>
-      <td style="padding:10px 12px;text-align:right;color:var(--text2);">${fmtUSD(inv.total_cost||0)}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;color:${profit>=0?'var(--green2)':'var(--red2)'};">${fmtUSD(profit)}</td>
-      <td style="padding:10px 12px;text-align:center;">
-        <select onchange="updateMinvStatus('${inv.id}',this.value)" style="padding:3px 6px;font-size:11px;border-radius:4px;border:1px solid var(--border2);${ss[inv.status]||''};cursor:pointer;">
-          <option ${inv.status==='Pending'?'selected':''}>Pending</option>
-          <option ${inv.status==='Closedeal'?'selected':''}>Closedeal</option>
-          <option ${inv.status==='Cancel'?'selected':''}>Cancel</option>
-        </select>
-      </td>
-      <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:6px;justify-content:center;">
-        <button onclick="editMinv('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bluebg);border:1px solid var(--blueborder);border-radius:4px;color:var(--blue2);cursor:pointer;">Sửa</button>
-        <button onclick="printMinvById('${inv.id}')" style="padding:4px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;">In</button>
-        <button onclick="deleteMinv('${inv.id}','${inv.po_number}')" style="padding:4px 10px;font-size:11px;background:var(--redbg);border:1px solid var(--redborder);border-radius:4px;color:var(--red2);cursor:pointer;">Xóa</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-}
-async function updateMinvStatus(id,status){await sbPatch('manager_invoices','id=eq.'+id,{status});const inv=allMinvInvoices.find(i=>i.id===id);if(inv)inv.status=status;renderMinvList();toast('Đã cập nhật status','green');}
-async function genMinvPoNumber(){
-  const t=new Date();
-  const yy=String(t.getFullYear()).slice(2),mm=String(t.getMonth()+1).padStart(2,'0'),dd=String(t.getDate()).padStart(2,'0');
-  const prefix=`INVC01${yy}${mm}${dd}`;
-  const existing=allMinvInvoices.filter(i=>(i.po_number||'').startsWith(prefix));
-  return`${prefix}-${String(existing.length+1).padStart(2,'0')}`;
-}
-async function openMinvCreate(){
-  minvEditId=null;minvItems=[];
-  document.getElementById('minv-form-title').textContent='Tạo Invoice mới';
-  document.getElementById('minv-save-btn').textContent='💾 Lưu Invoice';
-  document.getElementById('minv-date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('minv-rep').value=currentUser?.name||'Calvin';
-  document.getElementById('minv-tax').value='0';document.getElementById('minv-deposit').value='0';document.getElementById('minv-note').value='';
-  clearMinvCustomer();document.getElementById('minv-prod-search').value='';
-  renderMinvItems();calcMinvTotals();renderMinvPreview();
-  document.getElementById('m-minv').style.display='flex';
-}
-function closeMinvModal(){document.getElementById('m-minv').style.display='none';}
-
 // ─── INIT ───
 updateRangeLabels();
 loadAll();
-
-// ─── REALTIME (dùng Supabase Realtime WebSocket) ───
-(function initRealtime(){
-  try{
-    const wsUrl='wss://jggfmpihfisbusnbzyoi.supabase.co/realtime/v1/websocket?apikey='+SUPA_KEY+'&vsn=1.0.0';
-    const ws=new WebSocket(wsUrl);
-    let heartbeat;
-    ws.onopen=function(){
-      // Join orders channel
-      ws.send(JSON.stringify({topic:'realtime:public:orders',event:'phx_join',payload:{},ref:'1'}));
-      // Join products channel
-      ws.send(JSON.stringify({topic:'realtime:public:products',event:'phx_join',payload:{},ref:'2'}));
-      heartbeat=setInterval(function(){
-        ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'}));
-      },30000);
-    };
-    ws.onmessage=function(e){
-      try{
-        const msg=JSON.parse(e.data);
-        if(msg.event!=='INSERT'&&msg.event!=='UPDATE'&&msg.event!=='DELETE')return;
-        const rec=msg.payload&&msg.payload.record;
-        const old=msg.payload&&msg.payload.old_record;
-        if(!rec&&!old)return;
-        if(msg.topic==='realtime:public:orders'){
-          if(msg.event==='INSERT'){
-            if(!allOrders.find(function(o){return o.id===rec.id;})){
-              allOrders.unshift(rec);
-              renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
-              toast('📥 Đơn mới: '+(rec.ma_don||''),'blue');
-            }
-          }else if(msg.event==='UPDATE'){
-            const idx=allOrders.findIndex(function(o){return o.id===rec.id;});
-            if(idx>=0)allOrders[idx]=Object.assign({},allOrders[idx],rec);
-            renderPage(document.querySelector('.page.on')?.id?.replace('pg-',''));
-          }else if(msg.event==='DELETE'&&old){
-            allOrders=allOrders.filter(function(o){return o.id!==old.id;});
-          }
-        }else if(msg.topic==='realtime:public:products'){
-          if(msg.event==='INSERT'){
-            if(!allProducts.find(function(p){return p.id===rec.id;}))allProducts.push(rec);
-          }else if(msg.event==='UPDATE'){
-            const idx=allProducts.findIndex(function(p){return p.id===rec.id;});
-            if(idx>=0)allProducts[idx]=Object.assign({},allProducts[idx],rec);
-          }else if(msg.event==='DELETE'&&old){
-            allProducts=allProducts.filter(function(p){return p.id!==old.id;});
-          }
-          if(document.querySelector('#pg-products.on'))renderPage('products');
-        }
-      }catch(err){console.warn('Realtime parse error:',err);}
-    };
-    ws.onclose=function(){
-      clearInterval(heartbeat);
-      // Reconnect sau 5s
-      setTimeout(initRealtime,5000);
-    };
-    ws.onerror=function(e){console.warn('Realtime WS error:',e);};
-  }catch(e){console.warn('Realtime init failed:',e);}
-})();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
