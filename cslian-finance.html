@@ -1372,8 +1372,9 @@ function renderAlerts(){
   allProfiles.forEach(p=>{
     if(!p.birthday)return;
     const bd=new Date(p.birthday);
+    const bdToday2=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     const bdThisYear=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());
-    const daysLeft=Math.round((bdThisYear-now)/(1000*60*60*24));
+    const daysLeft=Math.round((bdThisYear-bdToday2)/(1000*60*60*24));
     if(daysLeft>=0&&daysLeft<=7){
       alerts.push({cls:'warn-birthday',icon:'🎂',title:`Sinh nhật: ${p.full_name}`,sub:`Ngày ${bd.getDate()}/${bd.getMonth()+1} · ${daysLeft===0?'Hôm nay!':'Còn '+daysLeft+' ngày'}`});
     }
@@ -1693,7 +1694,7 @@ function showStaffDetail(uid){
     <div class="sr"><span class="sl">Biệt danh</span><span class="sv">${p.nickname||'—'}</span></div>
     <div class="sr"><span class="sl">Chức danh</span><span class="sv">${p.role||'—'}</span></div>
     <div class="sr"><span class="sl">Lever</span><span class="sv">${p.lever||1}</span></div>
-    <div class="sr"><span class="sl">Loại HĐ</span><span class="sv">${p.contract_type||'—'}</span></div>
+    <div class="sr"><span class="sl">Loại HĐ</span><span class="sv">${{official:'Chính thức',probation:'Thử việc','chinh-thuc':'Chính thức','thu-viec':'Thử việc'}[p.contract_type]||p.contract_type||'—'}</span></div>
     <div class="sr"><span class="sl">Ngày vào</span><span class="sv">${p.start_date||'—'}</span></div>
     <div class="sr"><span class="sl">Ngày sinh</span><span class="sv">${bd}</span></div>
     <div class="sr"><span class="sl">Doanh thu kỳ</span><span class="sv" style="color:var(--green2);">${fmtUSD(totalRev)}</span></div>
@@ -2031,7 +2032,7 @@ function renderSettings(){
       <td style="text-align:center;">${p.lever||1}</td>
       <td style="font-size:12px;color:var(--text2);">${p.start_date||'—'}</td>
       <td style="font-size:12px;color:${p.birthday?'var(--pink)':'var(--text3)'};">${bd}</td>
-      <td><span class="b b-gray" style="font-size:10px;">${p.contract_type||'—'}</span></td>
+      <td><span class="b b-gray" style="font-size:10px;">${{official:'Chính thức',probation:'Thử việc','chinh-thuc':'Chính thức','thu-viec':'Thử việc'}[p.contract_type]||p.contract_type||'—'}</span></td>
       <td><span style="font-size:11px;color:var(--text3);">—</span></td>
     </tr>`;
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Chưa có dữ liệu.</td></tr>';
