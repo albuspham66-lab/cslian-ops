@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="C-Slian Finance v5">
-<link rel="manifest" href="manifest-finance.json">
+<!-- manifest removed for local use -->
 <link rel="apple-touch-icon" href="icon-finance-192.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1524,10 +1524,7 @@ function renderOrdersTable(orders){
 // ─── FINANCE ───
 let expChart=null;
 function renderFinance(){
-  const revM=calcRevMonth(),cm=calcCommission(),exp=calcExpTotal(),sal=calcSalTotal();
-  const cmVND=cm.total*CFG.rate;
-  const net=revM*CFG.rate+cmVND-exp-sal;
-
+  const revM=calcRevMonth(),exp=calcExpTotal(),sal=calcSalTotal();
   const cogs=doneOrders().reduce((s,o)=>s+(o.cogs||0),0);
   const gp=doneOrders().reduce((s,o)=>s+(o.gross_profit||0),0);
   const gpVND=gp*CFG.rate;
@@ -1881,18 +1878,16 @@ function renderProducts(){
 
   // Vendor performance from orders
   const vr=calcVendorRevenue();
-  const cm=calcCommission();
-  const vendorRows=(vendor,rev,comm,color)=>{
+  const vendorRows=(vendor,rev,color)=>{
     const prods=allProducts.filter(p=>p.vendor===vendor&&p.is_active!==false);
     const topOrders=doneOrders().filter(o=>(vendor==='BOLSA'?(o.revenue_bolsa||0)>0:vendor==='ONS'?(o.revenue_ons||0)>0:(o.revenue_tspa||0)>0));
     return`<div class="sr"><span class="sl">Doanh thu kỳ</span><span class="sv" style="color:${color};">${fmtUSD(rev)}</span></div>
-    <div class="sr"><span class="sl">Hoa hồng C-Slian</span><span class="sv" style="color:var(--teal2);">${fmtUSD(comm)}</span></div>
     <div class="sr"><span class="sl">Số đơn</span><span class="sv">${topOrders.length}</span></div>
     <div class="sr"><span class="sl">SKU active</span><span class="sv">${prods.length}</span></div>`;
   };
-  setHTML('vendor-stat-bolsa',vendorRows('BOLSA',vr.bolsa,cm.bolsa,'var(--amber2)'));
-  setHTML('vendor-stat-ons',vendorRows('ONS',vr.ons,cm.ons,'var(--blue2)'));
-  setHTML('vendor-stat-tspa',vendorRows('TSPA',vr.tspa,cm.tspa,'var(--purple2)'));
+  setHTML('vendor-stat-bolsa',vendorRows('BOLSA',vr.bolsa,'var(--amber2)'));
+  setHTML('vendor-stat-ons',vendorRows('ONS',vr.ons,'var(--blue2)'));
+  setHTML('vendor-stat-tspa',vendorRows('TSPA',vr.tspa,'var(--purple2)'));
 
   prodPage=1;filterProducts();
 }
@@ -2122,7 +2117,7 @@ if('serviceWorker' in navigator){
 updateRangeLabels();
 loadAll();
 </script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+<!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </body>
 </html>
