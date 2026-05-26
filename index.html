@@ -1709,10 +1709,26 @@ async function saveDay(){
   const co=document.getElementById('dm-co').value;
   const note=document.getElementById('dm-note').value;
   const isWD=st==='WD';
+  // Convert HH:MM → full ISO timestamp với ngày ds
+  function toISO(ds,hhmm){
+    if(!hhmm)return null;
+    // hhmm = "22:01", ds = "2026-05-14"
+    // Ca đêm: checkin 22:xx thuộc ngày ds, checkout 06:xx thuộc ngày ds+1
+    const [h,m]=hhmm.split(':').map(Number);
+    const coDate=new Date(ds+'T12:00:00');
+    if(h<14)coDate.setDate(coDate.getDate()+1); // checkout sáng hôm sau
+    const y=coDate.getFullYear(),mo=String(coDate.getMonth()+1).padStart(2,'0'),d=String(coDate.getDate()).padStart(2,'0');
+    return `${y}-${mo}-${d}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+00:00`;
+  }
+  function toISOCheckin(ds,hhmm){
+    if(!hhmm)return null;
+    const [h,m]=hhmm.split(':').map(Number);
+    return `${ds}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+00:00`;
+  }
   const payload={
     user_id:empId, date:ds, status:st,
-    checkin_time:isWD&&ci?ci+':00':null,
-    checkout_time:isWD&&co?co+':00':null,
+    checkin_time:isWD&&ci?toISOCheckin(ds,ci):null,
+    checkout_time:isWD&&co?toISO(ds,co):null,
     note:note||null
   };
   // Kiểm tra record có tồn tại không
