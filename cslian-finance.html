@@ -1402,7 +1402,7 @@ function renderAgingWidget(){
   setHTML('dash-aging',html.join(''));
 }
 
-function renderAlerts(){
+async function renderAlerts(){
   const alerts=[];
   const now=new Date(); const curM=now.getMonth()+1; const curY=now.getFullYear();
 
