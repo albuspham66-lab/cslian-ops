@@ -1716,11 +1716,13 @@ function renderOrdersTable(orders){
 let expChart=null;
 function renderFinance(){
   const revM=calcRevMonth(),exp=calcExpTotal(),sal=calcSalTotal();
-  const cogs=doneOrders().reduce((s,o)=>s+(o.cogs||0),0);
-  const gp=doneOrders().reduce((s,o)=>s+(o.gross_profit||0),0);
-  const gpVND=gp*CFG.rate;
-  const net=gpVND-exp-sal;
+  // BUG FIX: dùng calcCommission() thay vì gross_profit từ orders table
+  const comm=calcCommission();
+  const commVND=comm.total*CFG.rate;
+  const net=commVND-exp-sal;
   setTxt('pf-rev',fmtUSD(revM));
+  // BUG FIX: set pf-comm card (trước đây không bao giờ được set)
+  setTxt('pf-comm',comm.total>0?fmtUSD(comm.total):'—');
   setTxt('pf-exp',fmtVND(exp));setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
   setTxt('pf-net-sub',net>=0?'Lợi nhuận':'Lỗ');
