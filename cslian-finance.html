@@ -1069,7 +1069,7 @@ let BUDGET = { ops:0, inv:0, total:0, profit:0 };
 try { const b=JSON.parse(localStorage.getItem('cslian_budget')||'{}'); BUDGET={...BUDGET,...b}; } catch(e){}
 
 // ─── STATE ───
-let allOrders=[], allExpenses=[], allProfiles=[], allSalary=[], allKpi=[], allProducts=[];
+let allOrders=[], allExpenses=[], allProfiles=[], allSalary=[], allKpi=[], allProducts=[], allOrderItems=[];
 let prevOrders=[], prevExpenses=[], prevSalary=[];
 let filteredOrders=[], filteredExpenses=[];
 let prodPage=1; const PROD_PER_PAGE=30; let prodFiltered=[];
@@ -1198,6 +1198,17 @@ async function loadAll(){
     ]);
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
+    // Fetch order_items for current period orders
+    if(allOrders.length>0){
+      const orderIds=allOrders.map(o=>o.id).join(',');
+      try{
+        const ois=await sb('order_items',`select=*&order_id=in.(${orderIds})`);
+        allOrderItems=ois||[];
+      }catch(e){
+        console.warn('order_items fetch error:',e);
+        allOrderItems=[];
+      }
+    }else{allOrderItems=[];}
     // Merge birthday từ localStorage (vì Supabase profiles chưa có cột birthday)
     const bdStore=JSON.parse(localStorage.getItem('cslian_birthdays')||'{}');
     allProfiles.forEach(p=>{if(bdStore[p.id])p.birthday=bdStore[p.id];});
@@ -1240,6 +1251,32 @@ function calcAOV(){const d=doneOrders();return d.length?calcRevMonth()/d.length:
 function calcExpTotal(){return allExpenses.reduce((s,e)=>s+(e.so_tien||0),0);}
 function calcSalTotal(){return allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0);}
 
+function renderVendorCommissions(){
+  const el=document.getElementById('vendor-commissions-list');
+  if(!el)return;
+  const comm=calcCommission();
+  const source=comm.source==='order_items'?'Từ chi tiết đơn hàng':'Ước tính (chưa có chi tiết)';
+  const rows=[
+    {label:'BOLSA',val:comm.bolsa,color:'var(--amber2)',icon:'🔶'},
+    {label:'ONS',val:comm.ons,color:'var(--blue2)',icon:'🔷'},
+    {label:'TSPA',val:comm.tspa,color:'var(--purple2)',icon:'💜'},
+  ];
+  el.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:8px">'+source+'</div>'
+    +rows.map(function(r){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<span>'+r.icon+'</span>'
+          +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+r.label+'</span>'
+        +'</div>'
+        +'<span style="font-size:13px;font-weight:700;color:'+r.color+'">$'+r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>'
+      +'</div>';
+    }).join('')
+    +'<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng</span>'
+      +'<span style="font-size:14px;font-weight:700;color:var(--green2)">$'+comm.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>'
+    +'</div>';
+}
+
 function calcVendorRevenue(){
   const orders=doneOrders();
   return{
@@ -1249,7 +1286,49 @@ function calcVendorRevenue(){
   };
 }
 
+function calcCommissionPerItem(item){
+  // Calculate commission for a single order_item based on vendor rules
+  const vendor=(item.vendor||'').toLowerCase();
+  const name=(item.ten_sp_invoice||item.product_name||'').toLowerCase();
+  const amount=parseFloat(item.amount)||0;
+  const chenhLech=parseFloat(item.chenh_lech)||0;
+
+  if(vendor==='ons'){
+    // ONS: 70% * chenh_lech only
+    return 0.70*chenhLech;
+  }
+  if(vendor==='tspa'){
+    // TSPA: 3% * amount + 100% chenh_lech
+    return(0.03*amount)+(1.0*chenhLech);
+  }
+  // Default: Bolsa
+  if(name.includes('headspa bed')||name.includes('headspa')){
+    // Bolsa Headspa: 5% * amount + 100% chenh_lech
+    return(0.05*amount)+(1.0*chenhLech);
+  }
+  // Bolsa other: 7% * amount + 100% chenh_lech
+  return(0.07*amount)+(1.0*chenhLech);
+}
+
 function calcCommission(){
+  // Use order_items if available (most accurate)
+  if(allOrderItems&&allOrderItems.length>0){
+    // Filter items belonging to done orders in current period
+    const doneOrderIds=new Set(doneOrders().map(o=>o.id));
+    const periodItems=allOrderItems.filter(item=>doneOrderIds.has(item.order_id));
+    let bolsa=0,ons=0,tspa=0;
+    periodItems.forEach(item=>{
+      const vendor=(item.vendor||'bolsa').toLowerCase();
+      const comm=calcCommissionPerItem(item);
+      if(vendor==='ons')ons+=comm;
+      else if(vendor==='tspa')tspa+=comm;
+      else bolsa+=comm; // Bolsa or default
+    });
+    return{bolsa:Math.max(0,bolsa),ons:Math.max(0,ons),tspa:Math.max(0,tspa),
+           total:Math.max(0,bolsa)+Math.max(0,ons)+Math.max(0,tspa),
+           source:'order_items'};
+  }
+  // Fallback: use aggregated orders data (old method)
   const orders=doneOrders();
   const bolsaHeadspaProds=allProducts.filter(p=>p.is_bolsa&&p.vendor==='BOLSA');
   const avgBolsaCost=bolsaHeadspaProds.reduce((s,p)=>s+(p.vendor_cost||0),0)/Math.max(1,bolsaHeadspaProds.length);
@@ -1262,7 +1341,7 @@ function calcCommission(){
     ons+=(o.revenue_ons||0)*0.70*0.10;
     tspa+=(o.revenue_tspa||0)*0.04;
   });
-  return{bolsa:Math.max(0,bolsa),ons,tspa,total:Math.max(0,bolsa)+ons+tspa};
+  return{bolsa:Math.max(0,bolsa),ons,tspa,total:Math.max(0,bolsa)+ons+tspa,source:'orders'};
 }
 
 function calcDelta(cur,prev){
@@ -1602,6 +1681,8 @@ function renderFinance(){
   setTxt('pf-r-bolsa',fmtUSD(vr.bolsa));
   setTxt('pf-r-ons',fmtUSD(vr.ons));
   setTxt('pf-r-tspa',fmtUSD(vr.tspa));
+  // Render commission breakdown from order_items
+  renderVendorCommissions();
   const ops=allExpenses.filter(e=>e.loai==='ops').reduce((s,e)=>s+(e.so_tien||0),0);
   const inv=allExpenses.filter(e=>e.loai==='invest').reduce((s,e)=>s+(e.so_tien||0),0);
   setTxt('pf-r-ops',fmtVND(ops));setTxt('pf-r-inv',fmtVND(inv));
