@@ -1216,6 +1216,8 @@ async function loadAll(){
     filteredOrders=allOrders; filteredExpenses=allExpenses;
     setConn('ok','Supabase · Đã kết nối');
     refreshPage();
+    // Re-render commission after order_items loaded (async, may finish after initial render)
+    if(document.getElementById('pf-r-bolsa'))renderVendorCommissions();
     toast(`Đã tải ${rangeLabel()}`,'green');
   }catch(e){
     setConn('err','Lỗi kết nối');
