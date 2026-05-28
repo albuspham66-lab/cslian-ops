@@ -334,84 +334,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .dr-quick-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s}
 .dr-quick-btn:hover{border-color:var(--accent);color:var(--accent)}
 .dr-quick-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
-/* ===== CHAT MODULE ===== */
-#page-chat{
-  position:fixed;top:96px;left:0;right:0;bottom:0;
-  z-index:50;background:var(--bg);
-  display:none;flex-direction:column;padding:0;
-}
-#page-chat.active{display:flex!important}
-.chat-layout{display:flex;height:100%;gap:0;overflow:hidden}
-.chat-sidebar{width:200px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.chat-sidebar-title{padding:14px 12px 10px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.chat-rooms{flex:1;overflow-y:auto;padding:6px}
-.chat-room-btn{width:100%;text-align:left;background:none;border:none;border-radius:7px;padding:8px 10px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;position:relative}
-.chat-room-btn:hover{background:var(--bg3);color:var(--text)}
-.chat-room-btn.active{background:var(--accent-glow);color:var(--accent);border:1px solid rgba(79,127,255,0.2)}
-.chat-badge{min-width:18px;height:18px;background:var(--danger);border-radius:9px;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;margin-left:auto;padding:0 4px;display:none}
-.chat-badge.show{display:flex}
-.chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
-.chat-header{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
-.chat-header-name{font-size:14px;font-weight:700}
-.chat-header-sub{font-size:11px;color:var(--text2);margin-left:auto}
-.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.chat-msg{display:flex;gap:10px;align-items:flex-end;max-width:80%}
-.chat-msg.mine{flex-direction:row-reverse;align-self:flex-end}
-.chat-msg.mine .chat-bubble{background:var(--accent);color:#fff;border-radius:16px 16px 4px 16px}
-.chat-msg.other .chat-bubble{background:var(--bg3);color:var(--text);border-radius:16px 16px 16px 4px}
-.chat-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-.chat-bubble{padding:9px 13px;font-size:13px;line-height:1.5;max-width:100%;word-break:break-word}
-.chat-bubble img{max-width:240px;max-height:200px;border-radius:10px;display:block;margin-top:6px;cursor:pointer}
-.chat-meta{font-size:10px;color:var(--text3);margin-top:3px;text-align:right;white-space:nowrap}
-.chat-msg.other .chat-meta{text-align:left}
-.chat-sender{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:2px}
-.chat-input-area{padding:12px 16px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
-.chat-input-row{display:flex;gap:8px;align-items:flex-end}
-.chat-textarea{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;resize:none;outline:none;max-height:120px;min-height:42px;line-height:1.4;transition:border .15s}
-.chat-textarea:focus{border-color:var(--accent)}
-.chat-textarea::placeholder{color:var(--text3)}
-.chat-send-btn{width:40px;height:40px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s}
-.chat-send-btn:hover{opacity:.85}
-.chat-send-btn:disabled{opacity:.4;cursor:not-allowed}
-.chat-img-btn{width:40px;height:40px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.chat-img-btn:hover{background:var(--bg4);color:var(--text)}
-.chat-img-preview{margin-bottom:8px;position:relative;display:inline-block}
-.chat-img-preview img{max-width:120px;max-height:90px;border-radius:8px;display:block}
-.chat-img-preview .remove-img{position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--danger);border-radius:50%;border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.chat-date-sep{text-align:center;font-size:10px;color:var(--text3);margin:4px 0;position:relative}
-.chat-date-sep::before,.chat-date-sep::after{content:'';position:absolute;top:50%;width:calc(50% - 50px);height:1px;background:var(--border)}
-.chat-date-sep::before{left:0}.chat-date-sep::after{right:0}
-.chat-typing{font-size:11px;color:var(--text3);padding:0 16px 6px;min-height:20px}
-/* Reply UI */
-.chat-reply-bar{display:flex;align-items:center;gap:8px;background:var(--bg3);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:8px;font-size:12px;color:var(--text2)}
-.chat-reply-bar .reply-name{font-weight:700;color:var(--accent);margin-right:4px}
-.chat-reply-bar .reply-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
-.chat-reply-bar .reply-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:auto}
-.chat-reply-bar .reply-close:hover{color:var(--danger)}
-/* Reply quote inside bubble */
-.msg-reply-quote{background:rgba(0,0,0,.15);border-left:3px solid rgba(255,255,255,.4);border-radius:0 6px 6px 0;padding:5px 8px;margin-bottom:6px;font-size:11px;line-height:1.4;cursor:pointer}
-.chat-msg.other .msg-reply-quote{background:var(--bg2);border-left-color:var(--accent)}
-.msg-reply-quote .rq-name{font-weight:700;color:var(--accent);margin-bottom:1px}
-.chat-msg.mine .msg-reply-quote .rq-name{color:rgba(255,255,255,.8)}
-.msg-reply-quote .rq-text{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
-.chat-msg.mine .msg-reply-quote .rq-text{color:rgba(255,255,255,.65)}
-/* Reply hover action */
-.chat-msg:hover .reply-btn{opacity:1}
-.reply-btn{opacity:0;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;padding:3px 7px;cursor:pointer;transition:all .15s;flex-shrink:0;align-self:center}
-.reply-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-.cr-icon-opt{font-size:22px;cursor:pointer;padding:6px 8px;border-radius:8px;border:2px solid transparent;transition:all .15s;user-select:none}
-.cr-icon-opt:hover{background:var(--bg3);transform:scale(1.1)}
-.cr-icon-opt.selected{border-color:var(--accent);background:var(--accent-glow)}
-.cr-members-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:1.5px solid var(--border2);background:var(--bg3);user-select:none}
-.cr-members-chip.selected{border-color:var(--accent);background:var(--accent-glow);color:var(--accent)}
-.cr-members-chip .chip-check{width:14px;height:14px;border-radius:3px;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:9px}
-.chat-notif-toast{position:fixed;bottom:80px;right:20px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;font-size:13px;z-index:9000;transform:translateY(20px);opacity:0;transition:all .3s;box-shadow:var(--shadow);max-width:320px;pointer-events:none;width:300px}
-.chat-notif-toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
-.chat-img-fullscreen{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:pointer}
-.chat-img-fullscreen img{max-width:90vw;max-height:90vh;border-radius:10px}
-/* PWA update banner */
-#pwa-update-banner{display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;display:none;align-items:center;justify-content:space-between;gap:10px}
-#pwa-update-banner button{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif}
 /* ===== MOBILE RESPONSIVE ===== */
 @media(max-width:600px){
   /* Topbar: ẩn logo text + hướng dẫn, thu gọn */
@@ -526,7 +448,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
-    <button class="nav-btn" id="nav-chat" onclick="switchTab('chat',this)">💬 Chat <span class="chat-badge" id="nav-chat-badge"></span></button>
+
     <button class="nav-btn" onclick="switchTab('crm',this)">🎯 CRM</button>
     <button class="nav-btn nav-mgr" onclick="switchTab('finance',this)" style="display:none">💹 Finance</button>
   </div>
@@ -868,64 +790,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
     </div>
 
-    <div id="page-chat" class="page-content">
-      <div class="chat-layout">
-        <div class="chat-sidebar">
-          <div class="chat-sidebar-title">Chat</div>
-          <div class="chat-rooms" id="chat-room-list">
-            <button class="chat-room-btn active" id="room-btn-general" onclick="switchRoom('general',this)">
-              <span>💬</span><span class="room-label">C-Slian Group</span>
-              <span class="chat-badge" id="badge-general"></span>
-            </button>
-            <button class="chat-room-btn" id="room-btn-thong-bao" onclick="switchRoom('thong-bao',this)">
-              <span>📢</span><span class="room-label">Thông báo</span>
-              <span class="chat-badge" id="badge-thong-bao"></span>
-            </button>
-            <button class="chat-room-btn" id="room-btn-manager" onclick="switchRoom('manager',this)">
-              <span>🔑</span><span class="room-label">Manager</span>
-              <span class="chat-badge" id="badge-manager"></span>
-            </button>
-            <!-- Dynamic rooms inserted here -->
-            <div id="chat-dynamic-rooms"></div>
-          </div>
-          <!-- Tạo phòng - chỉ Manager -->
-          <div id="chat-create-room-wrap" style="display:none;padding:6px">
-            <button class="chat-room-btn" onclick="openCreateRoomModal()" style="color:var(--accent);font-size:12px;width:100%;justify-content:center;gap:4px">
-              <span>+</span><span class="room-label">Tạo phòng</span>
-            </button>
-          </div>
-        </div>
-        <div class="chat-main">
-          <div class="chat-header">
-            <span id="chat-room-icon">💬</span>
-            <div>
-              <div class="chat-header-name" id="chat-room-name">C-Slian Group</div>
-            </div>
-            <!-- Member management - Leader/Manager -->
-            <div id="chat-member-btn-wrap" style="display:none;margin-left:auto">
-              <button class="btn-sm" onclick="openMemberModal()" style="font-size:11px;padding:4px 10px">👥 Thành viên</button>
-            </div>
-          </div>
-          <div class="chat-messages" id="chat-messages"></div>
-          <div class="chat-typing" id="chat-typing"></div>
-          <div class="chat-input-area">
-            <div id="chat-reply-bar" style="display:none" class="chat-reply-bar">
-              <span>↩️</span>
-              <span>Trả lời <span class="reply-name" id="reply-bar-name"></span><span class="reply-text" id="reply-bar-text"></span></span>
-              <button class="reply-close" onclick="cancelReply()" title="Huỷ reply">✕</button>
-            </div>
-            <div id="chat-img-preview-wrap"></div>
-            <div class="chat-input-row">
-              <button class="chat-img-btn" onclick="document.getElementById('chat-file-input').click()" title="Gửi ảnh">📎</button>
-              <input type="file" id="chat-file-input" accept="image/*" style="display:none" onchange="onChatImageSelect(event)"/>
-              <textarea class="chat-textarea" id="chat-textarea" placeholder="Nhập tin nhắn..." rows="1"
-                onkeydown="onChatKeydown(event)" oninput="autoResizeTextarea(this);onChatTyping()"></textarea>
-              <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">&#10148;</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- MODAL: Tạo phòng chat -->
     <div class="modal-bg" id="create-room-modal">
@@ -1213,7 +1078,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="chat-notif-toast" id="chat-notif-toast"></div>
+
 
 <script>
 const SUPA_URL='https://jggfmpihfisbusnbzyoi.supabase.co';
@@ -1495,7 +1360,17 @@ async function renderCheckinPage(){
   const dayNames=['CN','T2','T3','T4','T5','T6','T7'];
   const badge=document.getElementById('ci-badge');
   badge.innerHTML=`<span style="background:${rv.bg};color:${rv.color};border:1px solid ${rv.color}33;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">${rv.label} · Lever ${p.lever||1}</span> <span style="font-size:11px;color:var(--text2);margin-left:6px">📅 Ca: ${dayNames[dow2]} ${cd}/${cm2}</span>`;
-  const {data:rec}=await sb.from('attendance').select('*').eq('user_id',p.id).eq('date',ds).maybeSingle();
+  // Micro-cache for checkin page (5s) to avoid redundant fetches
+  const _ciCacheKey='ci-'+p.id+'-'+ds;
+  let rec;
+  if(window._ciCache&&window._ciCache[_ciCacheKey]&&Date.now()-window._ciCache[_ciCacheKey].ts<5000){
+    rec=window._ciCache[_ciCacheKey].rec;
+  } else {
+    const {data}=await sb.from('attendance').select('*').eq('user_id',p.id).eq('date',ds).maybeSingle();
+    rec=data;
+    if(!window._ciCache)window._ciCache={};
+    window._ciCache[_ciCacheKey]={rec,ts:Date.now()};
+  }
   updateCIButtons(rec);renderMyLogToday(rec,p);
 }
 
@@ -1541,7 +1416,15 @@ function renderMyLogToday(rec,p){
 }
 
 async function renderAllLog(){
+  // Cache check_log for 15s to avoid redundant fetches
+  if(window._allLogCache&&Date.now()-window._allLogCache.ts<15000){
+    _renderAllLogHTML(window._allLogCache.logs);return;
+  }
   const {data:logs}=await sb.from('check_log').select('*,profiles(full_name)').order('timestamp',{ascending:false}).limit(25);
+  window._allLogCache={logs:logs||[],ts:Date.now()};
+  _renderAllLogHTML(logs);
+}
+function _renderAllLogHTML(logs){
   const el=document.getElementById('all-log-list');
   if(!logs||!logs.length){el.innerHTML=`<div class="empty">Chưa có lịch sử</div>`;return;}
   el.innerHTML=logs.map(l=>{
@@ -1557,20 +1440,36 @@ async function doCheckIn(){
   const tsz=now.toISOString();
   const {error}=await sb.from('attendance').upsert({user_id:curProfile.id,date:ds,checkin_time:tsz,status:'WD'},{onConflict:'user_id,date'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  await sb.from('check_log').insert({user_id:curProfile.id,type:'in',timestamp:tsz});
+  // Invalidate micro-cache so next render re-fetches
+  if(window._ciCache) delete window._ciCache['ci-'+curProfile.id+'-'+ds];
+  // Run check_log insert and UI refresh in parallel
+  await Promise.all([
+    sb.from('check_log').insert({user_id:curProfile.id,type:'in',timestamp:tsz}).then(()=>{window._allLogCache=null;}),
+    renderCheckinPage()
+  ]);
+  renderAllLog();
   toast('Check in thành công lúc '+t.slice(0,5)+' — Ca ngày '+ds.slice(8)+'/'+ds.slice(5,7));
-  renderCheckinPage();renderAllLog();
 }
 
 async function doCheckOut(){
   const now=new Date(),ds=getCaDate(now);
   const t=`${pad2(now.getHours())}:${pad2(now.getMinutes())}:00`;
   const tsz=now.toISOString();
-  const {error}=await sb.from('attendance').update({checkout_time:tsz}).eq('user_id',curProfile.id).eq('date',ds);
+  // Verify checkin record exists for this date
+  // Invalidate micro-cache so next render re-fetches fresh data
+  if(window._ciCache) delete window._ciCache['ci-'+curProfile.id+'-'+ds];
+  const {data:existing}=await sb.from('attendance').select('id,checkin_time').eq('user_id',curProfile.id).eq('date',ds).maybeSingle();
+  if(!existing||!existing.checkin_time){toast('Không tìm thấy bản ghi check in hôm nay','error');return;}
+  const {error,count}=await sb.from('attendance').update({checkout_time:tsz},{count:'exact'}).eq('user_id',curProfile.id).eq('date',ds);
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  await sb.from('check_log').insert({user_id:curProfile.id,type:'out',timestamp:tsz});
+  if(count===0){toast('Check out thất bại — không tìm thấy bản ghi','error');return;}
+  // Run check_log insert and UI refresh in parallel
+  await Promise.all([
+    sb.from('check_log').insert({user_id:curProfile.id,type:'out',timestamp:tsz}).then(()=>{window._allLogCache=null;}),
+    renderCheckinPage()
+  ]);
+  renderAllLog();
   toast('Check out thành công lúc '+t.slice(0,5)+' — Ca ngày '+ds.slice(8)+'/'+ds.slice(5,7));
-  renderCheckinPage();renderAllLog();
 }
 
 // ============================================================
@@ -1635,7 +1534,7 @@ async function renderAttTable(){
     const {data}=await sb.from('attendance').select('date,status,checkin_time,checkout_time,note').eq('user_id',empId).gte('date',from).lte('date',to);
     rows=data;
     _attCache[cacheKey]=rows;
-    setTimeout(()=>{ delete _attCache[cacheKey]; }, 30000);
+    setTimeout(()=>{ delete _attCache[cacheKey]; }, 120000);
   }
   const recMap={};(rows||[]).forEach(r=>recMap[r.date]=r);
   const today=new Date(),todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
@@ -3120,7 +3019,7 @@ function switchTab(name,el){
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
-  else if(name==='chat'){ _chatUnread[_chatRoom]=0; updateChatBadges(); initChat(); }
+
   else if(name==='crm'){ loadIframeTab('crm','https://cnail1911-maker.github.io/csilan-crm/index.html?v=39'); }
   else if(name==='finance'){ loadIframeTab('finance','https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html'); }
 }
@@ -4082,739 +3981,7 @@ document.addEventListener('click',function(e){
 
 
 // ============================================================
-// CHAT MODULE v2 — Rooms, Members, Optimistic Send, Notifications
-// ============================================================
-var _chatRoom = 'general';
-var _chatChannel = null;
-var _chatMessages = [];
-var _chatReplyTo = null; // {id, name, text}
-var _chatUnread = {'general':0,'thong-bao':0,'manager':0};
-var _chatPendingImage = null;
-var _chatTypingChannel = null;
-var _chatTypingUsers = {};
-var _typingDebounce = null;
-var _chatInitialized = false;
-var _pwaWaitingWorker = null;
-var _chatSelectedIcon = '💼';
-var _chatRoomMembers = {}; // roomId -> [userId]
-var _notifSound = null;
 
-var ROOM_META = {
-  'general':   {icon:'💬', name:'C-Slian Group', desc:'Toàn team', fixed:true},
-  'thong-bao': {icon:'📢', name:'Thông báo',     desc:'Thông báo ca trực', fixed:true},
-  'manager':   {icon:'🔑', name:'Manager',        desc:'Manager & Leader', fixed:true}
-};
-
-// ---- PWA ----
-function initPWA(){
-  if(!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('sw.js').then(function(reg){
-    reg.addEventListener('updatefound', function(){
-      var nw = reg.installing;
-      nw.addEventListener('statechange', function(){
-        if(nw.state==='installed' && navigator.serviceWorker.controller){
-          _pwaWaitingWorker = nw;
-          var b = document.getElementById('pwa-update-banner');
-          if(b) b.style.display='flex';
-        }
-      });
-    });
-  }).catch(function(e){ console.warn('SW:', e); });
-  navigator.serviceWorker.addEventListener('controllerchange', function(){ window.location.reload(); });
-}
-function pwaDoUpdate(){
-  if(_pwaWaitingWorker) _pwaWaitingWorker.postMessage({type:'SKIP_WAITING'});
-}
-
-// ---- Notification sound (beep via AudioContext) ----
-function playNotifSound(){
-  try {
-    var ctx = new (window.AudioContext||window.webkitAudioContext)();
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(); osc.stop(ctx.currentTime + 0.3);
-  } catch(e){}
-}
-
-// ---- Init chat ----
-async function initChat(){
-  _chatUnread[_chatRoom] = 0; updateChatBadges();
-  if(!_chatInitialized){
-    _chatInitialized = true;
-    // Show create room button for manager
-    if(curProfile && curProfile.role==='manager'){
-      var el = document.getElementById('chat-create-room-wrap');
-      if(el) el.style.display='block';
-    }
-    updateMemberBtn();
-    // Hide manager room for sale
-    var mgrBtn = document.getElementById('room-btn-manager');
-    if(mgrBtn && curProfile && curProfile.role==='sale'){
-      mgrBtn.style.display='none';
-    }
-    // Load rooms + messages + subscribe song song
-    await Promise.all([loadRoomMembers(), loadDynamicRooms()]);
-    renderDynamicRooms();
-    await loadChatMessages();
-    subscribeChatRealtime();
-    subscribeTypingChannel();
-    subscribeGlobalNotif();
-    // Request notification permission
-    if('Notification' in window && Notification.permission === 'default'){
-      Notification.requestPermission();
-    }
-  } else {
-    // Tab đã init: chỉ reload messages
-    await loadChatMessages();
-  }
-}
-
-// ---- Load messages (last 80) ----
-async function loadChatMessages(){
-  var el = document.getElementById('chat-messages');
-  if(el) el.innerHTML = '<div class="loading"><div class="spinner"></div>Đang tải...</div>';
-  var {data, error} = await sb.from('messages')
-    .select('*, profiles(full_name, nickname, role, employee_code)')
-    .eq('room', _chatRoom)
-    .order('created_at', {ascending:false})
-    .limit(80);
-  if(error){ if(el) el.innerHTML='<div class="empty">Lỗi tải tin nhắn</div>'; return; }
-  _chatMessages = (data||[]).reverse();
-  renderChatMessages(true);
-  _chatUnread[_chatRoom] = 0; updateChatBadges();
-}
-
-// ---- Render all messages ----
-function renderChatMessages(scrollBottom){
-  var el = document.getElementById('chat-messages');
-  if(!el) return;
-  if(!_chatMessages.length){
-    el.innerHTML = '<div class="empty" style="padding:40px 20px">Chưa có tin nhắn nào.<br>Hãy bắt đầu trò chuyện! 👋</div>';
-    return;
-  }
-  var html = ''; var lastDate = '';
-  _chatMessages.forEach(function(msg){
-    var d = msg.created_at ? msg.created_at.slice(0,10) : '';
-    if(d !== lastDate){ html += '<div class="chat-date-sep">'+formatChatDate(d)+'</div>'; lastDate=d; }
-    html += buildMsgHTML(msg);
-  });
-  el.innerHTML = html;
-  if(scrollBottom) el.scrollTop = el.scrollHeight;
-}
-
-// ---- Build message HTML ----
-function buildMsgHTML(msg){
-  var isMine = curProfile && msg.user_id === curProfile.id;
-  var prof = msg.profiles || allProfilesMap[msg.user_id] || {};
-  var name = prof.nickname || prof.full_name || '?';
-  var roleColor = prof.role==='manager'?'var(--manager)':prof.role==='leader'?'var(--leader)':'var(--accent)';
-  var ci = avColor(allProfiles.findIndex(function(p){ return p.id===msg.user_id; }));
-  var timeStr = msg.created_at ? formatChatTime(msg.created_at) : '';
-  var canDel = isMine || (curProfile && curProfile.role==='manager');
-  var delBtn = canDel ? '<button onclick="deleteChatMsg(\''+msg.id+'\')" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:10px;cursor:pointer;padding:0 2px;margin-left:6px;line-height:1" title="Xóa">✕</button>' : '';
-
-  // Reply quote block
-  var quoteHtml = '';
-  if(msg.reply_to_id){
-    var qMsg = _chatMessages.find(function(m){ return m.id===msg.reply_to_id; });
-    var qName = '?', qText = '(Tin nhắn đã xóa)';
-    if(qMsg){
-      var qProf = qMsg.profiles || allProfilesMap[qMsg.user_id] || {};
-      qName = qProf.nickname || qProf.full_name || '?';
-      qText = (qMsg.image_url && !qMsg.content) ? '📷 Ảnh' : (qMsg.content||'').slice(0,80);
-    }
-    quoteHtml = '<div class="msg-reply-quote" onclick="scrollToMsg(\''+msg.reply_to_id+'\')">'
-      +'<div class="rq-name">'+escapeHtml(qName)+'</div>'
-      +'<div class="rq-text">'+escapeHtml(qText)+'</div></div>';
-  }
-
-  var bubble = quoteHtml;
-  if(msg.content) bubble += '<div>'+escapeHtml(msg.content).replace(/\n/g,'<br>')+'</div>';
-  if(msg.image_url) bubble += '<img src="'+msg.image_url+'" loading="lazy" onclick="openImgFullscreen(this.src)" alt="ảnh" style="max-width:220px;max-height:180px;border-radius:10px;display:block;margin-top:6px;cursor:pointer"/>';
-
-  var rName = escapeHtml(name).replace(/'/g,'&#39;');
-  var rText = escapeHtml((msg.content||'').slice(0,60)).replace(/'/g,'&#39;');
-  var replyBtn = '<button class="reply-btn" onclick="setReply(\''+msg.id+'\',\''+rName+'\',\''+rText+'\')" title="Trả lời">↩ Reply</button>';
-
-  if(isMine){
-    return '<div class="chat-msg mine" id="msg-'+msg.id+'">'
-      +replyBtn
-      +'<div style="flex:1;min-width:0;text-align:right">'
-      +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
-      +'<div class="chat-meta">'+timeStr+'</div>'
-      +'</div>'
-      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.full_name||name)+'</div>'
-      +'</div>';
-  } else {
-    return '<div class="chat-msg other" id="msg-'+msg.id+'">'
-      +'<div class="chat-avatar" style="background:'+ci.bg+';color:'+ci.color+'">'+initials(prof.full_name||name)+'</div>'
-      +'<div style="flex:1;min-width:0">'
-      +'<div class="chat-sender" style="color:'+roleColor+'">'+escapeHtml(name)+'</div>'
-      +'<div class="chat-bubble">'+bubble+delBtn+'</div>'
-      +'<div class="chat-meta">'+timeStr+'</div>'
-      +'</div>'
-      +replyBtn
-      +'</div>';
-  }
-}
-
-// ---- Global notification subscription (tất cả rooms) ----
-var _chatGlobalChannel = null;
-function subscribeGlobalNotif(){
-  if(_chatGlobalChannel) sb.removeChannel(_chatGlobalChannel);
-  _chatGlobalChannel = sb.channel('chat-global-notif')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'}, function(payload){
-      var msg = payload.new;
-      if(!curProfile || msg.user_id === curProfile.id) return;
-      // Tăng badge
-      if(_chatUnread[msg.room] !== undefined){
-        _chatUnread[msg.room] = (_chatUnread[msg.room]||0)+1;
-      } else {
-        _chatUnread[msg.room] = 1;
-      }
-      updateChatBadges();
-      // Nếu đang xem đúng room này thì không toast
-      var isChatOpen = document.getElementById('page-chat') && 
-        document.getElementById('page-chat').classList.contains('active');
-      if(isChatOpen && msg.room === _chatRoom) return;
-      // In-app toast (hoạt động mọi thiết bị kể cả iOS)
-      playNotifSound();
-      sendBrowserNotif(msg);
-      // Đổi title tab để thông báo
-      var prof=allProfilesMap[msg.user_id]||{};
-      var name=prof.nickname||prof.full_name||'Ai đó';
-      flashTitle('💬 '+name+' nhắn tin');
-    }).subscribe();
-}
-
-// Flash title để thông báo (hiệu quả trên cả desktop lẫn mobile)
-var _titleFlashTimer = null;
-var _origTitle = document.title;
-function flashTitle(msg){
-  if(_titleFlashTimer) clearInterval(_titleFlashTimer);
-  var count = 0;
-  _titleFlashTimer = setInterval(function(){
-    document.title = count%2===0 ? msg : _origTitle;
-    count++;
-    if(count >= 8){ clearInterval(_titleFlashTimer); document.title = _origTitle; }
-  }, 1000);
-  // Dừng flash khi user focus lại
-  window.addEventListener('focus', function stopFlash(){
-    clearInterval(_titleFlashTimer);
-    document.title = _origTitle;
-    window.removeEventListener('focus', stopFlash);
-  });
-}
-
-function sendBrowserNotif(msg){
-  var prof = allProfilesMap[msg.user_id]||{};
-  var senderName = prof.nickname||prof.full_name||'Ai đó';
-  var roomName = (ROOM_META[msg.room]||{}).name || msg.room;
-  var body = msg.content || '📷 Đã gửi một ảnh';
-  // In-app toast (mọi thiết bị, kể cả iOS PWA)
-  showChatToast(senderName, roomName, body, msg.room);
-  // Web Notification (chỉ Chrome desktop/Android, iOS không hỗ trợ trong PWA)
-  if('Notification' in window && Notification.permission === 'granted'){
-    try {
-      var n = new Notification('💬 '+senderName+' — '+roomName, {
-        body: body, icon: 'icon-192.png', tag: 'chat-'+msg.room
-      });
-      n.onclick = function(){ window.focus(); switchTabByName('chat'); n.close(); };
-    } catch(e){ /* iOS throws, ignore */ }
-  }
-}
-
-// In-app notification toast cho chat
-function showChatToast(sender, room, body, roomId){
-  var el = document.getElementById('chat-notif-toast');
-  if(!el) return;
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'
-    +'<div style="font-size:20px">💬</div>'
-    +'<div><div style="font-size:12px;font-weight:700;color:var(--text)">'+escapeHtml(sender)+' · '+escapeHtml(room)+'</div>'
-    +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+escapeHtml(body.slice(0,60))+'</div></div>'
-    +'<button onclick="switchTabByName(\'chat\');document.getElementById(\'chat-notif-toast\').classList.remove(\'show\')" '
-    +'style="margin-left:auto;background:var(--accent);border:none;border-radius:6px;color:#fff;padding:4px 10px;font-size:11px;cursor:pointer">Xem</button>'
-    +'</div>';
-  el.classList.add('show');
-  clearTimeout(el._timer);
-  el._timer = setTimeout(function(){ el.classList.remove('show'); }, 5000);
-}
-
-function switchTabByName(name){
-  var btns = document.querySelectorAll('.nav-btn');
-  for(var i=0;i<btns.length;i++){
-    var oc = btns[i].getAttribute('onclick')||'';
-    if(oc.indexOf("'"+name+"'")>=0){ btns[i].click(); break; }
-  }
-}
-
-// ---- Room-specific realtime (messages hiển thị trong chat) ----
-function subscribeChatRealtime(){
-  if(_chatChannel) sb.removeChannel(_chatChannel);
-  _chatChannel = sb.channel('chat-v2-'+_chatRoom)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'room=eq.'+_chatRoom}, function(payload){
-      var msg = payload.new;
-      // Dedup: nếu sendChatMessage đã append rồi thì skip
-      var exists = _chatMessages.some(function(m){ return m.id===msg.id; });
-      if(exists) return;
-      msg.profiles = allProfilesMap[msg.user_id] || null;
-      _chatMessages.push(msg);
-      appendSingleMsg(msg);
-      // Notification: chỉ khi không phải mình gửi
-      if(curProfile && msg.user_id !== curProfile.id){
-        playNotifSound();
-        if(document.hidden){
-          _chatUnread[_chatRoom] = (_chatUnread[_chatRoom]||0)+1;
-          updateChatBadges();
-        }
-        sendBrowserNotif(msg);
-      }
-    })
-    .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'}, function(payload){
-      var id = payload.old.id;
-      // Chỉ xóa nếu element vẫn còn (chưa bị deleteChatMsg xóa rồi)
-      var el = document.getElementById('msg-'+id);
-      if(el){ el.style.opacity='0'; setTimeout(function(){ el.remove(); },150); }
-      _chatMessages = _chatMessages.filter(function(m){ return m.id!==id; });
-    })
-    .subscribe();
-}
-
-// ---- Append single message O(1) ----
-function appendSingleMsg(msg){
-  var el = document.getElementById('chat-messages');
-  if(!el) return;
-  var isMine = curProfile && msg.user_id === curProfile.id;
-  var lastMsg = _chatMessages[_chatMessages.length-2];
-  var lastDate = lastMsg?.created_at?.slice(0,10)||'';
-  var thisDate = msg.created_at?.slice(0,10)||'';
-  if(thisDate !== lastDate){
-    var sep = document.createElement('div');
-    sep.className='chat-date-sep'; sep.textContent=formatChatDate(thisDate);
-    el.appendChild(sep);
-  }
-  var tmp = document.createElement('div');
-  tmp.innerHTML = buildMsgHTML(msg);
-  var child = tmp.firstChild;
-  if(child){ child.style.opacity='0'; el.appendChild(child); requestAnimationFrame(function(){ child.style.transition='opacity .2s'; child.style.opacity='1'; }); }
-  var dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-  if(dist < 150 || isMine) el.scrollTop = el.scrollHeight;
-}
-
-// ---- Send: insert+select+append, không dùng optimistic ----
-async function sendChatMessage(){
-  var ta = document.getElementById('chat-textarea');
-  var content = ta ? ta.value.trim() : '';
-  if(!content && !_chatPendingImage) return;
-  if(!curProfile){ toast('Vui lòng đăng nhập lại','error'); return; }
-  var btn = document.getElementById('chat-send-btn');
-  if(btn) btn.disabled = true;
-
-  var savedContent = content;
-  if(ta){ ta.value=''; ta.style.height=''; ta.focus(); }
-
-  var imageUrl = null;
-  if(_chatPendingImage){
-    try { imageUrl = await uploadChatImage(_chatPendingImage); }
-    catch(e){
-      toast('Lỗi upload ảnh: '+e.message,'error');
-      if(ta) ta.value = savedContent;
-      if(btn) btn.disabled = false;
-      return;
-    }
-    clearChatImagePreview();
-  }
-
-  // Insert + select ngay để lấy ID và timestamp thật
-  var {data:newMsg, error} = await sb.from('messages')
-    .insert({user_id:curProfile.id, content:savedContent||null, image_url:imageUrl||null, room:_chatRoom, reply_to_id:_chatReplyTo?_chatReplyTo.id:null})
-    .select('*, profiles(full_name,nickname,role,employee_code)')
-    .single();
-
-  if(error){
-    toast('Lỗi gửi tin: '+error.message,'error');
-    if(ta) ta.value = savedContent;
-  } else if(newMsg){
-    // Append ngay, Realtime sẽ skip nếu đã có (dedup bằng id)
-    var exists = _chatMessages.some(function(m){ return m.id===newMsg.id; });
-    if(!exists){
-      _chatMessages.push(newMsg);
-      appendSingleMsg(newMsg);
-    }
-    cancelReply();
-  }
-  if(btn) btn.disabled = false;
-}
-
-// ---- Reply helpers ----
-function setReply(msgId, senderName, msgText){
-  _chatReplyTo = {id: msgId, name: senderName, text: msgText};
-  var bar = document.getElementById('chat-reply-bar');
-  var barName = document.getElementById('reply-bar-name');
-  var barText = document.getElementById('reply-bar-text');
-  if(bar){ bar.style.display='flex'; }
-  if(barName){ barName.textContent = senderName+': '; }
-  if(barText){ barText.textContent = msgText || '📷 Ảnh'; }
-  var ta = document.getElementById('chat-textarea');
-  if(ta) ta.focus();
-}
-function cancelReply(){
-  _chatReplyTo = null;
-  var bar = document.getElementById('chat-reply-bar');
-  if(bar) bar.style.display='none';
-}
-function scrollToMsg(msgId){
-  var el = document.getElementById('msg-'+msgId);
-  if(!el) return;
-  el.scrollIntoView({behavior:'smooth', block:'center'});
-  el.style.transition='background .2s';
-  el.style.background='rgba(79,127,255,0.15)';
-  setTimeout(function(){ el.style.background=''; }, 1200);
-}
-
-
-async function uploadChatImage(pendingImg){
-  var file = pendingImg.compressed || pendingImg.file;
-  var ext = (file.name.split('.').pop()||'jpg').toLowerCase();
-  if(!['jpg','jpeg','png','gif','webp'].includes(ext)) ext='jpg';
-  var path = 'chat/'+curProfile.id+'/'+Date.now()+'.'+ext;
-  var {error} = await sb.storage.from('chat-images').upload(path, file, {cacheControl:'3600',upsert:false,contentType:file.type});
-  if(error) throw error;
-  var {data:urlData} = sb.storage.from('chat-images').getPublicUrl(path);
-  return urlData.publicUrl;
-}
-
-function onChatImageSelect(event){
-  var file = event.target.files[0]; if(!file) return;
-  event.target.value='';
-  if(file.size > 15*1024*1024){ toast('Ảnh quá lớn (tối đa 15MB)','error'); return; }
-  compressImage(file, 1200, 0.82, function(compressed, dataUrl){
-    _chatPendingImage = {file, compressed, dataUrl};
-    var wrap = document.getElementById('chat-img-preview-wrap');
-    if(wrap) wrap.innerHTML='<div class="chat-img-preview"><img src="'+dataUrl+'" alt="preview"/><button class="remove-img" onclick="clearChatImagePreview()">✕</button></div>';
-  });
-}
-
-function clearChatImagePreview(){
-  _chatPendingImage=null;
-  var w=document.getElementById('chat-img-preview-wrap'); if(w) w.innerHTML='';
-}
-
-function compressImage(file,maxSize,quality,cb){
-  var r=new FileReader();
-  r.onload=function(e){
-    var img=new Image();
-    img.onload=function(){
-      var w=img.width,h=img.height;
-      if(w>maxSize||h>maxSize){var ratio=Math.min(maxSize/w,maxSize/h);w=Math.round(w*ratio);h=Math.round(h*ratio);}
-      var c=document.createElement('canvas'); c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      c.toBlob(function(blob){ cb(new File([blob],file.name,{type:'image/jpeg'}),c.toDataURL('image/jpeg',quality)); },'image/jpeg',quality);
-    };
-    img.src=e.target.result;
-  };
-  r.readAsDataURL(file);
-}
-
-// ---- Typing indicator ----
-function subscribeTypingChannel(){
-  if(_chatTypingChannel) sb.removeChannel(_chatTypingChannel);
-  _chatTypingChannel = sb.channel('typing-'+_chatRoom)
-    .on('broadcast',{event:'typing'},function(payload){
-      if(!curProfile||payload.payload.user_id===curProfile.id) return;
-      _chatTypingUsers[payload.payload.user_id]={name:payload.payload.name,ts:Date.now()};
-      renderTyping();
-      setTimeout(function(){ delete _chatTypingUsers[payload.payload.user_id]; renderTyping(); },3000);
-    }).subscribe();
-}
-
-function onChatTyping(){
-  if(!_chatTypingChannel||!curProfile) return;
-  if(_typingDebounce) clearTimeout(_typingDebounce);
-  _typingDebounce=setTimeout(function(){
-    _chatTypingChannel.send({type:'broadcast',event:'typing',payload:{user_id:curProfile.id,name:curProfile.nickname||curProfile.full_name}});
-  },300);
-}
-
-function renderTyping(){
-  var el=document.getElementById('chat-typing'); if(!el) return;
-  var names=Object.values(_chatTypingUsers).map(function(u){return u.name;});
-  el.textContent=names.length?(names.join(', ')+' đang nhập...'):'';
-}
-
-// ---- Switch room ----
-function switchRoom(room, btn){
-  _chatRoom=room;
-  if(_chatChannel) sb.removeChannel(_chatChannel);
-  if(_chatTypingChannel) sb.removeChannel(_chatTypingChannel);
-  _chatMessages=[]; _chatTypingUsers={};
-  document.querySelectorAll('.chat-room-btn').forEach(function(b){ b.classList.remove('active'); });
-  if(btn) btn.classList.add('active');
-  var meta=ROOM_META[room]||{icon:'💬',name:room};
-  var iconEl=document.getElementById('chat-room-icon');
-  var nameEl=document.getElementById('chat-room-name');
-  if(iconEl) iconEl.textContent=meta.icon;
-  if(nameEl) nameEl.textContent=meta.name;
-  _chatUnread[room]=0; updateChatBadges();
-  loadChatMessages();
-  subscribeChatRealtime();
-  subscribeTypingChannel();
-  updateMemberBtn();
-}
-
-// ---- Member management button visibility ----
-function updateMemberBtn(){
-  var wrap = document.getElementById('chat-member-btn-wrap');
-  if(!wrap) return;
-  // Hiện nút thành viên cho tất cả rooms, với Manager/Leader
-  var canManage = curProfile && (curProfile.role==='manager'||curProfile.role==='leader');
-  wrap.style.display = canManage ? 'block' : 'none';
-}
-
-// ---- Create room modal ----
-function openCreateRoomModal(){
-  _chatSelectedIcon='💼';
-  document.getElementById('cr-name').value='';
-  document.getElementById('cr-icon').value='💼';
-  var preview=document.getElementById('cr-icon-preview');
-  if(preview) preview.textContent='💼';
-  // Reset icon picker
-  document.querySelectorAll('.cr-icon-opt').forEach(function(s,i){
-    s.classList.toggle('selected', i===0);
-  });
-  // Member chips
-  var list=document.getElementById('cr-members-list');
-  if(list) list.innerHTML=activeProfiles().filter(function(p){return p.id!==curProfile.id;}).map(function(p){
-    var ci=avColor(allProfiles.findIndex(function(x){return x.id===p.id;}));
-    return '<div class="cr-members-chip" data-uid="'+p.id+'" onclick="toggleChip(this)">'
-      +'<div class="chip-check"></div>'
-      +'<div style="width:22px;height:22px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">'+initials(p.full_name||'?')+'</div>'
-      +(p.nickname||p.full_name)+' <span style="color:var(--text3);font-size:10px">('+p.employee_code+')</span>'
-      +'</div>';
-  }).join('');
-  document.getElementById('create-room-modal').classList.add('open');
-}
-
-function toggleChip(el){
-  el.classList.toggle('selected');
-  el.querySelector('.chip-check').textContent=el.classList.contains('selected')?'✓':'';
-}
-
-function selectRoomIcon(el, icon){
-  _chatSelectedIcon=icon;
-  document.getElementById('cr-icon').value=icon;
-  var preview=document.getElementById('cr-icon-preview');
-  if(preview) preview.textContent=icon;
-  document.querySelectorAll('.cr-icon-opt').forEach(function(s){ s.classList.remove('selected'); });
-  el.classList.add('selected');
-}
-
-async function createRoom(){
-  var name=(document.getElementById('cr-name').value||'').trim();
-  if(!name){toast('Nhập tên phòng','error');return;}
-  var icon=document.getElementById('cr-icon').value||'💼';
-  var memberIds=[curProfile.id];
-  document.querySelectorAll('#cr-members-list .cr-members-chip.selected').forEach(function(chip){ memberIds.push(chip.dataset.uid); });
-  var roomId='room-'+Date.now();
-  // Lưu persistent vào _sys_rooms (tồn tại qua refresh)
-  var payload={content:'room:'+roomId+':'+JSON.stringify({name,icon,members:memberIds}), room:'_sys_rooms', user_id:curProfile.id, image_url:null};
-  var {error}=await sb.from('messages').insert(payload);
-  if(error){toast('Lỗi tạo phòng: '+error.message,'error');return;}
-  ROOM_META[roomId]={icon,name,desc:'Phòng riêng',fixed:false,members:memberIds};
-  _chatUnread[roomId]=0;
-  renderDynamicRooms();
-  closeModal('create-room-modal');
-  toast('Đã tạo phòng '+name);
-}
-
-function renderDynamicRooms(){
-  var el=document.getElementById('chat-dynamic-rooms');
-  if(!el) return;
-  el.innerHTML=Object.entries(ROOM_META).filter(function(e){ return !e[1].fixed; }).map(function(e){
-    var id=e[0],meta=e[1];
-    return '<button class="chat-room-btn" id="room-btn-'+id+'" onclick="switchRoom(\''+id+'\',this)">'
-      +'<span>'+meta.icon+'</span><span class="room-label">'+escapeHtml(meta.name)+'</span>'
-      +'<span class="chat-badge" id="badge-'+id+'"></span></button>';
-  }).join('');
-}
-
-// ---- Member modal ----
-function openMemberModal(){
-  var roomMeta=ROOM_META[_chatRoom]||{};
-  document.getElementById('member-modal-room-name').textContent=roomMeta.name||_chatRoom;
-  var canManage=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
-  // Init members nếu chưa có (phòng fixed mặc định = toàn team)
-  if(!roomMeta.members){
-    ROOM_META[_chatRoom].members=activeProfiles().map(function(p){return p.id;});
-    roomMeta=ROOM_META[_chatRoom];
-  }
-  var members=roomMeta.members||[];
-  var list=document.getElementById('member-list');
-  if(list) list.innerHTML=members.length?members.map(function(uid){
-    var p=allProfilesMap[uid]||{full_name:'?',employee_code:'?'};
-    var roleColor=p.role==='manager'?'var(--manager)':p.role==='leader'?'var(--leader)':'var(--accent)';
-    var ci=avColor(allProfiles.findIndex(function(x){return x.id===uid;}));
-    var canRemove=canManage&&uid!==curProfile.id;
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
-      +'<div style="width:28px;height:28px;border-radius:50%;background:'+ci.bg+';color:'+ci.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+initials(p.full_name||'?')+'</div>'
-      +'<div style="flex:1;font-size:13px">'+(p.nickname||p.full_name)
-        +' <span style="font-size:10px;color:'+roleColor+';font-weight:600">'+(p.role||'')+'</span>'
-        +' <span style="color:var(--text3);font-size:11px">('+p.employee_code+')</span></div>'
-      +(canRemove?'<button class="btn-sm btn-danger" onclick="removeMember(this.dataset.uid)" data-uid="'+uid+'" style="padding:3px 8px;font-size:11px">Xóa</button>':'')
-      +'</div>';
-  }).join(''):'<div class="empty">Chưa có thành viên</div>';
-  var addWrap=document.getElementById('add-member-wrap');
-  if(addWrap) addWrap.style.display=canManage?'block':'none';
-  var addList=document.getElementById('add-member-list');
-  if(addList&&canManage){
-    var existing=new Set(members);
-    var notIn=activeProfiles().filter(function(p){return !existing.has(p.id);});
-    addList.innerHTML=notIn.length?notIn.map(function(p){
-      return '<button class="btn-sm" onclick="addMember(this.dataset.uid)" data-uid="'+p.id+'" style="font-size:11px;margin:2px">+ '+(p.nickname||p.full_name)+'</button>';
-    }).join(''):'<div style="font-size:12px;color:var(--text2);padding:4px 0">Tất cả đã trong phòng ✓</div>';
-  }
-  document.getElementById('member-modal').classList.add('open');
-}
-
-async function addMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(uidOrEl.dataset?uidOrEl.dataset.uid:uidOrEl);
-  if(!ROOM_META[_chatRoom]) return;
-  if(!ROOM_META[_chatRoom].members) ROOM_META[_chatRoom].members=[];
-  if(ROOM_META[_chatRoom].members.includes(uid)) return;
-  ROOM_META[_chatRoom].members.push(uid);
-  // Xóa flag fixed để cho phép lưu
-  var wasFixed = ROOM_META[_chatRoom].fixed;
-  ROOM_META[_chatRoom].fixed = false;
-  await saveRoomMembers(_chatRoom);
-  ROOM_META[_chatRoom].fixed = wasFixed;
-  var p=allProfilesMap[uid]||{};
-  toast('Đã thêm '+(p.nickname||p.full_name||'thành viên'));
-  openMemberModal();
-}
-
-async function removeMember(uidOrEl){ var uid=typeof uidOrEl==='string'?uidOrEl:(uidOrEl.dataset?uidOrEl.dataset.uid:uidOrEl);
-  if(!ROOM_META[_chatRoom]||!ROOM_META[_chatRoom].members) return;
-  var p=allProfilesMap[uid]||{};
-  if(!confirm('Xóa '+(p.nickname||p.full_name||'thành viên')+' khỏi phòng?')) return;
-  ROOM_META[_chatRoom].members=ROOM_META[_chatRoom].members.filter(function(id){return id!==uid;});
-  var wasFixed = ROOM_META[_chatRoom].fixed;
-  ROOM_META[_chatRoom].fixed = false;
-  await saveRoomMembers(_chatRoom);
-  ROOM_META[_chatRoom].fixed = wasFixed;
-  toast('Đã xóa '+(p.nickname||p.full_name||'thành viên'));
-  openMemberModal();
-}
-
-// Lưu members vào Supabase qua special system message
-async function saveRoomMembers(roomId){
-  var meta=ROOM_META[roomId];
-  if(!meta||meta.fixed) return;
-  // Upsert system record: room='_sys_members', content = JSON config
-  var key='members:'+roomId;
-  var {data:existing}=await sb.from('messages')
-    .select('id').eq('room','_sys_members').eq('user_id',curProfile.id)
-    .like('content',key+'%').maybeSingle();
-  var payload={content:key+':'+JSON.stringify(meta.members), room:'_sys_members', user_id:curProfile.id};
-  if(existing){
-    await sb.from('messages').update(payload).eq('id',existing.id);
-  } else {
-    await sb.from('messages').insert(payload);
-  }
-}
-
-// Load dynamic rooms từ _sys_rooms khi init
-async function loadDynamicRooms(){
-  var {data}=await sb.from('messages').select('content,user_id')
-    .eq('room','_sys_rooms').like('content','room:%');
-  if(!data) return;
-  data.forEach(function(row){
-    try{
-      var firstColon=row.content.indexOf(':');
-      var secondColon=row.content.indexOf(':',firstColon+1);
-      var roomId=row.content.slice(firstColon+1,secondColon);
-      var meta=JSON.parse(row.content.slice(secondColon+1));
-      if(roomId&&meta.name){
-        ROOM_META[roomId]={icon:meta.icon||'💼',name:meta.name,desc:'Phòng riêng',fixed:false,members:meta.members||[]};
-        if(_chatUnread[roomId]===undefined) _chatUnread[roomId]=0;
-      }
-    }catch(e){}
-  });
-}
-
-// Load members từ Supabase khi init
-async function loadRoomMembers(){
-  var {data}=await sb.from('messages').select('content')
-    .eq('room','_sys_members').like('content','members:%');
-  if(!data) return;
-  data.forEach(function(row){
-    try{
-      var colon2=row.content.indexOf(':',8);
-      var roomId=row.content.slice(8,colon2);
-      var members=JSON.parse(row.content.slice(colon2+1));
-      if(ROOM_META[roomId]) ROOM_META[roomId].members=members;
-    }catch(e){}
-  });
-}
-
-// ---- Delete message ----
-async function deleteChatMsg(id){
-  if(!confirm('Xóa tin nhắn này?')) return;
-  // Xóa DOM ngay lập tức không chờ Realtime
-  var el = document.getElementById('msg-'+id);
-  if(el){ el.style.transition='opacity .15s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); },150); }
-  _chatMessages = _chatMessages.filter(function(m){ return m.id!==id; });
-  // Gọi Supabase async (Realtime DELETE event sẽ bị dedup)
-  var {error}=await sb.from('messages').delete().eq('id',id);
-  if(error){
-    toast('Lỗi xóa: '+error.message,'error');
-    // Reload lại nếu lỗi
-    loadChatMessages();
-  }
-}
-
-// ---- Keyboard ----
-function onChatKeydown(e){
-  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChatMessage(); }
-}
-
-function autoResizeTextarea(el){
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,120)+'px';
-}
-
-// ---- Image fullscreen ----
-function openImgFullscreen(src){
-  var o=document.getElementById('chat-img-fullscreen'),i=document.getElementById('chat-img-fullscreen-img');
-  if(o&&i){i.src=src;o.style.display='flex';}
-}
-
-// ---- Badges ----
-function updateChatBadges(){
-  var total=0;
-  Object.keys(_chatUnread).forEach(function(room){
-    var c=_chatUnread[room]||0;
-    var b=document.getElementById('badge-'+room);
-    if(b){b.textContent=c;b.classList.toggle('show',c>0);}
-    total+=c;
-  });
-  var nb=document.getElementById('nav-chat-badge');
-  if(nb){nb.textContent=total;nb.classList.toggle('show',total>0);}
-}
-
-// ---- Format helpers ----
-function formatChatTime(iso){ var d=new Date(iso); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
-function formatChatDate(ds){
-  if(!ds) return '';
-  var today=getTodayVN();
-  var yest=new Date(Date.now()-86400000).toISOString().slice(0,10);
-  if(ds===today) return 'Hôm nay';
-  if(ds===yest) return 'Hôm qua';
-  return ds.slice(8)+'/'+ds.slice(5,7)+'/'+ds.slice(0,4);
-}
-function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 
 
