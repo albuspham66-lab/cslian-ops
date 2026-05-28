@@ -1255,7 +1255,36 @@ function renderVendorCommissions(){
   const el=document.getElementById('vendor-commissions-list');
   if(!el)return;
   const comm=calcCommission();
-  const source=comm.source==='order_items'?'Từ chi tiết đơn hàng':'Ước tính (chưa có chi tiết)';
+  const source=comm.source==='order_items'?'📊 Từ chi tiết đơn hàng':'⚠️ Ước tính (chưa có chi tiết)';
+  const fmt2=function(v){return'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});};
+
+  // Build per-vendor shipping breakdown if available
+  let shipBreakdown='';
+  if(allOrderItems&&allOrderItems.length>0){
+    const doneIds=new Set(doneOrders().map(function(o){return o.id;}));
+    const shipItems=allOrderItems.filter(function(it){
+      return doneIds.has(it.order_id)&&it.is_shipping;
+    });
+    if(shipItems.length>0){
+      const shipByVendor={};
+      shipItems.forEach(function(it){
+        const v=(it.vendor||'Bolsa');
+        if(!shipByVendor[v])shipByVendor[v]={amount:0,chenh:0};
+        shipByVendor[v].amount+=parseFloat(it.amount)||0;
+        shipByVendor[v].chenh+=parseFloat(it.chenh_lech)||0;
+      });
+      shipBreakdown='<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px">'
+        +'<div style="font-size:10px;color:var(--text3);margin-bottom:4px">🚚 Shipping breakdown</div>'
+        +Object.entries(shipByVendor).map(function(e){
+          return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">'
+            +'<span style="color:var(--text2)">Ship '+e[0]+'</span>'
+            +'<span style="color:var(--text)">'+fmt2(e[1].amount)+'</span>'
+          +'</div>';
+        }).join('')
+        +'</div>';
+    }
+  }
+
   const rows=[
     {label:'BOLSA',val:comm.bolsa,color:'var(--amber2)',icon:'🔶'},
     {label:'ONS',val:comm.ons,color:'var(--blue2)',icon:'🔷'},
@@ -1268,12 +1297,13 @@ function renderVendorCommissions(){
           +'<span>'+r.icon+'</span>'
           +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+r.label+'</span>'
         +'</div>'
-        +'<span style="font-size:13px;font-weight:700;color:'+r.color+'">$'+r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:'+r.color+'">'+fmt2(r.val)+'</span>'
       +'</div>';
     }).join('')
+    +shipBreakdown
     +'<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">'
       +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng</span>'
-      +'<span style="font-size:14px;font-weight:700;color:var(--green2)">$'+comm.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>'
+      +'<span style="font-size:14px;font-weight:700;color:var(--green2)">'+fmt2(comm.total)+'</span>'
     +'</div>';
 }
 
@@ -1286,28 +1316,41 @@ function calcVendorRevenue(){
   };
 }
 
+function getCommissionRate(item){
+  // Look up commission_rate from allProducts by sku or product_id
+  if(!allProducts||!allProducts.length)return null;
+  const prod=allProducts.find(function(p){
+    return (item.sku&&p.sku===item.sku)||
+           (item.product_id&&p.id===item.product_id)||
+           ((item.ten_sp_invoice||'').toLowerCase()===(p.name||'').toLowerCase());
+  });
+  return prod&&prod.commission_rate!=null?parseFloat(prod.commission_rate)/100:null;
+}
+
 function calcCommissionPerItem(item){
-  // Calculate commission for a single order_item based on vendor rules
   const vendor=(item.vendor||'').toLowerCase();
-  const name=(item.ten_sp_invoice||item.product_name||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
   const chenhLech=parseFloat(item.chenh_lech)||0;
 
+  // ONS: always 70% * chenh_lech only — no commission_rate
   if(vendor==='ons'){
-    // ONS: 70% * chenh_lech only
     return 0.70*chenhLech;
   }
-  if(vendor==='tspa'){
-    // TSPA: 3% * amount + 100% chenh_lech
-    return(0.03*amount)+(1.0*chenhLech);
+
+  // Bolsa & TSPA: commission_rate * amount + 100% * chenh_lech
+  // Get commission_rate from products table, fallback to defaults
+  let rate=getCommissionRate(item);
+  if(rate===null){
+    // Fallback defaults if not in products table
+    if(vendor==='tspa') rate=0.03;
+    else{
+      // Bolsa: check headspa
+      const name=(item.ten_sp_invoice||'').toLowerCase();
+      rate=(name.includes('headspa bed')||name.includes('headspa'))?0.05:0.07;
+    }
   }
-  // Default: Bolsa
-  if(name.includes('headspa bed')||name.includes('headspa')){
-    // Bolsa Headspa: 5% * amount + 100% chenh_lech
-    return(0.05*amount)+(1.0*chenhLech);
-  }
-  // Bolsa other: 7% * amount + 100% chenh_lech
-  return(0.07*amount)+(1.0*chenhLech);
+
+  return(rate*amount)+(1.0*chenhLech);
 }
 
 function calcCommission(){
