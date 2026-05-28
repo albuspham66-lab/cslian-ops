@@ -620,6 +620,7 @@ textarea{resize:vertical;min-height:72px;}
     <div class="card">
       <div class="ctitle">Phân tích lợi nhuận</div>
       <div class="sr"><span class="sl">Doanh thu (theo Month)</span><span class="sv" style="color:var(--green2);" id="pf-r1">—</span></div>
+      <div id="vendor-commissions-list" style="margin-bottom:4px"></div>
       <div class="sr"><span class="sl">Hoa hồng BOLSA</span><span class="sv" style="color:var(--amber2);" id="pf-r-bolsa">—</span></div>
       <div class="sr"><span class="sl">Hoa hồng ONS</span><span class="sv" style="color:var(--blue2);" id="pf-r-ons">—</span></div>
       <div class="sr"><span class="sl">Hoa hồng TSPA</span><span class="sv" style="color:var(--purple2);" id="pf-r-tspa">—</span></div>
@@ -1326,7 +1327,10 @@ function getCommissionRate(item){
            (item.product_id&&p.id===item.product_id)||
            ((item.ten_sp_invoice||'').toLowerCase()===(p.name||'').toLowerCase());
   });
-  return prod&&prod.commission_rate!=null?parseFloat(prod.commission_rate)/100:null;
+  const rawRate=prod&&prod.commission_rate!=null?parseFloat(prod.commission_rate):null;
+  if(rawRate===null)return null;
+  // Auto-detect: if >1 it's percentage integer (1=1%, 7=7%), else decimal (0.01=1%)
+  return rawRate>1?rawRate/100:rawRate;
 }
 
 function calcCommissionPerItem(item){
