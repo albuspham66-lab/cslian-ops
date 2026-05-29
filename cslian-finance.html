@@ -149,7 +149,8 @@ tbody td{padding:11px 13px;border-bottom:1px solid var(--border);color:var(--tex
 tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover td{background:rgba(255,255,255,0.018);}
 .tf td{padding:11px 13px;background:var(--bg3);font-weight:600;border-top:1px solid var(--border2);}
-.num{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;}
+.num{text-align:right;font-variant-numeric:tabular-nums;}
+tbody td.num{font-size:12px;}
 
 /* ── BADGES ── */
 .b{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;}
@@ -795,16 +796,13 @@ textarea{resize:vertical;min-height:72px;}
       <div class="ph-title">Quản lý Sản phẩm</div>
       <div class="ph-sub">Danh mục sản phẩm theo Vendor · Lịch sử giá</div>
     </div>
-    <div class="ph-right">
-      <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
-    </div>
   </div>
 
   <!-- Vendor stats -->
   <div class="mrow mrow-3" id="prod-vendor-stats">
-    <div class="mc amber"><div class="mc-lbl">BOLSA</div><div class="mc-val" id="pv-bolsa">—</div><div class="mc-sub">SKU active</div></div>
-    <div class="mc blue"><div class="mc-lbl">ONS</div><div class="mc-val" id="pv-ons">—</div><div class="mc-sub">SKU active</div></div>
-    <div class="mc purple"><div class="mc-lbl">TSPA</div><div class="mc-val" id="pv-tspa">—</div><div class="mc-sub">SKU active</div></div>
+    <div class="mc amber" id="pvc-bolsa" onclick="filterByVendor('BOLSA')" style="cursor:pointer;transition:all .15s;"><div class="mc-icon">🔶</div><div class="mc-lbl">BOLSA</div><div class="mc-val" id="pv-bolsa">—</div><div class="mc-sub">SKU active · click để lọc</div></div>
+    <div class="mc blue"  id="pvc-ons"   onclick="filterByVendor('ONS')"   style="cursor:pointer;transition:all .15s;"><div class="mc-icon">🔷</div><div class="mc-lbl">ONS</div><div class="mc-val" id="pv-ons">—</div><div class="mc-sub">SKU active · click để lọc</div></div>
+    <div class="mc purple" id="pvc-tspa" onclick="filterByVendor('TSPA')"  style="cursor:pointer;transition:all .15s;"><div class="mc-icon">💜</div><div class="mc-lbl">TSPA</div><div class="mc-val" id="pv-tspa">—</div><div class="mc-sub">SKU active · click để lọc</div></div>
   </div>
 
   <!-- Vendor performance (from orders) -->
@@ -826,7 +824,7 @@ textarea{resize:vertical;min-height:72px;}
   <div class="card gap">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div class="ctitle" style="margin-bottom:0;">Danh sách sản phẩm</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <input type="text" id="prod-search" placeholder="Tìm SKU, tên..." oninput="filterProducts()" style="width:200px;padding:7px 11px;font-size:12px;">
         <select id="prod-vendor-f" onchange="filterProducts()" style="width:120px;padding:7px 10px;font-size:12px;">
           <option value="">Tất cả</option><option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option>
@@ -834,14 +832,15 @@ textarea{resize:vertical;min-height:72px;}
         <select id="prod-status-f" onchange="filterProducts()" style="width:120px;padding:7px 10px;font-size:12px;">
           <option value="">Tất cả</option><option value="active">Active</option><option value="inactive">Inactive</option>
         </select>
+        <button class="btn btn-primary btn-sm" onclick="openProductModal()">+ Thêm sản phẩm</button>
       </div>
     </div>
     <div class="tw">
       <table>
         <thead><tr>
           <th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
-          <th class="num">Giá bán ($)</th><th class="num">Cost ($)</th>
-          <th class="num">Commission</th><th>Headspa</th><th>Trạng thái</th><th></th>
+          <th class="num">Giá bán ($)</th><th class="num">Best Price</th><th class="num">Cost ($)</th>
+          <th class="num">Commission</th><th>Note</th><th>Headspa</th><th>Trạng thái</th><th></th>
         </tr></thead>
         <tbody id="prod-tbl"></tbody>
       </table>
@@ -1003,6 +1002,8 @@ textarea{resize:vertical;min-height:72px;}
         <input type="checkbox" id="p-la-bolsa" style="width:16px;height:16px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;">
         <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
       </div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Giá tốt nhất (tuỳ chọn)"></div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
     <div class="mfoot">
@@ -1192,7 +1193,7 @@ async function loadAll(){
       sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active&order=vendor.asc,name.asc`),
+      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note&order=vendor.asc,name.asc`),
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
@@ -2109,18 +2110,21 @@ function renderProdTable(){
   setTxt('prod-count',`${total} sản phẩm · Trang ${prodPage}/${tp}`);
   document.getElementById('prod-tbl').innerHTML=page.map(p=>`<tr>
     <td style="font-size:11px;color:var(--blue2);font-weight:600;">${p.sku||'—'}</td>
-    <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
+    <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
     <td><span class="b ${p.vendor==='BOLSA'?'b-amber':p.vendor==='ONS'?'b-blue':'b-purple'} " style="font-size:10px;">${p.vendor||'—'}</span></td>
     <td class="num" style="color:var(--green2);">${fmtUSD(p.sale_price)}</td>
+    <td class="num" style="color:var(--teal2);">${p.best_price!=null?fmtUSD(p.best_price):'—'}</td>
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
     <td class="num" style="color:var(--teal2);">${p.commission_rate!=null?((p.commission_rate)*100).toFixed(1)+'%':'—'}</td>
+    <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(p.note||'').replace(/"/g,'&quot;')}">${p.note||'—'}</td>
     <td style="text-align:center;">${p.is_bolsa?'<span class="b b-amber" style="font-size:10px;">✓</span>':'—'}</td>
     <td><span class="b ${p.is_active!==false?'b-green':'b-gray'} " style="font-size:10px;">${p.is_active!==false?'Active':'Inactive'}</span></td>
     <td><div style="display:flex;gap:4px;">
       <button class="act-btn" onclick="showPriceHistory('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">📋</button>
       <button class="act-btn" onclick="editProduct('${p.id}')">✏️</button>
+      <button class="act-btn" onclick="deleteProduct('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">🗑</button>
     </div></td>
-  </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
+  </tr>`).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
   const pages=[];
   for(let i=1;i<=tp;i++){
     if(tp<=7||i===1||i===tp||Math.abs(i-prodPage)<=1)pages.push(`<button class="btn btn-xs ${i===prodPage?'btn-primary':'btn-ghost'}" onclick="goPage(${i})">${i}</button>`);
@@ -2139,7 +2143,8 @@ function onVendorChange(){
 
 function openProductModal(){
   setTxt('m-prod-title','Thêm sản phẩm');setTxt('m-prod-btn','Thêm sản phẩm');
-  ['p-id','p-sku','p-name','p-variant','p-note'].forEach(id=>document.getElementById(id).value='');
+  ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p-best-price').value='';
   document.getElementById('p-vendor').value='BOLSA';
   document.getElementById('p-gia-ban').value='';document.getElementById('p-vendor-cost').value='';
   document.getElementById('p-commission').value='0';document.getElementById('p-active').value='true';
@@ -2156,6 +2161,8 @@ function editProduct(id){
   document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
+  document.getElementById('p-prod-note').value=p.note||'';
+  document.getElementById('p-best-price').value=p.best_price!=null?p.best_price:'';
   document.getElementById('p-note-wrap').style.display='block';
   onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
   openModal('m-prod');
@@ -2163,7 +2170,7 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
@@ -2206,6 +2213,35 @@ async function showPriceHistory(id,name){
     </tr>`).join('');
   }catch(e){document.getElementById('ph-body').innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--red2);padding:20px;">Lỗi: ${e.message}</td></tr>`;}
 }
+
+async function deleteProduct(id,name){
+  if(!confirm(`Xóa sản phẩm "${name}"?\nHành động này không thể hoàn tác.`))return;
+  try{
+    await sbDelete('products',id);
+    allProducts=allProducts.filter(p=>p.id!==id);
+    toast('Đã xóa sản phẩm','green');
+    filterProducts();renderProducts();
+  }catch(e){toast('Lỗi xóa: '+e.message,'red');}
+}
+
+function filterByVendor(vendor){
+  const sel=document.getElementById('prod-vendor-f');
+  const current=sel.value;
+  // Toggle: click same vendor card → clear filter
+  sel.value=current===vendor?'':vendor;
+  // Update card active state
+  ['BOLSA','ONS','TSPA'].forEach(v=>{
+    const card=document.getElementById('pvc-'+v.toLowerCase());
+    if(!card)return;
+    const isActive=sel.value===v;
+    card.style.outline=isActive?'2px solid var(--blue2)':'none';
+    card.style.transform=isActive?'translateY(-2px)':'';
+  });
+  filterProducts();
+  // Scroll to product list
+  document.querySelector('#pg-products .card.gap')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 
 // ─── SETTINGS ───
 function renderSettings(){
