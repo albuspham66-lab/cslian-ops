@@ -754,7 +754,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
     <!-- NHÂN VIÊN -->
     <div id="page-team" class="page-content">
-      <div class="page-header"><div><h2>Nhân viên</h2></div></div>
+      <div class="page-header"><div><h2>Nhân viên</h2></div><div style="display:flex;gap:8px"><button class="btn-sm btn-primary" onclick="openAddEmpModal()" style="font-size:12px;padding:6px 14px">+ Thêm nhân viên</button></div></div>
       <div id="emp-grid" style="display:grid;gap:10px"></div>
     </div>
 
@@ -1042,6 +1042,45 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div id="holidays-list" style="max-height:320px;overflow-y:auto"></div>
     <div class="mactions">
       <button class="mbtn mbtn-p" onclick="closeModal('holidays-modal')">Đóng</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="add-emp-modal">
+  <div class="modal-box" style="max-width:480px">
+    <h3>➕ Thêm nhân viên mới</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-f" style="grid-column:1/-1"><label>Họ và tên *</label><input type="text" id="ae-name" placeholder="Nguyễn Văn A"/></div>
+      <div class="form-f"><label>Biệt danh (App)</label><input type="text" id="ae-biet-danh" placeholder="Calvin"/></div>
+      <div class="form-f"><label>Mã nhân viên *</label><input type="text" id="ae-ma-nv" placeholder="C08"/></div>
+      <div class="form-f"><label>Chức vụ / Role</label>
+        <select id="ae-role">
+          <option value="sale">Sale</option>
+          <option value="leader">Leader</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Lever</label>
+        <select id="ae-lever">
+          <option value="1">Lever 1</option>
+          <option value="2">Lever 2</option>
+          <option value="3">Lever 3</option>
+          <option value="4">Lever 4</option>
+          <option value="5">Lever 5</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Ngày bắt đầu</label><input type="date" id="ae-start-date"/></div>
+      <div class="form-f"><label>Ngày sinh</label><input type="date" id="ae-birthday"/></div>
+      <div class="form-f"><label>Loại hợp đồng</label>
+        <select id="ae-contract">
+          <option value="official">Chính thức</option>
+          <option value="probation">Thử việc</option>
+        </select>
+      </div>
+    </div>
+    <div id="ae-note" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(253,203,110,0.1);border:1px solid rgba(253,203,110,0.3);border-radius:8px;font-size:12px;color:#fdcb6e;line-height:1.6"></div>
+    <div class="mactions">
+      <button class="mbtn" onclick="closeModal('add-emp-modal')">Huỷ</button>
+      <button class="mbtn mbtn-p" id="ae-save-btn" onclick="saveNewEmp()">💾 Lưu</button>
     </div>
   </div>
 </div>
@@ -2982,6 +3021,85 @@ async function toggleEmpStatus(id,newStatus,ngayNghi){
   var idx=allProfiles.findIndex(p=>p.id===id);
   if(idx>=0)Object.assign(allProfiles[idx],updateData);
   buildProfilesMap();populateSelects();renderEmpGrid();
+}
+
+// ── THÊM NHÂN VIÊN MỚI ──
+function openAddEmpModal(){
+  document.getElementById('ae-name').value='';
+  document.getElementById('ae-biet-danh').value='';
+  document.getElementById('ae-ma-nv').value='';
+  document.getElementById('ae-role').value='sale';
+  document.getElementById('ae-lever').value='1';
+  document.getElementById('ae-start-date').value=getTodayVN();
+  document.getElementById('ae-birthday').value='';
+  document.getElementById('ae-contract').value='official';
+  document.getElementById('ae-note').style.display='none';
+  document.getElementById('ae-save-btn').disabled=false;
+  document.getElementById('add-emp-modal').classList.add('open');
+}
+
+async function saveNewEmp(){
+  var hoTen=document.getElementById('ae-name').value.trim();
+  var bietDanh=document.getElementById('ae-biet-danh').value.trim();
+  var maNV=document.getElementById('ae-ma-nv').value.trim().toUpperCase();
+  var role=document.getElementById('ae-role').value;
+  var lever=parseInt(document.getElementById('ae-lever').value)||1;
+  var startDate=document.getElementById('ae-start-date').value||null;
+  var birthday=document.getElementById('ae-birthday').value||null;
+  var contractType=document.getElementById('ae-contract').value;
+  var noteEl=document.getElementById('ae-note');
+  var saveBtn=document.getElementById('ae-save-btn');
+
+  if(!hoTen){toast('Vui lòng nhập họ tên','error');return;}
+  if(!maNV){toast('Vui lòng nhập mã nhân viên','error');return;}
+
+  // Check mã NV trùng
+  var dup=allProfiles.find(function(p){return (p.employee_code||'').toUpperCase()===maNV;});
+  if(dup){toast('Mã nhân viên '+maNV+' đã tồn tại ('+dup.full_name+')','error');return;}
+
+  saveBtn.disabled=true;
+  try{
+    var payload={
+      full_name:hoTen,
+      nickname:bietDanh||null,
+      employee_code:maNV,
+      role:role,
+      lever:lever,
+      start_date:startDate||null,
+      birthday:birthday||null,
+      contract_type:contractType,
+      is_active:true,
+      status:'active'
+    };
+    var {data,error}=await sb.from('profiles').insert(payload).select().single();
+    if(error)throw error;
+
+    // Update local cache
+    allProfiles.push(data);
+    buildProfilesMap();
+    populateSelects();
+    renderEmpGrid();
+
+    // Hướng dẫn tạo tài khoản CRM
+    var emailGợiý='salecnail'+maNV.replace(/^C/i,'').padStart(2,'0')+'@gmail.com';
+    noteEl.style.display='block';
+    noteEl.innerHTML='✅ <strong>Đã thêm '+hoTen+' vào hệ thống OPS.</strong><br><br>'
+      +'⚠️ <strong>Còn cần làm thủ công trên Supabase CRM:</strong><br>'
+      +'1. Vào <strong>Authentication → Users → Add user</strong><br>'
+      +'2. Email gợi ý: <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px">'+emailGợiý+'</code><br>'
+      +'3. Sau khi tạo Auth user, chạy SQL:<br>'
+      +'<code style="background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;display:block;margin-top:4px;font-size:11px;line-height:1.8">'
+      +'INSERT INTO profiles (id, email, full_name, role, code, is_active)<br>'
+      +'VALUES (\'&lt;uuid_từ_auth&gt;\', \''+emailGợiý+'\', \''+hoTen+'\', \''+role+'\', \''+maNV+'\', true);'
+      +'</code>';
+    saveBtn.disabled=false;
+    saveBtn.textContent='Đóng';
+    saveBtn.onclick=function(){closeModal('add-emp-modal');saveBtn.onclick=saveNewEmp;saveBtn.textContent='💾 Lưu';};
+    toast('Đã thêm nhân viên: '+hoTen);
+  }catch(e){
+    toast('Lỗi: '+e.message,'error');
+    saveBtn.disabled=false;
+  }
 }
 
 // NAV
