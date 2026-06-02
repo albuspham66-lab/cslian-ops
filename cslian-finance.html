@@ -1810,7 +1810,9 @@ function renderExpenseTable(){
 }
 
 async function addExpense(){
-  const data={thang:fromKey(),ngay:document.getElementById('e-date').value||today(),mo_ta:document.getElementById('e-desc').value,danh_muc:document.getElementById('e-cat').value,loai:document.getElementById('e-type').value,nguoi_chi:document.getElementById('e-by').value,so_tien:parseFloat(document.getElementById('e-amount').value)||0,ghi_chu:document.getElementById('e-note').value};
+  const ngay=document.getElementById('e-date').value||today();
+  const thang=ngay.slice(0,7); // lấy tháng từ ngày thực tế, không phải kỳ đang xem
+  const data={thang,ngay,mo_ta:document.getElementById('e-desc').value,danh_muc:document.getElementById('e-cat').value,loai:document.getElementById('e-type').value,nguoi_chi:document.getElementById('e-by').value,so_tien:parseFloat(document.getElementById('e-amount').value)||0,ghi_chu:document.getElementById('e-note').value};
   if(!data.mo_ta){toast('Vui lòng nhập mô tả','amber');return;}
   try{await sbInsert('expenses',data);closeModal('m-exp');await loadAll();toast('Đã thêm chi phí','green');}
   catch(e){toast('Lỗi: '+e.message,'red');}
