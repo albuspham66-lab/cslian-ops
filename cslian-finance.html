@@ -1312,7 +1312,7 @@ function renderVendorCommissions(){
 }
 
 function calcVendorRevenue(){
-  const orders=doneOrders();
+  const orders=ordByMonth();
   return{
     bolsa:orders.reduce((s,o)=>s+(o.revenue_bolsa||0),0),
     ons:orders.reduce((s,o)=>s+(o.revenue_ons||0),0),
@@ -1455,17 +1455,25 @@ function renderTop3(){
   const profiles=allProfiles;
   const agentStats={};
   profiles.forEach(p=>{agentStats[p.id]={name:p.full_name,rev:0,orders:0,headspa:0,pedi:0};});
-  doneOrders().forEach(o=>{
+
+  // Doanh số + headspa: tất cả đơn đã duyệt trong kỳ
+  ordByMonth().forEach(o=>{
     const a=agentStats[o.user_id];
     if(a){
-      a.rev+=(o.total_amount||0);a.orders++;
+      a.rev+=(o.total_amount||0);
+      a.orders++;
       a.headspa+=(o.so_giuong_bolsa||0);
     }
   });
-  // Pedicure: from order_items not available in initial fetch, use TSPA+ONS proxy
-  doneOrders().forEach(o=>{
+
+  // Pedicure: đếm số lượng SP có SKU bắt đầu 'PDC' từ order_items
+  const doneIds=new Set(ordByMonth().map(o=>o.id));
+  allOrderItems.filter(it=>doneIds.has(it.order_id)&&(it.sku||'').toUpperCase().startsWith('PDC')).forEach(it=>{
+    // Tìm user_id từ order
+    const o=allOrders.find(x=>x.id===it.order_id);
+    if(!o)return;
     const a=agentStats[o.user_id];
-    if(a)a.pedi+=(o.revenue_ons||0)+(o.revenue_tspa||0);
+    if(a)a.pedi+=(it.so_luong||0);
   });
 
   const sorted_rev=Object.values(agentStats).filter(a=>a.rev>0).sort((a,b)=>b.rev-a.rev).slice(0,3);
@@ -1481,7 +1489,7 @@ function renderTop3(){
 
   setHTML('top3-rev',mkRank(sorted_rev,a=>a.rev,a=>fmtUSD(a.rev)));
   setHTML('top3-headspa',mkRank(sorted_hs,a=>a.headspa,a=>`${a.headspa} giường`));
-  setHTML('top3-pedi',mkRank(sorted_pedi,a=>a.pedi,a=>fmtUSD(a.pedi)));
+  setHTML('top3-pedi',mkRank(sorted_pedi,a=>a.pedi,a=>`${a.pedi} ghế`));
 }
 
 function renderVendorBars(){
@@ -1622,7 +1630,7 @@ function renderTrendChart(){
   const monthRevs=months6.map(mk=>{
     return allOrders.filter(o=>{
       const k=o.billing_month;
-      return k===mk&&o.is_settled;
+      return k===mk; // tất cả đơn đã duyệt, không filter is_settled
     }).reduce((s,o)=>s+(o.total_amount||0),0);
   });
   const labels=months6.map(k=>{const[y,m]=k.split('-');return`T${parseInt(m)}/${y}`;});
