@@ -2227,10 +2227,13 @@ async function showPriceHistory(id,name){
 async function deleteProduct(id,name){
   if(!confirm(`Xóa sản phẩm "${name}"?\nHành động này không thể hoàn tác.`))return;
   try{
+    const prod=allProducts.find(p=>p.id===id);
     await sbDelete('products',id);
     allProducts=allProducts.filter(p=>p.id!==id);
     toast('Đã xóa sản phẩm','green');
     filterProducts();renderProducts();
+    // Đồng bộ xóa sang CRM theo sku
+    if(prod&&prod.sku)syncProductToCRM({sku:prod.sku,action:'delete'});
   }catch(e){toast('Lỗi xóa: '+e.message,'red');}
 }
 
