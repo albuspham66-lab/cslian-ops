@@ -1456,19 +1456,27 @@ function renderTop3(){
   const agentStats={};
   profiles.forEach(p=>{agentStats[p.id]={name:p.full_name,rev:0,orders:0,headspa:0,pedi:0};});
 
-  // Doanh số + headspa: tất cả đơn đã duyệt trong kỳ
+  // Doanh số: tất cả đơn đã duyệt trong kỳ
   ordByMonth().forEach(o=>{
     const a=agentStats[o.user_id];
     if(a){
       a.rev+=(o.total_amount||0);
       a.orders++;
-      a.headspa+=(o.so_giuong_bolsa||0);
     }
+  });
+
+  const doneIds=new Set(ordByMonth().map(o=>o.id));
+
+  // Headspa Bed: đếm SP có la_bolsa=true trong order_items (field có sẵn, không cần tra SKU)
+  allOrderItems.filter(it=>doneIds.has(it.order_id)&&it.la_bolsa).forEach(it=>{
+    const o=allOrders.find(x=>x.id===it.order_id);
+    if(!o)return;
+    const a=agentStats[o.user_id];
+    if(a)a.headspa+=(it.so_luong||0);
   });
 
   // Pedicure: đếm SP có SKU bắt đầu 'PDC' — order_items không có cột sku,
   // phải tra qua product_id hoặc tên sản phẩm trong allProducts
-  const doneIds=new Set(ordByMonth().map(o=>o.id));
   const skuById={},skuByName={};
   allProducts.forEach(p=>{
     if(p.id)skuById[p.id]=(p.sku||'').toUpperCase();
