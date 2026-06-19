@@ -1466,9 +1466,20 @@ function renderTop3(){
     }
   });
 
-  // Pedicure: đếm số lượng SP có SKU bắt đầu 'PDC' từ order_items
+  // Pedicure: đếm SP có SKU bắt đầu 'PDC' — order_items không có cột sku,
+  // phải tra qua product_id hoặc tên sản phẩm trong allProducts
   const doneIds=new Set(ordByMonth().map(o=>o.id));
-  allOrderItems.filter(it=>doneIds.has(it.order_id)&&(it.sku||'').toUpperCase().startsWith('PDC')).forEach(it=>{
+  const skuById={},skuByName={};
+  allProducts.forEach(p=>{
+    if(p.id)skuById[p.id]=(p.sku||'').toUpperCase();
+    if(p.name)skuByName[p.name.trim().toLowerCase()]=(p.sku||'').toUpperCase();
+  });
+  allOrderItems.filter(it=>{
+    if(!doneIds.has(it.order_id))return false;
+    let sku=it.product_id?skuById[it.product_id]:null;
+    if(!sku)sku=skuByName[(it.ten_sp_invoice||'').trim().toLowerCase()];
+    return (sku||'').startsWith('PDC');
+  }).forEach(it=>{
     // Tìm user_id từ order
     const o=allOrders.find(x=>x.id===it.order_id);
     if(!o)return;
@@ -2227,13 +2238,10 @@ async function showPriceHistory(id,name){
 async function deleteProduct(id,name){
   if(!confirm(`Xóa sản phẩm "${name}"?\nHành động này không thể hoàn tác.`))return;
   try{
-    const prod=allProducts.find(p=>p.id===id);
     await sbDelete('products',id);
     allProducts=allProducts.filter(p=>p.id!==id);
     toast('Đã xóa sản phẩm','green');
     filterProducts();renderProducts();
-    // Đồng bộ xóa sang CRM theo sku
-    if(prod&&prod.sku)syncProductToCRM({sku:prod.sku,action:'delete'});
   }catch(e){toast('Lỗi xóa: '+e.message,'red');}
 }
 
