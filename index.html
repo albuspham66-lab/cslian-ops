@@ -1514,7 +1514,7 @@ function updateCIButtons(rec){
            <span class="status-chip chip-wait">⏳ Chờ check out</span>`;
     const _ciStr=fmtTime(rec.checkin_time)?(rec.checkin_time.includes('T')||rec.checkin_time.length>8?pad2(new Date(fmtTime(rec.checkin_time)).getUTCHours())+':'+pad2(new Date(fmtTime(rec.checkin_time)).getUTCMinutes()):rec.checkin_time.slice(0,5)):'00:00';
     const [ch,cm]=_ciStr.split(':').map(Number);
-    if(ch*60+cm>=22*60+11)chips+=`<span class="status-chip chip-late">⚠️ Đi trễ ${ch*60+cm-22*60} phút</span>`;
+    if(ch*60+cm>22*60+10)chips+=`<span class="status-chip chip-late">⚠️ Đi trễ ${ch*60+cm-22*60} phút</span>`;
   } else {
     btnIn.className='ci-btn btn-in';btnIn.disabled=false;
     btnOut.className='ci-btn btn-dis';btnOut.disabled=true;
@@ -1597,10 +1597,17 @@ async function doCheckOut(){
 function calcKhung(ci,co){
   if(!ci||!co)return 0;
   const [ch,cm]=ci.split(':').map(Number),[oh,om]=co.split(':').map(Number);
+  // ciOff: minutes after 22:00 when checkin happened (clamped to >=0; before 22:00 counts as 0)
   const ciOff=ch>=22?(ch-22)*60+cm:0;
   if((oh>8||(oh===8&&om>=30))&&oh<22)return 0;
   const coOff=oh>=22?(oh-22)*60+om:(oh+8)*60+om;
-  let k=0;[[0,120],[120,240],[240,360],[360,480]].forEach(function(r){if(ciOff<=r[0]&&coOff>=r[1])k++;});
+  // Count a khung (2h block) as worked if the actual [ciOff,coOff] interval covers
+  // at least half (60 min) of that block — avoids losing a full block for being
+  // just 1 minute late, while still penalizing genuinely-late or genuinely-early-leave cases.
+  let k=0;[[0,120],[120,240],[240,360],[360,480]].forEach(function(r){
+    const overlap=Math.min(coOff,r[1])-Math.max(ciOff,r[0]);
+    if(overlap>=60)k++;
+  });
   return k;
 }
 function fmtTime(t){
@@ -1631,7 +1638,7 @@ function calcDayLogic(rec,empType){
   }
   const ciHHMM=toHHMM(fmtTime(rec.checkin_time));
   const [ch,cm]=ciHHMM.split(':').map(Number),ciT=ch*60+cm;
-  const isLate=ciT>=22*60+11,lateMin=isLate?ciT-22*60:0;
+  const isLate=ciT>22*60+10,lateMin=isLate?ciT-22*60:0;
   const coHHMM=toHHMM(fmtTime(rec.checkout_time));
   const k=calcKhung(ciHHMM,coHHMM);
   return{hours:k*2,salary:k*2*LUONG_GIO,isLate,lateMin};
