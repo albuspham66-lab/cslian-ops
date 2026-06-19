@@ -1425,14 +1425,16 @@ function populateSelects(){
 // ============================================================
 function getCaDate(now){
   now=now||new Date();
-  const h=now.getHours();
+  // Explicit ICT (UTC+7) conversion — do not rely on browser/server local timezone
+  const ict=new Date(now.getTime()+7*60*60*1000);
+  const h=ict.getUTCHours();
   if(h>=0&&h<14){
-    // Sau nửa đêm → thuộc ca ngày hôm trước
-    const yesterday=new Date(now);
-    yesterday.setDate(yesterday.getDate()-1);
-    return dateStr(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate());
+    // Sau nửa đêm (giờ ICT) → thuộc ca ngày hôm trước
+    const yesterday=new Date(ict);
+    yesterday.setUTCDate(yesterday.getUTCDate()-1);
+    return dateStr(yesterday.getUTCFullYear(),yesterday.getUTCMonth(),yesterday.getUTCDate());
   }
-  return dateStr(now.getFullYear(),now.getMonth(),now.getDate());
+  return dateStr(ict.getUTCFullYear(),ict.getUTCMonth(),ict.getUTCDate());
 }
 
 // ============================================================
