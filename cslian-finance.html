@@ -840,7 +840,7 @@ textarea{resize:vertical;min-height:72px;}
         <thead><tr>
           <th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
           <th class="num">Giá bán ($)</th><th class="num">Best Price</th><th class="num">Cost ($)</th>
-          <th class="num">Commission</th><th>Note</th><th>Headspa</th><th>Trạng thái</th><th></th>
+          <th class="num">Commission</th><th>Note</th><th>Shipping</th><th>Headspa</th><th>Trạng thái</th><th></th>
         </tr></thead>
         <tbody id="prod-tbl"></tbody>
       </table>
@@ -995,6 +995,12 @@ textarea{resize:vertical;min-height:72px;}
       <div class="fg"><label class="fl">Giá cost Vendor ($)</label><input type="number" id="p-vendor-cost" min="0" step="0.01" placeholder="0.00"></div>
       <div class="fg"><label class="fl">Commission rate (%)</label><input type="number" id="p-commission" min="0" max="100" step="0.1" value="3"></div>
       <div class="fg"><label class="fl">Màu / Variant</label><input type="text" id="p-variant" placeholder="VD: Black, White..."></div>
+      <div class="fg"><label class="fl">Tình trạng kho</label>
+        <select id="p-stock-status"><option value="in_stock">In Stock</option><option value="out_of_stock">Out of Stock</option><option value="pre_order">Pre Order</option></select>
+      </div>
+      <div class="fg"><label class="fl">Shipping</label>
+        <select id="p-shipping-fee"><option value="free">Free Shipping</option><option value="check">Check ship</option></select>
+      </div>
       <div class="fg"><label class="fl">Trạng thái</label>
         <select id="p-active"><option value="true">Active</option><option value="false">Inactive</option></select>
       </div>
@@ -1003,6 +1009,7 @@ textarea{resize:vertical;min-height:72px;}
         <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
       </div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Giá tốt nhất (tuỳ chọn)"></div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Mô tả sản phẩm</label><textarea id="p-description" rows="3" placeholder="Mô tả chi tiết sản phẩm..." style="resize:vertical"></textarea></div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
@@ -1193,7 +1200,7 @@ async function loadAll(){
       sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note&order=vendor.asc,name.asc`),
+      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note,description,stock_status,shipping_fee&order=vendor.asc,name.asc`),
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
@@ -2146,6 +2153,7 @@ function renderProdTable(){
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
     <td class="num" style="color:var(--teal2);">${p.commission_rate!=null?((p.commission_rate)*100).toFixed(1)+'%':'—'}</td>
     <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(p.note||'').replace(/"/g,'&quot;')}">${p.note||'—'}</td>
+    <td><span class="b ${p.shipping_fee==='free'?'b-green':'b-gray'}" style="font-size:10px;">${p.shipping_fee==='free'?'Free Ship':'Check ship'}</span></td>
     <td style="text-align:center;">${p.is_bolsa?'<span class="b b-amber" style="font-size:10px;">✓</span>':'—'}</td>
     <td><span class="b ${p.is_active!==false?'b-green':'b-gray'} " style="font-size:10px;">${p.is_active!==false?'Active':'Inactive'}</span></td>
     <td><div style="display:flex;gap:4px;">
@@ -2153,7 +2161,7 @@ function renderProdTable(){
       <button class="act-btn" onclick="editProduct('${p.id}')">✏️</button>
       <button class="act-btn" onclick="deleteProduct('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">🗑</button>
     </div></td>
-  </tr>`).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
+  </tr>`).join('')||'<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
   const pages=[];
   for(let i=1;i<=tp;i++){
     if(tp<=7||i===1||i===tp||Math.abs(i-prodPage)<=1)pages.push(`<button class="btn btn-xs ${i===prodPage?'btn-primary':'btn-ghost'}" onclick="goPage(${i})">${i}</button>`);
@@ -2172,11 +2180,13 @@ function onVendorChange(){
 
 function openProductModal(){
   setTxt('m-prod-title','Thêm sản phẩm');setTxt('m-prod-btn','Thêm sản phẩm');
-  ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note'].forEach(id=>document.getElementById(id).value='');
+  ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note','p-description'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-best-price').value='';
   document.getElementById('p-vendor').value='BOLSA';
   document.getElementById('p-gia-ban').value='';document.getElementById('p-vendor-cost').value='';
   document.getElementById('p-commission').value='0';document.getElementById('p-active').value='true';
+  document.getElementById('p-stock-status').value='in_stock';
+  document.getElementById('p-shipping-fee').value='check';
   document.getElementById('p-la-bolsa').checked=false;
   document.getElementById('p-note-wrap').style.display='none';
   onVendorChange();openModal('m-prod');
@@ -2189,8 +2199,11 @@ function editProduct(id){
   document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
   document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
+  document.getElementById('p-stock-status').value=p.stock_status||'in_stock';
+  document.getElementById('p-shipping-fee').value=p.shipping_fee||'check';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-prod-note').value=p.note||'';
+  document.getElementById('p-description').value=p.description||'';
   document.getElementById('p-best-price').value=p.best_price!=null?p.best_price:'';
   document.getElementById('p-note-wrap').style.display='block';
   onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
@@ -2199,7 +2212,7 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,description:document.getElementById('p-description').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
@@ -2211,7 +2224,6 @@ async function saveProduct(){
       await sbPatch('products',`id=eq.${id}`,data);
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
       toast('Đã cập nhật sản phẩm','green');
-      syncProductToCRM({...data,id});
       syncProductToCRM({...data,id});
     }else{
       const res=await sbInsert('products',data);
