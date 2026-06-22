@@ -2599,12 +2599,17 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   if(!emp)return null;
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
 
-  const [attRes, kpiRes, ordersRes, itemsRes] = await Promise.all([
+  const [attRes, kpiRes, ordersRes] = await Promise.all([
     sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to),
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
-    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true),
-    sb.from('order_items').select('*,orders!inner(user_id,billing_month,is_settled)').eq('orders.user_id',empId).eq('orders.billing_month',thang).eq('orders.is_settled',true).eq('vendor','BOLSA')
+    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true)
   ]);
+  const ords0=ordersRes.data||[];
+  const settledOrderIds=ords0.map(o=>o.id);
+  // order_items chỉ fetch khi có order đã settled — tránh query rỗng/IN() vô nghĩa
+  const itemsRes=settledOrderIds.length
+    ? await sb.from('order_items').select('*').in('order_id',settledOrderIds).eq('vendor','BOLSA')
+    : {data:[]};
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
   const isProbation=(emp.contract_type==='probation'||emp.contract_type==='thu-viec');
@@ -2634,7 +2639,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const kpi=kpiRes.data;
   const p3c=(kpi&&kpi.diem_tong>=70)?500000:0;
 
-  const ords=ordersRes.data||[];
+  const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
   const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
   const datTarget=dtTotal>=TARGET_USD;
