@@ -2602,8 +2602,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const [attRes, kpiRes, ordersRes, itemsRes] = await Promise.all([
     sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to),
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
-    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang),
-    sb.from('order_items').select('*,orders!inner(user_id,billing_month)').eq('orders.user_id',empId).eq('orders.billing_month',thang).eq('vendor','BOLSA')
+    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true),
+    sb.from('order_items').select('*,orders!inner(user_id,billing_month,is_settled)').eq('orders.user_id',empId).eq('orders.billing_month',thang).eq('orders.is_settled',true).eq('vendor','BOLSA')
   ]);
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
