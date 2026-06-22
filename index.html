@@ -2624,8 +2624,12 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   let heCoP1=isProbation?0.85:1.0;
 
   const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong*heCoP1);
-  const p2a=500000,p2b=1240000,p2c=P2C_MAP[emp.lever||1]||0;
-  const p3b=soLanTre===0?300000:soLanTre===1?150000:0;
+  // P2A/P2B theo tỷ lệ ngày công thực tế / công chuẩn (22 ngày)
+  const congRatio=ngayCong/CONG_CHUAN;
+  const p2a=Math.round(500000*congRatio),p2b=Math.round(1240000*congRatio),p2c=P2C_MAP[emp.lever||1]||0;
+  // Công < 50% công chuẩn → không hưởng chuyên cần, bất kể số lần trễ
+  const duCongChuyenCan=congRatio>=0.5;
+  const p3b=!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0);
 
   const kpi=kpiRes.data;
   const p3c=(kpi&&kpi.diem_tong>=70)?500000:0;
@@ -2790,10 +2794,10 @@ async function viewSalaryDetail(empId,thang){
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.full_name} · Tháng ${thang} ${sal.is_locked?'· 🔒 Đã chốt':''}</div>
       <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn uống, đi lại</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2B — Phụ cấp chức năng</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2B — Phụ cấp chức năng (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
       <div class="salary-row"><span class="salary-label">P2C — Năng lực Lever ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
-      <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.so_lan_tre} lần trễ)</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
+      <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
       <div class="salary-row"><span class="salary-label">P3C — KPI tháng</span><span class="salary-val">${vnd(sal.p3c_kpi)}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa Headspa Bed (${usd(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.ty_gia||TY_GIA))}</span></div>
       ${(sal.p3a_bolsa_other_usd>0)?`<div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa SP khác 1% (${usd(sal.p3a_bolsa_other_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_bolsa_other_usd*(sal.ty_gia||TY_GIA))}</span></div>`:''}
@@ -2844,8 +2848,8 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-section-title">A — Lương cơ bản & Phụ cấp</div>
       <table class="pl-table">
         <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
-        <tr><td class="label">P2A — Phụ cấp ăn uống, đi lại</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
-        <tr><td class="label">P2B — Phụ cấp chức năng</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
+        <tr><td class="label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
+        <tr><td class="label">P2B — Phụ cấp chức năng (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
         <tr><td class="label">P2C — Phụ cấp năng lực (Lever ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
       </table>
     </div>
@@ -2853,7 +2857,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
     <div class="pl-section">
       <div class="pl-section-title">B — Bonus & Thưởng</div>
       <table class="pl-table">
-        <tr><td class="label">P3B — Chuyên cần (${sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
+        <tr><td class="label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
         <tr><td class="label">P3C — KPI tháng (${sal.p3c_kpi>0?'≥70 điểm':'<70 điểm'})</td><td class="formula">P3C</td><td class="amount">${vndFmt(sal.p3c_kpi)}</td></tr>
         <tr><td class="label">P3A — Bonus Bolsa Headspa (${usdFmt(sal.p3a_bolsa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label">P3A — Bonus ONS/TSPA (${usdFmt(sal.p3a_ons_tspa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_ons_tspa_usd||0)*(sal.ty_gia||25000))}</td></tr>
