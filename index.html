@@ -2594,6 +2594,7 @@ function changeMonthKPI(d){kpiMonth+=d;if(kpiMonth>11){kpiMonth=0;kpiYear++;}if(
 // Tính lương — pure calculation, không ghi DB, dùng chung cho
 // cả auto-calc bảng tổng hợp và tính lẻ từng người.
 // ============================================================
+var _salCache={};
 async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
   if(!emp)return null;
@@ -2689,6 +2690,7 @@ async function calcAndSaveSalaryFor(empId,thang,salYear,salMonth){
 // ============================================================
 async function renderSalary(){
   const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
+  _salCache={};
   document.getElementById('sal-month-label').textContent=`Tháng ${salMonth+1}/${salYear}`;
   const thang=monthStr(salYear,salMonth);
   const exportAllBtn=document.getElementById('sal-export-all-btn');
@@ -2744,6 +2746,9 @@ function renderSalaryRow(emp,sal,thang,isMgr){
     row.innerHTML=`<td><span class="sal-name">${emp.full_name}</span><span class="sal-code">${emp.employee_code||''}</span></td><td style="color:var(--text3)">—</td><td></td>`;
     return;
   }
+  // Cache kết quả vừa tính/đọc — viewSalaryDetail và exportPhieuLuong dùng lại
+  // ngay từ đây, tránh query lại DB (tránh race condition / RLS delay).
+  _salCache[emp.id+'|'+thang]=sal;
   const locked=!!sal.is_locked;
   const lockBtn=isMgr?`<button class="sal-lock-badge ${locked?'locked':'unlocked'}" onclick="toggleLockSalary('${emp.id}','${thang}')">${locked?'🔒 Đã chốt':'🔓 Đang tính'}</button>`:
     `<span class="sal-lock-badge ${locked?'locked':'unlocked'}">${locked?'🔒 Đã chốt':'🔓 Đang tính'}</span>`;
@@ -2771,8 +2776,12 @@ async function toggleLockSalary(empId,thang){
 
 async function viewSalaryDetail(empId,thang){
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
-  const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-  if(!sal){toast('Chưa có dữ liệu lương','error');return;}
+  let sal=_salCache[empId+'|'+thang];
+  if(!sal){
+    const {data}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+    sal=data;
+  }
+  if(!sal){toast('Chưa có dữ liệu lương — thử bấm lại sau vài giây','error');return;}
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
   const html=`
     <div class="stat-grid">
@@ -2929,8 +2938,12 @@ async function exportPhieuLuong(empId,thang){
   empId=empId||curProfile?.id;
   thang=thang||monthStr(salYear,salMonth);
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)||curProfile;
-  const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-  if(!sal){toast('Chưa có bảng lương tháng này','error');return;}
+  let sal=_salCache[empId+'|'+thang];
+  if(!sal){
+    const {data}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+    sal=data;
+  }
+  if(!sal){toast('Chưa có bảng lương tháng này — thử bấm lại sau vài giây','error');return;}
 
   const html=buildPhieuLuongHTML(emp,sal,thang);
   const printWin=window.open('','_blank','width=800,height=1000');
