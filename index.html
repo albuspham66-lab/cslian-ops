@@ -1704,14 +1704,13 @@ async function renderAttTable(){
       <td style="color:var(--success)">${sShow}</td><td>${noteHtml}</td>
       <td>${isMgr?`<button class="icon-btn" onclick="openDayModalById('${empId}','${ds}')">✏️</button>`:''}</td></tr>`;
   }
-  const penalty=late===1?PHAT1:late>=2?PHAT2:0,finalS=Math.max(0,totalS-penalty);
   document.getElementById('att-tbody').innerHTML=tbody;
-  document.getElementById('att-tfoot').innerHTML=`<tr><td colspan="4" style="text-align:right;color:var(--text2)">Tổng tháng</td><td>${totalH}h</td><td style="font-size:11px;color:var(--warn)">Trễ: ${late} lần</td><td style="color:var(--success)">${vnd(finalS)}</td><td colspan="2" style="color:var(--danger)">${penalty>0?'Phạt: '+vnd(penalty):''}</td></tr>`;
+  document.getElementById('att-tfoot').innerHTML=`<tr><td colspan="4" style="text-align:right;color:var(--text2)">Tổng tháng</td><td>${totalH}h</td><td style="font-size:11px;color:var(--warn)">Trễ: ${late} lần</td><td style="color:var(--success)">${vnd(totalS)}</td><td colspan="2"></td></tr>`;
   document.getElementById('att-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">⏱ Tổng giờ công</div><div class="stat-val" style="color:var(--accent)">${totalH}<span style="font-size:14px;font-weight:400">h</span></div><div class="stat-sub">${wd} ngày · NP:${np} · NL:${nl}</div></div>
-    <div class="stat-card"><div class="stat-label">⚠️ Đi trễ</div><div class="stat-val" style="color:${late>0?'var(--warn)':'var(--text)'}">${late}</div><div class="stat-sub">Phạt: ${penalty>0?vnd(penalty):'Không'}</div></div>
+    <div class="stat-card"><div class="stat-label">⚠️ Đi trễ</div><div class="stat-val" style="color:${late>0?'var(--warn)':'var(--text)'}">${late}</div><div class="stat-sub">Xem chi tiết tại Bảng lương</div></div>
     <div class="stat-card"><div class="stat-label">🚫 NKP</div><div class="stat-val" style="color:${nkp>0?'var(--danger)':'var(--text)'}">${nkp}</div><div class="stat-sub">Ngày mất công</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Lương ước tính</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(finalS)}</div><div class="stat-sub">Gross: ${vnd(totalS)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">💰 Lương P1 ước tính</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(totalS)}</div><div class="stat-sub">Chưa gồm phụ cấp, bonus</div></div>`;
 }
 function changeMonth(d){curMonth+=d;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}renderAttTable();}
 
@@ -2608,6 +2607,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   ]);
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
+  const isProbation=(emp.contract_type==='probation'||emp.contract_type==='thu-viec');
 
   let ngayCong=0,soLanTre=0,npD=0,nlD=0,nkpD=0;
   for(let d=1;d<=last;d++){
@@ -2616,15 +2616,12 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const rec=recMap[ds];
     const r=calcDayLogic(rec,emp.role);
     if(rec?.status==='NL'||isHL(ds)){nlD++;ngayCong++;}
-    else if(rec?.status==='NP'){npD++;if(emp.type!=='thu-viec')ngayCong++;}
+    else if(rec?.status==='NP'){npD++;if(!isProbation)ngayCong++;}
     else if(rec?.status==='NKP'){nkpD++;}
     else if(rec&&r.hours>0){ngayCong+=r.hours/8;if(r.isLate)soLanTre++;}
   }
 
-  let heCoP1=1.0;
-  if((emp.contract_type||'chinh-thuc')==='thu-viec'){
-    heCoP1=0.85;
-  }
+  let heCoP1=isProbation?0.85:1.0;
 
   const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong*heCoP1);
   const p2a=500000,p2b=1240000,p2c=P2C_MAP[emp.lever||1]||0;
