@@ -612,7 +612,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <thead><tr>
               <th>Mã đơn</th><th>Tiệm nail</th><th>Sale</th>
               <th>Ngày đơn</th><th>Tháng Bonus</th>
-              <th>Doanh số</th><th>Bonus ($)</th>
+              <th>Doanh số</th><th>Bonus chênh lệch</th><th>Bonus mặc định</th>
               <th>Truy thu ($)</th><th>Balance</th>
               <th>Trạng thái</th><th style="width:60px"></th>
             </tr></thead>
@@ -1424,9 +1424,12 @@ async function loadAllProfiles(){
 function populateSelects(){
   const active=activeProfiles();
   const opts=active.map(p=>`<option value="${p.id}">${p.full_name} (${p.employee_code})</option>`).join('');
-  ['att-emp-sel','ord-emp-sel','kpi-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
+  ['att-emp-sel','kpi-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
+  // ord-emp-sel: thêm option "Tất cả nhân viên" lên đầu — xem chung mọi đơn trong tháng
+  const ordSel=document.getElementById('ord-emp-sel');
+  if(ordSel)ordSel.innerHTML=`<option value="">— Tất cả nhân viên —</option>`+opts;
   const revNam=document.getElementById('rev-nam-sel');
   if(revNam)revNam.innerHTML=[2025,2026,2027].map(y=>`<option value="${y}">${y}</option>`).join('');
 }
@@ -2402,6 +2405,17 @@ function cancelExcel(){
 
 
 
+// Bonus bậc giường Headspa Bed cho 1 đơn — dùng đúng công thức bậc thang
+// như trong calcSalaryForEmp, áp theo số giường CỦA RIÊNG đơn này.
+function calcHeadspaBedBonusForOrder(soGiuong){
+  if(!soGiuong||soGiuong<=0)return 0;
+  if(soGiuong<10)return soGiuong*15;
+  if(soGiuong<20)return soGiuong*15+100;
+  if(soGiuong<30)return soGiuong*17+150;
+  if(soGiuong<40)return soGiuong*20+200;
+  return soGiuong*25+250;
+}
+
 async function renderOrders(){
   const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
   const empId=isMgr?(document.getElementById('ord-emp-sel')?.value||null):curProfile.id;
@@ -2415,21 +2429,32 @@ async function renderOrders(){
   const {data:orders}=await query;
   const list=orders||[];
 
+  // Lấy số giường Headspa Bed (la_bolsa=true) của từng đơn để tính bonus mặc định riêng
+  const orderIds=list.map(o=>o.id);
+  let soGiuongMap={};
+  if(orderIds.length){
+    const {data:headspaItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',orderIds).eq('la_bolsa',true);
+    (headspaItems||[]).forEach(it=>{soGiuongMap[it.order_id]=(soGiuongMap[it.order_id]||0)+(it.so_luong||0);});
+  }
+  const bonusMacDinhMap={};
+  list.forEach(o=>{bonusMacDinhMap[o.id]=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);});
+
   // Stats
   const totalRev=list.reduce((s,o)=>s+(o.total_amount||0),0);
-  const totalBonus=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
-  const totalBonus2=list.reduce((s,o)=>s+(o.tong_bonus_usd||0),0);
+  const totalBonusChenh=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
+  const totalBonusMacDinh=list.reduce((s,o)=>s+(bonusMacDinhMap[o.id]||0),0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
-  const tatToanCount=list.filter(o=>o.is_settled||o.is_settled||o.balance_due===0).length;
+  const tatToanCount=list.filter(o=>o.is_settled||o.balance_due===0).length;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
     <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=TARGET_USD?'var(--success)':'var(--warn)'}">${Math.round(totalRev/TARGET_USD*100)}%</div><div class="stat-sub">${totalRev>=TARGET_USD?'✅ Đạt':'❌ Chưa đạt'}</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonus2)}</div><div class="stat-sub">Truy thu: ${usd(totalTruyThu)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Mặc định: ${usd(totalBonusMacDinh)}</div></div>`;
 
-  if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="11" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
+  if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
-    const tatToan=o.is_settled||o.is_settled||o.balance_due===0;
+    const tatToan=o.is_settled||o.balance_due===0;
+    const bonusMacDinh=bonusMacDinhMap[o.id]||0;
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no||'—'}</td>
       <td style="font-weight:500;font-size:12px">${o.shop_name}</td>
@@ -2437,7 +2462,8 @@ async function renderOrders(){
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.tong_bonus_usd||0)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.bonus_chenh_lech||0)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusMacDinh)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance||0)}</td>
       <td><span class="pill ${tatToan?'pill-approved':'pill-pending'}">${tatToan?'✅ Tất toán':'⏳ Còn nợ'}</span></td>
