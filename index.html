@@ -4435,6 +4435,31 @@ function updateNavScrollBtns(){
   btnL.classList.toggle('visible',canScrollL);
   btnR.classList.toggle('visible',canScrollR);
 }
+function initPWA(){
+  // Khôi phục hàm đã bị xoá nhầm — gây crash initApp() ở các bản trước.
+  // Chức năng: theo dõi Service Worker (nếu có) để hiện banner "Có phiên bản mới".
+  // An toàn tuyệt đối — không throw nếu Service Worker không khả dụng/không đăng ký.
+  if(!('serviceWorker' in navigator))return;
+  try{
+    navigator.serviceWorker.getRegistration().then(function(reg){
+      if(!reg)return;
+      reg.addEventListener('updatefound',function(){
+        var newWorker=reg.installing;
+        if(!newWorker)return;
+        newWorker.addEventListener('statechange',function(){
+          if(newWorker.state==='installed'&&navigator.serviceWorker.controller){
+            var banner=document.getElementById('pwa-update-banner');
+            if(banner)banner.style.display='flex';
+          }
+        });
+      });
+    }).catch(function(){});
+  }catch(e){console.warn('initPWA skipped:',e.message);}
+}
+function pwaDoUpdate(){
+  // Reload đơn giản để lấy bản mới nhất — an toàn nếu không có Service Worker đặc biệt nào cần activate.
+  window.location.reload();
+}
 function initNavScroll(){
   var nav=document.getElementById('main-nav');
   if(!nav)return;
