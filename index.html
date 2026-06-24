@@ -84,7 +84,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .nav-btn:hover{color:var(--text)}
 .nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-.content{flex:1;padding:24px 20px;max-width:1200px;margin:0 auto;width:100%}
+.content{flex:1;padding:24px 28px;width:100%}
 .page-content{display:none}
 .page-content.active{display:block}
 
@@ -2486,7 +2486,7 @@ async function renderOrders(){
       <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.bonus_chenh_lech||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusMacDinh)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance||0)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance_due||0)}</td>
       <td><span class="pill ${tatToan?'pill-approved':'pill-pending'}">${tatToan?'✅ Tất toán':'⏳ Còn nợ'}</span></td>
       <td>${isMgr?`<button class="icon-btn" onclick="approveOrder('${o.id}',${!o.da_duyet})" title="Duyệt">${o.da_duyet?'↩️':'✅'}</button>`:''}
       <button class="icon-btn" onclick="deleteOrder('${o.id}')" title="Xoá">🗑️</button></td>
@@ -2838,7 +2838,7 @@ async function viewSalaryDetail(empId,thang){
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
   const html=`
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}</div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
+      <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}<span style="font-size:14px;font-weight:400;color:var(--text3)">/${CONG_CHUAN}</span></div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
       <div class="stat-card"><div class="stat-label">💵 Lương thực nhận</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(sal.tong_luong_vnd)}</div><div class="stat-sub">Tháng ${thang}</div></div>
       <div class="stat-card"><div class="stat-label">🎯 Bonus P3A</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(sal.p3a_total_usd)}</div><div class="stat-sub">${sal.p3a_ty_le_dat===1?'✅ Đạt target 100%':'⚠️ Không đạt 50%'}</div></div>
       <div class="stat-card"><div class="stat-label">⭐ Lever P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
