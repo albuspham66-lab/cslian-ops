@@ -149,7 +149,9 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .log-time{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)}
 
 /* TABLE */
-.tbl-wrap{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
+.tbl-wrap{border-radius:var(--radius);overflow-x:auto;overflow-y:hidden;border:1px solid var(--border);-webkit-overflow-scrolling:touch}
+.tbl-wrap table{min-width:max-content}
+.tbl-wrap td,.tbl-wrap th{white-space:nowrap}
 table{width:100%;border-collapse:collapse;font-size:13px}
 /* Dark inputs in tables */
 input[type="number"],input[type="text"],input[type="date"],input[type="time"],input[type="email"],input[type="password"],input[type="month"],select{
@@ -2439,6 +2441,25 @@ async function renderOrders(){
   const bonusMacDinhMap={};
   list.forEach(o=>{bonusMacDinhMap[o.id]=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);});
 
+  // Extra Bonus (mức tăng vượt bậc thang 10/20/30/40 giường) — tính theo TỔNG GIƯỜNG CẢ THÁNG
+  // của TỪNG SALE riêng biệt, không gộp chung khi xem "Tất cả nhân viên".
+  const soGiuongTheoSale={};
+  list.forEach(o=>{
+    const uid=o.user_id||'_unknown';
+    soGiuongTheoSale[uid]=(soGiuongTheoSale[uid]||0)+(soGiuongMap[o.id]||0);
+  });
+  function extraBonusForGiuong(soGiuong){
+    // Phần "+100/+150/+200/+250" tách riêng khỏi đơn giá $15/$17/$20/$25 mỗi giường —
+    // đây chính là "Extra Bonus" khi vượt mốc 10/20/30/40 giường trong tháng.
+    if(soGiuong<10)return 0;
+    if(soGiuong<20)return 100;
+    if(soGiuong<30)return 150;
+    if(soGiuong<40)return 200;
+    return 250;
+  }
+  let totalExtraBonus=0;
+  Object.keys(soGiuongTheoSale).forEach(uid=>{totalExtraBonus+=extraBonusForGiuong(soGiuongTheoSale[uid]);});
+
   // Stats
   const totalRev=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalBonusChenh=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
@@ -2449,7 +2470,7 @@ async function renderOrders(){
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
     <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=TARGET_USD?'var(--success)':'var(--warn)'}">${Math.round(totalRev/TARGET_USD*100)}%</div><div class="stat-sub">${totalRev>=TARGET_USD?'✅ Đạt':'❌ Chưa đạt'}</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Mặc định: ${usd(totalBonusMacDinh)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Mặc định: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
 
   if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
