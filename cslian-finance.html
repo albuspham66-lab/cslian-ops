@@ -190,6 +190,7 @@ textarea{resize:vertical;min-height:72px;}
 .mbg.show{display:flex;}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rxl);padding:26px 28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .modal-lg{width:680px;}
+.modal-xl{width:920px;}
 .modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text);letter-spacing:-.3px;}
 .mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
 
@@ -449,9 +450,9 @@ textarea{resize:vertical;min-height:72px;}
       <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
       Làm mới
     </button>
-    <button class="btn btn-ghost btn-sm" onclick="exportCurrentCSV()">
-      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Xuất CSV
+    <button class="btn btn-ghost btn-sm" onclick="exportCurrentExcel()" style="border-color:rgba(30,201,122,.35);color:var(--green2);">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+      Xuất Excel
     </button>
   </div>
 </div>
@@ -582,9 +583,9 @@ textarea{resize:vertical;min-height:72px;}
       <table>
         <thead><tr>
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
-          <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
+          <th>Vendor</th><th class="num">Total ($)</th><th class="num">Hoa hồng ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th>
-          <th>Aging</th><th>Tình trạng</th>
+          <th>Aging</th><th>Tình trạng</th><th></th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -840,7 +841,7 @@ textarea{resize:vertical;min-height:72px;}
         <thead><tr>
           <th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
           <th class="num">Giá bán ($)</th><th class="num">Best Price</th><th class="num">Cost ($)</th>
-          <th class="num">Commission</th><th>Note</th><th>Shipping</th><th>Headspa</th><th>Trạng thái</th><th></th>
+          <th class="num">Commission</th><th>Note</th><th>Headspa</th><th>Trạng thái</th><th></th>
         </tr></thead>
         <tbody id="prod-tbl"></tbody>
       </table>
@@ -995,12 +996,6 @@ textarea{resize:vertical;min-height:72px;}
       <div class="fg"><label class="fl">Giá cost Vendor ($)</label><input type="number" id="p-vendor-cost" min="0" step="0.01" placeholder="0.00"></div>
       <div class="fg"><label class="fl">Commission rate (%)</label><input type="number" id="p-commission" min="0" max="100" step="0.1" value="3"></div>
       <div class="fg"><label class="fl">Màu / Variant</label><input type="text" id="p-variant" placeholder="VD: Black, White..."></div>
-      <div class="fg"><label class="fl">Tình trạng kho</label>
-        <select id="p-stock-status"><option value="in_stock">In Stock</option><option value="out_of_stock">Out of Stock</option><option value="pre_order">Pre Order</option></select>
-      </div>
-      <div class="fg"><label class="fl">Shipping</label>
-        <select id="p-shipping-fee"><option value="free">Free Shipping</option><option value="check">Check ship</option></select>
-      </div>
       <div class="fg"><label class="fl">Trạng thái</label>
         <select id="p-active"><option value="true">Active</option><option value="false">Inactive</option></select>
       </div>
@@ -1009,7 +1004,6 @@ textarea{resize:vertical;min-height:72px;}
         <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
       </div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Giá tốt nhất (tuỳ chọn)"></div>
-      <div class="fg" style="grid-column:span 2;"><label class="fl">Mô tả sản phẩm</label><textarea id="p-description" rows="3" placeholder="Mô tả chi tiết sản phẩm..." style="resize:vertical"></textarea></div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
@@ -1035,6 +1029,26 @@ textarea{resize:vertical;min-height:72px;}
     </div>
     <div id="ph-empty" style="text-align:center;padding:24px;color:var(--text3);display:none;">Chưa có lịch sử thay đổi giá.</div>
     <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-price-hist')">Đóng</button></div>
+  </div>
+</div>
+
+<!-- Modal: Chi tiết đơn hàng -->
+<div class="mbg" id="m-order-detail">
+  <div class="modal modal-xl">
+    <div class="modal-title" id="od-title">Chi tiết đơn hàng</div>
+    <div id="od-meta" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;font-size:12px;color:var(--text2);"></div>
+    <div class="mrow mrow-3" id="od-stats" style="margin-bottom:16px;"></div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Sản phẩm</th><th class="num">SL</th><th class="num">Giá bán</th>
+          <th class="num">Chênh lệch</th><th class="num">Bonus chênh</th><th style="text-align:center;">Gift</th>
+        </tr></thead>
+        <tbody id="od-body"></tbody>
+      </table>
+    </div>
+    <div id="od-empty" style="text-align:center;padding:24px;color:var(--text3);display:none;">Đơn hàng chưa có sản phẩm chi tiết.</div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-order-detail')">Đóng</button></div>
   </div>
 </div>
 
@@ -1200,7 +1214,7 @@ async function loadAll(){
       sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note,description,stock_status,shipping_fee&order=vendor.asc,name.asc`),
+      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note&order=vendor.asc,name.asc`),
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
@@ -1399,6 +1413,20 @@ function calcCommission(){
     tspa+=(o.revenue_tspa||0)*0.04;
   });
   return{bolsa:Math.max(0,bolsa),ons,tspa,total:Math.max(0,bolsa)+ons+tspa,source:'orders'};
+}
+
+// Hoa hồng thực tế của 1 đơn — tổng calcCommissionPerItem của các order_items thuộc đơn
+function calcOrderCommission(orderId){
+  if(!allOrderItems||!allOrderItems.length)return 0;
+  return allOrderItems.filter(it=>it.order_id===orderId)
+    .reduce((s,it)=>s+calcCommissionPerItem(it),0);
+}
+
+// Shipping của 1 đơn — order_items không có cột shipping riêng, lấy từ dòng "Shipping Fee"
+function calcOrderShipping(orderId){
+  if(!allOrderItems||!allOrderItems.length)return 0;
+  return allOrderItems.filter(it=>it.order_id===orderId&&/ship/i.test(it.ten_sp_invoice||''))
+    .reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
 }
 
 function calcDelta(cur,prev){
@@ -1727,22 +1755,27 @@ function renderOrdersTable(orders){
     const days=agingDays(o.order_date);
     const aging=o.is_settled?{cls:'',label:''}:agingLabel(days);
     const vendors=[];
-    if((o.revenue_bolsa||0)>0)vendors.push('<span class="b b-amber" style="font-size:10px;">BOLSA</span>');
-    if((o.revenue_ons||0)>0)vendors.push('<span class="b b-blue" style="font-size:10px;">ONS</span>');
-    if((o.revenue_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;">TSPA</span>');
-    return`<tr>
-      <td style="color:var(--blue2);font-size:12px;font-weight:500;">${o.invoice_no||'—'}</td>
+    if((o.revenue_bolsa||0)>0)vendors.push('<span class="b b-amber" style="font-size:10px;">🔶 BOLSA</span>');
+    if((o.revenue_ons||0)>0)vendors.push('<span class="b b-blue" style="font-size:10px;">🔷 ONS</span>');
+    if((o.revenue_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;">💜 TSPA</span>');
+    const comm=calcOrderCommission(o.id);
+    const shipping=calcOrderShipping(o.id);
+    const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
+    return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};">
+      <td style="color:var(--blue2);font-size:12px;font-weight:600;">${o.invoice_no||'—'}</td>
       <td style="color:var(--text2);font-size:12px;">${o.order_date||'—'}</td>
       <td style="color:var(--text2);font-size:12px;">${o.billing_month||'—'}</td>
       <td><span style="font-size:12px;">${agent}</span></td>
       <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.shop_name||'—'}</td>
-      <td>${vendors.join(' ')}</td>
-      <td class="num" style="color:var(--green2);">${fmtUSD(o.total_amount)}</td>
-      <td class="num">${fmtUSD(o.shipping)}</td>
+      <td>${vendors.join(' ')||'—'}</td>
+      <td class="num" style="color:var(--green2);font-weight:600;">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
+      <td class="num">${shipping>0?fmtUSD(shipping):'—'}</td>
       <td class="num" style="color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
-      <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
+      <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':(o.balance_due||0)>0?'var(--amber2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
       <td>${o.is_settled?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
-      <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'Tất toán':'Pending'}</span></td>
+      <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
+      <td><button class="act-btn" title="Xem chi tiết" onclick="viewOrderDetail('${o.id}')">👁</button></td>
     </tr>`;
   }).join('');
 }
@@ -2153,7 +2186,6 @@ function renderProdTable(){
     <td class="num">${fmtUSD(p.vendor_cost)}</td>
     <td class="num" style="color:var(--teal2);">${p.commission_rate!=null?((p.commission_rate)*100).toFixed(1)+'%':'—'}</td>
     <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(p.note||'').replace(/"/g,'&quot;')}">${p.note||'—'}</td>
-    <td><span class="b ${p.shipping_fee==='free'?'b-green':'b-gray'}" style="font-size:10px;">${p.shipping_fee==='free'?'Free Ship':'Check ship'}</span></td>
     <td style="text-align:center;">${p.is_bolsa?'<span class="b b-amber" style="font-size:10px;">✓</span>':'—'}</td>
     <td><span class="b ${p.is_active!==false?'b-green':'b-gray'} " style="font-size:10px;">${p.is_active!==false?'Active':'Inactive'}</span></td>
     <td><div style="display:flex;gap:4px;">
@@ -2161,7 +2193,7 @@ function renderProdTable(){
       <button class="act-btn" onclick="editProduct('${p.id}')">✏️</button>
       <button class="act-btn" onclick="deleteProduct('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">🗑</button>
     </div></td>
-  </tr>`).join('')||'<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
+  </tr>`).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text3);">Không tìm thấy sản phẩm nào.</td></tr>';
   const pages=[];
   for(let i=1;i<=tp;i++){
     if(tp<=7||i===1||i===tp||Math.abs(i-prodPage)<=1)pages.push(`<button class="btn btn-xs ${i===prodPage?'btn-primary':'btn-ghost'}" onclick="goPage(${i})">${i}</button>`);
@@ -2180,13 +2212,11 @@ function onVendorChange(){
 
 function openProductModal(){
   setTxt('m-prod-title','Thêm sản phẩm');setTxt('m-prod-btn','Thêm sản phẩm');
-  ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note','p-description'].forEach(id=>document.getElementById(id).value='');
+  ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-best-price').value='';
   document.getElementById('p-vendor').value='BOLSA';
   document.getElementById('p-gia-ban').value='';document.getElementById('p-vendor-cost').value='';
   document.getElementById('p-commission').value='0';document.getElementById('p-active').value='true';
-  document.getElementById('p-stock-status').value='in_stock';
-  document.getElementById('p-shipping-fee').value='check';
   document.getElementById('p-la-bolsa').checked=false;
   document.getElementById('p-note-wrap').style.display='none';
   onVendorChange();openModal('m-prod');
@@ -2199,11 +2229,8 @@ function editProduct(id){
   document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
   document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
-  document.getElementById('p-stock-status').value=p.stock_status||'in_stock';
-  document.getElementById('p-shipping-fee').value=p.shipping_fee||'check';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-prod-note').value=p.note||'';
-  document.getElementById('p-description').value=p.description||'';
   document.getElementById('p-best-price').value=p.best_price!=null?p.best_price:'';
   document.getElementById('p-note-wrap').style.display='block';
   onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
@@ -2212,7 +2239,7 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,description:document.getElementById('p-description').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
@@ -2225,6 +2252,7 @@ async function saveProduct(){
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
       toast('Đã cập nhật sản phẩm','green');
       syncProductToCRM({...data,id});
+      syncProductToCRM({...data,id});
     }else{
       const res=await sbInsert('products',data);
       if(res&&res[0])allProducts.push(res[0]);
@@ -2234,6 +2262,48 @@ async function saveProduct(){
     closeModal('m-prod');filterProducts();renderProducts();
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
+function viewOrderDetail(orderId){
+  const o=allOrders.find(x=>String(x.id)===String(orderId));
+  if(!o){toast('Không tìm thấy đơn hàng','red');return;}
+  const p=allProfiles.find(x=>x.id===o.user_id);
+  const items=allOrderItems.filter(it=>String(it.order_id)===String(orderId));
+  const comm=calcOrderCommission(o.id);
+  const shipping=calcOrderShipping(o.id);
+
+  setTxt('od-title',`${o.invoice_no||'—'} — ${o.shop_name||'—'}`);
+  setHTML('od-meta',`
+    <span>👤 ${p?p.full_name:'—'}</span>
+    <span>·</span><span>📅 ${o.order_date||'—'}</span>
+    <span>·</span><span>🗂 ${o.billing_month||'—'}</span>
+    <span>·</span><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span>
+  `);
+  setHTML('od-stats',`
+    <div class="mc green"><div class="mc-lbl">Total</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.total_amount)}</div></div>
+    <div class="mc teal"><div class="mc-lbl">Hoa hồng</div><div class="mc-val" style="font-size:18px;">${fmtUSD(comm)}</div></div>
+    <div class="mc amber"><div class="mc-lbl">Balance</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.balance_due)}</div></div>
+  `);
+
+  const empty=document.getElementById('od-empty');
+  if(!items.length){
+    document.getElementById('od-body').innerHTML='';
+    empty.style.display='block';
+  }else{
+    empty.style.display='none';
+    document.getElementById('od-body').innerHTML=items.map(it=>{
+      const isShip=/ship/i.test(it.ten_sp_invoice||'');
+      return`<tr>
+        <td style="font-size:12px;${isShip?'color:var(--text3);':''}">${it.ten_sp_invoice||'—'}</td>
+        <td class="num">${it.so_luong||0}</td>
+        <td class="num" style="color:var(--green2);">${fmtUSD(it.gia_ban_thuc)}</td>
+        <td class="num" style="color:${(it.chenh_lech||0)>0?'var(--amber2)':'var(--text3)'}">${fmtUSD(it.chenh_lech)}</td>
+        <td class="num" style="color:${(it.bonus_chenh_lech||0)>0?'var(--teal2)':'var(--text3)'}">${fmtUSD(it.bonus_chenh_lech)}</td>
+        <td style="text-align:center;"><input type="checkbox" disabled></td>
+      </tr>`;
+    }).join('');
+  }
+  openModal('m-order-detail');
+}
+
 async function showPriceHistory(id,name){
   setTxt('ph-title','Lịch sử giá · '+name);
   document.getElementById('ph-body').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);"><span class="spin"></span> Đang tải...</td></tr>`;
@@ -2325,29 +2395,41 @@ function saveSettings(){
 }
 
 // ─── CSV EXPORT ───
-function exportCurrentCSV(){
+function exportCurrentExcel(){
   const on=document.querySelector('.page.on');const id=on?on.id.replace('pg-',''):'dashboard';
-  let rows=[],filename='cslian-export';
+  let rows=[],filename='cslian-export',sheetName='Data';
   if(id==='orders'){
-    filename=`cslian-orders-${fromKey()}`;
-    rows=[['Mã đơn','Ngày lên','Tháng HT','Agent','Shop','Total USD','Shipping','Balance','Tất toán'],
-      ...allOrders.map(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return[o.invoice_no,o.order_date,o.billing_month,p?p.full_name:'—',o.shop_name,o.total,o.shipping,o.balance,o.is_settled?'Yes':'No'];})];
+    filename=`cslian-orders-${fromKey()}`;sheetName='Đơn hàng';
+    rows=[['Mã đơn','Ngày lên','Tháng HT','Agent','Shop','Vendor','Total ($)','Hoa hồng ($)','Shipping ($)','Balance ($)','Tất toán'],
+      ...allOrders.map(o=>{
+        const p=allProfiles.find(x=>x.id===o.user_id);
+        const vendor=(o.revenue_bolsa||0)>0?'BOLSA':(o.revenue_ons||0)>0?'ONS':(o.revenue_tspa||0)>0?'TSPA':'—';
+        return[o.invoice_no,o.order_date,o.billing_month,p?p.full_name:'—',o.shop_name,vendor,
+          o.total_amount||0,calcOrderCommission(o.id),calcOrderShipping(o.id),o.balance_due||0,o.is_settled?'Yes':'No'];
+      })];
   }else if(id==='finance'){
-    filename=`cslian-expenses-${fromKey()}`;
+    filename=`cslian-expenses-${fromKey()}`;sheetName='Chi phí';
     rows=[['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền VNĐ'],
       ...allExpenses.map(e=>[e.ngay,e.mo_ta,e.danh_muc,e.loai,e.nguoi_chi,e.so_tien])];
   }else if(id==='hr'){
-    filename=`cslian-salary-${fromKey()}`;
+    filename=`cslian-salary-${fromKey()}`;sheetName='Lương';
     rows=[['Nhân viên','Tháng','Ngày công','P1','P2','P3B+C','Bonus P3A USD','Tổng VNĐ','Đã duyệt'],
       ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
   }else{
-    filename=`cslian-summary-${fromKey()}`;
+    filename=`cslian-summary-${fromKey()}`;sheetName='Tổng quan';
     rows=[['Chỉ số','Giá trị'],['Doanh số',calcRevDate()],['Doanh thu tất toán',calcRevMonth()],['Tổng đơn',ordByDate().length],['AOV',calcAOV()],['Tổng chi phí',calcExpTotal()],['Tổng lương',calcSalTotal()]];
   }
-  const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename+'.csv';a.click();
-  toast('Đã xuất CSV','blue');
+  try{
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    const colWidths=rows[0].map((_,ci)=>({wch:Math.max(10,...rows.map(r=>String(r[ci]??'').length))+2}));
+    ws['!cols']=colWidths;
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    XLSX.writeFile(wb,filename+'.xlsx');
+    toast('Đã xuất file Excel','green');
+  }catch(e){
+    toast('Lỗi xuất Excel: '+e.message,'red');
+  }
 }
 
 // ─── MODAL ───
@@ -2546,6 +2628,7 @@ loadAll();
 </script>
 <!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Modal: Thêm/Sửa ghi chú -->
 <div class="mbg" id="m-note">
