@@ -614,7 +614,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <thead><tr>
               <th>Mã đơn</th><th>Tiệm nail</th><th>Sale</th>
               <th>Ngày đơn</th><th>Tháng Bonus</th>
-              <th>Doanh số</th><th>Bonus chênh lệch</th><th>Bonus mặc định</th>
+              <th>Doanh số</th><th>Bonus chênh lệch</th><th>Bonus giường</th>
               <th>Truy thu ($)</th><th>Balance</th>
               <th>Trạng thái</th><th style="width:60px"></th>
             </tr></thead>
@@ -2470,7 +2470,7 @@ async function renderOrders(){
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
     <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=TARGET_USD?'var(--success)':'var(--warn)'}">${Math.round(totalRev/TARGET_USD*100)}%</div><div class="stat-sub">${totalRev>=TARGET_USD?'✅ Đạt':'❌ Chưa đạt'}</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Mặc định: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Giường: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
 
   if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
@@ -2488,9 +2488,75 @@ async function renderOrders(){
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance_due||0)}</td>
       <td><span class="pill ${tatToan?'pill-approved':'pill-pending'}">${tatToan?'✅ Tất toán':'⏳ Còn nợ'}</span></td>
-      <td>${isMgr?`<button class="icon-btn" onclick="approveOrder('${o.id}',${!o.da_duyet})" title="Duyệt">${o.da_duyet?'↩️':'✅'}</button>`:''}
-      <button class="icon-btn" onclick="deleteOrder('${o.id}')" title="Xoá">🗑️</button></td>
-    </tr>`;}).join('');
+      <td>
+        <button class="icon-btn" onclick="toggleOrderItemsDetail('${o.id}')" title="Xem sản phẩm">👁️</button>
+        ${isMgr?`<button class="icon-btn" onclick="approveOrder('${o.id}',${!o.da_duyet})" title="Duyệt">${o.da_duyet?'↩️':'✅'}</button>`:''}
+        <button class="icon-btn" onclick="deleteOrder('${o.id}')" title="Xoá">🗑️</button>
+      </td>
+    </tr>
+    <tr id="order-detail-${o.id}" style="display:none"><td colspan="12" style="padding:0;background:var(--bg3)"><div id="order-detail-content-${o.id}" style="padding:12px 16px"></div></td></tr>`;}).join('');
+}
+
+// Mở/đóng chi tiết order_items của 1 đơn — Manager/Sale tick "Gift" cho sản phẩm
+// tặng kèm để loại khỏi mọi tính bonus (chênh lệch 30% + Bolsa SP khác 1%).
+async function toggleOrderItemsDetail(orderId){
+  const row=document.getElementById('order-detail-'+orderId);
+  const content=document.getElementById('order-detail-content-'+orderId);
+  if(!row||!content)return;
+  if(row.style.display!=='none'){row.style.display='none';return;}
+
+  content.innerHTML='<div style="font-size:12px;color:var(--text3)">Đang tải...</div>';
+  row.style.display='table-row';
+  const {data:items}=await sb.from('order_items').select('*').eq('order_id',orderId).order('id');
+  if(!items||!items.length){content.innerHTML='<div style="font-size:12px;color:var(--text3)">Không có sản phẩm</div>';return;}
+
+  content.innerHTML=`<table style="width:100%;font-size:12px">
+    <thead><tr style="color:var(--text3)"><th style="text-align:left;padding:4px 8px">Sản phẩm</th><th style="text-align:right;padding:4px 8px">SL</th><th style="text-align:right;padding:4px 8px">Giá bán</th><th style="text-align:right;padding:4px 8px">Chênh lệch</th><th style="text-align:right;padding:4px 8px">Bonus chênh</th><th style="text-align:center;padding:4px 8px">🎁 Gift</th></tr></thead>
+    <tbody>${items.map(it=>`
+      <tr>
+        <td style="padding:4px 8px">${it.ten_sp_invoice}</td>
+        <td style="text-align:right;padding:4px 8px">${it.so_luong}</td>
+        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace">${usd(it.gia_ban_thuc)}</td>
+        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace">${usd(it.chenh_lech)}</td>
+        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(it.bonus_chenh_lech)}</td>
+        <td style="text-align:center;padding:4px 8px"><input type="checkbox" ${it.is_gift?'checked':''} onchange="toggleItemGift('${it.id}','${orderId}',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// Tick Gift → loại hoàn toàn item đó khỏi bonus chênh lệch (30%) ngay tại nguồn —
+// để bảng lương tự động không tính nó nữa ở lần tính kế tiếp, không cần sửa code calcSalaryForEmp
+// theo từng SKU cứng nữa.
+async function toggleItemGift(itemId,orderId,isGift){
+  const {data:item}=await sb.from('order_items').select('chenh_lech,bonus_chenh_lech,amount,vendor,la_bolsa').eq('id',itemId).maybeSingle();
+  if(!item)return;
+  const updates={is_gift:isGift};
+  if(isGift){
+    // Lưu lại giá trị gốc trước khi xoá, để có thể khôi phục nếu bỏ tick
+    updates.chenh_lech_backup=item.chenh_lech;
+    updates.bonus_chenh_lech_backup=item.bonus_chenh_lech;
+    updates.chenh_lech=0;
+    updates.bonus_chenh_lech=0;
+  } else {
+    // Bỏ tick Gift — khôi phục lại giá trị đã tính trước đó nếu có backup
+    const {data:cur}=await sb.from('order_items').select('chenh_lech_backup,bonus_chenh_lech_backup').eq('id',itemId).maybeSingle();
+    if(cur){
+      updates.chenh_lech=cur.chenh_lech_backup||0;
+      updates.bonus_chenh_lech=cur.bonus_chenh_lech_backup||0;
+    }
+  }
+  const {error}=await sb.from('order_items').update(updates).eq('id',itemId);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+
+  // Cập nhật lại tổng bonus_chenh_lech của orders (tổng tất cả item chưa gift)
+  const {data:allItems}=await sb.from('order_items').select('bonus_chenh_lech').eq('order_id',orderId);
+  const newTotal=(allItems||[]).reduce((s,it)=>s+(it.bonus_chenh_lech||0),0);
+  await sb.from('orders').update({bonus_chenh_lech:newTotal,total_bonus_usd:newTotal,tong_bonus_usd:newTotal}).eq('id',orderId);
+
+  toast(isGift?'Đã đánh dấu tặng kèm — loại khỏi bonus':'Đã bỏ đánh dấu tặng kèm');
+  toggleOrderItemsDetail(orderId);  // đóng
+  toggleOrderItemsDetail(orderId);  // mở lại để refresh data
+  renderOrders();
 }
 
 async function approveOrder(id,val){
@@ -2692,7 +2758,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const datTarget=dtTotal>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
-  const items=itemsRes.data||[];
+  const items=(itemsRes.data||[]).filter(i=>!i.is_gift);  // loại item đã đánh dấu tặng kèm
   const headspaItems=items.filter(i=>i.la_bolsa);
   const bolsaOtherItems=items.filter(i=>!i.la_bolsa);
 
