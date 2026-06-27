@@ -190,7 +190,7 @@ textarea{resize:vertical;min-height:72px;}
 .mbg.show{display:flex;}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rxl);padding:26px 28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .modal-lg{width:680px;}
-.modal-xl{width:920px;}
+.modal-xl{width:1080px;}
 .modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text);letter-spacing:-.3px;}
 .mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
 
@@ -1054,8 +1054,10 @@ textarea{resize:vertical;min-height:72px;}
     <div class="tw">
       <table>
         <thead><tr>
-          <th>Sản phẩm</th><th class="num" style="width:70px;">SL</th><th class="num" style="width:110px;">Giá bán</th>
-          <th class="num" style="width:110px;">Chênh lệch</th><th class="num" style="width:110px;">Bonus chênh</th>
+          <th>Sản phẩm</th><th style="width:90px;">Vendor</th><th class="num" style="width:60px;">SL</th>
+          <th class="num" style="width:100px;">Giá bán</th><th class="num" style="width:100px;">Vendor Cost</th>
+          <th class="num" style="width:100px;">Shipping Cost</th><th class="num" style="width:90px;">Comm. Rate (%)</th>
+          <th class="num" style="width:100px;">Chênh lệch</th><th class="num" style="width:100px;">Bonus chênh</th>
           <th style="text-align:center;width:50px;">Gift</th><th style="width:50px;"></th>
         </tr></thead>
         <tbody id="od-body"></tbody>
@@ -1372,27 +1374,32 @@ function getCommissionRate(item){
 function calcCommissionPerItem(item){
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
-  const chenhLech=parseFloat(item.chenh_lech)||0;
+  const chenhLech=parseFloat(item.chenh_lech)||0; // ONS: basis giá bán (field có sẵn)
 
-  // ONS: always 70% * chenh_lech only — no commission_rate
+  // ONS: hoa hồng = 70% × chênh lệch (so với giá bán)
   if(vendor==='ons'){
     return 0.70*chenhLech;
   }
 
-  // Bolsa & TSPA: commission_rate * amount + 100% * chenh_lech
-  // Get commission_rate from products table, fallback to defaults
-  let rate=getCommissionRate(item);
-  if(rate===null){
-    // Fallback defaults if not in products table
+  // BOLSA & TSPA: hoa hồng = (commission_rate × amount) + (70% × chênh lệch so với vendor cost)
+  // Ưu tiên: rate riêng lưu trên item (override) > rate từ bảng products > fallback mặc định
+  let rate=(item.commission_rate!=null&&item.commission_rate!=='')?parseFloat(item.commission_rate):getCommissionRate(item);
+  if(rate===null||isNaN(rate)){
     if(vendor==='tspa') rate=0.03;
     else{
-      // Bolsa: check headspa
       const name=(item.ten_sp_invoice||'').toLowerCase();
       rate=(name.includes('headspa bed')||name.includes('headspa'))?0.05:0.07;
     }
   }
 
-  return(rate*amount)+(1.0*chenhLech);
+  // Chênh lệch so với vendor cost — chỉ tính khi vendor_cost đã được nhập (>0)
+  // Tránh trường hợp item cũ chưa nhập vendor_cost (mặc định 0) bị tính dư hoa hồng
+  const unitPrice=parseFloat(item.gia_ban_thuc)||0;
+  const vendorCost=parseFloat(item.vendor_cost)||0;
+  const qty=parseFloat(item.so_luong)||1;
+  const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
+
+  return (rate*amount)+(0.70*chenhLechVendor);
 }
 
 function calcCommission(){
@@ -2307,10 +2314,20 @@ function viewOrderDetail(orderId){
   }else{
     empty.style.display='none';
     document.getElementById('od-body').innerHTML=items.map(it=>{
+      const vendor=(it.vendor||'BOLSA').toUpperCase();
+      const rateDisplay=it.commission_rate!=null?(parseFloat(it.commission_rate)*100).toFixed(1):'';
       return`<tr data-item-id="${it.id}">
         <td><input type="text" value="${(it.ten_sp_invoice||'').replace(/"/g,'&quot;')}" data-f="ten_sp_invoice" style="padding:5px 8px;font-size:12px;"></td>
+        <td><select data-f="vendor" style="padding:5px 6px;font-size:12px;">
+          <option value="BOLSA"${vendor==='BOLSA'?' selected':''}>BOLSA</option>
+          <option value="ONS"${vendor==='ONS'?' selected':''}>ONS</option>
+          <option value="TSPA"${vendor==='TSPA'?' selected':''}>TSPA</option>
+        </select></td>
         <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
         <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
+        <td><input type="number" step="0.01" value="${it.vendor_cost||0}" data-f="vendor_cost" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
+        <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
+        <td><input type="number" step="0.1" value="${rateDisplay}" data-f="commission_rate" placeholder="auto" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--purple2);"></td>
         <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
         <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
         <td style="text-align:center;"><input type="checkbox" disabled></td>
@@ -2325,10 +2342,15 @@ async function saveOrderItem(itemId){
   const row=document.querySelector(`#od-body tr[data-item-id="${itemId}"]`);
   if(!row)return;
   const data={};
-  row.querySelectorAll('input[data-f]').forEach(inp=>{
+  row.querySelectorAll('[data-f]').forEach(inp=>{
     const f=inp.dataset.f;
+    if(inp.tagName==='SELECT'){data[f]=inp.value;return;}
     data[f]=inp.type==='number'?(parseFloat(inp.value)||0):inp.value.trim();
   });
+  // Commission rate: input hiển thị %, lưu DB dạng decimal (5 → 0.05). Để trống = xóa override, dùng rate mặc định
+  const rateInput=row.querySelector('[data-f="commission_rate"]');
+  if(rateInput&&rateInput.value.trim()==='')data.commission_rate=null;
+  else data.commission_rate=(parseFloat(rateInput.value)||0)/100;
   // amount luôn đồng bộ theo so_luong * gia_ban_thuc
   data.amount=(data.so_luong||0)*(data.gia_ban_thuc||0);
   try{
