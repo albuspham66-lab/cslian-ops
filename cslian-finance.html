@@ -583,9 +583,9 @@ textarea{resize:vertical;min-height:72px;}
       <table>
         <thead><tr>
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
-          <th>Vendor</th><th class="num">Total ($)</th><th class="num">Hoa hồng ($)</th><th class="num">Shipping</th>
-          <th class="num">Truy thu</th><th class="num">Balance</th>
-          <th>Aging</th><th>Tình trạng</th><th></th>
+          <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
+          <th class="num">Truy thu</th><th class="num">Balance</th><th class="num">Chênh lệch</th>
+          <th>Aging</th><th class="num">Hoa hồng ($)</th><th>Tình trạng</th><th></th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -1469,6 +1469,13 @@ function calcOrderShipping(orderId){
     .reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
 }
 
+// Tổng chênh lệch của 1 đơn — sum field chenh_lech của các order_items
+function calcOrderChenhLech(orderId){
+  if(!allOrderItems||!allOrderItems.length)return 0;
+  return allOrderItems.filter(it=>it.order_id===orderId)
+    .reduce((s,it)=>s+(parseFloat(it.chenh_lech)||0),0);
+}
+
 function calcDelta(cur,prev){
   if(!prev||prev===0)return null;
   return((cur-prev)/prev)*100;
@@ -1800,6 +1807,7 @@ function renderOrdersTable(orders){
     if((o.revenue_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;">💜 TSPA</span>');
     const comm=calcOrderCommission(o.id);
     const shipping=calcOrderShipping(o.id);
+    const chenh=calcOrderChenhLech(o.id);
     const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
     return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};">
       <td style="color:var(--blue2);font-size:12px;font-weight:600;">${o.invoice_no||'—'}</td>
@@ -1809,11 +1817,12 @@ function renderOrdersTable(orders){
       <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.shop_name||'—'}</td>
       <td>${vendors.join(' ')||'—'}</td>
       <td class="num" style="color:var(--green2);font-weight:600;">${fmtUSD(o.total_amount)}</td>
-      <td class="num" style="color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
       <td class="num">${shipping>0?fmtUSD(shipping):'—'}</td>
       <td class="num" style="color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
       <td class="num" style="color:${(o.balance_due||0)<0?'var(--red2)':(o.balance_due||0)>0?'var(--amber2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
+      <td class="num" style="color:${chenh>0?'var(--amber2)':'var(--text3)'}">${chenh>0?fmtUSD(chenh):'—'}</td>
       <td>${o.is_settled?'—':`<span class="aging-band ${aging.cls}" style="font-size:10px;">${aging.label}</span>`}</td>
+      <td class="num" style="color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
       <td><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
       <td><button class="act-btn" title="Xem chi tiết" onclick="viewOrderDetail('${o.id}')">👁</button></td>
     </tr>`;
