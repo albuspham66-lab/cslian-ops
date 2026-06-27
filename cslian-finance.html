@@ -1037,12 +1037,26 @@ textarea{resize:vertical;min-height:72px;}
   <div class="modal modal-xl">
     <div class="modal-title" id="od-title">Chi tiết đơn hàng</div>
     <div id="od-meta" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;font-size:12px;color:var(--text2);"></div>
-    <div class="mrow mrow-3" id="od-stats" style="margin-bottom:16px;"></div>
+    <div class="mrow mrow-3" id="od-stats" style="margin-bottom:12px;"></div>
+
+    <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:12px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="od-settled" style="width:16px;height:16px;accent-color:var(--green2);cursor:pointer;">
+        <label for="od-settled" style="font-size:12px;color:var(--text);cursor:pointer;">Đã tất toán</label>
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label class="fl" style="font-size:10px;">Balance Due ($)</label>
+        <input type="number" id="od-balance" step="0.01" style="padding:7px 10px;font-size:12px;">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveOrderMeta()">💾 Lưu trạng thái đơn</button>
+    </div>
+
     <div class="tw">
       <table>
         <thead><tr>
-          <th>Sản phẩm</th><th class="num">SL</th><th class="num">Giá bán</th>
-          <th class="num">Chênh lệch</th><th class="num">Bonus chênh</th><th style="text-align:center;">Gift</th>
+          <th>Sản phẩm</th><th class="num" style="width:70px;">SL</th><th class="num" style="width:110px;">Giá bán</th>
+          <th class="num" style="width:110px;">Chênh lệch</th><th class="num" style="width:110px;">Bonus chênh</th>
+          <th style="text-align:center;width:50px;">Gift</th><th style="width:50px;"></th>
         </tr></thead>
         <tbody id="od-body"></tbody>
       </table>
@@ -2203,11 +2217,11 @@ function renderProdTable(){
 }
 function goPage(p){prodPage=p;renderProdTable();}
 
-function onVendorChange(){
+function onVendorChange(resetCommission=true){
   const v=document.getElementById('p-vendor').value;
   document.getElementById('p-bolsa-wrap').style.display=v==='BOLSA'?'flex':'none';
   if(v!=='BOLSA')document.getElementById('p-la-bolsa').checked=false;
-  document.getElementById('p-commission').value=v==='TSPA'?3:v==='ONS'?1:0;
+  if(resetCommission)document.getElementById('p-commission').value=v==='TSPA'?3:v==='ONS'?1:0;
 }
 
 function openProductModal(){
@@ -2233,7 +2247,7 @@ function editProduct(id){
   document.getElementById('p-prod-note').value=p.note||'';
   document.getElementById('p-best-price').value=p.best_price!=null?p.best_price:'';
   document.getElementById('p-note-wrap').style.display='block';
-  onVendorChange();if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
+  onVendorChange(false);if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
   openModal('m-prod');
 }
 async function saveProduct(){
@@ -2262,26 +2276,29 @@ async function saveProduct(){
     closeModal('m-prod');filterProducts();renderProducts();
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
+let _odCurrentOrderId=null;
+
 function viewOrderDetail(orderId){
   const o=allOrders.find(x=>String(x.id)===String(orderId));
   if(!o){toast('Không tìm thấy đơn hàng','red');return;}
+  _odCurrentOrderId=o.id;
   const p=allProfiles.find(x=>x.id===o.user_id);
   const items=allOrderItems.filter(it=>String(it.order_id)===String(orderId));
   const comm=calcOrderCommission(o.id);
-  const shipping=calcOrderShipping(o.id);
 
   setTxt('od-title',`${o.invoice_no||'—'} — ${o.shop_name||'—'}`);
   setHTML('od-meta',`
     <span>👤 ${p?p.full_name:'—'}</span>
     <span>·</span><span>📅 ${o.order_date||'—'}</span>
     <span>·</span><span>🗂 ${o.billing_month||'—'}</span>
-    <span>·</span><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span>
   `);
   setHTML('od-stats',`
     <div class="mc green"><div class="mc-lbl">Total</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.total_amount)}</div></div>
-    <div class="mc teal"><div class="mc-lbl">Hoa hồng</div><div class="mc-val" style="font-size:18px;">${fmtUSD(comm)}</div></div>
+    <div class="mc teal"><div class="mc-lbl">Hoa hồng</div><div class="mc-val" style="font-size:18px;" id="od-comm-val">${fmtUSD(comm)}</div></div>
     <div class="mc amber"><div class="mc-lbl">Balance</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.balance_due)}</div></div>
   `);
+  document.getElementById('od-settled').checked=!!o.is_settled;
+  document.getElementById('od-balance').value=o.balance_due!=null?o.balance_due:'';
 
   const empty=document.getElementById('od-empty');
   if(!items.length){
@@ -2290,18 +2307,59 @@ function viewOrderDetail(orderId){
   }else{
     empty.style.display='none';
     document.getElementById('od-body').innerHTML=items.map(it=>{
-      const isShip=/ship/i.test(it.ten_sp_invoice||'');
-      return`<tr>
-        <td style="font-size:12px;${isShip?'color:var(--text3);':''}">${it.ten_sp_invoice||'—'}</td>
-        <td class="num">${it.so_luong||0}</td>
-        <td class="num" style="color:var(--green2);">${fmtUSD(it.gia_ban_thuc)}</td>
-        <td class="num" style="color:${(it.chenh_lech||0)>0?'var(--amber2)':'var(--text3)'}">${fmtUSD(it.chenh_lech)}</td>
-        <td class="num" style="color:${(it.bonus_chenh_lech||0)>0?'var(--teal2)':'var(--text3)'}">${fmtUSD(it.bonus_chenh_lech)}</td>
+      return`<tr data-item-id="${it.id}">
+        <td><input type="text" value="${(it.ten_sp_invoice||'').replace(/"/g,'&quot;')}" data-f="ten_sp_invoice" style="padding:5px 8px;font-size:12px;"></td>
+        <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
+        <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
+        <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
+        <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
         <td style="text-align:center;"><input type="checkbox" disabled></td>
+        <td><button class="act-btn" title="Lưu dòng này" onclick="saveOrderItem('${it.id}')">💾</button></td>
       </tr>`;
     }).join('');
   }
   openModal('m-order-detail');
+}
+
+async function saveOrderItem(itemId){
+  const row=document.querySelector(`#od-body tr[data-item-id="${itemId}"]`);
+  if(!row)return;
+  const data={};
+  row.querySelectorAll('input[data-f]').forEach(inp=>{
+    const f=inp.dataset.f;
+    data[f]=inp.type==='number'?(parseFloat(inp.value)||0):inp.value.trim();
+  });
+  // amount luôn đồng bộ theo so_luong * gia_ban_thuc
+  data.amount=(data.so_luong||0)*(data.gia_ban_thuc||0);
+  try{
+    await sbPatch('order_items',`id=eq.${itemId}`,data);
+    const idx=allOrderItems.findIndex(x=>String(x.id)===String(itemId));
+    if(idx>-1)allOrderItems[idx]={...allOrderItems[idx],...data};
+    toast('Đã lưu sản phẩm','green');
+    // Cập nhật lại Hoa hồng hiển thị trong modal
+    if(_odCurrentOrderId!=null){
+      const comm=calcOrderCommission(_odCurrentOrderId);
+      setTxt('od-comm-val',fmtUSD(comm));
+    }
+    renderOrdersTable(filteredOrders.length?filteredOrders:allOrders);
+  }catch(e){
+    toast('Lỗi lưu: '+e.message,'red');
+  }
+}
+
+async function saveOrderMeta(){
+  if(_odCurrentOrderId==null)return;
+  const is_settled=document.getElementById('od-settled').checked;
+  const balance_due=parseFloat(document.getElementById('od-balance').value)||0;
+  try{
+    await sbPatch('orders',`id=eq.${_odCurrentOrderId}`,{is_settled,balance_due});
+    const idx=allOrders.findIndex(x=>x.id===_odCurrentOrderId);
+    if(idx>-1){allOrders[idx].is_settled=is_settled;allOrders[idx].balance_due=balance_due;}
+    toast('Đã lưu trạng thái đơn','green');
+    renderOrders();
+  }catch(e){
+    toast('Lỗi lưu: '+e.message,'red');
+  }
 }
 
 async function showPriceHistory(id,name){
