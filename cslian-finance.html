@@ -1371,6 +1371,25 @@ function getCommissionRate(item){
   return rawRate>1?rawRate/100:rawRate;
 }
 
+function getVendorCostFallback(item){
+  // Tra vendor_cost từ bảng products khi item chưa tự nhập (cùng cách match với getCommissionRate)
+  if(!allProducts||!allProducts.length)return 0;
+  const prod=allProducts.find(function(p){
+    return (item.sku&&p.sku===item.sku)||
+           (item.product_id&&p.id===item.product_id)||
+           ((item.ten_sp_invoice||'').toLowerCase()===(p.name||'').toLowerCase());
+  });
+  return prod&&prod.vendor_cost!=null?parseFloat(prod.vendor_cost):0;
+}
+
+function fallbackCommissionRate(item){
+  // Rate mặc định khi không tìm được trong products (giống logic trong calcCommissionPerItem)
+  const vendor=(item.vendor||'').toLowerCase();
+  if(vendor==='tspa')return 0.03;
+  const name=(item.ten_sp_invoice||'').toLowerCase();
+  return (name.includes('headspa bed')||name.includes('headspa'))?0.05:0.07;
+}
+
 function calcCommissionPerItem(item){
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
@@ -2315,7 +2334,28 @@ function viewOrderDetail(orderId){
     empty.style.display='none';
     document.getElementById('od-body').innerHTML=items.map(it=>{
       const vendor=(it.vendor||'BOLSA').toUpperCase();
-      const rateDisplay=it.commission_rate!=null?(parseFloat(it.commission_rate)*100).toFixed(1):'';
+
+      // Commission rate: nếu item đã lưu rate riêng → hiển thị giá trị đó (đã lưu)
+      // Nếu chưa → hiển thị rate auto-detect thực tế (từ products hoặc fallback mặc định), highlight vàng = chưa lưu
+      let rateVal,rateIsAuto;
+      if(it.commission_rate!=null&&it.commission_rate!==''){
+        rateVal=(parseFloat(it.commission_rate)*100).toFixed(1);rateIsAuto=false;
+      }else{
+        const looked=getCommissionRate(it);
+        rateVal=((looked!==null?looked:fallbackCommissionRate(it))*100).toFixed(1);
+        rateIsAuto=true;
+      }
+      const rateStyle=vendor==='ONS'
+        ?'padding:5px 6px;font-size:12px;text-align:right;color:var(--text3);'
+        :`padding:5px 6px;font-size:12px;text-align:right;color:var(--purple2);${rateIsAuto?'background:var(--amberbg);border-color:var(--amberborder);':''}`;
+
+      // Vendor cost: nếu item đã lưu (>0) → hiển thị giá trị đó. Nếu chưa (=0) → tra từ products, highlight vàng = chưa lưu
+      const storedVC=parseFloat(it.vendor_cost)||0;
+      let vcVal,vcIsAuto;
+      if(storedVC>0){vcVal=storedVC;vcIsAuto=false;}
+      else{vcVal=getVendorCostFallback(it);vcIsAuto=vcVal>0;}
+      const vcStyle=`padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);${vcIsAuto?'background:var(--amberbg);border-color:var(--amberborder);':''}`;
+
       return`<tr data-item-id="${it.id}">
         <td><input type="text" value="${(it.ten_sp_invoice||'').replace(/"/g,'&quot;')}" data-f="ten_sp_invoice" style="padding:5px 8px;font-size:12px;"></td>
         <td><select data-f="vendor" style="padding:5px 6px;font-size:12px;">
@@ -2325,9 +2365,9 @@ function viewOrderDetail(orderId){
         </select></td>
         <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
         <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
-        <td><input type="number" step="0.01" value="${it.vendor_cost||0}" data-f="vendor_cost" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
+        <td><input type="number" step="0.01" value="${vcVal}" data-f="vendor_cost" title="${vcIsAuto?'Giá trị tự tra từ Sản phẩm — chưa lưu vào đơn này':'Đã lưu riêng cho đơn này'}" style="${vcStyle}"></td>
         <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
-        <td><input type="number" step="0.1" value="${rateDisplay}" data-f="commission_rate" placeholder="auto" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--purple2);"></td>
+        <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
         <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
         <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
         <td style="text-align:center;"><input type="checkbox" disabled></td>
@@ -2348,9 +2388,16 @@ async function saveOrderItem(itemId){
     data[f]=inp.type==='number'?(parseFloat(inp.value)||0):inp.value.trim();
   });
   // Commission rate: input hiển thị %, lưu DB dạng decimal (5 → 0.05). Để trống = xóa override, dùng rate mặc định
+  // ONS không dùng commission_rate (input bị disable) → không lưu giá trị này
+  const vendorSel=row.querySelector('[data-f="vendor"]');
   const rateInput=row.querySelector('[data-f="commission_rate"]');
-  if(rateInput&&rateInput.value.trim()==='')data.commission_rate=null;
-  else data.commission_rate=(parseFloat(rateInput.value)||0)/100;
+  if(vendorSel&&vendorSel.value==='ONS'){
+    data.commission_rate=null;
+  }else if(rateInput&&rateInput.value.trim()===''){
+    data.commission_rate=null;
+  }else{
+    data.commission_rate=(parseFloat(rateInput.value)||0)/100;
+  }
   // amount luôn đồng bộ theo so_luong * gia_ban_thuc
   data.amount=(data.so_luong||0)*(data.gia_ban_thuc||0);
   try{
