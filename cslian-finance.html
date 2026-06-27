@@ -1004,6 +1004,15 @@ textarea{resize:vertical;min-height:72px;}
         <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
       </div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Giá tốt nhất (tuỳ chọn)"></div>
+      <div class="fg"><label class="fl">Tình trạng kho</label>
+        <select id="p-stock-status">
+          <option value="in_stock">In Stock</option>
+          <option value="out_of_stock">Out of Stock</option>
+          <option value="pre_order">Pre Order</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Shipping</label><input type="text" id="p-shipping-fee" placeholder="VD: Check ship, Free ship..."></div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Mô tả (hiển thị bên CRM)</label><textarea id="p-description" rows="2" placeholder="VD: Free shipping từ 4 ghế" style="resize:vertical;"></textarea></div>
       <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
       <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
     </div>
@@ -1230,7 +1239,7 @@ async function loadAll(){
       sb('profiles',`select=*&order=full_name.asc`),
       sb('salary_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
       sb('kpi_monthly',`select=*&thang=gte.${fk}&thang=lte.${tk}`),
-      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note&order=vendor.asc,name.asc`),
+      sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note,stock_status,shipping_fee,description&order=vendor.asc,name.asc`),
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
@@ -2263,6 +2272,9 @@ function openProductModal(){
   setTxt('m-prod-title','Thêm sản phẩm');setTxt('m-prod-btn','Thêm sản phẩm');
   ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-best-price').value='';
+  document.getElementById('p-stock-status').value='in_stock';
+  document.getElementById('p-shipping-fee').value='';
+  document.getElementById('p-description').value='';
   document.getElementById('p-vendor').value='BOLSA';
   document.getElementById('p-gia-ban').value='';document.getElementById('p-vendor-cost').value='';
   document.getElementById('p-commission').value='0';document.getElementById('p-active').value='true';
@@ -2281,6 +2293,9 @@ function editProduct(id){
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-prod-note').value=p.note||'';
   document.getElementById('p-best-price').value=p.best_price!=null?p.best_price:'';
+  document.getElementById('p-stock-status').value=p.stock_status||'in_stock';
+  document.getElementById('p-shipping-fee').value=p.shipping_fee||'';
+  document.getElementById('p-description').value=p.description||'';
   document.getElementById('p-note-wrap').style.display='block';
   onVendorChange(false);if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
   openModal('m-prod');
@@ -2288,7 +2303,7 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null};
+  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value.trim()||null,description:document.getElementById('p-description').value.trim()||null};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   try{
     if(isEdit){
@@ -2300,7 +2315,6 @@ async function saveProduct(){
       await sbPatch('products',`id=eq.${id}`,data);
       const idx=allProducts.findIndex(p=>p.id===id);if(idx>=0)allProducts[idx]={...allProducts[idx],...data};
       toast('Đã cập nhật sản phẩm','green');
-      syncProductToCRM({...data,id});
       syncProductToCRM({...data,id});
     }else{
       const res=await sbInsert('products',data);
