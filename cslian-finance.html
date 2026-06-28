@@ -585,7 +585,7 @@ textarea{resize:vertical;min-height:72px;}
           <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
           <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th><th class="num">Chênh lệch</th>
-          <th class="num">Comm. Rate (%)</th><th class="num">HH Chênh lệch ($)</th><th class="num">Hoa hồng ($)</th>
+          <th class="num">HH Theo Rate ($)</th><th class="num">HH Chênh lệch ($)</th><th class="num">Hoa hồng ($)</th>
           <th>Tình trạng</th><th></th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
@@ -1400,35 +1400,41 @@ function fallbackCommissionRate(item){
   return (name.includes('headspa bed')||name.includes('headspa'))?0.05:0.07;
 }
 
-function calcCommissionPerItem(item){
+// Core: tính breakdown hoa hồng cho 1 item — tách riêng phần Rate và phần Chênh lệch
+// Model: doanh thu (amount) = phần "cost-equivalent" (chịu rate%) + phần "margin/chênh lệch" (chịu 70%)
+//   - Gift: KHÔNG tính hoa hồng chênh lệch, nhưng amount vẫn tính đủ vào phần Rate
+function calcCommissionBreakdownPerItem(item){
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
-  const chenhLech=parseFloat(item.chenh_lech)||0; // ONS: basis giá bán (field có sẵn)
+  const isGift=!!item.is_gift;
 
-  // ONS: hoa hồng = 70% × chênh lệch (so với giá bán)
+  // ONS: chỉ có phần chênh lệch (70% × chenh_lech giá bán), không có rate riêng
   if(vendor==='ons'){
-    return 0.70*chenhLech;
+    const chenhLech=parseFloat(item.chenh_lech)||0;
+    return {rateComm:0,chenhComm:isGift?0:0.70*chenhLech};
   }
 
-  // BOLSA & TSPA: hoa hồng = (commission_rate × amount) + (70% × chênh lệch so với vendor cost)
-  // Ưu tiên: rate riêng lưu trên item (override) > rate từ bảng products > fallback mặc định
+  // BOLSA & TSPA
   let rate=(item.commission_rate!=null&&item.commission_rate!=='')?parseFloat(item.commission_rate):getCommissionRate(item);
-  if(rate===null||isNaN(rate)){
-    if(vendor==='tspa') rate=0.03;
-    else{
-      const name=(item.ten_sp_invoice||'').toLowerCase();
-      rate=(name.includes('headspa bed')||name.includes('headspa'))?0.05:0.07;
-    }
-  }
+  if(rate===null||isNaN(rate))rate=fallbackCommissionRate(item);
 
-  // Chênh lệch so với vendor cost — chỉ tính khi vendor_cost đã được nhập (>0)
-  // Tránh trường hợp item cũ chưa nhập vendor_cost (mặc định 0) bị tính dư hoa hồng
   const unitPrice=parseFloat(item.gia_ban_thuc)||0;
   const vendorCost=parseFloat(item.vendor_cost)||0;
   const qty=parseFloat(item.so_luong)||1;
+  // Chênh lệch so với vendor cost — chỉ tính khi vendor_cost đã được nhập (>0)
   const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
 
-  return (rate*amount)+(0.70*chenhLechVendor);
+  if(isGift){
+    // Gift: không tách chênh lệch, toàn bộ amount chịu rate%, không có hoa hồng chênh lệch
+    return {rateComm:rate*amount,chenhComm:0};
+  }
+  // Bình thường: rate% áp lên phần (amount - chênh lệch), 70% áp lên phần chênh lệch
+  return {rateComm:rate*(amount-chenhLechVendor),chenhComm:0.70*chenhLechVendor};
+}
+
+function calcCommissionPerItem(item){
+  const b=calcCommissionBreakdownPerItem(item);
+  return b.rateComm+b.chenhComm;
 }
 
 function calcCommission(){
@@ -1480,45 +1486,30 @@ function calcOrderShipping(orderId){
 }
 
 // Tổng chênh lệch của 1 đơn — sum field chenh_lech của các order_items
+// "Chênh lệch" — tổng chênh lệch so với vendor cost, áp dụng cho MỌI vendor (báo cáo margin C-Slian vs Vendor)
+// Khác với commission ONS (vẫn dùng giá bán làm basis) — đây chỉ là cột thông tin hiển thị, không phải basis tính hoa hồng ONS
 function calcOrderChenhLech(orderId){
   if(!allOrderItems||!allOrderItems.length)return 0;
+  return allOrderItems.filter(it=>it.order_id===orderId).reduce((s,it)=>{
+    const unitPrice=parseFloat(it.gia_ban_thuc)||0;
+    const vendorCost=parseFloat(it.vendor_cost)||0;
+    const qty=parseFloat(it.so_luong)||1;
+    return s+(vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0);
+  },0);
+}
+
+// "HH Theo Rate ($)" — tổng hoa hồng phần Rate (dùng chung breakdown helper, đã xử lý Gift)
+function calcOrderRateCommission(orderId){
+  if(!allOrderItems||!allOrderItems.length)return 0;
   return allOrderItems.filter(it=>it.order_id===orderId)
-    .reduce((s,it)=>s+(parseFloat(it.chenh_lech)||0),0);
+    .reduce((s,it)=>s+calcCommissionBreakdownPerItem(it).rateComm,0);
 }
 
-// Commission rate trung bình (weighted theo amount) — chỉ tính BOLSA/TSPA, ONS không dùng rate
-function calcOrderCommissionRate(orderId){
-  if(!allOrderItems||!allOrderItems.length)return null;
-  const items=allOrderItems.filter(it=>it.order_id===orderId&&(it.vendor||'').toUpperCase()!=='ONS');
-  if(!items.length)return null;
-  let totalAmt=0,weighted=0;
-  items.forEach(it=>{
-    const amt=parseFloat(it.amount)||0;
-    let rate=(it.commission_rate!=null&&it.commission_rate!=='')?parseFloat(it.commission_rate):getCommissionRate(it);
-    if(rate===null||isNaN(rate))rate=fallbackCommissionRate(it);
-    totalAmt+=amt;weighted+=rate*amt;
-  });
-  return totalAmt>0?weighted/totalAmt:null;
-}
-
-// Phần hoa hồng đến từ chênh lệch (ONS: 70%×chenh_lech giá bán; Bolsa/TSPA: 70%×chenh_lech vendor cost)
+// "HH Chênh lệch ($)" — tổng hoa hồng phần chênh lệch (Gift = 0, dùng chung breakdown helper)
 function calcOrderCommissionChenhLech(orderId){
   if(!allOrderItems||!allOrderItems.length)return 0;
-  const items=allOrderItems.filter(it=>it.order_id===orderId);
-  let total=0;
-  items.forEach(it=>{
-    const vendor=(it.vendor||'').toLowerCase();
-    if(vendor==='ons'){
-      total+=0.70*(parseFloat(it.chenh_lech)||0);
-    }else{
-      const unitPrice=parseFloat(it.gia_ban_thuc)||0;
-      const vendorCost=parseFloat(it.vendor_cost)||0;
-      const qty=parseFloat(it.so_luong)||1;
-      const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
-      total+=0.70*chenhLechVendor;
-    }
-  });
-  return total;
+  return allOrderItems.filter(it=>it.order_id===orderId)
+    .reduce((s,it)=>s+calcCommissionBreakdownPerItem(it).chenhComm,0);
 }
 
 function calcDelta(cur,prev){
@@ -1851,7 +1842,7 @@ function renderOrdersTable(orders){
     const comm=calcOrderCommission(o.id);
     const shipping=calcOrderShipping(o.id);
     const chenh=calcOrderChenhLech(o.id);
-    const rate=calcOrderCommissionRate(o.id);
+    const rateComm=calcOrderRateCommission(o.id);
     const commChenh=calcOrderCommissionChenhLech(o.id);
     const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
     return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};">
@@ -1866,7 +1857,7 @@ function renderOrdersTable(orders){
       <td class="num" style="white-space:nowrap;color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
       <td class="num" style="white-space:nowrap;color:${(o.balance_due||0)<0?'var(--red2)':(o.balance_due||0)>0?'var(--amber2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
       <td class="num" style="white-space:nowrap;color:${chenh>0?'var(--amber2)':'var(--text3)'}">${chenh>0?fmtUSD(chenh):'—'}</td>
-      <td class="num" style="white-space:nowrap;color:var(--purple2);">${rate!=null?(rate*100).toFixed(1)+'%':'—'}</td>
+      <td class="num" style="white-space:nowrap;color:var(--purple2);">${rateComm>0?fmtUSD(rateComm):'—'}</td>
       <td class="num" style="white-space:nowrap;color:${commChenh>0?'var(--amber2)':'var(--text3)'}">${commChenh>0?fmtUSD(commChenh):'—'}</td>
       <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
       <td style="white-space:nowrap;"><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
@@ -2430,7 +2421,7 @@ function viewOrderDetail(orderId){
         <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
         <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
         <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
-        <td style="text-align:center;"><input type="checkbox" disabled></td>
+        <td style="text-align:center;"><input type="checkbox" data-f="is_gift" ${it.is_gift?'checked':''}></td>
         <td><button class="act-btn" title="Lưu dòng này" onclick="saveOrderItem('${it.id}')">💾</button></td>
       </tr>`;
     }).join('');
@@ -2445,6 +2436,7 @@ async function saveOrderItem(itemId){
   row.querySelectorAll('[data-f]').forEach(inp=>{
     const f=inp.dataset.f;
     if(inp.tagName==='SELECT'){data[f]=inp.value;return;}
+    if(inp.type==='checkbox'){data[f]=inp.checked;return;}
     data[f]=inp.type==='number'?(parseFloat(inp.value)||0):inp.value.trim();
   });
   // Commission rate: input hiển thị %, lưu DB dạng decimal (5 → 0.05). Để trống = xóa override, dùng rate mặc định
