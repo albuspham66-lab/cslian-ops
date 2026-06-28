@@ -1341,6 +1341,9 @@ function renderVendorCommissions(){
     {label:'ONS',val:comm.ons,color:'var(--blue2)',icon:'🔷'},
     {label:'TSPA',val:comm.tspa,color:'var(--purple2)',icon:'💜'},
   ];
+  const projected=calcCommissionProjected();
+  const pending=calcCommissionPending();
+
   el.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:8px">'+source+'</div>'
     +rows.map(function(r){
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
@@ -1355,6 +1358,24 @@ function renderVendorCommissions(){
     +'<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">'
       +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng</span>'
       +'<span style="font-size:14px;font-weight:700;color:var(--green2)">'+fmt2(comm.total)+'</span>'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--text3);margin:10px 0 6px;">📊 Dự kiến (kể cả Pending)</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
+      +'<span style="color:var(--text2)">🔶 BOLSA dự kiến</span><span style="color:var(--amber2)">'+fmt2(projected.bolsa)+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
+      +'<span style="color:var(--text2)">🔷 ONS dự kiến</span><span style="color:var(--blue2)">'+fmt2(projected.ons)+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
+      +'<span style="color:var(--text2)">💜 TSPA dự kiến</span><span style="color:var(--purple2)">'+fmt2(projected.tspa)+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng dự kiến</span>'
+      +'<span style="font-size:14px;font-weight:700;color:var(--teal2)">'+fmt2(projected.total)+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;background:var(--amberbg);border-radius:6px;padding:8px 10px;">'
+      +'<span style="font-size:13px;font-weight:600;color:var(--amber2)">⏳ Hoa hồng Pending (còn công nợ)</span>'
+      +'<span style="font-size:14px;font-weight:700;color:var(--amber2)">'+fmt2(pending.total)+'</span>'
     +'</div>';
 }
 
@@ -1435,6 +1456,38 @@ function calcCommissionBreakdownPerItem(item){
 function calcCommissionPerItem(item){
   const b=calcCommissionBreakdownPerItem(item);
   return b.rateComm+b.chenhComm;
+}
+
+// Hoa hồng DỰ KIẾN — tính trên TẤT CẢ đơn trong kỳ (kể cả Pending), không chỉ đơn đã tất toán
+function calcCommissionProjected(){
+  if(!allOrderItems||!allOrderItems.length)return{bolsa:0,ons:0,tspa:0,total:0};
+  const periodOrderIds=new Set(ordByMonth().map(o=>o.id));
+  const periodItems=allOrderItems.filter(item=>periodOrderIds.has(item.order_id));
+  let bolsa=0,ons=0,tspa=0;
+  periodItems.forEach(item=>{
+    const vendor=(item.vendor||'bolsa').toLowerCase();
+    const comm=calcCommissionPerItem(item);
+    if(vendor==='ons')ons+=comm;
+    else if(vendor==='tspa')tspa+=comm;
+    else bolsa+=comm;
+  });
+  return{bolsa:Math.max(0,bolsa),ons:Math.max(0,ons),tspa:Math.max(0,tspa),total:Math.max(0,bolsa)+Math.max(0,ons)+Math.max(0,tspa)};
+}
+
+// Hoa hồng PENDING — phần hoa hồng từ các đơn CHƯA tất toán (còn công nợ) trong kỳ
+function calcCommissionPending(){
+  if(!allOrderItems||!allOrderItems.length)return{bolsa:0,ons:0,tspa:0,total:0};
+  const pendingOrderIds=new Set(ordByMonth().filter(o=>!o.is_settled).map(o=>o.id));
+  const pendingItems=allOrderItems.filter(item=>pendingOrderIds.has(item.order_id));
+  let bolsa=0,ons=0,tspa=0;
+  pendingItems.forEach(item=>{
+    const vendor=(item.vendor||'bolsa').toLowerCase();
+    const comm=calcCommissionPerItem(item);
+    if(vendor==='ons')ons+=comm;
+    else if(vendor==='tspa')tspa+=comm;
+    else bolsa+=comm;
+  });
+  return{bolsa:Math.max(0,bolsa),ons:Math.max(0,ons),tspa:Math.max(0,tspa),total:Math.max(0,bolsa)+Math.max(0,ons)+Math.max(0,tspa)};
 }
 
 function calcCommission(){
