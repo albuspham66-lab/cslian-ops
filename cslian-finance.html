@@ -2414,11 +2414,11 @@ function viewOrderDetail(orderId){
           <option value="ONS"${vendor==='ONS'?' selected':''}>ONS</option>
           <option value="TSPA"${vendor==='TSPA'?' selected':''}>TSPA</option>
         </select></td>
-        <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
-        <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
-        <td><input type="number" step="0.01" value="${vcVal}" data-f="vendor_cost" title="${vcIsAuto?'Giá trị tự tra từ Sản phẩm — chưa lưu vào đơn này':'Đã lưu riêng cho đơn này'}" style="${vcStyle}"></td>
-        <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
-        <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
+        <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
+        <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
+        <td><input type="number" step="0.01" value="${vcVal}" data-f="vendor_cost" oninput="recalcRowChenhLech(this)" title="${vcIsAuto?'Giá trị tự tra từ Sản phẩm — chưa lưu vào đơn này':'Đã lưu riêng cho đơn này'}" style="${vcStyle}"></td>
+        <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
+        <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" oninput="recalcRowChenhLech(this)" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
         <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
         <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
         <td style="text-align:center;"><input type="checkbox" data-f="is_gift" ${it.is_gift?'checked':''}></td>
@@ -2427,6 +2427,23 @@ function viewOrderDetail(orderId){
     }).join('');
   }
   openModal('m-order-detail');
+}
+
+// Tự động tính lại Chênh lệch & Bonus chênh lệch ngay khi sửa Giá bán/SL/Vendor Cost/Shipping Cost
+// (Comm.Rate cũng trigger nhưng không ảnh hưởng số tiền — Bonus chênh lệch luôn cố định 70%, không dùng rate)
+function recalcRowChenhLech(triggerEl){
+  const row=triggerEl.closest('tr');
+  if(!row)return;
+  const qty=parseFloat(row.querySelector('[data-f="so_luong"]')?.value)||0;
+  const unitPrice=parseFloat(row.querySelector('[data-f="gia_ban_thuc"]')?.value)||0;
+  const vendorCost=parseFloat(row.querySelector('[data-f="vendor_cost"]')?.value)||0;
+  const shipCost=parseFloat(row.querySelector('[data-f="shipping_cost"]')?.value)||0;
+  const chenh=Math.max(0,unitPrice-vendorCost-shipCost)*qty;
+  const bonus=0.70*chenh;
+  const chenhInput=row.querySelector('[data-f="chenh_lech"]');
+  const bonusInput=row.querySelector('[data-f="bonus_chenh_lech"]');
+  if(chenhInput)chenhInput.value=chenh.toFixed(2);
+  if(bonusInput)bonusInput.value=bonus.toFixed(2);
 }
 
 async function saveOrderItem(itemId){
