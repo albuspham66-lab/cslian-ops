@@ -1402,16 +1402,17 @@ function fallbackCommissionRate(item){
 
 // Core: tính breakdown hoa hồng cho 1 item — tách riêng phần Rate và phần Chênh lệch
 // Model: doanh thu (amount) = phần "cost-equivalent" (chịu rate%) + phần "margin/chênh lệch" (chịu 70%)
-//   - Gift: KHÔNG tính hoa hồng chênh lệch, nhưng amount vẫn tính đủ vào phần Rate
+//   - Gift: KHÔNG tính hoa hồng (cả 2 phần đều = 0) — coi như sản phẩm tặng kèm, không sinh hoa hồng
 function calcCommissionBreakdownPerItem(item){
+  if(item.is_gift)return {rateComm:0,chenhComm:0};
+
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
-  const isGift=!!item.is_gift;
 
   // ONS: chỉ có phần chênh lệch (70% × chenh_lech giá bán), không có rate riêng
   if(vendor==='ons'){
     const chenhLech=parseFloat(item.chenh_lech)||0;
-    return {rateComm:0,chenhComm:isGift?0:0.70*chenhLech};
+    return {rateComm:0,chenhComm:0.70*chenhLech};
   }
 
   // BOLSA & TSPA
@@ -1426,11 +1427,7 @@ function calcCommissionBreakdownPerItem(item){
   // Chênh lệch so với vendor cost — chỉ tính khi xác định được vendor_cost (>0)
   const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
 
-  if(isGift){
-    // Gift: không tách chênh lệch, toàn bộ amount chịu rate%, không có hoa hồng chênh lệch
-    return {rateComm:rate*amount,chenhComm:0};
-  }
-  // Bình thường: rate% áp lên phần (amount - chênh lệch), 70% áp lên phần chênh lệch
+  // Rate% áp lên phần (amount - chênh lệch), 70% áp lên phần chênh lệch
   return {rateComm:rate*(amount-chenhLechVendor),chenhComm:0.70*chenhLechVendor};
 }
 
