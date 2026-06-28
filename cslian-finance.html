@@ -1423,11 +1423,12 @@ function calcCommissionBreakdownPerItem(item){
   // vendor_cost: ưu tiên giá trị đã lưu riêng trên item, nếu chưa có (=0) tự tra từ bảng products
   let vendorCost=parseFloat(item.vendor_cost)||0;
   if(vendorCost<=0)vendorCost=getVendorCostFallback(item);
+  const shippingCost=parseFloat(item.shipping_cost)||0;
   const qty=parseFloat(item.so_luong)||1;
-  // Chênh lệch so với vendor cost — chỉ tính khi xác định được vendor_cost (>0)
-  const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
+  // Chênh lệch = giá bán − vendor cost − shipping cost (không âm)
+  const chenhLechVendor=Math.max(0,unitPrice-vendorCost-shippingCost)*qty;
 
-  // Rate% áp lên phần (amount - chênh lệch), 70% áp lên phần chênh lệch
+  // Rate% áp lên phần (amount − chênh lệch), 70% áp lên phần chênh lệch
   return {rateComm:rate*(amount-chenhLechVendor),chenhComm:0.70*chenhLechVendor};
 }
 
@@ -1493,8 +1494,9 @@ function calcOrderChenhLech(orderId){
     const unitPrice=parseFloat(it.gia_ban_thuc)||0;
     let vendorCost=parseFloat(it.vendor_cost)||0;
     if(vendorCost<=0)vendorCost=getVendorCostFallback(it);
+    const shippingCost=parseFloat(it.shipping_cost)||0;
     const qty=parseFloat(it.so_luong)||1;
-    return s+(vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0);
+    return s+Math.max(0,unitPrice-vendorCost-shippingCost)*qty;
   },0);
 }
 
@@ -2370,8 +2372,8 @@ function viewOrderDetail(orderId){
     <span>·</span><span>🗂 ${o.billing_month||'—'}</span>
   `);
   setHTML('od-stats',`
-    <div class="mc green"><div class="mc-lbl">Total</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.total_amount)}</div></div>
-    <div class="mc teal"><div class="mc-lbl">Hoa hồng</div><div class="mc-val" style="font-size:18px;" id="od-comm-val">${fmtUSD(comm)}</div></div>
+    <div class="mc green"><div class="mc-lbl">Total (preview)</div><div class="mc-val" style="font-size:18px;" id="od-total-val">${fmtUSD(o.total_amount)}</div></div>
+    <div class="mc teal"><div class="mc-lbl">Hoa hồng (preview)</div><div class="mc-val" style="font-size:18px;" id="od-comm-val">${fmtUSD(comm)}</div></div>
     <div class="mc amber"><div class="mc-lbl">Balance</div><div class="mc-val" style="font-size:18px;">${fmtUSD(o.balance_due)}</div></div>
   `);
   document.getElementById('od-settled').checked=!!o.is_settled;
@@ -2409,19 +2411,19 @@ function viewOrderDetail(orderId){
 
       return`<tr data-item-id="${it.id}">
         <td><input type="text" value="${(it.ten_sp_invoice||'').replace(/"/g,'&quot;')}" data-f="ten_sp_invoice" style="padding:5px 8px;font-size:12px;"></td>
-        <td><select data-f="vendor" style="padding:5px 6px;font-size:12px;">
+        <td><select data-f="vendor" onchange="recalcOrderPreview()" style="padding:5px 6px;font-size:12px;">
           <option value="BOLSA"${vendor==='BOLSA'?' selected':''}>BOLSA</option>
           <option value="ONS"${vendor==='ONS'?' selected':''}>ONS</option>
           <option value="TSPA"${vendor==='TSPA'?' selected':''}>TSPA</option>
         </select></td>
-        <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
-        <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
-        <td><input type="number" step="0.01" value="${vcVal}" data-f="vendor_cost" oninput="recalcRowChenhLech(this)" title="${vcIsAuto?'Giá trị tự tra từ Sản phẩm — chưa lưu vào đơn này':'Đã lưu riêng cho đơn này'}" style="${vcStyle}"></td>
-        <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" oninput="recalcRowChenhLech(this)" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
-        <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" oninput="recalcRowChenhLech(this)" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
+        <td><input type="number" value="${it.so_luong||0}" data-f="so_luong" oninput="recalcRowChenhLech(this);recalcOrderPreview();" style="padding:5px 6px;font-size:12px;text-align:right;"></td>
+        <td><input type="number" step="0.01" value="${it.gia_ban_thuc||0}" data-f="gia_ban_thuc" oninput="recalcRowChenhLech(this);recalcOrderPreview();" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--green2);"></td>
+        <td><input type="number" step="0.01" value="${vcVal}" data-f="vendor_cost" oninput="recalcRowChenhLech(this);recalcOrderPreview();" title="${vcIsAuto?'Giá trị tự tra từ Sản phẩm — chưa lưu vào đơn này':'Đã lưu riêng cho đơn này'}" style="${vcStyle}"></td>
+        <td><input type="number" step="0.01" value="${it.shipping_cost||0}" data-f="shipping_cost" oninput="recalcRowChenhLech(this);recalcOrderPreview();" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--text2);"></td>
+        <td><input type="number" step="0.1" value="${rateVal}" data-f="commission_rate" oninput="recalcRowChenhLech(this);recalcOrderPreview();" ${vendor==='ONS'?'disabled':''} title="${vendor==='ONS'?'ONS không dùng commission rate':(rateIsAuto?'Giá trị tự suy ra — chưa lưu, có thể sai':'Đã lưu riêng cho đơn này')}" style="${rateStyle}"></td>
         <td><input type="number" step="0.01" value="${it.chenh_lech||0}" data-f="chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--amber2);"></td>
         <td><input type="number" step="0.01" value="${it.bonus_chenh_lech||0}" data-f="bonus_chenh_lech" style="padding:5px 6px;font-size:12px;text-align:right;color:var(--teal2);"></td>
-        <td style="text-align:center;"><input type="checkbox" data-f="is_gift" ${it.is_gift?'checked':''}></td>
+        <td style="text-align:center;"><input type="checkbox" data-f="is_gift" onchange="recalcOrderPreview()" ${it.is_gift?'checked':''}></td>
         <td><button class="act-btn" title="Lưu dòng này" onclick="saveOrderItem('${it.id}')">💾</button></td>
       </tr>`;
     }).join('');
@@ -2430,7 +2432,6 @@ function viewOrderDetail(orderId){
 }
 
 // Tự động tính lại Chênh lệch & Bonus chênh lệch ngay khi sửa Giá bán/SL/Vendor Cost/Shipping Cost
-// (Comm.Rate cũng trigger nhưng không ảnh hưởng số tiền — Bonus chênh lệch luôn cố định 70%, không dùng rate)
 function recalcRowChenhLech(triggerEl){
   const row=triggerEl.closest('tr');
   if(!row)return;
@@ -2444,6 +2445,35 @@ function recalcRowChenhLech(triggerEl){
   const bonusInput=row.querySelector('[data-f="bonus_chenh_lech"]');
   if(chenhInput)chenhInput.value=chenh.toFixed(2);
   if(bonusInput)bonusInput.value=bonus.toFixed(2);
+}
+
+// Tính lại Total & Hoa hồng preview của TOÀN BỘ đơn dựa trên giá trị đang gõ trong modal (chưa lưu DB)
+function recalcOrderPreview(){
+  const rows=document.querySelectorAll('#od-body tr[data-item-id]');
+  let totalAmount=0,totalComm=0;
+  rows.forEach(row=>{
+    const so_luong=parseFloat(row.querySelector('[data-f="so_luong"]')?.value)||0;
+    const gia_ban_thuc=parseFloat(row.querySelector('[data-f="gia_ban_thuc"]')?.value)||0;
+    const vendor_cost=parseFloat(row.querySelector('[data-f="vendor_cost"]')?.value)||0;
+    const shipping_cost=parseFloat(row.querySelector('[data-f="shipping_cost"]')?.value)||0;
+    const vendorSel=row.querySelector('[data-f="vendor"]');
+    const vendor=vendorSel?vendorSel.value:'BOLSA';
+    const rateInput=row.querySelector('[data-f="commission_rate"]');
+    const commission_rate=(rateInput&&rateInput.value.trim()!=='')?parseFloat(rateInput.value)/100:null;
+    const giftInput=row.querySelector('[data-f="is_gift"]');
+    const is_gift=giftInput?giftInput.checked:false;
+    const chenhInput=row.querySelector('[data-f="chenh_lech"]');
+    const chenh_lech=parseFloat(chenhInput?.value)||0;
+
+    const amount=so_luong*gia_ban_thuc;
+    totalAmount+=amount;
+
+    const pseudoItem={vendor,amount,gia_ban_thuc,vendor_cost,shipping_cost,so_luong,commission_rate,chenh_lech,is_gift};
+    const b=calcCommissionBreakdownPerItem(pseudoItem);
+    totalComm+=b.rateComm+b.chenhComm;
+  });
+  setTxt('od-total-val',fmtUSD(totalAmount));
+  setTxt('od-comm-val',fmtUSD(totalComm));
 }
 
 async function saveOrderItem(itemId){
