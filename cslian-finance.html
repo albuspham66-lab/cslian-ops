@@ -1848,7 +1848,7 @@ function renderOrdersTable(orders){
     const rateComm=calcOrderRateCommission(o.id);
     const commChenh=calcOrderCommissionChenhLech(o.id);
     const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
-    return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};">
+    return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};cursor:pointer;" onclick="viewOrderDetail('${o.id}')" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background=''">
       <td style="color:var(--blue2);font-size:12px;font-weight:600;white-space:nowrap;">${o.invoice_no||'—'}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.order_date||'—'}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.billing_month||'—'}</td>
@@ -1864,7 +1864,7 @@ function renderOrdersTable(orders){
       <td class="num" style="white-space:nowrap;color:${commChenh>0?'var(--amber2)':'var(--text3)'}">${commChenh>0?fmtUSD(commChenh):'—'}</td>
       <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
       <td style="white-space:nowrap;"><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
-      <td style="white-space:nowrap;"><button class="act-btn" title="Xem chi tiết" onclick="viewOrderDetail('${o.id}')">👁</button></td>
+      <td style="white-space:nowrap;"><button class="act-btn" title="Xem chi tiết" onclick="event.stopPropagation();viewOrderDetail('${o.id}')">👁</button></td>
     </tr>`;
   }).join('');
 }
