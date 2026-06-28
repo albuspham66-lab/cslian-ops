@@ -1419,9 +1419,11 @@ function calcCommissionBreakdownPerItem(item){
   if(rate===null||isNaN(rate))rate=fallbackCommissionRate(item);
 
   const unitPrice=parseFloat(item.gia_ban_thuc)||0;
-  const vendorCost=parseFloat(item.vendor_cost)||0;
+  // vendor_cost: ưu tiên giá trị đã lưu riêng trên item, nếu chưa có (=0) tự tra từ bảng products
+  let vendorCost=parseFloat(item.vendor_cost)||0;
+  if(vendorCost<=0)vendorCost=getVendorCostFallback(item);
   const qty=parseFloat(item.so_luong)||1;
-  // Chênh lệch so với vendor cost — chỉ tính khi vendor_cost đã được nhập (>0)
+  // Chênh lệch so với vendor cost — chỉ tính khi xác định được vendor_cost (>0)
   const chenhLechVendor=vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0;
 
   if(isGift){
@@ -1492,7 +1494,8 @@ function calcOrderChenhLech(orderId){
   if(!allOrderItems||!allOrderItems.length)return 0;
   return allOrderItems.filter(it=>it.order_id===orderId).reduce((s,it)=>{
     const unitPrice=parseFloat(it.gia_ban_thuc)||0;
-    const vendorCost=parseFloat(it.vendor_cost)||0;
+    let vendorCost=parseFloat(it.vendor_cost)||0;
+    if(vendorCost<=0)vendorCost=getVendorCostFallback(it);
     const qty=parseFloat(it.so_luong)||1;
     return s+(vendorCost>0?Math.max(0,unitPrice-vendorCost)*qty:0);
   },0);
