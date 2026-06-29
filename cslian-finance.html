@@ -1424,8 +1424,16 @@ function fallbackCommissionRate(item){
 // Core: tính breakdown hoa hồng cho 1 item — tách riêng phần Rate và phần Chênh lệch
 // Model: doanh thu (amount) = phần "cost-equivalent" (chịu rate%) + phần "margin/chênh lệch" (chịu 70%)
 //   - Gift: KHÔNG tính hoa hồng (cả 2 phần đều = 0) — coi như sản phẩm tặng kèm, không sinh hoa hồng
+//   - Override: trường hợp đặc biệt, set thẳng số tiền, bỏ qua toàn bộ công thức bên dưới
 function calcCommissionBreakdownPerItem(item){
   if(item.is_gift)return {rateComm:0,chenhComm:0};
+
+  if(item.rate_comm_override!=null||item.chenh_comm_override!=null){
+    return{
+      rateComm:item.rate_comm_override!=null?parseFloat(item.rate_comm_override):0,
+      chenhComm:item.chenh_comm_override!=null?parseFloat(item.chenh_comm_override):0
+    };
+  }
 
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
