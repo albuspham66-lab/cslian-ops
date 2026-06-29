@@ -118,6 +118,14 @@ html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:va
 .mrow-3{grid-template-columns:repeat(3,1fr);}
 .mrow-2{grid-template-columns:repeat(2,1fr);}
 .mc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:18px 20px;position:relative;overflow:hidden;}
+.mc-click{cursor:pointer;transition:transform .15s,border-color .15s;}
+.mc-click:hover{transform:translateY(-2px);border-color:var(--border2);}
+.mc-click.mc-active{border-color:var(--blue2);box-shadow:0 0 0 1px var(--blue2) inset;}
+.mc-click .mc-arrow{position:absolute;top:14px;right:14px;font-size:11px;color:var(--text3);transition:transform .2s;}
+.mc-click.mc-active .mc-arrow{transform:rotate(180deg);color:var(--blue2);}
+.kpi-detail-block{display:none;}
+.trend-up{color:var(--green2);font-size:11px;margin-left:4px;font-weight:600;}
+.trend-down{color:var(--red2);font-size:11px;margin-left:4px;font-weight:600;}
 .mc::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;}
 .mc.blue::after{background:linear-gradient(90deg,transparent,var(--blue2),transparent);}
 .mc.green::after{background:linear-gradient(90deg,transparent,var(--green2),transparent);}
@@ -610,74 +618,122 @@ textarea{resize:vertical;min-height:72px;}
     </div>
   </div>
 
-  <!-- Summary metrics -->
+  <!-- KPI Strip — click để xem chi tiết bên dưới -->
   <div class="mrow mrow-4">
-    <div class="mc green"><div class="mc-lbl">Doanh thu (tất toán)</div><div class="mc-val" id="pf-rev">—</div><div class="mc-sub">USD</div></div>
-    <div class="mc teal"><div class="mc-lbl">Hoa hồng C-Slian</div><div class="mc-val" id="pf-comm">—</div><div class="mc-sub">USD ước tính</div></div>
-    <div class="mc red"><div class="mc-lbl">Tổng chi phí</div><div class="mc-val" id="pf-exp">—</div><div class="mc-sub">VNĐ</div></div>
-    <div class="mc blue"><div class="mc-lbl">Lợi nhuận ròng</div><div class="mc-val" id="pf-net">—</div><div class="mc-sub" id="pf-net-sub">VNĐ</div></div>
+    <div class="mc green mc-click" id="kpi-card-rev" onclick="toggleKpiDetail('rev')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">Doanh thu (tất toán)</div>
+      <div class="mc-val" id="pf-rev">—</div>
+      <div class="mc-sub">USD</div>
+    </div>
+    <div class="mc teal mc-click" id="kpi-card-comm" onclick="toggleKpiDetail('comm')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">Hoa hồng C-Slian</div>
+      <div class="mc-val" id="pf-comm">—</div>
+      <div class="mc-sub">USD ước tính</div>
+    </div>
+    <div class="mc red mc-click" id="kpi-card-exp" onclick="toggleKpiDetail('exp')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">Tổng chi phí</div>
+      <div class="mc-val" id="pf-exp">—</div>
+      <div class="mc-sub">VNĐ</div>
+    </div>
+    <div class="mc blue mc-click" id="kpi-card-net" onclick="toggleKpiDetail('net')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">Lợi nhuận ròng</div>
+      <div class="mc-val" id="pf-net">—</div>
+      <div class="mc-sub" id="pf-net-sub">VNĐ</div>
+    </div>
   </div>
 
-  <div class="g2">
-    <!-- Chi tiết lợi nhuận -->
-    <div class="card">
-      <div class="ctitle">Phân tích lợi nhuận</div>
+  <!-- Detail Panel — đổi nội dung theo thẻ KPI vừa click -->
+  <div class="card gap" id="kpi-detail-panel" style="display:none;">
+    <div class="kpi-detail-block" data-key="rev">
+      <div class="ctitle">💰 Doanh thu theo Vendor</div>
       <div class="sr"><span class="sl">Doanh thu (theo Month)</span><span class="sv" style="color:var(--green2);" id="pf-r1">—</span></div>
       <div class="sr"><span class="sl">Doanh thu BOLSA</span><span class="sv" style="color:var(--amber2);" id="pf-r-bolsa">—</span></div>
       <div class="sr"><span class="sl">Doanh thu ONS</span><span class="sv" style="color:var(--blue2);" id="pf-r-ons">—</span></div>
       <div class="sr"><span class="sl">Doanh thu TSPA</span><span class="sv" style="color:var(--purple2);" id="pf-r-tspa">—</span></div>
-      <div id="vendor-commissions-list" style="margin-bottom:4px"></div>
-      <div class="sr"><span class="sl">Chi phí vận hành</span><span class="sv" style="color:var(--red2);" id="pf-r-ops">—</span></div>
-      <div class="sr"><span class="sl">Chi phí đầu tư</span><span class="sv" style="color:var(--amber2);" id="pf-r-inv">—</span></div>
-      <div class="sr"><span class="sl">Tổng lương Sale</span><span class="sv" style="color:var(--red2);" id="pf-r-sal">—</span></div>
+    </div>
+
+    <div class="kpi-detail-block" data-key="comm">
+      <div class="ctitle">🤝 Hoa hồng C-Slian — chi tiết</div>
+      <div id="vendor-commissions-list"></div>
+    </div>
+
+    <div class="kpi-detail-block" data-key="exp">
+      <div class="ctitle">💸 Chi phí — chi tiết &amp; Ngân sách</div>
+      <div class="g2">
+        <div>
+          <div class="sr"><span class="sl">Chi phí vận hành</span><span class="sv" style="color:var(--red2);" id="pf-r-ops">—</span></div>
+          <div class="sr"><span class="sl">Chi phí đầu tư</span><span class="sv" style="color:var(--amber2);" id="pf-r-inv">—</span></div>
+          <div class="sr"><span class="sl">Tổng lương Sale</span><span class="sv" style="color:var(--red2);" id="pf-r-sal">—</span></div>
+          <div class="div"></div>
+          <div id="budget-rows"></div>
+          <button class="btn btn-ghost btn-sm" onclick="openBudgetModal()" style="width:100%;justify-content:center;margin-top:10px;">Cài đặt ngân sách</button>
+        </div>
+        <div class="chart-box-sm"><canvas id="exp-chart"></canvas></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expense-list-card').scrollIntoView({behavior:'smooth'})" style="margin-top:14px;width:100%;justify-content:center;">📋 Xem danh sách chi phí chi tiết</button>
+    </div>
+
+    <div class="kpi-detail-block" data-key="net">
+      <div class="ctitle">📊 Lợi nhuận ròng — Waterfall</div>
+      <div class="sr"><span class="sl">Hoa hồng C-Slian</span><span class="sv" style="color:var(--teal2);" id="pf-wf-comm">—</span></div>
+      <div class="sr"><span class="sl">(–) Chi phí vận hành + đầu tư</span><span class="sv" style="color:var(--red2);" id="pf-wf-exp">—</span></div>
+      <div class="sr"><span class="sl">(–) Tổng lương Sale</span><span class="sv" style="color:var(--red2);" id="pf-wf-sal">—</span></div>
       <div class="div"></div>
       <div class="sr st"><span class="sl">Lợi nhuận ròng</span><span class="sv" id="pf-r-net">—</span></div>
       <div class="sr"><span class="sl">Phần Leader (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-leader">—</span></div>
       <div class="sr"><span class="sl">Phần Manager (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-manager">—</span></div>
     </div>
+  </div>
 
-    <!-- Ngân sách vs Thực tế + Biểu đồ chi phí -->
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div class="card">
-        <div class="ctitle">Ngân sách vs Thực tế</div>
-        <div id="budget-rows"></div>
-        <div class="div"></div>
-        <button class="btn btn-ghost btn-sm" onclick="openBudgetModal()" style="width:100%;justify-content:center;">Cài đặt ngân sách</button>
-      </div>
-      <div class="card">
-        <div class="ctitle">Chi phí theo danh mục</div>
-        <div class="chart-box-sm"><canvas id="exp-chart"></canvas></div>
-      </div>
+  <!-- Forecast Strip — không phụ thuộc kỳ báo cáo, click để xem chi tiết -->
+  <div class="mrow mrow-3" style="margin-top:20px;">
+    <div class="mc amber mc-click" id="kpi-card-cashflow" onclick="toggleKpiDetail('cashflow')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">📅 Dự kiến thu vào (3 tháng)</div>
+      <div class="mc-val" id="cf-total-val">—</div>
+      <div class="mc-sub">USD · toàn hệ thống</div>
+    </div>
+    <div class="mc red mc-click" id="kpi-card-aging" onclick="toggleKpiDetail('aging')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">🕐 Công nợ tồn</div>
+      <div class="mc-val" id="aging-total-val">—</div>
+      <div class="mc-sub">USD toàn hệ thống</div>
+    </div>
+    <div class="mc teal mc-click" id="kpi-card-leadtime" onclick="toggleKpiDetail('leadtime')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">⏱ Lead-time trung bình</div>
+      <div class="mc-val" id="leadtime-total-val">—</div>
+      <div class="mc-sub">Tạo đơn → Tất toán</div>
     </div>
   </div>
 
-  <!-- Dự báo dòng tiền 3 tháng -->
-  <div class="card gap">
-    <div class="ctitle">📅 Dự báo dòng tiền 3 tháng tới</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Dựa trên Balance Due của đơn Pending (theo Ngày dự kiến tất toán) + Ngân sách chi phí nhập tay. Không phụ thuộc kỳ báo cáo đang chọn ở trên.</div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Chỉ số</th><th class="num" id="cf-m0-label">—</th><th class="num" id="cf-m1-label">—</th><th class="num" id="cf-m2-label">—</th></tr></thead>
-        <tbody id="cashflow-body"></tbody>
-      </table>
+  <div class="card gap" id="forecast-detail-panel" style="display:none;">
+    <div class="kpi-detail-block" data-key="cashflow">
+      <div class="ctitle">📅 Dự báo dòng tiền 3 tháng tới</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Dựa trên Balance Due của đơn Pending (theo Ngày dự kiến tất toán) + Ngân sách chi phí nhập tay.</div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Chỉ số</th><th class="num" id="cf-m0-label">—</th><th class="num" id="cf-m1-label">—</th><th class="num" id="cf-m2-label">—</th></tr></thead>
+          <tbody id="cashflow-body"></tbody>
+        </table>
+      </div>
     </div>
-  </div>
-
-  <div class="g2">
-    <!-- Công nợ theo độ tuổi -->
-    <div class="card">
+    <div class="kpi-detail-block" data-key="aging">
       <div class="ctitle">🕐 Công nợ theo độ tuổi (toàn hệ thống)</div>
       <div id="aging-cohort-rows"></div>
     </div>
-    <!-- Lead-time theo Vendor -->
-    <div class="card">
+    <div class="kpi-detail-block" data-key="leadtime">
       <div class="ctitle">⏱ Lead-time trung bình (Tạo đơn → Tất toán)</div>
       <div id="leadtime-rows"></div>
     </div>
   </div>
 
   <!-- Danh sách chi phí -->
-  <div class="card gap">
+  <div class="card gap" id="expense-list-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
       <div class="ctitle" style="margin-bottom:0;">Danh sách chi phí</div>
       <div style="display:flex;gap:8px;">
@@ -2011,6 +2067,8 @@ function calcCashFlowForecast(){
 
 function renderCashFlowForecast(){
   const fc=calcCashFlowForecast();
+  const totalIncoming=fc.incomingUSD.reduce((s,v)=>s+v,0);
+  setTxt('cf-total-val',fmtUSD(totalIncoming));
   const labels=fc.months.map(mk=>{const[y,m]=mk.split('-');return`T${parseInt(m)}/${y}`;});
   setTxt('cf-m0-label',labels[0]);setTxt('cf-m1-label',labels[1]);setTxt('cf-m2-label',labels[2]);
   const rows=[
@@ -2038,6 +2096,7 @@ function calcAgingCohort(){
 function renderAgingCohort(){
   const b=calcAgingCohort();
   const total=b.b1+b.b2+b.b3+b.b4;
+  setTxt('aging-total-val',fmtUSD(total));
   const rows=[
     {label:'< 30 ngày',val:b.b1,color:'var(--green2)',risk:'Rủi ro thấp'},
     {label:'30 – 60 ngày',val:b.b2,color:'var(--blue2)',risk:'Theo dõi'},
@@ -2059,6 +2118,7 @@ function renderAgingCohort(){
 function renderLeadTimeInsight(){
   const vendors=['BOLSA','ONS','TSPA'];
   const overall=calcAvgLeadTimeOverall();
+  setTxt('leadtime-total-val',overall!=null?overall+' ngày':'—');
   let html=vendors.map(v=>{
     const avg=calcAvgLeadTimeByVendor(v);
     return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -2071,16 +2131,67 @@ function renderLeadTimeInsight(){
   setHTML('leadtime-rows',html);
 }
 
+function trendHTML(cur,prev,lowerIsBetter){
+  if(prev==null||prev===0)return '';
+  const diff=cur-prev;
+  const pct=Math.abs(diff/prev*100);
+  if(pct<0.5)return '';
+  const up=diff>=0;
+  const good=lowerIsBetter?!up:up;
+  return `<span class="${good?'trend-up':'trend-down'}">${up?'▲':'▼'}${pct.toFixed(0)}%</span>`;
+}
+
+// ─── KPI Detail Panel (click-to-expand) ───
+const KPI_PANEL_MAP={rev:'kpi-detail-panel',comm:'kpi-detail-panel',exp:'kpi-detail-panel',net:'kpi-detail-panel',
+  cashflow:'forecast-detail-panel',aging:'forecast-detail-panel',leadtime:'forecast-detail-panel'};
+let _activeKpiKey={'kpi-detail-panel':null,'forecast-detail-panel':null};
+let _kpiDetailInitialized=false;
+
+function toggleKpiDetail(key){
+  const panelId=KPI_PANEL_MAP[key];
+  const panel=document.getElementById(panelId);
+  if(!panel)return;
+  const card=document.getElementById('kpi-card-'+key);
+  const wasActive=_activeKpiKey[panelId]===key;
+
+  Object.keys(KPI_PANEL_MAP).filter(k=>KPI_PANEL_MAP[k]===panelId).forEach(k=>{
+    const c=document.getElementById('kpi-card-'+k);
+    if(c)c.classList.remove('mc-active');
+  });
+
+  if(wasActive){
+    panel.style.display='none';
+    _activeKpiKey[panelId]=null;
+    return;
+  }
+
+  panel.querySelectorAll('.kpi-detail-block').forEach(b=>{
+    b.style.display=(b.dataset.key===key)?'block':'none';
+  });
+  panel.style.display='block';
+  if(card)card.classList.add('mc-active');
+  _activeKpiKey[panelId]=key;
+
+  // Chart.js cần resize lại khi canvas vừa được hiện ra từ display:none
+  if(key==='exp'&&expChart)setTimeout(()=>expChart.resize(),50);
+}
+
 function renderFinance(){
   const revM=calcRevMonth(),exp=calcExpTotal(),sal=calcSalTotal();
   // BUG FIX: dùng calcCommission() thay vì gross_profit từ orders table
   const comm=calcCommission();
   const commVND=comm.total*CFG.rate;
   const net=commVND-exp-sal;
-  setTxt('pf-rev',fmtUSD(revM));
+
+  // Trend so với kỳ trước (tính sẵn từ prevOrders/prevExpenses đã fetch)
+  const prevRevM=prevOrders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
+  const prevExp=prevExpenses.reduce((s,e)=>s+(e.so_tien||0),0);
+
+  setHTML('pf-rev',fmtUSD(revM)+trendHTML(revM,prevRevM));
   // BUG FIX: set pf-comm card (trước đây không bao giờ được set)
   setTxt('pf-comm',comm.total>0?fmtUSD(comm.total):'—');
-  setTxt('pf-exp',fmtVND(exp));setTxt('pf-net',fmtVND(net));
+  setHTML('pf-exp',fmtVND(exp)+trendHTML(exp,prevExp,true));
+  setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
   setTxt('pf-net-sub',net>=0?'Lợi nhuận':'Lỗ');
 
@@ -2098,6 +2209,11 @@ function renderFinance(){
   document.getElementById('pf-r-net').innerHTML=`<span style="color:${net>=0?'var(--green2)':'var(--red2)'}">${fmtVND(net)}</span>`;
   setTxt('pf-r-leader',net>0?fmtVND(net/2):'—');
   setTxt('pf-r-manager',net>0?fmtVND(net/2):'—');
+
+  // Waterfall block (panel "net")
+  setTxt('pf-wf-comm',fmtVND(commVND));
+  setTxt('pf-wf-exp',fmtVND(ops+inv));
+  setTxt('pf-wf-sal',fmtVND(sal));
 
   // Budget
   renderBudget(ops,inv,exp,net);
@@ -2119,6 +2235,12 @@ function renderFinance(){
   }
 
   renderExpenseTable();
+
+  // Mở mặc định panel "Lợi nhuận ròng" lần đầu vào trang (chỉ 1 lần, không reset mỗi lần reload data)
+  if(!_kpiDetailInitialized){
+    _kpiDetailInitialized=true;
+    toggleKpiDetail('net');
+  }
 }
 
 function renderBudget(ops,inv,total,profit){
