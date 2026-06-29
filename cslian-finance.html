@@ -642,12 +642,37 @@ textarea{resize:vertical;min-height:72px;}
         <div class="ctitle">Ngân sách vs Thực tế</div>
         <div id="budget-rows"></div>
         <div class="div"></div>
-        <button class="btn btn-ghost btn-sm" onclick="openModal('m-budget')" style="width:100%;justify-content:center;">Cài đặt ngân sách</button>
+        <button class="btn btn-ghost btn-sm" onclick="openBudgetModal()" style="width:100%;justify-content:center;">Cài đặt ngân sách</button>
       </div>
       <div class="card">
         <div class="ctitle">Chi phí theo danh mục</div>
         <div class="chart-box-sm"><canvas id="exp-chart"></canvas></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Dự báo dòng tiền 3 tháng -->
+  <div class="card gap">
+    <div class="ctitle">📅 Dự báo dòng tiền 3 tháng tới</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Dựa trên Balance Due của đơn Pending (theo Ngày dự kiến tất toán) + Ngân sách chi phí nhập tay. Không phụ thuộc kỳ báo cáo đang chọn ở trên.</div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Chỉ số</th><th class="num" id="cf-m0-label">—</th><th class="num" id="cf-m1-label">—</th><th class="num" id="cf-m2-label">—</th></tr></thead>
+        <tbody id="cashflow-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- Công nợ theo độ tuổi -->
+    <div class="card">
+      <div class="ctitle">🕐 Công nợ theo độ tuổi (toàn hệ thống)</div>
+      <div id="aging-cohort-rows"></div>
+    </div>
+    <!-- Lead-time theo Vendor -->
+    <div class="card">
+      <div class="ctitle">⏱ Lead-time trung bình (Tạo đơn → Tất toán)</div>
+      <div id="leadtime-rows"></div>
     </div>
   </div>
 
@@ -965,13 +990,15 @@ textarea{resize:vertical;min-height:72px;}
     <div class="modal-title">Cài đặt ngân sách tháng</div>
     <div class="alert alert-blue" style="margin-bottom:16px;">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      Ngân sách được lưu trên thiết bị (localStorage) và dùng để so sánh với thực tế.
+      Ngân sách lưu trên Supabase theo từng tháng — dùng cho cả "Ngân sách vs Thực tế" và "Dự báo dòng tiền".
+    </div>
+    <div class="fg" style="margin-bottom:14px;"><label class="fl">Tháng áp dụng</label>
+      <select id="b-month"></select>
     </div>
     <div class="fgrid2">
       <div class="fg"><label class="fl">Ngân sách Vận hành (VNĐ)</label><input type="number" id="b-ops" placeholder="0"></div>
       <div class="fg"><label class="fl">Ngân sách Đầu tư (VNĐ)</label><input type="number" id="b-inv" placeholder="0"></div>
-      <div class="fg"><label class="fl">Ngân sách Tổng (VNĐ)</label><input type="number" id="b-total" placeholder="0"></div>
-      <div class="fg"><label class="fl">Target Lợi nhuận (VNĐ)</label><input type="number" id="b-profit" placeholder="0"></div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Target Lợi nhuận (VNĐ)</label><input type="number" id="b-profit" placeholder="0"></div>
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('m-budget')">Huỷ</button>
@@ -1058,6 +1085,10 @@ textarea{resize:vertical;min-height:72px;}
         <label class="fl" style="font-size:10px;">Balance Due ($)</label>
         <input type="number" id="od-balance" step="0.01" style="padding:7px 10px;font-size:12px;">
       </div>
+      <div style="flex:1;min-width:160px;">
+        <label class="fl" style="font-size:10px;" id="od-esd-label">Ngày dự kiến tất toán</label>
+        <input type="date" id="od-esd" style="padding:7px 10px;font-size:12px;">
+      </div>
       <button class="btn btn-primary btn-sm" onclick="saveOrderMeta()">💾 Lưu trạng thái đơn</button>
     </div>
 
@@ -1114,12 +1145,13 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 let CFG = { url:SUPA_URL, key:SUPA_KEY, rate:25000, target:23500, extraPct:30, p1base:5310000 };
 try { const s=JSON.parse(localStorage.getItem('cslian_cfg_v4')||'{}'); CFG={...CFG,...s}; } catch(e){}
 
-let BUDGET = { ops:0, inv:0, total:0, profit:0 };
-try { const b=JSON.parse(localStorage.getItem('cslian_budget')||'{}'); BUDGET={...BUDGET,...b}; } catch(e){}
+// (Đã chuyển ngân sách sang DB-backed monthly_budget — xem khai báo monthlyBudgets phía trên)
 
 // ─── STATE ───
 let allOrders=[], allExpenses=[], allProfiles=[], allSalary=[], allKpi=[], allProducts=[], allOrderItems=[];
 let prevOrders=[], prevExpenses=[], prevSalary=[];
+// Forecast & cash-flow (không phụ thuộc kỳ báo cáo đang chọn — luôn lấy toàn bộ)
+let allPendingGlobal=[], leadTimeOrders=[], leadTimeItems=[], monthlyBudgets={};
 let filteredOrders=[], filteredExpenses=[];
 let prodPage=1; const PROD_PER_PAGE=30; let prodFiltered=[];
 
@@ -1234,7 +1266,7 @@ async function loadAll(){
     while(mkKey(py,pm)<=prev.to){prevMonths.push(mkKey(py,pm));pm++;if(pm>12){pm=1;py++;}}
     const prevOrFilter=prevMonths.length?`billing_month=in.(${prevMonths.join(',')})`:'billing_month=eq.__none__';
 
-    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary]=await Promise.all([
+    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary,pendingGlobal,leadOrders,budgets]=await Promise.all([
       sb('orders',`select=*&${orFilter}&order=order_date.desc`),
       sb('expenses',`select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
       sb('profiles',`select=*&order=full_name.asc`),
@@ -1243,8 +1275,21 @@ async function loadAll(){
       sb('products',`select=id,sku,name,vendor,is_bolsa,sale_price,best_price,vendor_cost,commission_rate,variant,is_active,note,stock_status,shipping_fee,description&order=vendor.asc,name.asc`),
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
-      sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[])
+      sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
+      sb('orders',`select=id,invoice_no,shop_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id&is_settled=eq.false`).catch(()=>[]),
+      sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
+      sb('monthly_budget',`select=*`).catch(()=>[])
     ]);
+    allPendingGlobal=pendingGlobal||[];
+    leadTimeOrders=leadOrders||[];
+    monthlyBudgets={};
+    (budgets||[]).forEach(b=>{monthlyBudgets[b.thang]=b;});
+    if(leadTimeOrders.length>0){
+      try{
+        const ltIds=leadTimeOrders.map(o=>o.id).join(',');
+        leadTimeItems=await sb('order_items',`select=order_id,vendor&order_id=in.(${ltIds})`)||[];
+      }catch(e){leadTimeItems=[];}
+    }else{leadTimeItems=[];}
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
     // Fetch order_items for current period orders
@@ -1934,6 +1979,98 @@ function renderOrdersTable(orders){
 
 // ─── FINANCE ───
 let expChart=null;
+// Ngày dự kiến tất toán hiệu lực — dùng giá trị đã lưu, fallback = order_date + lead-time trung bình (hoặc 75 ngày)
+function getEffectiveSettlementDate(o){
+  if(o.expected_settlement_date)return o.expected_settlement_date;
+  if(!o.order_date)return null;
+  const avg=calcAvgLeadTimeOverall()||75;
+  const d=new Date(o.order_date);
+  d.setDate(d.getDate()+avg);
+  return d.toISOString().slice(0,10);
+}
+
+function calcCashFlowForecast(){
+  const now=new Date();
+  const months=[0,1,2].map(offset=>{
+    const d=new Date(now.getFullYear(),now.getMonth()+offset,1);
+    return mkKey(d.getFullYear(),d.getMonth()+1);
+  });
+  const incomingUSD=months.map(mk=>
+    allPendingGlobal.reduce((s,o)=>{
+      const esd=getEffectiveSettlementDate(o);
+      return (esd&&esd.slice(0,7)===mk)?s+(o.balance_due||0):s;
+    },0)
+  );
+  const budgetVND=months.map(mk=>{
+    const b=monthlyBudgets[mk];
+    return b?(parseFloat(b.budget_ops||0)+parseFloat(b.budget_invest||0)):0;
+  });
+  const profitVND=incomingUSD.map((inc,i)=>inc*(CFG.rate||25000)-budgetVND[i]);
+  return{months,incomingUSD,budgetVND,profitVND};
+}
+
+function renderCashFlowForecast(){
+  const fc=calcCashFlowForecast();
+  const labels=fc.months.map(mk=>{const[y,m]=mk.split('-');return`T${parseInt(m)}/${y}`;});
+  setTxt('cf-m0-label',labels[0]);setTxt('cf-m1-label',labels[1]);setTxt('cf-m2-label',labels[2]);
+  const rows=[
+    {label:'💰 Dự kiến thu vào (USD)',vals:fc.incomingUSD.map(v=>fmtUSD(v)),color:'var(--green2)'},
+    {label:'📋 Chi phí kế hoạch (VNĐ)',vals:fc.budgetVND.map(v=>fmtVND(v)),color:'var(--red2)'},
+  ];
+  let html=rows.map(r=>`<tr><td style="font-size:12px;color:var(--text);">${r.label}</td>${r.vals.map(v=>`<td class="num" style="color:${r.color};font-size:12px;">${v}</td>`).join('')}</tr>`).join('');
+  html+=`<tr class="tf"><td style="font-weight:700;">Lợi nhuận dự kiến (VNĐ)</td>${fc.profitVND.map(v=>`<td class="num" style="font-weight:700;color:${v>=0?'var(--green2)':'var(--red2)'};">${fmtVND(v)}</td>`).join('')}</tr>`;
+  setHTML('cashflow-body',html);
+}
+
+function calcAgingCohort(){
+  const buckets={b1:0,b2:0,b3:0,b4:0}; // <30, 30-60, 60-90, >90
+  allPendingGlobal.forEach(o=>{
+    const days=agingDays(o.order_date);
+    const bal=o.balance_due||0;
+    if(days<30)buckets.b1+=bal;
+    else if(days<60)buckets.b2+=bal;
+    else if(days<90)buckets.b3+=bal;
+    else buckets.b4+=bal;
+  });
+  return buckets;
+}
+
+function renderAgingCohort(){
+  const b=calcAgingCohort();
+  const total=b.b1+b.b2+b.b3+b.b4;
+  const rows=[
+    {label:'< 30 ngày',val:b.b1,color:'var(--green2)',risk:'Rủi ro thấp'},
+    {label:'30 – 60 ngày',val:b.b2,color:'var(--blue2)',risk:'Theo dõi'},
+    {label:'60 – 90 ngày',val:b.b3,color:'var(--amber2)',risk:'Cần nhắc khách'},
+    {label:'> 90 ngày',val:b.b4,color:'var(--red2)',risk:'⚠️ Rủi ro mất'},
+  ];
+  setHTML('aging-cohort-rows',rows.map(r=>{
+    const pct=total>0?Math.round(r.val/total*100):0;
+    return`<div style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:12px;color:var(--text2);">${r.label} <span style="color:${r.color};font-size:10px;">· ${r.risk}</span></span>
+        <span style="font-size:13px;font-weight:700;color:${r.color};">${fmtUSD(r.val)}</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${r.color};"></div></div>
+    </div>`;
+  }).join('')+`<div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:2px;"><span style="font-size:13px;font-weight:700;color:var(--text);">Tổng công nợ</span><span style="font-size:14px;font-weight:700;color:var(--text);">${fmtUSD(total)}</span></div>`);
+}
+
+function renderLeadTimeInsight(){
+  const vendors=['BOLSA','ONS','TSPA'];
+  const overall=calcAvgLeadTimeOverall();
+  let html=vendors.map(v=>{
+    const avg=calcAvgLeadTimeByVendor(v);
+    return`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <span style="font-size:12px;color:var(--text2);">${v}</span>
+      <span style="font-size:13px;font-weight:600;color:${avg!=null?'var(--teal2)':'var(--text3)'};">${avg!=null?avg+' ngày':'Chưa đủ dữ liệu'}</span>
+    </div>`;
+  }).join('');
+  html+=`<div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:2px;"><span style="font-size:13px;font-weight:700;color:var(--text);">Trung bình chung</span><span style="font-size:14px;font-weight:700;color:var(--text);">${overall!=null?overall+' ngày':'Chưa đủ dữ liệu (cần tích lũy thêm)'}</span></div>`;
+  html+=`<div style="font-size:10px;color:var(--text3);margin-top:8px;">Dùng làm mặc định gợi ý "Ngày dự kiến tất toán" khi chưa nhập riêng. Fallback 75 ngày (~2.5 tháng) nếu chưa có dữ liệu.</div>`;
+  setHTML('leadtime-rows',html);
+}
+
 function renderFinance(){
   const revM=calcRevMonth(),exp=calcExpTotal(),sal=calcSalTotal();
   // BUG FIX: dùng calcCommission() thay vì gross_profit từ orders table
@@ -1965,6 +2102,11 @@ function renderFinance(){
   // Budget
   renderBudget(ops,inv,exp,net);
 
+  // Dự báo dòng tiền + Công nợ theo độ tuổi + Lead-time (không phụ thuộc kỳ báo cáo)
+  renderCashFlowForecast();
+  renderAgingCohort();
+  renderLeadTimeInsight();
+
   // Expense chart
   const cats={};
   allExpenses.forEach(e=>{cats[e.danh_muc]=(cats[e.danh_muc]||0)+(e.so_tien||0);});
@@ -1980,11 +2122,13 @@ function renderFinance(){
 }
 
 function renderBudget(ops,inv,total,profit){
+  const b=monthlyBudgets[fromKey()]||{};
+  const bOps=parseFloat(b.budget_ops)||0,bInv=parseFloat(b.budget_invest)||0,bProfit=parseFloat(b.target_profit)||0;
   const rows=[
-    {label:'Vận hành',actual:ops,budget:BUDGET.ops,color:'var(--red2)'},
-    {label:'Đầu tư',actual:inv,budget:BUDGET.inv,color:'var(--amber2)'},
-    {label:'Tổng chi phí',actual:total,budget:BUDGET.total,color:'var(--blue2)'},
-    {label:'Lợi nhuận mục tiêu',actual:profit,budget:BUDGET.profit,color:'var(--green2)',invert:true},
+    {label:'Vận hành',actual:ops,budget:bOps,color:'var(--red2)'},
+    {label:'Đầu tư',actual:inv,budget:bInv,color:'var(--amber2)'},
+    {label:'Tổng chi phí',actual:total,budget:bOps+bInv,color:'var(--blue2)'},
+    {label:'Lợi nhuận mục tiêu',actual:profit,budget:bProfit,color:'var(--green2)',invert:true},
   ];
   setHTML('budget-rows',rows.map(r=>{
     const hasBudget=r.budget>0;
@@ -2041,15 +2185,46 @@ async function delExpense(id){
   catch(e){toast('Lỗi: '+e.message,'red');}
 }
 
-function saveBudget(){
-  BUDGET={ops:parseFloat(document.getElementById('b-ops').value)||0,inv:parseFloat(document.getElementById('b-inv').value)||0,total:parseFloat(document.getElementById('b-total').value)||0,profit:parseFloat(document.getElementById('b-profit').value)||0};
-  localStorage.setItem('cslian_budget',JSON.stringify(BUDGET));
-  closeModal('m-budget');toast('Đã lưu ngân sách','green');renderFinance();
+async function saveBudget(){
+  const thang=document.getElementById('b-month').value;
+  const data={
+    thang,
+    budget_ops:parseFloat(document.getElementById('b-ops').value)||0,
+    budget_invest:parseFloat(document.getElementById('b-inv').value)||0,
+    target_profit:parseFloat(document.getElementById('b-profit').value)||0,
+  };
+  try{
+    await fetch(`${CFG.url}/rest/v1/monthly_budget?on_conflict=thang`,{
+      method:'POST',
+      headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify(data)
+    });
+    monthlyBudgets[thang]=data;
+    closeModal('m-budget');toast('Đã lưu ngân sách '+thang,'green');
+    renderFinance();
+  }catch(e){
+    toast('Lỗi lưu ngân sách: '+e.message,'red');
+  }
 }
 function openBudgetModal(){
-  document.getElementById('b-ops').value=BUDGET.ops||'';document.getElementById('b-inv').value=BUDGET.inv||'';
-  document.getElementById('b-total').value=BUDGET.total||'';document.getElementById('b-profit').value=BUDGET.profit||'';
+  // Dropdown: tháng đang xem + 2 tháng kế tiếp (khớp với Dự báo dòng tiền)
+  const now=new Date();
+  const opts=[fromKey(),...[0,1,2].map(off=>{
+    const d=new Date(now.getFullYear(),now.getMonth()+off,1);
+    return mkKey(d.getFullYear(),d.getMonth()+1);
+  })];
+  const uniqueMonths=[...new Set(opts)];
+  const sel=document.getElementById('b-month');
+  sel.innerHTML=uniqueMonths.map(m=>`<option value="${m}">${m}</option>`).join('');
+  sel.onchange=()=>fillBudgetFields(sel.value);
+  fillBudgetFields(uniqueMonths[0]);
   openModal('m-budget');
+}
+function fillBudgetFields(thang){
+  const b=monthlyBudgets[thang]||{};
+  document.getElementById('b-ops').value=b.budget_ops||'';
+  document.getElementById('b-inv').value=b.budget_invest||'';
+  document.getElementById('b-profit').value=b.target_profit||'';
 }
 
 // ─── HR ───
@@ -2421,6 +2596,36 @@ async function saveProduct(){
 }
 let _odCurrentOrderId=null;
 
+// Lead-time trung bình (ngày từ tạo đơn → tất toán) theo vendor — dựa trên dữ liệu settled_date đã có
+function calcAvgLeadTimeByVendor(vendor){
+  const orderIds=new Set(
+    leadTimeItems.filter(it=>(it.vendor||'').toUpperCase()===vendor.toUpperCase()).map(it=>it.order_id)
+  );
+  const days=leadTimeOrders
+    .filter(o=>orderIds.has(o.id)&&o.order_date&&o.settled_date)
+    .map(o=>Math.round((new Date(o.settled_date)-new Date(o.order_date))/86400000))
+    .filter(d=>d>=0);
+  if(!days.length)return null;
+  return Math.round(days.reduce((s,d)=>s+d,0)/days.length);
+}
+function calcAvgLeadTimeOverall(){
+  const days=leadTimeOrders
+    .filter(o=>o.order_date&&o.settled_date)
+    .map(o=>Math.round((new Date(o.settled_date)-new Date(o.order_date))/86400000))
+    .filter(d=>d>=0);
+  if(!days.length)return null;
+  return Math.round(days.reduce((s,d)=>s+d,0)/days.length);
+}
+// Gợi ý ngày dự kiến tất toán mặc định — dùng lead-time lịch sử nếu có, fallback 75 ngày (~2.5 tháng)
+function suggestSettlementDate(order,items){
+  if(!order.order_date)return '';
+  const vendorOfOrder=(items&&items.length)?(items[0].vendor||'BOLSA'):'BOLSA';
+  const avg=calcAvgLeadTimeByVendor(vendorOfOrder)||calcAvgLeadTimeOverall()||75;
+  const d=new Date(order.order_date);
+  d.setDate(d.getDate()+avg);
+  return d.toISOString().slice(0,10);
+}
+
 function viewOrderDetail(orderId){
   const o=allOrders.find(x=>String(x.id)===String(orderId));
   if(!o){toast('Không tìm thấy đơn hàng','red');return;}
@@ -2442,6 +2647,13 @@ function viewOrderDetail(orderId){
   `);
   document.getElementById('od-settled').checked=!!o.is_settled;
   document.getElementById('od-balance').value=o.balance_due!=null?o.balance_due:'';
+  if(o.expected_settlement_date){
+    document.getElementById('od-esd').value=o.expected_settlement_date;
+    setTxt('od-esd-label','Ngày dự kiến tất toán (đã lưu)');
+  }else{
+    document.getElementById('od-esd').value=suggestSettlementDate(o,items);
+    setTxt('od-esd-label','Ngày dự kiến tất toán (gợi ý — chưa lưu)');
+  }
 
   const empty=document.getElementById('od-empty');
   if(!items.length){
@@ -2583,10 +2795,17 @@ async function saveOrderMeta(){
   if(_odCurrentOrderId==null)return;
   const is_settled=document.getElementById('od-settled').checked;
   const balance_due=parseFloat(document.getElementById('od-balance').value)||0;
+  const expected_settlement_date=document.getElementById('od-esd').value||null;
+  const data={is_settled,balance_due,expected_settlement_date};
+  // Auto-stamp ngày tất toán thực tế lần đầu được đánh dấu Đã tất toán (để tính lead-time lịch sử)
+  const cur=allOrders.find(x=>x.id===_odCurrentOrderId);
+  if(is_settled&&cur&&!cur.is_settled&&!cur.settled_date){
+    data.settled_date=today();
+  }
   try{
-    await sbPatch('orders',`id=eq.${_odCurrentOrderId}`,{is_settled,balance_due});
+    await sbPatch('orders',`id=eq.${_odCurrentOrderId}`,data);
     const idx=allOrders.findIndex(x=>x.id===_odCurrentOrderId);
-    if(idx>-1){allOrders[idx].is_settled=is_settled;allOrders[idx].balance_due=balance_due;}
+    if(idx>-1)allOrders[idx]={...allOrders[idx],...data};
     toast('Đã lưu trạng thái đơn','green');
     renderOrders();
   }catch(e){
