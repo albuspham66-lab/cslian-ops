@@ -1430,10 +1430,13 @@ function calcCommissionBreakdownPerItem(item){
   const vendor=(item.vendor||'').toLowerCase();
   const amount=parseFloat(item.amount)||0;
 
-  // ONS: chỉ có phần chênh lệch (70% × chenh_lech giá bán), không có rate riêng
+  // % bonus chênh lệch — mặc định 70%, có thể override riêng từng item (trường hợp đặc biệt)
+  const chenhRate=(item.chenh_lech_rate!=null&&item.chenh_lech_rate!=='')?parseFloat(item.chenh_lech_rate):0.70;
+
+  // ONS: chỉ có phần chênh lệch (mặc định 70% × chenh_lech giá bán), không có rate riêng
   if(vendor==='ons'){
     const chenhLech=parseFloat(item.chenh_lech)||0;
-    return {rateComm:0,chenhComm:0.70*chenhLech};
+    return {rateComm:0,chenhComm:chenhRate*chenhLech};
   }
 
   // BOLSA & TSPA
@@ -1449,8 +1452,8 @@ function calcCommissionBreakdownPerItem(item){
   // Chênh lệch = giá bán − vendor cost − shipping cost (không âm)
   const chenhLechVendor=Math.max(0,unitPrice-vendorCost-shippingCost)*qty;
 
-  // Rate% áp lên phần (amount − chênh lệch), 70% áp lên phần chênh lệch
-  return {rateComm:rate*(amount-chenhLechVendor),chenhComm:0.70*chenhLechVendor};
+  // Rate% áp lên phần (amount − chênh lệch), chenhRate% áp lên phần chênh lệch
+  return {rateComm:rate*(amount-chenhLechVendor),chenhComm:chenhRate*chenhLechVendor};
 }
 
 function calcCommissionPerItem(item){
