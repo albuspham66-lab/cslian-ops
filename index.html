@@ -18,6 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -540,7 +541,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
     <div id="page-orders" class="page-content">
       <div class="page-header">
-        <div><h2>Đơn hàng</h2><div class="page-sub">Import Excel tổng hợp đơn hàng tháng</div></div>
+        <div><h2>Đơn hàng</h2><div class="page-sub">Quản lý đơn hàng và bonus theo tháng</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div id="ord-emp-sel-wrap" style="display:none"><select id="ord-emp-sel" onchange="renderOrders()"></select></div>
           <div class="month-nav">
@@ -548,61 +549,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <span class="mlabel" id="ord-month-label"></span>
             <button class="mnbtn" onclick="changeMonthOrd(1)">›</button>
           </div>
-        </div>
-      </div>
-
-      <!-- EXCEL IMPORT ZONE -->
-      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('excel-input').click()"
-        ondragover="event.preventDefault();this.classList.add('drag')"
-        ondragleave="this.classList.remove('drag')"
-        ondrop="handleExcelDrop(event)">
-        <div class="uz-icon">📊</div>
-        <div class="uz-title">Import Excel tổng hợp đơn hàng</div>
-        <div class="uz-sub">File Excel format: No. | Date | PO Number | State | Nick Name | Agent | BOLSA | ONS | TSPA | Shipping | Total Amount | Headspa Qty | Bonus Headspa | 0.50% | 1% | Extra Bonus | Deposit | Balance | Month | Note | Truy Thu</div>
-      </div>
-      <input type="file" id="excel-input" accept=".xlsx,.xls" onchange="handleExcelUpload(event)"/>
-
-      <!-- EXCEL PREVIEW -->
-      <div id="excel-preview-wrap" style="display:none">
-        <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px;margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div style="font-size:15px;font-weight:700">📋 Preview dữ liệu Excel</div>
-            <div style="display:flex;gap:8px">
-              <button class="btn-sm" onclick="cancelExcel()">Huỷ</button>
-              <button class="btn-sm btn-success" onclick="saveExcelData()">💾 Import & Lưu</button>
-            </div>
-          </div>
-          <div id="excel-preview-table" style="overflow-x:auto"></div>
-          <div id="excel-summary" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px"></div>
-        </div>
-      </div>
-
-      <!-- INVOICE PREVIEW (hidden - kept for manual entry) -->
-      <div id="invoice-preview-wrap" style="display:none">
-        <div class="invoice-preview">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div style="font-size:15px;font-weight:700">📋 Xem lại thông tin đơn hàng</div>
-            <div style="display:flex;gap:8px">
-              <button class="btn-sm" onclick="cancelInvoice()">Huỷ</button>
-              <button class="btn-sm btn-success" onclick="saveInvoice()">💾 Lưu đơn hàng</button>
-            </div>
-          </div>
-          <div class="inv-header">
-            <div class="inv-field"><label>Mã đơn (PO Number)</label><input type="text" id="inv-ma-don"/></div>
-            <div class="inv-field"><label>Tên tiệm</label><input type="text" id="inv-ten-tiem"/></div>
-            <div class="inv-field"><label>Ngày đặt</label><input type="date" id="inv-date"/></div>
-          </div>
-          <div class="inv-items-title">Sản phẩm</div>
-          <div id="inv-items-list"></div>
-          <div id="inv-add-item" style="margin-top:8px">
-            <button class="btn-sm" onclick="addInvItem()">+ Thêm sản phẩm</button>
-          </div>
-          <div class="inv-total">
-            <div class="inv-total-item"><div class="tl">Subtotal</div><div class="tv" id="inv-subtotal-show">$0</div></div>
-            <div class="inv-total-item"><div class="tl">Tax</div><div class="tv" id="inv-tax-show" style="color:var(--text2)">$0</div></div>
-            <div class="inv-total-item"><div class="tl">Total (xét target)</div><div class="tv" id="inv-total-show">$0</div></div>
-            <div class="inv-total-item"><div class="tl">Bonus chênh lệch</div><div class="tv" style="color:var(--warn)" id="inv-bonus-show">$0</div></div>
-          </div>
+          <button class="btn-sm btn-primary" onclick="exportOrdersExcel()">📊 Xuất Excel</button>
         </div>
       </div>
 
@@ -1257,7 +1204,7 @@ let curMonth=new Date().getMonth(),curYear=new Date().getFullYear();
 let ordMonth=new Date().getMonth(),ordYear=new Date().getFullYear();
 let kpiMonth=new Date().getMonth(),kpiYear=new Date().getFullYear();
 let salMonth=new Date().getMonth(),salYear=new Date().getFullYear();
-let editingDay=null,pendingInvoice=null;
+let editingDay=null;
 let _realtimeChannel=null;
 
 // ---- Daily tracking cache (TTL 30s, invalidate on write) ----
@@ -1812,600 +1759,120 @@ async function deleteDay(){
 }
 
 // ============================================================
-// PDF INVOICE PARSING
+// XUẤT EXCEL — đơn hàng theo tháng đang xem, format sẵn (màu, border, font, freeze header)
 // ============================================================
-function handleDrop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')parsePDF(f);}
-function handlePDFUpload(e){const f=e.target.files[0];if(f)parsePDF(f);e.target.value='';}
+async function exportOrdersExcel(){
+  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const empId=isMgr?(document.getElementById('ord-emp-sel')?.value||null):curProfile.id;
+  const thang=monthStr(ordYear,ordMonth);
 
-async function parsePDF(file){
-  document.getElementById('upload-zone').innerHTML=`<div class="spinner" style="margin:0 auto"></div><div style="margin-top:12px;font-size:13px;color:var(--text2)">Đang đọc PDF...</div>`;
-  try{
-    const ab=await file.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:ab}).promise;
-    let fullText='';
-    for(let i=1;i<=pdf.numPages;i++){
-      const page=await pdf.getPage(i);
-      const tc=await page.getTextContent();
-      fullText+=tc.items.map(it=>it.str).join(' ')+'\n';
-    }
-    extractInvoiceData(fullText);
-  }catch(e){
-    toast('Không đọc được PDF: '+e.message,'error');
-    resetUploadZone();
-  }
-}
+  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).order('order_date',{ascending:false});
+  if(!isMgr)query=query.eq('user_id',curProfile.id);
+  else if(empId)query=query.eq('user_id',empId);
+  const {data:orders}=await query;
+  const list=orders||[];
+  if(!list.length){toast('Không có đơn hàng để xuất','error');return;}
 
-function extractInvoiceData(text){
-  console.log('PDF sample:',text.slice(0,400));
-  var i,m,poM,custM,dateM;
-
-  // PO Number
-  poM=text.match(/PO NUMBER\s+([A-Z0-9-]+)/i)
-    ||text.match(/(INVC[0-9]+-[0-9]+)/i)
-    ||text.match(/INVC([A-Z0-9-]+)/i);
-  var maDon=poM?(poM[1]||poM[0]).trim():'';
-
-  // Customer name
-  custM=text.match(/Customer Name[:\s]+([A-Za-z][A-Za-z\.]{1,30})/i)
-    ||text.match(/BILL\s+TO\s+(?:Ms\.?|Mr\.?|Mrs\.?)?\s*([A-Za-z][A-Za-z\.\s]{1,25})(?:\s+Business|\s+Phone|\s+Customer|\n)/i);
-  var tenTiem='';
-
-  // Date 2026-05-15
-  dateM=text.match(/(20[0-9][0-9]-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01]))/);
-  var orderDate=dateM?dateM[1]:new Date().toISOString().slice(0,10);
-
-  // Items
-  var items=[];
-  var SKIP=/^(IMAGE|DESCRIPTION|QTY|UNIT|PRICE|DISCOUNT|AMOUNT|Subtotal|Tax|Extra|Total|Deposit|Balance|BolsaBeauty|Thank|Includes|Order|All|Return|If|any|balance|DATE|PO|SALE|CUSTOMER|REQUESTED|LOCATION|BILL)/i;
-
-  // Pattern: ProductName qty $unit $discount $amount
-  var re1=/([A-Za-z][A-Za-z0-9 _\-.]{3,55})\s+([0-9]{1,3})\s+\$\s*([0-9,]+\.[0-9]{2})\s+\$\s*[0-9,]+\.[0-9]{2}\s+\$\s*([0-9,]+\.[0-9]{2})/g;
-  while((m=re1.exec(text))!==null){
-    var name1=m[1].trim().replace(/\s+/g,' ');
-    if(SKIP.test(name1)||name1.length<4)continue;
-    var q1=parseInt(m[2]),u1=parseFloat(m[3].replace(/,/g,'')),a1=parseFloat(m[4].replace(/,/g,''));
-    if(u1>10&&q1>=1)items.push({tenSP:name1,qty:q1,unitPrice:u1,amount:a1,giaGoc:0});
+  const orderIds=list.map(o=>o.id);
+  let soGiuongMap={};
+  if(orderIds.length){
+    const {data:headspaItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',orderIds).eq('la_bolsa',true);
+    (headspaItems||[]).forEach(it=>{soGiuongMap[it.order_id]=(soGiuongMap[it.order_id]||0)+(it.so_luong||0);});
   }
 
-  // Fallback simpler pattern
-  if(items.length===0){
-    var re2=/([A-Za-z][A-Za-z0-9 _\-.]{4,50})\s+([0-9]{1,2})\s+\$\s*([0-9,]+\.[0-9]{2})/g;
-    while((m=re2.exec(text))!==null){
-      var name2=m[1].trim().replace(/\s+/g,' ');
-      if(SKIP.test(name2)||name2.length<4)continue;
-      var q2=parseInt(m[2]),u2=parseFloat(m[3].replace(/,/g,''));
-      if(u2>10)items.push({tenSP:name2,qty:q2,unitPrice:u2,amount:q2*u2,giaGoc:0});
-    }
-  }
+  const wb=new ExcelJS.Workbook();
+  wb.creator='C-Slian Ops';
+  wb.created=new Date();
+  const ws=wb.addWorksheet('Đơn hàng '+thang,{views:[{state:'frozen',ySplit:1}]});
 
-  // Auto-match giá gốc từ DB — nếu không match thì giaGoc = unitPrice (tránh bonus sai)
-  items.forEach(function(item){
-    var it=(item.tenSP||'').toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
-    var prod=allProducts.find(function(p){
-      if(!p.name)return false;
-      var pn=p.name.toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
-      return pn===it||(it.length>=6&&pn.includes(it.slice(0,10)))||(pn.length>=6&&it.includes(pn.slice(0,10)));
-    });
-    if(prod){
-      item.giaGoc=prod.gia_ban||0;
-      item.productId=prod.id;
-      item.vendor=prod.vendor;
-      item.matched=true;
-    } else {
-      item.giaGoc=item.unitPrice||0; // Không match → không có chênh lệch
-      item.matched=false;
-    }
-  });
-
-  // Totals
-  function numOf(re){var x=text.match(re);return x?parseFloat(x[1].replace(/,/g,'')):0;}
-  var subtotal=numOf(/Subtotal\s+\$\s*([0-9,]+\.[0-9]{2})/i)||items.reduce(function(s,it){return s+it.amount;},0);
-  var tax=numOf(/\bTax\s+\$\s*([0-9,]+\.[0-9]{2})/i);
-  var finalTotal=numOf(/\$\s*([0-9,]+\.[0-9]{2})\s*(?:Deposit|Balance)/i)||subtotal+tax;
-
-  console.log('Result:',maDon,tenTiem,orderDate,items.length+'items',subtotal,tax,finalTotal);
-  pendingInvoice={maDon:maDon,tenTiem:tenTiem,orderDate:orderDate,saleRep:'',
-    items:items,subtotal:subtotal,tax:tax,total:finalTotal};
-  renderInvoicePreview();
-}
-function renderInvoicePreview(){
-  const inv=pendingInvoice;
-  document.getElementById('inv-ma-don').value=inv.maDon;
-  document.getElementById('inv-ten-tiem').value=inv.tenTiem;
-  document.getElementById('inv-date').value=inv.orderDate;
-
-  // Column headers
-  const itemsList=document.getElementById('inv-items-list');
-
-  // Header row
-  const headerHtml=`<div style="display:grid;grid-template-columns:2fr 70px 110px 110px 90px;gap:8px;padding:4px 8px;margin-bottom:4px">
-    <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Tên sản phẩm</div>
-    <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">SL</div>
-    <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Giá bán ($)</div>
-    <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Giá gốc ($)</div>
-    <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Bonus CL</div>
-  </div>`;
-
-  const itemsHtml=inv.items.length===0
-    ?`<div style="font-size:12px;color:var(--text2);padding:12px;text-align:center;background:var(--bg4);border-radius:8px">⚠️ PDF không extract được sản phẩm — nhập thủ công bên dưới</div>`
-    :inv.items.map((item,i)=>{
-      // giaGoc đã được set trong extractInvoiceData, dùng trực tiếp
-      const giaGoc=item.giaGoc!==undefined?item.giaGoc:(item.unitPrice||0);
-      const matched=item.matched!==false;
-      const chenh=(item.unitPrice||0)-giaGoc;
-      const bonusCL=chenh>0?chenh*0.3*(item.qty||1):0;
-      return `<div class="inv-item-row" id="item-row-${i}" style="grid-template-columns:2fr 70px 110px 110px 90px">
-        <div style="position:relative">
-          <input type="text" value="${item.tenSP||''}"
-            oninput="showProductSuggest(${i},this.value)"
-            onchange="updateInvItem(${i},'tenSP',this.value)"
-            placeholder="Nhập tên sản phẩm..."
-            style="width:100%"/>
-          <div id="suggest-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:var(--shadow)"></div>
-        </div>
-        <input type="number" value="${item.qty||1}" min="1"
-          onchange="updateInvItem(${i},'qty',parseFloat(this.value));updateInvTotals()"
-          placeholder="1"/>
-        <input type="number" value="${item.unitPrice||0}" step="0.01"
-          onchange="updateInvItem(${i},'unitPrice',parseFloat(this.value));updateInvTotals()"
-          placeholder="0.00"/>
-        <input type="number" value="${giaGoc}" step="0.01"
-          onchange="updateInvItem(${i},'giaGoc',parseFloat(this.value));updateInvTotals()"
-          placeholder="0.00" style="color:var(--text2)"
-          title="Giá gốc công ty — tự động từ bảng giá"/>
-        <div style="font-size:11px;padding:6px 4px;text-align:center">
-          <div style="color:${bonusCL>0?'var(--warn)':'var(--text3)'}">${bonusCL>0?'+'+usd(bonusCL):'—'}</div>
-          <div style="font-size:10px;color:var(--text3)">30% CL</div>
-          ${!matched?'<div style="font-size:9px;color:var(--warn);margin-top:2px">⚠️ Chưa match SP</div>':''}
-        </div>
-      </div>`;
-    }).join('');
-
-  itemsList.innerHTML=headerHtml+itemsHtml;
-  updateInvTotals();
-  document.getElementById('invoice-preview-wrap').style.display='block';
-  document.getElementById('upload-zone').style.display='none';
-}
-
-function showProductSuggest(idx,query){
-  const box=document.getElementById('suggest-'+idx);
-  if(!query||query.length<2){box.style.display='none';return;}
-  const results=searchProducts(query);
-  if(results.length===0){box.style.display='none';return;}
-  box.style.display='block';
-  box.innerHTML=results.map(p=>`
-    <div onclick="selectProduct(${idx},'${p.name.replace(/'/g,"\'")}',${p.sale_price||0})"
-      style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px"
-      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <div>
-        <div style="font-weight:500">${p.name}</div>
-        <div style="font-size:10px;color:var(--text2)">${p.sku} · <span class="pill pill-${(p.vendor||'').toLowerCase()}">${p.vendor||''}</span></div>
-      </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--success);white-space:nowrap">${usd(p.sale_price||0)}</div>
-    </div>`).join('');
-}
-
-function selectProduct(idx,tenSP,giaGoc){
-  if(!pendingInvoice||!pendingInvoice.items[idx])return;
-  pendingInvoice.items[idx].tenSP=tenSP;
-  pendingInvoice.items[idx].giaGoc=giaGoc;
-  // Find product for vendor info
-  const prod=allProducts.find(p=>p.name===tenSP);
-  if(prod)pendingInvoice.items[idx].vendor=prod.vendor;
-  document.getElementById('suggest-'+idx).style.display='none';
-  renderInvoicePreview();
-}
-
-function updateInvItem(i,field,val){
-  if(pendingInvoice.items[i])pendingInvoice.items[i][field]=val;
-  updateInvTotals();
-}
-
-function addInvItem(){
-  if(!pendingInvoice)return;
-  pendingInvoice.items.push({tenSP:'',qty:1,unitPrice:0,amount:0,giaGoc:0,vendor:null});
-  renderInvoicePreview();
-}
-
-function updateInvTotals(){
-  if(!pendingInvoice)return;
-  var sub=0,bonusTotal=0;
-  pendingInvoice.items.forEach(function(item){
-    var qty=item.qty||1;
-    var unitPrice=item.unitPrice||0;
-    var amt=qty*unitPrice;
-    sub+=amt;
-    var giaGoc=item.giaGoc||0;
-    var chenh=unitPrice-giaGoc;
-    if(chenh>0)bonusTotal+=chenh*0.3*qty;
-  });
-  // Total = Subtotal + Tax - Extra Discount (dùng xét target)
-  var tax=pendingInvoice.tax||0;
-  var extraDiscount=pendingInvoice.extra_discount||0;
-  var total=sub+tax-extraDiscount;
-  pendingInvoice.subtotal=sub;
-  pendingInvoice.total=total;
-  pendingInvoice.bonus_chenh_lech=bonusTotal;
-  document.getElementById('inv-subtotal-show').textContent=usd(sub);
-  document.getElementById('inv-tax-show').textContent=usd(tax);
-  document.getElementById('inv-total-show').textContent=usd(total);
-  document.getElementById('inv-bonus-show').textContent=usd(bonusTotal);
-}
-
-async function saveInvoice(){
-  if(!pendingInvoice)return;
-  const inv=pendingInvoice;
-  const maDon=document.getElementById('inv-ma-don').value.trim();
-  const tenTiem=document.getElementById('inv-ten-tiem').value.trim();
-  const orderDate=document.getElementById('inv-date').value;
-  if(!maDon||!tenTiem){toast('Vui lòng điền đầy đủ Mã đơn và Tên tiệm','error');return;}
-
-  const thang=orderDate.slice(0,7);
-
-  // Calculate vendor totals
-  let dtBolsa=0,dtOns=0,dtTspa=0,soGiuong=0;
-  inv.items.forEach(item=>{
-    const prod=allProducts.find(p=>p.name&&item.tenSP&&p.name.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
-    const amt=(item.qty||1)*(item.unitPrice||0);
-    const vendor=prod?prod.vendor:(item.tenSP||'').includes('Headspa')||item.tenSP.includes('Bed')?'BOLSA':'TSPA';
-    if(vendor==='BOLSA'){dtBolsa+=amt;if(prod&&prod.la_bolsa)soGiuong+=(item.qty||1);}
-    else if(vendor==='ONS')dtOns+=amt;
-    else dtTspa+=amt;
-  });
-
-  // Total = subtotal + tax - extra_discount
-  var finalTotal=inv.total||(inv.subtotal+(inv.tax||0)-(inv.extra_discount||0));
-  const {data:order,error}=await sb.from('orders').insert({
-    invoice_no:maDon,shop_name:tenTiem,user_id:curProfile.id,
-    order_date:orderDate,billing_month:thang,
-    total_amount:finalTotal,
-    balance_due:finalTotal,
-    is_settled:false,
-    revenue_bolsa:dtBolsa,revenue_ons:dtOns,revenue_tspa:dtTspa
-  }).select().single();
-
-  if(error){toast('Lỗi lưu đơn: '+error.message,'error');return;}
-
-  // Save order items
-  const itemsToSave=inv.items.filter(i=>i.tenSP&&i.unitPrice>0).map(item=>{
-    const prod=allProducts.find(p=>p.name&&p.name.toLowerCase().includes((item.tenSP||'').toLowerCase().slice(0,8)));
-    const giaGoc=item.giaGoc||prod?.gia_ban||0;
-    const chenh=Math.max(0,(item.unitPrice||0)-giaGoc);
-    return{order_id:order.id,product_id:prod?.id||null,ten_sp_invoice:item.tenSP,so_luong:item.qty||1,
-      gia_ban_goc:giaGoc,gia_ban_thuc:item.unitPrice||0,amount:(item.qty||1)*(item.unitPrice||0),
-      chenh_lech:chenh,bonus_chenh_lech:chenh*0.3*(item.qty||1),
-      vendor:prod?.vendor||null,la_bolsa:prod?.la_bolsa||false};
-  });
-  if(itemsToSave.length>0)await sb.from('order_items').insert(itemsToSave);
-
-  toast('Đã lưu đơn hàng '+maDon);
-  cancelInvoice();renderOrders();
-}
-
-function cancelInvoice(){
-  pendingInvoice=null;
-  document.getElementById('invoice-preview-wrap').style.display='none';
-  resetUploadZone();
-}
-
-function resetUploadZone(){
-  const uz=document.getElementById('upload-zone');
-  uz.style.display='block';
-  uz.innerHTML=`<div class="uz-icon">📄</div><div class="uz-title">Upload PDF Invoice</div><div class="uz-sub">Click hoặc kéo thả file PDF vào đây</div>`;
-}
-
-
-// ============================================================
-// EXCEL IMPORT — Sum of Orders
-// ============================================================
-var pendingExcelData=[];
-
-function handleExcelDrop(e){
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag');
-  var f=e.dataTransfer.files[0];
-  if(f)parseExcel(f);
-}
-
-function handleExcelUpload(e){
-  var f=e.target.files[0];
-  if(f)parseExcel(f);
-  e.target.value='';
-}
-
-function parseExcel(file){
-  var uz=document.getElementById('upload-zone');
-  uz.innerHTML='<div class="spinner" style="margin:0 auto"></div><div style="margin-top:12px;font-size:13px;color:var(--text2)">Đang đọc Excel...</div>';
-  var reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      var data=new Uint8Array(e.target.result);
-      // cellDates:false để đọc date dạng string, raw:false để parse numbers
-      var wb=XLSX.read(data,{type:'array',cellDates:false,raw:false});
-      var sheetName=wb.SheetNames[0];
-      var ws=wb.Sheets[sheetName];
-      // header:1 để lấy array of arrays, sau đó tự map
-      var arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      if(!arr||arr.length<2){toast('File Excel không có dữ liệu','error');resetUploadZone();return;}
-      
-      // Row 0 là header
-      var headers=arr[0].map(function(h){return String(h).trim();});
-      console.log('Headers found:',headers);
-      
-      // Map rows to objects
-      var rows=[];
-      for(var i=1;i<arr.length;i++){
-        var row=arr[i];
-        // Skip empty rows
-        if(!row||row.every(function(c){return c===''||c===null||c===undefined;}))continue;
-        var obj={};
-        headers.forEach(function(h,idx){
-          obj[h]=row[idx]!==undefined?row[idx]:'';
-        });
-        rows.push(obj);
-      }
-      console.log('Headers:',headers);
-      console.log('Row 0 raw:',arr[1]);
-      console.log('Parsed row 0:',rows[0]);
-      // Log agent field specifically
-      if(rows[0]){
-        console.log('Agent value:',JSON.stringify(rows[0]['Agent']));
-        console.log('Agent charCodes:',[...((rows[0]['Agent']||'')+'')].map(function(c){return c.charCodeAt(0);}));
-      }
-      pendingExcelData=rows;
-      renderExcelPreview(rows);
-    }catch(err){
-      console.error(err);
-      toast('Lỗi đọc Excel: '+err.message,'error');
-      resetUploadZone();
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function getCol(row,candidates){
-  for(var i=0;i<candidates.length;i++){
-    var k=candidates[i];
-    if(row[k]!==undefined&&row[k]!==''&&row[k]!==null)
-      return row[k];
-    // Try trimmed key match
-    var keys=Object.keys(row);
-    for(var j=0;j<keys.length;j++){
-      if(keys[j].trim().toLowerCase()===k.trim().toLowerCase()&&
-         row[keys[j]]!==undefined&&row[keys[j]]!==''&&row[keys[j]]!==null)
-        return row[keys[j]];
-    }
-  }
-  return '';
-}
-
-function parseNum(val){
-  if(val===''||val===null||val===undefined)return 0;
-  if(typeof val==='number')return val;
-  return parseFloat(String(val).replace(/[$,\s]/g,''))||0;
-}
-
-function parseUSD(val){
-  return parseNum(val);
-}
-
-function parseDate(val){
-  if(!val)return '';
-  if(val instanceof Date)return val.toISOString().slice(0,10);
-  var s=String(val).trim();
-  // DD/MM/YYYY
-  var m=s.match(/^([0-9]{1,2})[\/\-]([0-9]{1,2})[\/\-]([0-9]{4})$/);
-  if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
-  // YYYY-MM-DD
-  if(s.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}/))return s.slice(0,10);
-  return s.slice(0,10);
-}
-
-function parseMonth(val){
-  // Returns YYYY-MM
-  if(!val)return '';
-  if(val instanceof Date){
-    var y=val.getFullYear(),m=val.getMonth()+1;
-    return y+'-'+(m<10?'0':'')+m;
-  }
-  var s=String(val).trim();
-  // DD/MM/YYYY or MM/YYYY
-  var m1=s.match(/^([0-9]{1,2})[\/\-]([0-9]{1,2})[\/\-]([0-9]{4})$/);
-  if(m1)return m1[3]+'-'+m1[2].padStart(2,'0');
-  var m2=s.match(/^([0-9]{1,2})[\/\-]([0-9]{4})$/);
-  if(m2)return m2[2]+'-'+m2[1].padStart(2,'0');
-  if(s.match(/^[0-9]{4}-[0-9]{2}/))return s.slice(0,7);
-  return '';
-}
-
-function renderExcelPreview(rows){
-  if(!rows||rows.length===0){
-    toast('File Excel không có dữ liệu','error');
-    resetUploadZone();
-    return;
-  }
-
-  // Summary
-  var totalAmt=0,totalBonus=0,totalTruyThu=0,countDone=0;
-  rows.forEach(function(r){
-    var bal=parseNum(getCol(r,['Balance']));
-    totalAmt+=parseNum(getCol(r,['Total Amount']));
-    totalBonus+=parseNum(getCol(r,['Bonus Headspa']))+
-      parseNum(getCol(r,['0.50%']))+parseNum(getCol(r,['1%']))+
-      parseNum(getCol(r,['Extra Bonus']));
-    totalTruyThu+=parseNum(getCol(r,['Truy Thu']));
-    if(bal===0)countDone++;
-  });
-
-  var summary=document.getElementById('excel-summary');
-  summary.innerHTML='<div class="stat-card"><div class="stat-label">📦 Tổng đơn hàng</div><div class="stat-val" style="color:var(--accent)">'+rows.length+'</div><div class="stat-sub">'+countDone+' đã tất toán</div></div>'+
-    '<div class="stat-card"><div class="stat-label">💵 Tổng doanh số</div><div class="stat-val" style="color:var(--success);font-size:18px">$'+totalAmt.toLocaleString('en-US',{maximumFractionDigits:0})+'</div><div class="stat-sub">Target: $23,500</div></div>'+
-    '<div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:'+(totalAmt>=23500?'var(--success)':'var(--warn)')+'">'+Math.round(totalAmt/23500*100)+'%</div><div class="stat-sub">'+(totalAmt>=23500?'✅ Đạt':'❌ Chưa đạt')+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">$'+totalBonus.toLocaleString('en-US',{maximumFractionDigits:0})+'</div><div class="stat-sub">Truy thu: $'+totalTruyThu.toFixed(0)+'</div></div>';
-
-  // Table
-    // Table - compact scrollable
-  var colDefs=[
-    {k:'No.',w:'36px'},{k:'Date',w:'85px'},{k:'PO Number',w:'120px'},
-    {k:'Nick Name',w:'85px'},{k:'Agent',w:'130px'},
-    {k:'BOLSA',w:'65px'},{k:'ONS',w:'65px'},{k:'TSPA',w:'65px'},
-    {k:'Total Amount',w:'95px'},{k:'Headspa Qty',w:'55px'},
-    {k:'Bonus Headspa',w:'80px'},{k:'0.50%',w:'55px'},{k:'1%',w:'55px'},
-    {k:'Extra Bonus',w:'80px'},{k:'Balance',w:'80px'},
-    {k:'Month',w:'85px'},{k:'Truy Thu',w:'70px'}
+  const cols=[
+    {header:'Mã đơn',key:'invoice_no',width:18},
+    {header:'Tiệm nail',key:'shop_name',width:26},
+    {header:'Sale',key:'sale_name',width:20},
+    {header:'Ngày đơn',key:'order_date',width:13},
+    {header:'Tháng Bonus',key:'billing_month',width:13},
+    {header:'Doanh số ($)',key:'total_amount',width:14},
+    {header:'Bonus chênh lệch ($)',key:'bonus_chenh_lech',width:18},
+    {header:'Bonus giường ($)',key:'bonus_giuong',width:16},
+    {header:'Truy thu ($)',key:'truy_thu_usd',width:13},
+    {header:'Balance ($)',key:'balance_due',width:13},
+    {header:'Trạng thái',key:'trang_thai',width:14},
   ];
-  var numCols=['BOLSA','ONS','TSPA','Total Amount','Headspa Qty','Bonus Headspa','0.50%','1%','Extra Bonus','Truy Thu'];
-  var html='<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);margin-bottom:12px">';
-  html+='<table style="border-collapse:collapse;font-size:11px;white-space:nowrap;width:100%">';
-  html+='<thead><tr>';
-  colDefs.forEach(function(c){
-    html+='<th style="background:var(--bg4);padding:7px 8px;text-align:'+(numCols.indexOf(c.k)>=0||c.k==='Balance'?'right':'left')+';border-bottom:1px solid var(--border2);color:var(--text2);font-weight:600;min-width:'+c.w+'">'+c.k+'</th>';
+  ws.columns=cols;
+
+  // Header style — màu nền tím thương hiệu, chữ trắng đậm, border đủ 4 cạnh
+  const headerRow=ws.getRow(1);
+  headerRow.height=26;
+  headerRow.eachCell(cell=>{
+    cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Calibri'};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF6D28D9'}};
+    cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+    cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
   });
-  html+='</tr></thead><tbody>';
-  rows.forEach(function(r,i){
-    var bal=parseNum(getCol(r,['Balance']));
-    var isTatToan=bal===0;
-    var rowBg=isTatToan?'rgba(34,199,122,0.05)':i%2===1?'rgba(255,255,255,0.015)':'';
-    html+='<tr style="background:'+rowBg+'">';
-    colDefs.forEach(function(col){
-      var c=col.k,val=r[c]!==undefined?r[c]:'';
-      var align=numCols.indexOf(c)>=0||c==='Balance'?'right':'left';
-      var style='padding:5px 8px;border-bottom:1px solid var(--border);text-align:'+align+';';
-      if(numCols.indexOf(c)>=0){
-        var n=parseNum(val);
-        style+='font-family:monospace;';
-        if(c==='Truy Thu'&&n>0){style+='color:var(--danger);';val='$'+n;}
-        else if(n>0){style+='color:var(--success);';val='$'+n.toLocaleString('en-US',{maximumFractionDigits:0});}
-        else val='—';
-      } else if(c==='Balance'){
-        var b=parseNum(val);
-        style+='font-family:monospace;font-weight:600;'+(b===0?'color:var(--success);':'color:var(--warn);');
-        val=b===0?'✅ Xong':'$'+b.toLocaleString('en-US',{maximumFractionDigits:0});
+
+  // Data rows
+  list.forEach((o,idx)=>{
+    const tatToan=o.is_settled||o.balance_due===0;
+    const bonusGiuong=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
+    const row=ws.addRow({
+      invoice_no:o.invoice_no||'',
+      shop_name:o.shop_name||'',
+      sale_name:o.profiles?.full_name||'',
+      order_date:o.order_date||'',
+      billing_month:o.billing_month||'',
+      total_amount:o.total_amount||0,
+      bonus_chenh_lech:o.bonus_chenh_lech||0,
+      bonus_giuong:bonusGiuong,
+      truy_thu_usd:o.truy_thu_usd||0,
+      balance_due:o.balance_due||0,
+      trang_thai:tatToan?'Tất toán':'Còn nợ',
+    });
+    row.height=20;
+    // Zebra striping nhẹ cho dễ đọc hàng dài
+    const isEven=idx%2===1;
+    row.eachCell((cell,colNum)=>{
+      cell.font={size:10.5,name:'Calibri'};
+      cell.border={top:{style:'thin',color:{argb:'FFE2E8F0'}},left:{style:'thin',color:{argb:'FFE2E8F0'}},bottom:{style:'thin',color:{argb:'FFE2E8F0'}},right:{style:'thin',color:{argb:'FFE2E8F0'}}};
+      if(isEven)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF8F7FC'}};
+      // Format tiền tệ cho các cột số
+      if([6,7,8,9,10].includes(colNum)){
+        cell.numFmt='$#,##0.00';
+        cell.alignment={horizontal:'right'};
       }
-      html+='<td style="'+style+'">'+val+'</td>';
+      if(colNum===11){
+        cell.alignment={horizontal:'center'};
+        cell.font={size:10.5,name:'Calibri',bold:true,color:{argb:tatToan?'FF15803D':'FFB45309'}};
+      }
     });
-    html+='</tr>';
   });
-  html+='</tbody></table></div>';
-  document.getElementById('excel-preview-table').innerHTML=html;
-  document.getElementById('excel-preview-wrap').style.display='block';
-  document.getElementById('upload-zone').style.display='none';
+
+  // Dòng tổng cuối bảng
+  const totalRow=ws.addRow({
+    shop_name:'TỔNG',
+    total_amount:list.reduce((s,o)=>s+(o.total_amount||0),0),
+    bonus_chenh_lech:list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0),
+    bonus_giuong:list.reduce((s,o)=>s+calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0),0),
+    truy_thu_usd:list.reduce((s,o)=>s+(o.truy_thu_usd||0),0),
+    balance_due:list.reduce((s,o)=>s+(o.balance_due||0),0),
+  });
+  totalRow.height=22;
+  totalRow.eachCell((cell,colNum)=>{
+    cell.font={bold:true,size:11,name:'Calibri'};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEDE9FE'}};
+    cell.border={top:{style:'double'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+    if([6,7,8,9,10].includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
+  });
+
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`DonHang_${thang}.xlsx`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Đã xuất file Excel');
 }
-
-async function saveExcelData(){
-  if(!pendingExcelData||pendingExcelData.length===0)return;
-  
-  // Reload profiles if not loaded yet
-  if(allProfiles.length===0){
-    console.log('saveExcelData: allProfiles empty, loading now...');
-    await loadAllProfiles();
-    // Wait a bit for data to settle
-    await new Promise(function(r){setTimeout(r,200);});
-    console.log('saveExcelData: after reload, allProfiles:',allProfiles.length);
-  }
-  
-  var rows=pendingExcelData;
-  var saved=0,errors=0;
-
-  for(var i=0;i<rows.length;i++){
-    var r=rows[i];
-    var agentName=String(getCol(r,['Agent'])||'').trim();
-    var poNum=String(getCol(r,['PO Number'])||'').trim();
-    var dateVal=parseDate(getCol(r,['Date']));
-    var monthVal=parseMonth(getCol(r,['Month']));
-    var balance=parseNum(getCol(r,['Balance']));
-    var bolsa=parseNum(getCol(r,['BOLSA']));
-    var ons=parseNum(getCol(r,['ONS']));
-    var tspa=parseNum(getCol(r,['TSPA']));
-    var shipping=parseNum(getCol(r,['Shipping']));
-    var totalAmt=parseNum(getCol(r,['Total Amount']));
-    var headspaQty=parseInt(parseNum(getCol(r,['Headspa Qty']))||0);
-    var bonusHeadspa=parseNum(getCol(r,['Bonus Headspa']));
-    var bonus05=parseNum(getCol(r,['0.50%']));
-    var bonus1=parseNum(getCol(r,['1%']));
-    var extraBonus=parseNum(getCol(r,['Extra Bonus']));
-    var truyThu=parseNum(getCol(r,['Truy Thu']));
-    var note=String(getCol(r,['Note'])||'').trim();
-    var nickName=String(getCol(r,['Nick Name'])||'').trim();
-    var state=String(getCol(r,['State'])||'').trim();
-
-    // Trim PO Number
-    poNum=poNum.trim();
-    if(!poNum||!agentName){console.warn('Skip row - missing PO or Agent:',r);continue;}
-
-    // Nếu Total Amount = 0, tính từ BOLSA+ONS+TSPA+Shipping
-    if(totalAmt===0)totalAmt=bolsa+ons+tspa+shipping;
-
-    // Map agent name to user_id — normalize unicode để tránh lỗi encoding
-    // Normalize to NFC then lowercase - handles Excel NFD vs DB NFC mismatch
-    function n(s){return (s||'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();}
-    var aN=n(agentName);
-    console.log('Matching agent norm:',aN,'from:',agentName);
-    var emp=allProfiles.find(function(p){
-      var pN=n(p.full_name), bN=n(p.nickname);
-      return pN===aN||bN===aN||pN.includes(aN)||aN.includes(pN)
-        ||(aN.length>=4&&pN.includes(aN.slice(0,5)))
-        ||(aN.length>=4&&bN.includes(aN));
-    });
-    if(!emp){
-      emp=allProfiles.find(function(p){
-        return n(p.employee_code)===aN||n(p.email).startsWith(aN);
-      });
-    }
-    if(!emp){
-      console.warn('Agent không tìm thấy:',agentName,'normalized:',aN);
-      console.warn('allProfiles count:',allProfiles.length);
-      console.warn('Available (normalized):',allProfiles.map(function(p){
-        return {raw:p.full_name, norm:n(p.full_name), codes:[...(p.full_name||'').normalize('NFC').toLowerCase()].map(function(c){return c.charCodeAt(0);})};
-      }));
-      errors++;
-      continue;
-    }
-
-    // Bonus chỉ tính khi Balance = 0
-    var totalBonus=balance===0?(bonusHeadspa+bonus05+bonus1+extraBonus-truyThu):0;
-    var thangDoanh=dateVal?dateVal.slice(0,7):'';
-    var thangBonus=balance===0?monthVal:null;
-
-    var orderData={
-      invoice_no:poNum,
-      shop_name:nickName||poNum,
-      user_id:emp.id,
-      order_date:dateVal||new Date().toISOString().slice(0,10),
-      billing_month:thangDoanh,
-      total_amount:totalAmt,
-      balance_due:Math.max(0,balance),
-      is_settled:balance===0,
-      revenue_bolsa:bolsa,
-      revenue_ons:ons,
-      revenue_tspa:tspa,
-      sale_rep_name:agentName||null
-    };
-
-    console.log('Saving order:',poNum,'for',agentName,'emp:',emp?emp.id:'NOT FOUND');
-    var res=await sb.from('orders').upsert(orderData,{onConflict:'invoice_no'});
-    if(res.error){
-      console.error('Error saving',poNum,':',res.error.message,res.error.details);
-      errors++;
-    } else saved++;
-  }
-
-  if(saved>0){
-    toast('✅ Đã import '+saved+' đơn hàng'+(errors>0?' | ⚠️ '+errors+' lỗi - xem Console':''));
-  } else {
-    toast('❌ Import thất bại - mở F12 xem Console để debug','error');
-  }
-  cancelExcel();
-  renderOrders();
-}
-
-function cancelExcel(){
-  pendingExcelData=[];
-  document.getElementById('excel-preview-wrap').style.display='none';
-  resetUploadZone();
-}
-
-
 
 // Bonus bậc giường Headspa Bed cho 1 đơn — dùng đúng công thức bậc thang
 // như trong calcSalaryForEmp, áp theo số giường CỦA RIÊNG đơn này.
@@ -2754,7 +2221,9 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
-  const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
+  const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_sale_usd||o.bonus_chenh_lech||0),0);
+  // Ưu tiên bonus_sale_usd (tách biệt theo sale_price, MỚI từ Edge Function v6).
+  // Fallback bonus_chenh_lech cho đơn cũ chưa có bonus_sale_usd để không mất dữ liệu.
   const datTarget=dtTotal>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
@@ -2920,7 +2389,7 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa Headspa Bed (${usd(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.ty_gia||TY_GIA))}</span></div>
       ${(sal.p3a_bolsa_other_usd>0)?`<div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa SP khác 1% (${usd(sal.p3a_bolsa_other_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_bolsa_other_usd*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">P3A — Bonus ONS/TSPA 1% (${usd(sal.p3a_ons_tspa_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_ons_tspa_usd*(sal.ty_gia||TY_GIA))}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Bonus chênh lệch giá (${usd(sal.p3a_chenh_lech_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_chenh_lech_usd*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Hoa hồng chênh lệch Sale 30% (${usd(sal.p3a_chenh_lech_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_chenh_lech_usd*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd)})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_vuot_target_usd*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
@@ -2979,7 +2448,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
         <tr><td class="label">P3C — KPI tháng (${sal.p3c_kpi>0?'≥70 điểm':'<70 điểm'})</td><td class="formula">P3C</td><td class="amount">${vndFmt(sal.p3c_kpi)}</td></tr>
         <tr><td class="label">P3A — Bonus Bolsa Headspa (${usdFmt(sal.p3a_bolsa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label">P3A — Bonus ONS/TSPA (${usdFmt(sal.p3a_ons_tspa_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_ons_tspa_usd||0)*(sal.ty_gia||25000))}</td></tr>
-        <tr><td class="label">P3A — Bonus chênh lệch giá (${usdFmt(sal.p3a_chenh_lech_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_chenh_lech_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Hoa hồng chênh lệch Sale 30% (${usdFmt(sal.p3a_chenh_lech_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_chenh_lech_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label">P3A — Thưởng vượt target (${usdFmt(sal.p3a_vuot_target_usd)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label" style="color:#888;font-size:10px">Tỷ lệ đạt target: ${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'} · Tỷ giá: ${(sal.ty_gia||25000).toLocaleString('vi-VN')} VNĐ/$</td><td class="formula"></td><td class="amount"></td></tr>
         <tr class="subtotal"><td class="label">Tổng Bonus P3A</td><td class="formula">ΣP3A</td><td class="amount">${vndFmt(p3aVnd)}</td></tr>
