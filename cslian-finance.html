@@ -3025,9 +3025,28 @@ function saveSettings(){
   toast('Đã lưu cài đặt','green');renderSettings();
 }
 
-// ─── CSV EXPORT ───
 // ─── EXCEL EXPORT (xlsx-js-style) ───
-const XL = ()=> typeof XLSXStyle !== 'undefined' ? XLSXStyle : (typeof XLSX !== 'undefined' ? XLSX : null);
+const XL = ()=> typeof XLSXStyle!=='undefined'?XLSXStyle:(typeof XLSX!=='undefined'?XLSX:null);
+const XLSX_CDNS=[
+  'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js',
+  'https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+];
+async function ensureXlsx(){
+  if(XL())return XL();
+  toast('Đang tải thư viện Excel...','blue');
+  for(const url of XLSX_CDNS){
+    try{
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src=url;s.onload=res;s.onerror=rej;
+        document.head.appendChild(s);
+      });
+      if(XL()){console.log('[xlsx] loaded from',url);return XL();}
+    }catch(e){console.warn('[xlsx] CDN failed:',url);}
+  }
+  return null;
+}
 
 // Style helpers — Arial 10 base
 function xlStyle(opts={}){
@@ -3203,11 +3222,13 @@ function buildAgentSheet(agentName,orders){
   return ws;
 }
 
-function exportCurrentExcel(){
+async function exportCurrentExcel(){
   const on=document.querySelector('.page.on');const id=on?on.id.replace('pg-',''):'dashboard';
 
   if(id!=='orders'){
-    // Non-order tabs: simple export (unchanged)
+    // Non-order tabs: simple export
+    const lib=await ensureXlsx();
+    if(!lib){toast('Không tải được thư viện Excel. Kiểm tra kết nối mạng.','red');return;}
     let rows=[],filename='cslian-export',sheetName='Data';
     if(id==='finance'){
       filename=`cslian-expenses-${fromKey()}`;sheetName='Chi phí';
@@ -3219,7 +3240,6 @@ function exportCurrentExcel(){
         ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
     }
     try{
-      const lib=XL();if(!lib){toast('Lỗi: thư viện Excel chưa tải','red');return;}
       const ws=lib.utils.aoa_to_sheet(rows);
       ws['!cols']=rows[0].map((_,ci)=>({wch:Math.max(10,...rows.map(r=>String(r[ci]??'').length))+2}));
       const wb=lib.utils.book_new();
@@ -3232,7 +3252,7 @@ function exportCurrentExcel(){
 
   // ── ORDERS: full styled multi-sheet export ──
   try{
-    const lib=XL();if(!lib){toast('Lỗi: thư viện Excel chưa tải','red');return;}
+    const lib=await ensureXlsx();if(!lib){toast('Không tải được thư viện Excel. Kiểm tra kết nối mạng.','red');return;}
     const orders=allOrders; // dùng allOrders toàn bộ theo kỳ đã filter
     const filename=`cslian-orders-${fromKey()}`;
     const wb=lib.utils.book_new();
@@ -3458,7 +3478,6 @@ loadAll();
 </script>
 <!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
 
 <!-- Modal: Thêm/Sửa ghi chú -->
 <div class="mbg" id="m-note">
