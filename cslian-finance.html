@@ -3026,39 +3026,238 @@ function saveSettings(){
 }
 
 // ─── CSV EXPORT ───
+// ─── EXCEL EXPORT (xlsx-js-style) ───
+const XL = ()=> typeof XLSXStyle !== 'undefined' ? XLSXStyle : (typeof XLSX !== 'undefined' ? XLSX : null);
+
+// Style helpers — Arial 10 base
+function xlStyle(opts={}){
+  return{
+    font:{name:'Arial',sz:10,...(opts.font||{})},
+    border:{
+      top:{style:'thin',color:{rgb:'D0D7E3'}},
+      bottom:{style:'thin',color:{rgb:'D0D7E3'}},
+      left:{style:'thin',color:{rgb:'D0D7E3'}},
+      right:{style:'thin',color:{rgb:'D0D7E3'}},
+      ...(opts.border||{})
+    },
+    fill:opts.fill||{patternType:'none'},
+    alignment:{vertical:'center',wrapText:false,...(opts.alignment||{})},
+    numFmt:opts.numFmt||'General'
+  };
+}
+const S={
+  header:   xlStyle({font:{name:'Arial',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'1A2035'}},alignment:{horizontal:'center'}}),
+  orderRow: xlStyle({font:{name:'Arial',sz:10,bold:true,color:{rgb:'1A2035'}},fill:{patternType:'solid',fgColor:{rgb:'EBF2FF'}}}),
+  itemRow:  xlStyle({font:{name:'Arial',sz:10},fill:{patternType:'none'}}),
+  itemRowAlt:xlStyle({font:{name:'Arial',sz:10},fill:{patternType:'solid',fgColor:{rgb:'F8FAFF'}}}),
+  subHeader:xlStyle({font:{name:'Arial',sz:10,bold:true,italic:true,color:{rgb:'6B7A9E'}},fill:{patternType:'solid',fgColor:{rgb:'F0F4FA'}}}),
+  totalRow: xlStyle({font:{name:'Arial',sz:10,bold:true},fill:{patternType:'solid',fgColor:{rgb:'1EC97A20'}}}),
+  agentTitle:xlStyle({font:{name:'Arial',sz:13,bold:true,color:{rgb:'1A2035'}},border:{top:{style:'none'},bottom:{style:'none'},left:{style:'none'},right:{style:'none'}}}),
+  money:    (base)=>({...base,numFmt:'"$"#,##0.00'}),
+  settled:  xlStyle({font:{name:'Arial',sz:10,bold:true,color:{rgb:'1EC97A'}}}),
+  pending:  xlStyle({font:{name:'Arial',sz:10,bold:true,color:{rgb:'D4901E'}}}),
+};
+
+// Tạo cell với style
+function xlCell(v,s){return{v:v??'',s,t:typeof v==='number'?'n':'s'};}
+function xlMoney(v,s){return{v:typeof v==='number'?v:(parseFloat(v)||0),s:S.money(s||S.itemRow),t:'n'};}
+
+// Set cột rộng
+function autoWidth(ws,cols){
+  ws['!cols']=cols.map(w=>({wch:w}));
+}
+
+// Ghi mảng row dạng [{v,s},...] vào worksheet tại row r (0-indexed)
+function writeRow(ws,rowIdx,cells,range){
+  cells.forEach((c,ci)=>{
+    const addr=XL().utils.encode_cell({r:rowIdx,c:ci});
+    ws[addr]=c;
+    if(!range){range={s:{r:rowIdx,c:0},e:{r:rowIdx,c:ci}};}
+    range.e.r=Math.max(range.e.r,rowIdx);
+    range.e.c=Math.max(range.e.c,ci);
+  });
+  return range;
+}
+
+function buildSummarySheet(orders){
+  const ws={};
+  const HDR=['Mã đơn','Ngày lên','Tháng HT','Agent','Shop','Vendor','Total ($)','Deposit ($)','Balance ($)','Chênh lệch ($)','HH Theo Rate ($)','HH Chênh lệch ($)','Hoa hồng ($)','Tình trạng'];
+  const WIDTHS=[18,12,10,20,22,8,12,12,12,14,15,17,14,12];
+  let r=0,range={s:{r:0,c:0},e:{r:0,c:HDR.length-1}};
+
+  // Header row
+  range=writeRow(ws,r,HDR.map(h=>xlCell(h,S.header)),range);r++;
+
+  orders.forEach(o=>{
+    const p=allProfiles.find(x=>x.id===o.user_id);
+    const vendor=(o.revenue_bolsa||0)>0?'BOLSA':(o.revenue_ons||0)>0?'ONS':(o.revenue_tspa||0)>0?'TSPA':'—';
+    const deposit=(o.total_amount||0)-(o.balance_due||0);
+    const chenh=calcOrderChenhLech(o.id);
+    const rateComm=calcOrderRateCommission(o.id);
+    const commChenh=calcOrderCommissionChenhLech(o.id);
+    const comm=calcOrderCommission(o.id);
+    range=writeRow(ws,r,[
+      xlCell(o.invoice_no,S.itemRow),
+      xlCell(o.order_date,S.itemRow),
+      xlCell(o.billing_month,S.itemRow),
+      xlCell(p?p.full_name:'—',S.itemRow),
+      xlCell(o.shop_name||'—',S.itemRow),
+      xlCell(vendor,S.itemRow),
+      xlMoney(o.total_amount),
+      xlMoney(deposit),
+      xlMoney(o.balance_due),
+      xlMoney(chenh),
+      xlMoney(rateComm),
+      xlMoney(commChenh),
+      xlMoney(comm),
+      xlCell(o.is_settled?'Tất toán':'Pending',o.is_settled?S.settled:S.pending),
+    ],range);r++;
+  });
+
+  // Totals
+  const totRow=[
+    xlCell('TỔNG',S.totalRow),xlCell('',S.totalRow),xlCell('',S.totalRow),xlCell('',S.totalRow),xlCell('',S.totalRow),xlCell('',S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+(o.total_amount||0),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+(o.total_amount||0)-(o.balance_due||0),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+(o.balance_due||0),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+calcOrderChenhLech(o.id),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+calcOrderRateCommission(o.id),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+calcOrderCommissionChenhLech(o.id),0),S.totalRow),
+    xlMoney(orders.reduce((s,o)=>s+calcOrderCommission(o.id),0),S.totalRow),
+    xlCell('',S.totalRow),
+  ];
+  range=writeRow(ws,r,totRow,range);r++;
+
+  ws['!ref']=XL().utils.encode_range(range);
+  autoWidth(ws,WIDTHS);
+  return ws;
+}
+
+function buildAgentSheet(agentName,orders){
+  const ws={};
+  let r=0,range={s:{r:0,c:0},e:{r:0,c:11}};
+
+  // Title
+  ws[XL().utils.encode_cell({r,c:0})]={v:agentName,s:S.agentTitle,t:'s'};
+  ws['!merges']=[{s:{r,c:0},e:{r,c:11}}];
+  r++;
+
+  // Sub-info
+  ws[XL().utils.encode_cell({r,c:0})]={v:`${orders.length} đơn hàng  ·  ${fromKey()} → ${toKey()}`,s:xlStyle({font:{name:'Arial',sz:10,italic:true,color:{rgb:'6B7A9E'}},border:{top:{style:'none'},bottom:{style:'none'},left:{style:'none'},right:{style:'none'}}}),t:'s'};
+  ws['!merges'].push({s:{r,c:0},e:{r,c:11}});
+  r++;r++; // blank
+
+  const ITEM_HDR=['Sản phẩm','SL','Giá bán ($)','Vendor Cost ($)','Vendor','Chênh lệch ($)','Bonus Chênh ($)','HH Rate ($)','HH Chênh ($)','Hoa hồng ($)','Gift'];
+  const WIDTHS=[22,5,12,13,7,13,13,12,12,12,6];
+  autoWidth(ws,WIDTHS);
+
+  orders.forEach(o=>{
+    const deposit=(o.total_amount||0)-(o.balance_due||0);
+    const comm=calcOrderCommission(o.id);
+    const items=allOrderItems.filter(it=>String(it.order_id)===String(o.id));
+
+    // Order header row
+    range=writeRow(ws,r,[
+      xlCell(o.invoice_no||'—',S.orderRow),
+      xlCell(o.order_date||'—',S.orderRow),
+      xlCell(o.shop_name||'—',S.orderRow),
+      xlCell('',S.orderRow),
+      xlCell('',S.orderRow),
+      xlMoney(o.total_amount,S.orderRow),
+      xlMoney(deposit,S.orderRow),
+      xlMoney(o.balance_due,S.orderRow),
+      xlCell('',S.orderRow),
+      xlMoney(comm,S.orderRow),
+      xlCell(o.is_settled?'Tất toán':'Pending',o.is_settled?{...S.orderRow,...S.settled}:{...S.orderRow,...S.pending}),
+    ],range);r++;
+
+    if(items.length>0){
+      // Item sub-header
+      range=writeRow(ws,r,ITEM_HDR.map(h=>xlCell(h,S.subHeader)),range);r++;
+
+      items.forEach((it,i)=>{
+        const st=i%2===0?S.itemRow:S.itemRowAlt;
+        const b=calcCommissionBreakdownPerItem(it);
+        range=writeRow(ws,r,[
+          xlCell(it.ten_sp_invoice||'—',st),
+          xlCell(it.so_luong||0,{...st,numFmt:'0'}),
+          xlMoney(it.gia_ban_thuc,st),
+          xlMoney(it.vendor_cost,st),
+          xlCell(it.vendor||'—',st),
+          xlMoney(it.chenh_lech,st),
+          xlMoney(it.bonus_chenh_lech,st),
+          xlMoney(b.rateComm,st),
+          xlMoney(b.chenhComm,st),
+          xlMoney(b.rateComm+b.chenhComm,st),
+          xlCell(it.is_gift?'✓':'',st),
+        ],range);r++;
+      });
+    } else {
+      ws[XL().utils.encode_cell({r,c:0})]={v:'(Chưa có chi tiết sản phẩm)',s:xlStyle({font:{name:'Arial',sz:10,italic:true,color:{rgb:'999999'}},border:{top:{style:'none'},bottom:{style:'none'},left:{style:'none'},right:{style:'none'}}}),t:'s'};
+      r++;
+    }
+    r++; // spacer giữa các đơn
+  });
+
+  ws['!ref']=XL().utils.encode_range(range);
+  return ws;
+}
+
 function exportCurrentExcel(){
   const on=document.querySelector('.page.on');const id=on?on.id.replace('pg-',''):'dashboard';
-  let rows=[],filename='cslian-export',sheetName='Data';
-  if(id==='orders'){
-    filename=`cslian-orders-${fromKey()}`;sheetName='Đơn hàng';
-    rows=[['Mã đơn','Ngày lên','Tháng HT','Agent','Shop','Vendor','Total ($)','Hoa hồng ($)','Shipping ($)','Balance ($)','Tất toán'],
-      ...allOrders.map(o=>{
-        const p=allProfiles.find(x=>x.id===o.user_id);
-        const vendor=(o.revenue_bolsa||0)>0?'BOLSA':(o.revenue_ons||0)>0?'ONS':(o.revenue_tspa||0)>0?'TSPA':'—';
-        return[o.invoice_no,o.order_date,o.billing_month,p?p.full_name:'—',o.shop_name,vendor,
-          o.total_amount||0,calcOrderCommission(o.id),calcOrderShipping(o.id),o.balance_due||0,o.is_settled?'Yes':'No'];
-      })];
-  }else if(id==='finance'){
-    filename=`cslian-expenses-${fromKey()}`;sheetName='Chi phí';
-    rows=[['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền VNĐ'],
-      ...allExpenses.map(e=>[e.ngay,e.mo_ta,e.danh_muc,e.loai,e.nguoi_chi,e.so_tien])];
-  }else if(id==='hr'){
-    filename=`cslian-salary-${fromKey()}`;sheetName='Lương';
-    rows=[['Nhân viên','Tháng','Ngày công','P1','P2','P3B+C','Bonus P3A USD','Tổng VNĐ','Đã duyệt'],
-      ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
-  }else{
-    filename=`cslian-summary-${fromKey()}`;sheetName='Tổng quan';
-    rows=[['Chỉ số','Giá trị'],['Doanh số',calcRevDate()],['Doanh thu tất toán',calcRevMonth()],['Tổng đơn',ordByDate().length],['AOV',calcAOV()],['Tổng chi phí',calcExpTotal()],['Tổng lương',calcSalTotal()]];
+
+  if(id!=='orders'){
+    // Non-order tabs: simple export (unchanged)
+    let rows=[],filename='cslian-export',sheetName='Data';
+    if(id==='finance'){
+      filename=`cslian-expenses-${fromKey()}`;sheetName='Chi phí';
+      rows=[['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền VNĐ'],
+        ...allExpenses.map(e=>[e.ngay,e.mo_ta,e.danh_muc,e.loai,e.nguoi_chi,e.so_tien])];
+    }else if(id==='hr'){
+      filename=`cslian-salary-${fromKey()}`;sheetName='Lương';
+      rows=[['Nhân viên','Tháng','Ngày công','P1','P2','P3B+C','Bonus P3A USD','Tổng VNĐ','Đã duyệt'],
+        ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),(s.p3a_bolsa_usd||0)+(s.p3a_ons_tspa_usd||0)+(s.p3a_vuot_target_usd||0),s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
+    }
+    try{
+      const lib=XL();if(!lib){toast('Lỗi: thư viện Excel chưa tải','red');return;}
+      const ws=lib.utils.aoa_to_sheet(rows);
+      ws['!cols']=rows[0].map((_,ci)=>({wch:Math.max(10,...rows.map(r=>String(r[ci]??'').length))+2}));
+      const wb=lib.utils.book_new();
+      lib.utils.book_append_sheet(wb,ws,sheetName);
+      lib.writeFile(wb,filename+'.xlsx');
+      toast('Đã xuất file Excel','green');
+    }catch(e){toast('Lỗi xuất Excel: '+e.message,'red');}
+    return;
   }
+
+  // ── ORDERS: full styled multi-sheet export ──
   try{
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    const colWidths=rows[0].map((_,ci)=>({wch:Math.max(10,...rows.map(r=>String(r[ci]??'').length))+2}));
-    ws['!cols']=colWidths;
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,sheetName);
-    XLSX.writeFile(wb,filename+'.xlsx');
-    toast('Đã xuất file Excel','green');
+    const lib=XL();if(!lib){toast('Lỗi: thư viện Excel chưa tải','red');return;}
+    const orders=allOrders; // dùng allOrders toàn bộ theo kỳ đã filter
+    const filename=`cslian-orders-${fromKey()}`;
+    const wb=lib.utils.book_new();
+
+    // Sheet 1: Tổng quan
+    lib.utils.book_append_sheet(wb,buildSummarySheet(orders),'Tổng quan');
+
+    // Sheet per Agent (chỉ agent có đơn)
+    const agentOrders={};
+    orders.forEach(o=>{
+      const p=allProfiles.find(x=>x.id===o.user_id);
+      const name=p?p.full_name:'Khác';
+      if(!agentOrders[name])agentOrders[name]=[];
+      agentOrders[name].push(o);
+    });
+    Object.entries(agentOrders).forEach(([name,ords])=>{
+      // Sheet name: Excel giới hạn 31 ký tự, không được có ký tự đặc biệt
+      const sheetName=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/*?:\[\]]/g,'').slice(0,31);
+      lib.utils.book_append_sheet(wb,buildAgentSheet(name,ords),sheetName);
+    });
+
+    lib.writeFile(wb,filename+'.xlsx');
+    toast(`Đã xuất ${1+Object.keys(agentOrders).length} sheet · ${orders.length} đơn hàng`,'green');
   }catch(e){
+    console.error('Excel export error:',e);
     toast('Lỗi xuất Excel: '+e.message,'red');
   }
 }
@@ -3259,7 +3458,7 @@ loadAll();
 </script>
 <!-- chart css removed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
 
 <!-- Modal: Thêm/Sửa ghi chú -->
 <div class="mbg" id="m-note">
