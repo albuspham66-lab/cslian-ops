@@ -1913,7 +1913,17 @@ async function exportOrdersExcel(){
   const totTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const totBalance=list.reduce((s,o)=>s+(o.balance_due||0),0);
   const totNetRev=Math.max(0,totDoanhSo-totChenh-list.reduce((s,o)=>s+(giaBanGocGiuongMap[o.id]||0),0));
-  const totBonus=Math.max(0,((totNetRev*0.01)+totBonusCL+totBonusGiuong)*tyLe-totTruyThu);
+  // Dòng tổng: cộng Total Bonus từng đơn đã tính per-sale (không dùng tyLe chung)
+  // Lưu lại totalBonus từng đơn trong mảng để tổng hợp
+  const totBonus=Math.max(0,list.reduce((s,o)=>{
+    const dts=isOrderDatTarget(o)?1.0:0.5;
+    const cL=chenhSaleMap[o.id]||0;
+    const bC=o.bonus_sale_usd||o.bonus_chenh_lech||0;
+    const bG=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
+    const gbg=giaBanGocGiuongMap[o.id]||0;
+    const nr=Math.max(0,(o.total_amount||0)-cL-gbg);
+    return s+((nr*0.01)+bC+bG)*dts-(o.truy_thu_usd||0);
+  },0));
 
   const totalRow=ws.addRow({
     invoice_no:'TOTAL',
