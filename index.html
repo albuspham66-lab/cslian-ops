@@ -2312,14 +2312,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const datTarget=dtTotalForTarget>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
-  const items=(itemsRes.data||[]).filter(i=>!i.is_gift);  // loại item đã đánh dấu tặng kèm
-  const headspaItems=items.filter(i=>i.la_bolsa);
-  // bolsaOtherItems: BOLSA không phải giường, không phải shipping (amount>0), không tặng kèm
-  const EXEMPT_NAMES=['shipping fee','shipping','ship'];
-  const bolsaOtherItems=items.filter(i=>!i.la_bolsa
-    && (i.amount||0)>0
-    && !EXEMPT_NAMES.includes((i.ten_sp_invoice||'').toLowerCase().trim()));
+  // ── P3A theo đúng công thức tab Đơn hàng ───────────────────────────
+  // Công thức mỗi đơn: (DS - CL - GiáGốcGiường) × 1% + BonusCL
+  // P3A tổng = [Σ(tất cả đơn settled) + BonusGiường] × tỷ lệ + VượtTarget
 
+  const items=(itemsRes.data||[]).filter(i=>!i.is_gift);
+  const headspaItems=items.filter(i=>i.la_bolsa);
+
+  // Số giường + bonus bậc thang (tính theo tổng tháng)
   const soGiuong=headspaItems.reduce((s,i)=>s+(i.so_luong||0),0);
   let bolsaHeadspaBonus=0;
   if(soGiuong<10)bolsaHeadspaBonus=soGiuong*15;
@@ -2328,27 +2328,36 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   else if(soGiuong<40)bolsaHeadspaBonus=soGiuong*20+200;
   else bolsaHeadspaBonus=soGiuong*25+250;
 
-  const dtBolsaOther=bolsaOtherItems.reduce((s,i)=>s+(i.amount||0),0);
-  const bolsaOtherBonus=dtBolsaOther*0.01;
-  const bolsaBonus=bolsaHeadspaBonus+bolsaOtherBonus;
+  // bonusBase: Σ mỗi đơn settled ((DS - CL - GiáGốcGiường) × 1% + BonusCL)
+  const bonusBase=ords.reduce((s,o)=>{
+    // Giá gốc giường trong đơn này
+    const gbgDon=headspaItems.filter(i=>i.order_id===o.id)
+      .reduce((ss,i)=>ss+(i.gia_ban_goc||0)*(i.so_luong||1),0);
+    // Chênh lệch sale trong đơn này (từ order_items.chenh_sale)
+    const clDon=items.filter(i=>i.order_id===o.id&&!i.la_bolsa)
+      .reduce((ss,i)=>ss+(i.chenh_sale!=null?i.chenh_sale*(i.so_luong||1):0),0);
+    const netRev=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
+    const bChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
+    return s+netRev*0.01+bChenh;
+  },0);
 
-  const dtOnsTspa=ords.reduce((s,o)=>s+(o.revenue_ons||0)+(o.revenue_tspa||0),0);
-  const onsTspaBonus=dtOnsTspa*0.01;
-
+  // Vượt target (tính trên tổng doanh số toàn tháng tất cả đơn)
   let vuotBonus=0;
-  if(dtTotal>=TARGET_USD*2)vuotBonus=200;
-  else if(dtTotal>=TARGET_USD*1.4)vuotBonus=100;
+  if(dtTotalForTarget>=TARGET_USD*2)vuotBonus=200;
+  else if(dtTotalForTarget>=TARGET_USD*1.4)vuotBonus=100;
 
-  const p3aTotalUsd=(bolsaBonus+onsTspaBonus+bonusChenh+vuotBonus)*tyLeDat;
+  // P3A = (bonusBase + bonusGiường) × tỷ lệ + vượtTarget
+  const p3aTotalUsd=(bonusBase+bolsaHeadspaBonus)*tyLeDat+vuotBonus;
   const p3aVnd=Math.round(p3aTotalUsd*TY_GIA);
   const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3aVnd;
 
   return {user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
     so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,
     p1_he_so:heCoP1,p1_thuc_te:p1,p2a,p2b,p2c,p3b_chuyen_can:p3b,p3c_kpi:p3c,
-    p3a_bolsa_usd:bolsaBonus,p3a_bolsa_headspa_usd:bolsaHeadspaBonus,p3a_bolsa_other_usd:bolsaOtherBonus,
-    p3a_ons_tspa_usd:onsTspaBonus,
+    p3a_bolsa_usd:bolsaHeadspaBonus,p3a_bolsa_headspa_usd:bolsaHeadspaBonus,
+    p3a_bolsa_other_usd:0,p3a_ons_tspa_usd:0,
     p3a_vuot_target_usd:vuotBonus,p3a_chenh_lech_usd:bonusChenh,
+    p3a_base_usd:bonusBase,
     p3a_ty_le_dat:tyLeDat,p3a_total_usd:p3aTotalUsd,ty_gia:TY_GIA,
     tong_luong_vnd:tongLuong};
 }
@@ -2473,11 +2482,9 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P2C — Năng lực Lever ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
       <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
       <div class="salary-row"><span class="salary-label">P3C — KPI tháng</span><span class="salary-val">${vnd(sal.p3c_kpi)}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
-      ${(sal.p3a_bolsa_other_usd>0)?`<div class="salary-row"><span class="salary-label">P3A — Bonus Bolsa SP khác 1% (${usd(sal.p3a_bolsa_other_usd*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_bolsa_other_usd*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
-      <div class="salary-row"><span class="salary-label">P3A — Bonus ONS/TSPA 1% (${usd(sal.p3a_ons_tspa_usd*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_ons_tspa_usd*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Hoa hồng chênh lệch Sale 30% (${usd(sal.p3a_chenh_lech_usd*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_chenh_lech_usd*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd(sal.p3a_vuot_target_usd*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Bonus Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Bonus doanh số 1% + Chênh lệch (${usd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)-(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd(((sal.p3a_base_usd||0)-(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0))*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
     </div>
