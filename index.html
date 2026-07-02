@@ -1801,9 +1801,9 @@ async function exportOrdersExcel(){
   }
 
   // Target xét theo TỪNG SALE riêng biệt — tổng doanh số của mỗi Sale trong tháng ≥ $23,500
-  // Fetch tất cả đơn settled của tháng (không filter empId) để tính target từng người
+  // Dùng TẤT CẢ đơn trong tháng (kể cả chưa settled) để tính target
   const tongDoanhSoTheoSale={};
-  {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang).eq('is_settled',true);
+  {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang);
   (allOrdMonth||[]).forEach(o=>{if(o.user_id)tongDoanhSoTheoSale[o.user_id]=(tongDoanhSoTheoSale[o.user_id]||0)+(o.total_amount||0);});}
   // Helper: kiểm tra 1 đơn có đạt target không (dựa vào user_id của đơn đó)
   function isOrderDatTarget(o){return (tongDoanhSoTheoSale[o.user_id]||0)>=TARGET_USD;}
@@ -2261,10 +2261,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   if(!emp)return null;
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
 
-  const [attRes, kpiRes, ordersRes] = await Promise.all([
+  const [attRes, kpiRes, ordersRes, allOrdsRes] = await Promise.all([
     sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to),
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
-    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true)
+    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true),
+    sb.from('orders').select('total_amount').eq('user_id',empId).eq('billing_month',thang)  // tất cả đơn để xét target
   ]);
   const ords0=ordersRes.data||[];
   const settledOrderIds=ords0.map(o=>o.id);
@@ -2306,7 +2307,9 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_sale_usd||o.bonus_chenh_lech||0),0);
   // Ưu tiên bonus_sale_usd (tách biệt theo sale_price, MỚI từ Edge Function v6).
   // Fallback bonus_chenh_lech cho đơn cũ chưa có bonus_sale_usd để không mất dữ liệu.
-  const datTarget=dtTotal>=TARGET_USD;
+  // Target xét trên TẤT CẢ đơn trong tháng (kể cả chưa settled), bonus chỉ tính đơn settled
+  const dtTotalForTarget=(allOrdsRes.data||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+  const datTarget=dtTotalForTarget>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
   const items=(itemsRes.data||[]).filter(i=>!i.is_gift);  // loại item đã đánh dấu tặng kèm
