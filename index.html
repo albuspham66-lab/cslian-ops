@@ -1772,95 +1772,159 @@ async function exportOrdersExcel(){
   const {data:orders}=await query;
   const list=orders||[];
   if(!list.length){toast('Không có đơn hàng để xuất','error');return;}
+  toast('Đang chuẩn bị dữ liệu...');
 
   const orderIds=list.map(o=>o.id);
+
+  // Fetch order_items: cần chenh_sale (tổng chênh lệch theo sale_price) + 
+  // giá gốc giường (gia_ban_goc × so_luong của la_bolsa=true) để tính Total Bonus đúng
+  let chenhSaleMap={};      // tổng chenh_sale mỗi đơn
+  let giaBanGocGiuongMap={}; // tổng gia_ban_goc × so_luong của giường
   let soGiuongMap={};
+
   if(orderIds.length){
-    const {data:headspaItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',orderIds).eq('la_bolsa',true);
-    (headspaItems||[]).forEach(it=>{soGiuongMap[it.order_id]=(soGiuongMap[it.order_id]||0)+(it.so_luong||0);});
+    const {data:allItems}=await sb.from('order_items')
+      .select('order_id,so_luong,la_bolsa,chenh_sale,bonus_sale_usd,chenh_lech,gia_ban_goc,is_gift')
+      .in('order_id',orderIds);
+    (allItems||[]).forEach(it=>{
+      if(it.is_gift)return; // gift không tính vào bonus
+      const oid=it.order_id;
+      // Tổng chênh lệch Sale: ưu tiên chenh_sale×qty, fallback bonus_sale_usd/0.3
+      const chenhPerUnit=it.chenh_sale!=null?it.chenh_sale:((it.bonus_sale_usd||0)/0.3/(it.so_luong||1));
+      chenhSaleMap[oid]=(chenhSaleMap[oid]||0)+chenhPerUnit*(it.so_luong||1);
+      // Giường Headspa: đếm số lượng và tổng giá gốc (để trừ ra khỏi doanh số trước khi nhân 1%)
+      if(it.la_bolsa){
+        soGiuongMap[oid]=(soGiuongMap[oid]||0)+(it.so_luong||0);
+        giaBanGocGiuongMap[oid]=(giaBanGocGiuongMap[oid]||0)+(it.gia_ban_goc||0)*(it.so_luong||1);
+      }
+    });
   }
+
+  // Tổng doanh số cả tháng để xác định Đạt/Không đạt target $23,500
+  const tongDoanhSoThang=list.reduce((s,o)=>s+(o.total_amount||0),0);
+  const datTarget=tongDoanhSoThang>=TARGET_USD;
+  const tyLe=datTarget?1.0:0.5;
 
   const wb=new ExcelJS.Workbook();
   wb.creator='C-Slian Ops';
   wb.created=new Date();
   const ws=wb.addWorksheet('Đơn hàng '+thang,{views:[{state:'frozen',ySplit:1}]});
 
-  const cols=[
-    {header:'Mã đơn',key:'invoice_no',width:18},
-    {header:'Tiệm nail',key:'shop_name',width:26},
-    {header:'Sale',key:'sale_name',width:20},
-    {header:'Ngày đơn',key:'order_date',width:13},
-    {header:'Tháng Bonus',key:'billing_month',width:13},
-    {header:'Doanh số ($)',key:'total_amount',width:14},
-    {header:'Bonus chênh lệch ($)',key:'bonus_chenh_lech',width:18},
-    {header:'Bonus giường ($)',key:'bonus_giuong',width:16},
-    {header:'Truy thu ($)',key:'truy_thu_usd',width:13},
-    {header:'Balance ($)',key:'balance_due',width:13},
-    {header:'Trạng thái',key:'trang_thai',width:14},
+  // Định nghĩa cột — thêm Chênh lệch, Target, Total Bonus
+  ws.columns=[
+    {header:'Mã đơn',          key:'invoice_no',       width:18},
+    {header:'Tiệm nail',        key:'shop_name',        width:26},
+    {header:'Sale',             key:'sale_name',        width:20},
+    {header:'Ngày đơn',        key:'order_date',        width:13},
+    {header:'Tháng Bonus',     key:'billing_month',     width:13},
+    {header:'Doanh số ($)',    key:'total_amount',       width:14},
+    {header:'Chênh lệch ($)',  key:'chenh_lech_sale',   width:14},
+    {header:'Bonus CL ($)',    key:'bonus_chenh_lech',  width:14},
+    {header:'Bonus giường ($)',key:'bonus_giuong',       width:15},
+    {header:'Truy thu ($)',    key:'truy_thu_usd',       width:13},
+    {header:'Target',          key:'target',             width:12},
+    {header:'Total Bonus ($)', key:'total_bonus',        width:16},
+    {header:'Balance ($)',     key:'balance_due',        width:13},
+    {header:'Trạng thái',     key:'trang_thai',          width:14},
   ];
-  ws.columns=cols;
 
-  // Header style — màu nền tím thương hiệu, chữ trắng đậm, border đủ 4 cạnh
+  // ── Style constants ──
+  const RED_DARK='FF9B1C1C';   // đỏ đậm header/total
+  const WHITE='FFFFFFFF';
+  const BORDER_THIN={style:'thin',color:{argb:'FFE2E8F0'}};
+  const BORDER_FULL={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+
+  // ── Header row — đỏ đậm, chữ trắng, cố định ──
   const headerRow=ws.getRow(1);
-  headerRow.height=26;
+  headerRow.height=28;
   headerRow.eachCell(cell=>{
-    cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Calibri'};
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF6D28D9'}};
+    cell.font={bold:true,color:{argb:WHITE},size:11,name:'Calibri'};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED_DARK}};
     cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};
-    cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+    cell.border=BORDER_FULL;
   });
 
-  // Data rows
+  // Money columns by index (1-based)
+  const moneyCols=[6,7,8,9,10,12,13];
+
+  // ── Data rows ──
   list.forEach((o,idx)=>{
     const tatToan=o.is_settled||o.balance_due===0;
     const bonusGiuong=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
+    const chenhSale=chenhSaleMap[o.id]||0;
+    const bonusChenh=o.bonus_sale_usd||o.bonus_chenh_lech||0;
+    const giaBanGocGiuong=giaBanGocGiuongMap[o.id]||0;
+    const truyThu=o.truy_thu_usd||0;
+    // Total Bonus = ((Doanh số - Chênh lệch - Giá gốc giường) × 1% + Bonus CL + Bonus Giường) × tỷ lệ - Truy thu
+    const netRev=Math.max(0,(o.total_amount||0)-chenhSale-giaBanGocGiuong);
+    const totalBonus=((netRev*0.01)+bonusChenh+bonusGiuong)*tyLe-truyThu;
+
     const row=ws.addRow({
-      invoice_no:o.invoice_no||'',
-      shop_name:o.shop_name||'',
-      sale_name:o.profiles?.full_name||'',
-      order_date:o.order_date||'',
-      billing_month:o.billing_month||'',
-      total_amount:o.total_amount||0,
-      bonus_chenh_lech:o.bonus_chenh_lech||0,
-      bonus_giuong:bonusGiuong,
-      truy_thu_usd:o.truy_thu_usd||0,
-      balance_due:o.balance_due||0,
-      trang_thai:tatToan?'Tất toán':'Còn nợ',
+      invoice_no:    o.invoice_no||'',
+      shop_name:     o.shop_name||'',
+      sale_name:     o.profiles?.full_name||'',
+      order_date:    o.order_date||'',
+      billing_month: o.billing_month||'',
+      total_amount:  o.total_amount||0,
+      chenh_lech_sale: chenhSale,
+      bonus_chenh_lech: bonusChenh,
+      bonus_giuong:  bonusGiuong,
+      truy_thu_usd:  truyThu,
+      target:        datTarget?'✅ Đạt':'❌ Không đạt',
+      total_bonus:   Math.max(0,totalBonus),
+      balance_due:   o.balance_due||0,
+      trang_thai:    tatToan?'Tất toán':'Còn nợ',
     });
     row.height=20;
-    // Zebra striping nhẹ cho dễ đọc hàng dài
     const isEven=idx%2===1;
     row.eachCell((cell,colNum)=>{
       cell.font={size:10.5,name:'Calibri'};
-      cell.border={top:{style:'thin',color:{argb:'FFE2E8F0'}},left:{style:'thin',color:{argb:'FFE2E8F0'}},bottom:{style:'thin',color:{argb:'FFE2E8F0'}},right:{style:'thin',color:{argb:'FFE2E8F0'}}};
-      if(isEven)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF8F7FC'}};
-      // Format tiền tệ cho các cột số
-      if([6,7,8,9,10].includes(colNum)){
-        cell.numFmt='$#,##0.00';
-        cell.alignment={horizontal:'right'};
-      }
+      cell.border={top:BORDER_THIN,left:BORDER_THIN,bottom:BORDER_THIN,right:BORDER_THIN};
+      if(isEven)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF5F5'}};
+      if(moneyCols.includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
+      // Target column
       if(colNum===11){
         cell.alignment={horizontal:'center'};
-        cell.font={size:10.5,name:'Calibri',bold:true,color:{argb:tatToan?'FF15803D':'FFB45309'}};
+        cell.font={size:10.5,name:'Calibri',bold:true,
+          color:{argb:datTarget?'FF15803D':'FFB45309'}};
+      }
+      // Trạng thái column
+      if(colNum===14){
+        cell.alignment={horizontal:'center'};
+        cell.font={size:10.5,name:'Calibri',bold:true,
+          color:{argb:tatToan?'FF15803D':'FFB45309'}};
       }
     });
   });
 
-  // Dòng tổng cuối bảng
+  // ── Dòng tổng — đỏ đậm, chữ trắng ──
+  const totDoanhSo=list.reduce((s,o)=>s+(o.total_amount||0),0);
+  const totChenh=list.reduce((s,o)=>s+(chenhSaleMap[o.id]||0),0);
+  const totBonusCL=list.reduce((s,o)=>s+(o.bonus_sale_usd||o.bonus_chenh_lech||0),0);
+  const totBonusGiuong=list.reduce((s,o)=>s+calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0),0);
+  const totTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
+  const totBalance=list.reduce((s,o)=>s+(o.balance_due||0),0);
+  const totNetRev=Math.max(0,totDoanhSo-totChenh-list.reduce((s,o)=>s+(giaBanGocGiuongMap[o.id]||0),0));
+  const totBonus=Math.max(0,((totNetRev*0.01)+totBonusCL+totBonusGiuong)*tyLe-totTruyThu);
+
   const totalRow=ws.addRow({
     shop_name:'TỔNG',
-    total_amount:list.reduce((s,o)=>s+(o.total_amount||0),0),
-    bonus_chenh_lech:list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0),
-    bonus_giuong:list.reduce((s,o)=>s+calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0),0),
-    truy_thu_usd:list.reduce((s,o)=>s+(o.truy_thu_usd||0),0),
-    balance_due:list.reduce((s,o)=>s+(o.balance_due||0),0),
+    total_amount:totDoanhSo,
+    chenh_lech_sale:totChenh,
+    bonus_chenh_lech:totBonusCL,
+    bonus_giuong:totBonusGiuong,
+    truy_thu_usd:totTruyThu,
+    target:datTarget?'✅ Đạt':'❌ Không đạt',
+    total_bonus:totBonus,
+    balance_due:totBalance,
   });
-  totalRow.height=22;
+  totalRow.height=24;
   totalRow.eachCell((cell,colNum)=>{
-    cell.font={bold:true,size:11,name:'Calibri'};
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEDE9FE'}};
-    cell.border={top:{style:'double'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
-    if([6,7,8,9,10].includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
+    cell.font={bold:true,size:11,name:'Calibri',color:{argb:WHITE}};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED_DARK}};
+    cell.border={top:{style:'double',color:{argb:RED_DARK}},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+    if(moneyCols.includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
+    if(colNum===11||colNum===14){cell.alignment={horizontal:'center'};}
   });
 
   const buf=await wb.xlsx.writeBuffer();
@@ -1871,7 +1935,7 @@ async function exportOrdersExcel(){
   a.download=`DonHang_${thang}.xlsx`;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('Đã xuất file Excel');
+  toast('Đã xuất file Excel — '+list.length+' đơn hàng');
 }
 
 // Bonus bậc giường Headspa Bed cho 1 đơn — dùng đúng công thức bậc thang
