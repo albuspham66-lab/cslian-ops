@@ -1860,7 +1860,7 @@ async function exportOrdersExcel(){
     const tyLeSale=datTargetSale?1.0:0.5;
     const bonusGiuong=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
     const chenhSale=chenhSaleMap[o.id]||0;
-    const bonusChenh=o.bonus_sale_usd||o.bonus_chenh_lech||0;
+    const bonusChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
     const giaBanGocGiuong=giaBanGocGiuongMap[o.id]||0;
     const truyThu=o.truy_thu_usd||0;
     // Total Bonus = ((Doanh số - Chênh lệch - Giá gốc giường) × 1% + Bonus CL + Bonus Giường) × tỷ lệ sale - Truy thu
@@ -1908,7 +1908,7 @@ async function exportOrdersExcel(){
   // ── Dòng tổng — đỏ đậm, chữ trắng ──
   const totDoanhSo=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totChenh=list.reduce((s,o)=>s+(chenhSaleMap[o.id]||0),0);
-  const totBonusCL=list.reduce((s,o)=>s+(o.bonus_sale_usd||o.bonus_chenh_lech||0),0);
+  const totBonusCL=list.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
   const totBonusGiuong=list.reduce((s,o)=>s+calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0),0);
   const totTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const totBalance=list.reduce((s,o)=>s+(o.balance_due||0),0);
@@ -1918,7 +1918,7 @@ async function exportOrdersExcel(){
   const totBonus=Math.max(0,list.reduce((s,o)=>{
     const dts=isOrderDatTarget(o)?1.0:0.5;
     const cL=chenhSaleMap[o.id]||0;
-    const bC=o.bonus_sale_usd||o.bonus_chenh_lech||0;
+    const bC=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
     const bG=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
     const gbg=giaBanGocGiuongMap[o.id]||0;
     const nr=Math.max(0,(o.total_amount||0)-cL-gbg);
@@ -2304,7 +2304,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
-  const bonusChenh=ords.reduce((s,o)=>s+(o.bonus_sale_usd||o.bonus_chenh_lech||0),0);
+  const bonusChenh=ords.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
   // Ưu tiên bonus_sale_usd (tách biệt theo sale_price, MỚI từ Edge Function v6).
   // Fallback bonus_chenh_lech cho đơn cũ chưa có bonus_sale_usd để không mất dữ liệu.
   // Target xét trên TẤT CẢ đơn trong tháng (kể cả chưa settled), bonus chỉ tính đơn settled
