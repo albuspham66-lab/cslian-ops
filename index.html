@@ -2011,7 +2011,7 @@ async function renderOrders(){
 
   // Stats
   const totalRev=list.reduce((s,o)=>s+(o.total_amount||0),0);
-  const totalBonusChenh=list.reduce((s,o)=>s+(o.bonus_chenh_lech||0),0);
+  const totalBonusChenh=list.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
   const totalBonusMacDinh=list.reduce((s,o)=>s+(bonusMacDinhMap[o.id]||0),0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const tatToanCount=list.filter(o=>o.is_settled||o.balance_due===0).length;
@@ -2032,7 +2032,7 @@ async function renderOrders(){
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(o.bonus_chenh_lech||0)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd((o.bonus_sale_usd??o.bonus_chenh_lech)??0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusMacDinh)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance_due||0)}</td>
