@@ -2314,7 +2314,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   const items=(itemsRes.data||[]).filter(i=>!i.is_gift);  // loại item đã đánh dấu tặng kèm
   const headspaItems=items.filter(i=>i.la_bolsa);
-  const bolsaOtherItems=items.filter(i=>!i.la_bolsa);
+  // bolsaOtherItems: BOLSA không phải giường, không phải shipping (amount>0), không tặng kèm
+  const EXEMPT_NAMES=['shipping fee','shipping','ship'];
+  const bolsaOtherItems=items.filter(i=>!i.la_bolsa
+    && (i.amount||0)>0
+    && !EXEMPT_NAMES.includes((i.ten_sp_invoice||'').toLowerCase().trim()));
 
   const soGiuong=headspaItems.reduce((s,i)=>s+(i.so_luong||0),0);
   let bolsaHeadspaBonus=0;
