@@ -1800,15 +1800,18 @@ async function exportOrdersExcel(){
     });
   }
 
-  // Tổng doanh số cả tháng để xác định Đạt/Không đạt target $23,500
-  const tongDoanhSoThang=list.reduce((s,o)=>s+(o.total_amount||0),0);
-  const datTarget=tongDoanhSoThang>=TARGET_USD;
-  const tyLe=datTarget?1.0:0.5;
+  // Target xét theo TỪNG SALE riêng biệt — tổng doanh số của mỗi Sale trong tháng ≥ $23,500
+  // Fetch tất cả đơn settled của tháng (không filter empId) để tính target từng người
+  const tongDoanhSoTheoSale={};
+  {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang).eq('is_settled',true);
+  (allOrdMonth||[]).forEach(o=>{if(o.user_id)tongDoanhSoTheoSale[o.user_id]=(tongDoanhSoTheoSale[o.user_id]||0)+(o.total_amount||0);});}
+  // Helper: kiểm tra 1 đơn có đạt target không (dựa vào user_id của đơn đó)
+  function isOrderDatTarget(o){return (tongDoanhSoTheoSale[o.user_id]||0)>=TARGET_USD;}
 
   const wb=new ExcelJS.Workbook();
   wb.creator='C-Slian Ops';
   wb.created=new Date();
-  const ws=wb.addWorksheet('Đơn hàng '+thang,{views:[{state:'frozen',ySplit:1}]});
+  const ws=wb.addWorksheet('Đơn hàng '+thang,{views:[{state:'frozen',xSplit:1,ySplit:1}]});
 
   // Định nghĩa cột — thêm Chênh lệch, Target, Total Bonus
   ws.columns=[
@@ -1827,6 +1830,9 @@ async function exportOrdersExcel(){
     {header:'Balance ($)',     key:'balance_due',        width:13},
     {header:'Trạng thái',     key:'trang_thai',          width:14},
   ];
+
+  // AutoFilter trên header — cho phép lọc từng cột
+  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:14}};
 
   // ── Style constants ──
   const RED_DARK='FF9B1C1C';   // đỏ đậm header/total
@@ -1850,14 +1856,16 @@ async function exportOrdersExcel(){
   // ── Data rows ──
   list.forEach((o,idx)=>{
     const tatToan=o.is_settled||o.balance_due===0;
+    const datTargetSale=isOrderDatTarget(o);
+    const tyLeSale=datTargetSale?1.0:0.5;
     const bonusGiuong=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
     const chenhSale=chenhSaleMap[o.id]||0;
     const bonusChenh=o.bonus_sale_usd||o.bonus_chenh_lech||0;
     const giaBanGocGiuong=giaBanGocGiuongMap[o.id]||0;
     const truyThu=o.truy_thu_usd||0;
-    // Total Bonus = ((Doanh số - Chênh lệch - Giá gốc giường) × 1% + Bonus CL + Bonus Giường) × tỷ lệ - Truy thu
+    // Total Bonus = ((Doanh số - Chênh lệch - Giá gốc giường) × 1% + Bonus CL + Bonus Giường) × tỷ lệ sale - Truy thu
     const netRev=Math.max(0,(o.total_amount||0)-chenhSale-giaBanGocGiuong);
-    const totalBonus=((netRev*0.01)+bonusChenh+bonusGiuong)*tyLe-truyThu;
+    const totalBonus=((netRev*0.01)+bonusChenh+bonusGiuong)*tyLeSale-truyThu;
 
     const row=ws.addRow({
       invoice_no:    o.invoice_no||'',
@@ -1870,7 +1878,7 @@ async function exportOrdersExcel(){
       bonus_chenh_lech: bonusChenh,
       bonus_giuong:  bonusGiuong,
       truy_thu_usd:  truyThu,
-      target:        datTarget?'✅ Đạt':'❌ Không đạt',
+      target:        datTargetSale?'✅ Đạt':'❌ Không đạt',
       total_bonus:   Math.max(0,totalBonus),
       balance_due:   o.balance_due||0,
       trang_thai:    tatToan?'Tất toán':'Còn nợ',
@@ -1886,7 +1894,7 @@ async function exportOrdersExcel(){
       if(colNum===11){
         cell.alignment={horizontal:'center'};
         cell.font={size:10.5,name:'Calibri',bold:true,
-          color:{argb:datTarget?'FF15803D':'FFB45309'}};
+          color:{argb:datTargetSale?'FF15803D':'FFB45309'}};
       }
       // Trạng thái column
       if(colNum===14){
@@ -1908,13 +1916,13 @@ async function exportOrdersExcel(){
   const totBonus=Math.max(0,((totNetRev*0.01)+totBonusCL+totBonusGiuong)*tyLe-totTruyThu);
 
   const totalRow=ws.addRow({
-    shop_name:'TỔNG',
+    invoice_no:'TOTAL',
     total_amount:totDoanhSo,
     chenh_lech_sale:totChenh,
     bonus_chenh_lech:totBonusCL,
     bonus_giuong:totBonusGiuong,
     truy_thu_usd:totTruyThu,
-    target:datTarget?'✅ Đạt':'❌ Không đạt',
+    target:'—',
     total_bonus:totBonus,
     balance_due:totBalance,
   });
