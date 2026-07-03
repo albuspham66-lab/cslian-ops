@@ -3147,7 +3147,8 @@ function buildSummarySheet(orders){
   ws['!freeze']={xSplit:1,ySplit:1,topLeftCell:'B2',activePane:'bottomRight',state:'frozen'};
   autoWidth(ws,WIDTHS);
   return ws;
-}(agentName,orders){
+}
+function buildAgentSheet(agentName,orders){
   // Layout FLAT — mỗi sản phẩm 1 dòng, lặp lại Agent + Mã đơn + Shop
   // Khớp image 2: Agent | Mã đơn | Business Name | Sản phẩm | SL | Giá bán | Vendor Cost | Vendor | Chênh lệch | Bonus Chênh | HH Rate | HH Chênh | Hoa hồng | Gift
   const lib=XL();const ws={};
