@@ -2462,9 +2462,15 @@ async function toggleLockSalary(empId,thang){
 
 async function viewSalaryDetail(empId,thang){
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
-  // Luôn tính lại trực tiếp để tránh đọc cache/DB cũ có p3a_ty_le_dat sai
-  const fresh=await calcSalaryForEmp(empId,thang,salYear,salMonth);
-  const sal=fresh;
+  // Nếu đã chốt (is_locked=true) → đọc thẳng DB, không tính lại
+  // Nếu chưa chốt → tính lại fresh để hiển thị số mới nhất
+  const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  let sal;
+  if(existing?.is_locked){
+    sal=existing;
+  } else {
+    sal=await calcSalaryForEmp(empId,thang,salYear,salMonth);
+  }
   if(!sal){toast('Chưa có dữ liệu lương — thử bấm lại sau vài giây','error');return;}
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
   const html=`
@@ -2619,11 +2625,9 @@ async function exportPhieuLuong(empId,thang){
   empId=empId||curProfile?.id;
   thang=thang||monthStr(salYear,salMonth);
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)||curProfile;
-  let sal=_salCache[empId+'|'+thang];
-  if(!sal){
-    const {data}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-    sal=data;
-  }
+  // Luôn đọc thẳng từ DB để đảm bảo lấy đúng dữ liệu đã chốt (is_locked)
+  const {data}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  const sal=data;
   if(!sal){toast('Chưa có bảng lương tháng này — thử bấm lại sau vài giây','error');return;}
 
   const html=buildPhieuLuongHTML(emp,sal,thang);
