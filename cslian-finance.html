@@ -2397,8 +2397,8 @@ function showStaffDetail(uid){
   const p=allProfiles.find(x=>x.id===uid);if(!p)return;
   const sal=allSalary.find(s=>s.user_id===uid);
   const kpi=allKpi.find(k=>k.user_id===uid);
-  const orders=allOrders.filter(o=>o.user_id===uid);
-  const totalRev=orders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
+  const orders=allOrders.filter(o=>o.user_id===uid&&o.billing_month>=fromKey()&&o.billing_month<=toKey());
+  const totalRev=orders.reduce((s,o)=>s+(o.total_amount||0),0);
   const bd=p.birthday?new Date(p.birthday).toLocaleDateString('vi-VN'):'—';
   setTxt('sd-title',p.full_name+' — Chi tiết');
   setHTML('sd-info',`
@@ -2518,7 +2518,7 @@ function renderPerformance(){
   const datasets=agents.map((a,i)=>{
     const colors2=['#6fa0ff','#4ddea0','#b08aff','#f5b840','#f07977','#34d4e0'];
     const data=months6.map(mk=>{
-      return allOrders.filter(o=>o.user_id===allProfiles.find(p=>p.full_name===a.name)?.id&&(o.billing_month)===mk&&o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
+      return allOrders.filter(o=>o.user_id===allProfiles.find(p=>p.full_name===a.name)?.id&&(o.billing_month)===mk).reduce((s,o)=>s+(o.total_amount||0),0);
     });
     return{label:a.name,data,borderColor:colors2[i%colors2.length],backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.4};
   });
