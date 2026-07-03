@@ -2466,13 +2466,10 @@ async function viewSalaryDetail(empId,thang){
   // Nếu chưa chốt → tính lại fresh để hiển thị số mới nhất
   const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
   let sal;
-  console.log('[viewSalary] existing=',JSON.stringify({is_locked:existing?.is_locked,p3c_kpi:existing?.p3c_kpi,p3a_total_usd:existing?.p3a_total_usd}));
   if(existing?.is_locked){
     sal=existing;
-    console.log('[viewSalary] using DB locked record, p3c=',sal.p3c_kpi);
   } else {
     sal=await calcSalaryForEmp(empId,thang,salYear,salMonth);
-    console.log('[viewSalary] recalculated, p3c=',sal?.p3c_kpi);
   }
   if(!sal){toast('Chưa có dữ liệu lương — thử bấm lại sau vài giây','error');return;}
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
