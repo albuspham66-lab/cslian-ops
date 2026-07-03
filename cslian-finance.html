@@ -622,7 +622,7 @@ textarea{resize:vertical;min-height:72px;}
   <div class="mrow mrow-4">
     <div class="mc green mc-click" id="kpi-card-rev" onclick="toggleKpiDetail('rev')">
       <span class="mc-arrow">▾</span>
-      <div class="mc-lbl">Doanh thu (tất toán)</div>
+      <div class="mc-lbl">Doanh số tháng (kể cả Deposit)</div>
       <div class="mc-val" id="pf-rev">—</div>
       <div class="mc-sub">USD</div>
     </div>
@@ -1398,8 +1398,8 @@ function doneOrders(){return ordByMonth().filter(o=>o.is_settled);}
 function pendingOrders(){return allOrders.filter(o=>!o.is_settled&&(o.balance_due||0)>0);}
 
 function calcRevDate(){return ordByDate().reduce((s,o)=>s+(o.total_amount||0),0);}
-function calcRevMonth(){return doneOrders().reduce((s,o)=>s+(o.total_amount||0),0);}
-function calcAOV(){const d=doneOrders();return d.length?calcRevMonth()/d.length:0;}
+function calcRevMonth(){return ordByMonth().reduce((s,o)=>s+(o.total_amount||0),0);}
+function calcAOV(){const d=ordByMonth();return d.length?calcRevMonth()/d.length:0;}
 function calcExpTotal(){return allExpenses.reduce((s,e)=>s+(e.so_tien||0),0);}
 function calcSalTotal(){return allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0);}
 
@@ -1686,9 +1686,9 @@ function calcDelta(cur,prev){
 
 // Prev period calcs
 function prevRevDate(){return prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);}
-function prevRevMonth(){return prevOrders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);}
+function prevRevMonth(){return prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);}
 function prevOrdrCount(){return prevOrders.length;}
-function prevAOV(){const d=prevOrders.filter(o=>o.is_settled);return d.length?prevRevMonth()/d.length:0;}
+function prevAOV(){const d=prevOrders;return d.length?prevRevMonth()/d.length:0;}
 
 function deltaWidget(cur,prev){
   const d=calcDelta(cur,prev);
@@ -2184,7 +2184,7 @@ function renderFinance(){
   const net=commVND-exp-sal;
 
   // Trend so với kỳ trước (tính sẵn từ prevOrders/prevExpenses đã fetch)
-  const prevRevM=prevOrders.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
+  const prevRevM=prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);
   const prevExp=prevExpenses.reduce((s,e)=>s+(e.so_tien||0),0);
 
   setHTML('pf-rev',fmtUSD(revM)+trendHTML(revM,prevRevM));
