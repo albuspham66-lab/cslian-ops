@@ -594,7 +594,7 @@ textarea{resize:vertical;min-height:72px;}
           <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
           <th class="num">Truy thu</th><th class="num">Balance</th><th class="num">Chênh lệch</th>
           <th class="num">HH Theo Rate ($)</th><th class="num">HH Chênh lệch ($)</th><th class="num">Hoa hồng ($)</th>
-          <th>Tình trạng</th><th></th>
+          <th>Tình trạng</th><th style="white-space:nowrap;">Đã thu HH</th><th></th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -638,6 +638,12 @@ textarea{resize:vertical;min-height:72px;}
       <div class="mc-val" id="pf-exp">—</div>
       <div class="mc-sub">VNĐ</div>
     </div>
+    <div class="mc" style="background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(168,85,247,.06));border-color:rgba(168,85,247,.3);cursor:pointer;" id="kpi-card-tu" onclick="toggleKpiDetail('tu')">
+      <span class="mc-arrow">▾</span>
+      <div class="mc-lbl">💰 Tạm ứng</div>
+      <div class="mc-val" id="pf-tu" style="color:var(--purple2);">—</div>
+      <div class="mc-sub" id="pf-tu-sub">Còn lại · VNĐ</div>
+    </div>
     <div class="mc blue mc-click" id="kpi-card-net" onclick="toggleKpiDetail('net')">
       <span class="mc-arrow">▾</span>
       <div class="mc-lbl">Lợi nhuận ròng</div>
@@ -675,6 +681,23 @@ textarea{resize:vertical;min-height:72px;}
         <div class="chart-box-sm"><canvas id="exp-chart"></canvas></div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expense-list-card').scrollIntoView({behavior:'smooth'})" style="margin-top:14px;width:100%;justify-content:center;">📋 Xem danh sách chi phí chi tiết</button>
+    </div>
+
+    <div class="kpi-detail-block" data-key="tu">
+      <div class="ctitle">💰 Tạm ứng — Theo dõi vốn</div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div>
+          <div class="sr"><span class="sl">Tổng đã ứng (Leader)</span><span class="sv" style="color:var(--purple2);" id="tu-leader-total">—</span></div>
+          <div class="sr"><span class="sl">Tổng đã ứng (Manager)</span><span class="sv" style="color:var(--purple2);" id="tu-manager-total">—</span></div>
+          <div class="div"></div>
+          <div class="sr"><span class="sl">Đã hoàn</span><span class="sv" style="color:var(--green2);" id="tu-hoan">—</span></div>
+          <div class="sr st"><span class="sl">Còn lại chưa hoàn</span><span class="sv" id="tu-con-lai">—</span></div>
+        </div>
+        <div>
+          <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;" onclick="openModal('m-tu')">+ Thêm tạm ứng</button>
+          <div id="tu-list" style="font-size:12px;max-height:200px;overflow-y:auto;"></div>
+        </div>
+      </div>
     </div>
 
     <div class="kpi-detail-block" data-key="net">
@@ -1063,6 +1086,25 @@ textarea{resize:vertical;min-height:72px;}
   </div>
 </div>
 
+<!-- Modal: Thêm tạm ứng -->
+<div class="mbg" id="m-tu">
+  <div class="modal">
+    <div class="modal-title">💰 Thêm tạm ứng</div>
+    <div class="fgrid2">
+      <div class="fg"><label class="fl">Ngày</label><input type="date" id="tu-date"></div>
+      <div class="fg"><label class="fl">Người ứng</label>
+        <select id="tu-nguoi"><option value="Leader">Leader</option><option value="Manager">Manager</option></select>
+      </div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Số tiền (VNĐ)</label><input type="number" id="tu-amount" placeholder="0"></div>
+      <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú</label><input type="text" id="tu-note" placeholder="Mục đích tạm ứng..."></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-tu')">Huỷ</button>
+      <button class="btn btn-success" onclick="addTamUng()">Thêm</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Thêm/sửa sản phẩm -->
 <div class="mbg" id="m-prod">
   <div class="modal modal-lg">
@@ -1369,6 +1411,8 @@ async function loadAll(){
     // Re-render commission after order_items loaded (async, may finish after initial render)
     if(document.getElementById('pf-r-bolsa'))renderVendorCommissions();
     toast(`Đã tải ${rangeLabel()}`,'green');
+    // Load tam_ung riêng (không block main load)
+    loadTamUng().catch(()=>{});
   }catch(e){
     setConn('err','Lỗi kết nối');
     toast('Lỗi: '+e.message,'red');
@@ -2028,6 +2072,11 @@ function renderOrdersTable(orders){
       <td class="num" style="white-space:nowrap;color:${commChenh>0?'var(--amber2)':'var(--text3)'}">${commChenh>0?fmtUSD(commChenh):'—'}</td>
       <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
       <td style="white-space:nowrap;"><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
+      <td style="text-align:center;" onclick="event.stopPropagation();">
+        <input type="checkbox" ${o.commission_received?'checked':''} title="${o.commission_received?'Đã thu hoa hồng':'Chưa thu hoa hồng'}"
+          style="width:16px;height:16px;accent-color:var(--green2);cursor:pointer;"
+          onchange="toggleCommReceived('${o.id}',this.checked)">
+      </td>
       <td style="white-space:nowrap;"><button class="act-btn" title="Xem chi tiết" onclick="event.stopPropagation();viewOrderDetail('${o.id}')">👁</button></td>
     </tr>`;
   }).join('');
@@ -2142,7 +2191,7 @@ function trendHTML(cur,prev,lowerIsBetter){
 }
 
 // ─── KPI Detail Panel (click-to-expand) ───
-const KPI_PANEL_MAP={rev:'kpi-detail-panel',comm:'kpi-detail-panel',exp:'kpi-detail-panel',net:'kpi-detail-panel',
+const KPI_PANEL_MAP={rev:'kpi-detail-panel',comm:'kpi-detail-panel',exp:'kpi-detail-panel',net:'kpi-detail-panel',tu:'kpi-detail-panel',
   cashflow:'forecast-detail-panel',aging:'forecast-detail-panel',leadtime:'forecast-detail-panel'};
 let _activeKpiKey={'kpi-detail-panel':null,'forecast-detail-panel':null};
 let _kpiDetailInitialized=false;
@@ -2174,6 +2223,7 @@ function toggleKpiDetail(key){
 
   // Chart.js cần resize lại khi canvas vừa được hiện ra từ display:none
   if(key==='exp'&&expChart)setTimeout(()=>expChart.resize(),50);
+  if(key==='tu')renderTamUng();
 }
 
 function renderFinance(){
@@ -2187,9 +2237,19 @@ function renderFinance(){
   const prevRevM=prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);
   const prevExp=prevExpenses.reduce((s,e)=>s+(e.so_tien||0),0);
 
+  const commProj=calcCommissionProjected();
+  const _vr2=calcVendorRevenue();
   setHTML('pf-rev',fmtUSD(revM)+trendHTML(revM,prevRevM));
-  // BUG FIX: set pf-comm card (trước đây không bao giờ được set)
-  setTxt('pf-comm',comm.total>0?fmtUSD(comm.total):'—');
+  const _oldSub=document.getElementById('rev-vendor-sub');
+  if(_oldSub)_oldSub.remove();
+  document.getElementById('pf-rev').insertAdjacentHTML('afterend',
+    `<div id="rev-vendor-sub" style="font-size:11px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="color:var(--amber2);">🔶 ${fmtUSD(_vr2.bolsa)}</span>
+      <span style="color:var(--blue2);">🔷 ${fmtUSD(_vr2.ons)}</span>
+      <span style="color:var(--purple2);">💜 ${fmtUSD(_vr2.tspa)}</span>
+    </div>`);
+  // Stat card HH: hiển thị TOÀN BỘ đơn (kể cả Pending)
+  setTxt('pf-comm',commProj.total>0?fmtUSD(commProj.total):'—');
   setHTML('pf-exp',fmtVND(exp)+trendHTML(exp,prevExp,true));
   setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
@@ -2278,18 +2338,27 @@ function filterExpenses(){
 function renderExpenseTable(){
   const list=filteredExpenses.length?filteredExpenses:allExpenses;
   const empty=document.getElementById('exp-empty');
-  if(!list.length){document.getElementById('exp-body').innerHTML='';empty.style.display='block';setTxt('exp-foot','0đ');return;}
+  // Salary rows từ salary_monthly
+  const salaryRows=(allSalary||[]).map(s=>{
+    const p=allProfiles.find(x=>x.id===s.user_id);
+    return{
+      ngay:s.thang+'-01',mo_ta:`Lương: ${p?p.full_name:'NV'}`,danh_muc:'Lương',
+      loai:'sal',nguoi_chi:'',so_tien:s.tong_luong_vnd||0,ghi_chu:`T${s.thang}`,_salary:true
+    };
+  }).filter(s=>s.so_tien>0);
+  const allRows=[...list,...salaryRows].sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||''));
+  if(!allRows.length){document.getElementById('exp-body').innerHTML='';empty.style.display='block';setTxt('exp-foot','0đ');return;}
   empty.style.display='none';
-  const total=list.reduce((s,e)=>s+(e.so_tien||0),0);
-  document.getElementById('exp-body').innerHTML=list.map(e=>`<tr>
+  const total=allRows.reduce((s,e)=>s+(e.so_tien||0),0);
+  document.getElementById('exp-body').innerHTML=allRows.map(e=>`<tr${e._salary?' style="opacity:.75;"':''}>
     <td style="color:var(--text2);font-size:12px;">${e.ngay||'—'}</td>
     <td>${e.mo_ta||'—'}</td>
-    <td><span class="b b-red" style="font-size:10px;">${e.danh_muc||'—'}</span></td>
-    <td><span class="b b-gray" style="font-size:10px;">${e.loai==='ops'?'Vận hành':e.loai==='invest'?'Đầu tư':'Khác'}</span></td>
+    <td><span class="b ${e._salary?'b-blue':'b-red'}" style="font-size:10px;">${e.danh_muc||'—'}</span></td>
+    <td><span class="b b-gray" style="font-size:10px;">${e._salary?'Lương Sale':e.loai==='ops'?'Vận hành':e.loai==='invest'?'Đầu tư':'Khác'}</span></td>
     <td><span class="b ${e.nguoi_chi==='Manager'?'b-blue':'b-purple'}" style="font-size:10px;">${e.nguoi_chi||'—'}</span></td>
     <td class="num" style="color:var(--red2);">${fmtVND(e.so_tien)}</td>
     <td style="color:var(--text3);font-size:12px;">${e.ghi_chu||''}</td>
-    <td><button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button></td>
+    <td>${e._salary?'':` <button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button>`}</td>
   </tr>`).join('');
   setTxt('exp-foot',fmtVND(total));
 }
@@ -2305,6 +2374,85 @@ async function addExpense(){
 async function delExpense(id){
   try{await sbDelete('expenses',id);await loadAll();toast('Đã xoá','green');}
   catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
+// ─── COMMISSION RECEIVED ───
+async function toggleCommReceived(orderId,val){
+  try{
+    await fetch(`${CFG.url}/rest/v1/orders?id=eq.${orderId}`,{
+      method:'PATCH',
+      headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({commission_received:val})
+    });
+    const o=allOrders.find(x=>x.id===orderId);
+    if(o)o.commission_received=val;
+    toast(val?'✅ Đã đánh dấu đã thu HH':'Đã bỏ đánh dấu','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
+// ─── TẠM ỨNG ───
+let allTamUng=[];
+async function loadTamUng(){
+  try{
+    const r=await fetch(`${CFG.url}/rest/v1/tam_ung?order=ngay.desc`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+    allTamUng=await r.json();
+  }catch(e){allTamUng=[];}
+  renderTamUng();
+}
+function renderTamUng(){
+  const total=allTamUng.reduce((s,t)=>s+(t.so_tien||0),0);
+  const hoan=allTamUng.filter(t=>t.da_hoan).reduce((s,t)=>s+(t.so_tien||0),0);
+  const conLai=total-hoan;
+  const leader=allTamUng.filter(t=>t.nguoi==='Leader').reduce((s,t)=>s+(t.so_tien||0),0);
+  const manager=allTamUng.filter(t=>t.nguoi==='Manager').reduce((s,t)=>s+(t.so_tien||0),0);
+  setTxt('pf-tu',fmtVND(conLai));
+  setTxt('pf-tu-sub','Còn lại · VNĐ');
+  const elL=document.getElementById('tu-leader-total');
+  const elM=document.getElementById('tu-manager-total');
+  const elH=document.getElementById('tu-hoan');
+  const elC=document.getElementById('tu-con-lai');
+  if(elL)setTxt('tu-leader-total',fmtVND(leader));
+  if(elM)setTxt('tu-manager-total',fmtVND(manager));
+  if(elH)setTxt('tu-hoan',fmtVND(hoan));
+  if(elC){elC.innerHTML=`<span style="color:${conLai>0?'var(--amber2)':'var(--green2)'}">${fmtVND(conLai)}</span>`;}
+  const list=document.getElementById('tu-list');
+  if(list){
+    list.innerHTML=allTamUng.length?allTamUng.map(t=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bord);">
+        <span class="b ${t.nguoi==='Leader'?'b-purple':'b-blue'}" style="font-size:10px;">${t.nguoi}</span>
+        <span style="flex:1;color:var(--text2);">${t.ngay} · ${t.ghi_chu||'—'}</span>
+        <span style="color:var(--amber2);font-weight:600;">${fmtVND(t.so_tien)}</span>
+        <input type="checkbox" ${t.da_hoan?'checked':''} title="Đã hoàn" style="accent-color:var(--green2);cursor:pointer;"
+          onchange="toggleTamUngHoan(${t.id},this.checked)">
+        <button class="act-btn act-del" style="padding:2px 6px;" onclick="delTamUng(${t.id})">✕</button>
+      </div>`).join(''):'<div style="color:var(--text3);text-align:center;padding:16px;">Chưa có dữ liệu</div>';
+  }
+}
+async function addTamUng(){
+  const data={
+    ngay:document.getElementById('tu-date').value||today(),
+    nguoi:document.getElementById('tu-nguoi').value,
+    so_tien:parseFloat(document.getElementById('tu-amount').value)||0,
+    ghi_chu:document.getElementById('tu-note').value,
+    da_hoan:false
+  };
+  if(!data.so_tien){toast('Nhập số tiền','amber');return;}
+  try{
+    await fetch(`${CFG.url}/rest/v1/tam_ung`,{method:'POST',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(data)});
+    closeModal('m-tu');await loadTamUng();toast('Đã thêm tạm ứng','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+async function toggleTamUngHoan(id,val){
+  try{
+    await fetch(`${CFG.url}/rest/v1/tam_ung?id=eq.${id}`,{method:'PATCH',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({da_hoan:val,ngay_hoan:val?today():null})});
+    await loadTamUng();toast(val?'✅ Đã đánh dấu hoàn':'Đã bỏ','green');
+  }catch(e){toast('Lỗi','red');}
+}
+async function delTamUng(id){
+  try{
+    await fetch(`${CFG.url}/rest/v1/tam_ung?id=eq.${id}`,{method:'DELETE',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
+    await loadTamUng();toast('Đã xoá','green');
+  }catch(e){toast('Lỗi','red');}
 }
 
 async function saveBudget(){
@@ -3147,8 +3295,7 @@ function buildSummarySheet(orders){
   ws['!freeze']={xSplit:1,ySplit:1,topLeftCell:'B2',activePane:'bottomRight',state:'frozen'};
   autoWidth(ws,WIDTHS);
   return ws;
-}
-function buildAgentSheet(agentName,orders){
+}(agentName,orders){
   // Layout FLAT — mỗi sản phẩm 1 dòng, lặp lại Agent + Mã đơn + Shop
   // Khớp image 2: Agent | Mã đơn | Business Name | Sản phẩm | SL | Giá bán | Vendor Cost | Vendor | Chênh lệch | Bonus Chênh | HH Rate | HH Chênh | Hoa hồng | Gift
   const lib=XL();const ws={};
