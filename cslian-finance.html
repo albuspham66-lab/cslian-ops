@@ -2111,8 +2111,47 @@ function calcCashFlowForecast(){
     const b=monthlyBudgets[mk];
     return b?(parseFloat(b.budget_ops||0)+parseFloat(b.budget_invest||0)):0;
   });
-  const profitVND=incomingUSD.map((inc,i)=>inc*(CFG.rate||25000)-budgetVND[i]);
-  return{months,incomingUSD,budgetVND,profitVND};
+  // Hoa hồng ước tính = sum(balance_due * tỷ lệ HH của từng đơn)
+  const commUSD=months.map(mk=>
+    allPendingGlobal.reduce((s,o)=>{
+      const esd=getEffectiveSettlementDate(o);
+      if(!esd||esd.slice(0,7)!==mk)return s;
+      const bal=o.balance_due||0;
+      if(!bal)return s;
+      // Tính rate HH = tổng HH items / total_amount
+      const items=allOrderItems.filter(x=>x.order_id===o.id);
+      let commAmt=0;
+      if(items.length){
+        items.forEach(it=>{
+          if(it.is_gift)return;
+          const amt=parseFloat(it.amount||it.gia_ban_thuc||0);
+          const vCost=parseFloat(it.vendor_cost||0);
+          const chenh=parseFloat(it.chenh_lech||0)||Math.max(0,amt-vCost);
+          const chenh_rate=parseFloat(it.chenh_lech_rate||0.7);
+          if(it.rate_comm_override!=null){
+            commAmt+=parseFloat(it.rate_comm_override||0);
+            if(it.chenh_comm_override!=null)commAmt+=parseFloat(it.chenh_comm_override||0);
+          } else if(it.la_bolsa){
+            const rate=parseFloat(it.commission_rate||0);
+            commAmt+=(amt-chenh)*rate + chenh*chenh_rate;
+          } else if((o.revenue_ons||0)>0){
+            commAmt+=chenh*chenh_rate;
+          } else {
+            const rate=parseFloat(it.commission_rate||0);
+            commAmt+=(amt-chenh)*rate + chenh*chenh_rate;
+          }
+        });
+        // Tỷ lệ HH = commAmt / total_amount, áp dụng cho balance_due
+        const totalAmt=parseFloat(o.total_amount||1);
+        const commRate=commAmt/totalAmt;
+        return s+bal*commRate;
+      }
+      // Fallback: dùng tỷ lệ 5% nếu không có items
+      return s+bal*0.05;
+    },0)
+  );
+  const profitVND=commUSD.map((comm,i)=>comm*(CFG.rate||25000)-budgetVND[i]);
+  return{months,incomingUSD,budgetVND,commUSD,profitVND};
 }
 
 function renderCashFlowForecast(){
@@ -2123,6 +2162,7 @@ function renderCashFlowForecast(){
   setTxt('cf-m0-label',labels[0]);setTxt('cf-m1-label',labels[1]);setTxt('cf-m2-label',labels[2]);
   const rows=[
     {label:'💰 Dự kiến thu vào (USD)',vals:fc.incomingUSD.map(v=>fmtUSD(v)),color:'var(--green2)'},
+    {label:'🤝 Hoa hồng ước tính (USD)',vals:fc.commUSD.map(v=>fmtUSD(v)),color:'var(--teal2)'},
     {label:'📋 Chi phí kế hoạch (VNĐ)',vals:fc.budgetVND.map(v=>fmtVND(v)),color:'var(--red2)'},
   ];
   let html=rows.map(r=>`<tr><td style="font-size:12px;color:var(--text);">${r.label}</td>${r.vals.map(v=>`<td class="num" style="color:${r.color};font-size:12px;">${v}</td>`).join('')}</tr>`).join('');
