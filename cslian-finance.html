@@ -114,6 +114,7 @@ html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:va
 
 /* ── METRIC CARDS ── */
 .mrow{display:grid;gap:12px;margin-bottom:18px;}
+.mrow-5{grid-template-columns:repeat(5,1fr);}
 .mrow-4{grid-template-columns:repeat(4,1fr);}
 .mrow-3{grid-template-columns:repeat(3,1fr);}
 .mrow-2{grid-template-columns:repeat(2,1fr);}
@@ -289,6 +290,7 @@ textarea{resize:vertical;min-height:72px;}
   #mobile-topbar{display:flex!important;}
   #mobile-nav{display:flex!important;}
   .page{padding:16px;padding-bottom:84px;}
+  .mrow-5{grid-template-columns:1fr 1fr;}
   .mrow-4{grid-template-columns:1fr 1fr;}
   .mrow-3{grid-template-columns:1fr 1fr;}
   .g2,.g3{grid-template-columns:1fr;}
@@ -618,8 +620,7 @@ textarea{resize:vertical;min-height:72px;}
     </div>
   </div>
 
-  <!-- KPI Strip — click để xem chi tiết bên dưới -->
-  <div class="mrow mrow-4">
+  <div class="mrow mrow-5">
     <div class="mc green mc-click" id="kpi-card-rev" onclick="toggleKpiDetail('rev')">
       <span class="mc-arrow">▾</span>
       <div class="mc-lbl">Doanh số tháng (kể cả Deposit)</div>
@@ -3368,10 +3369,59 @@ async function exportCurrentExcel(){
     let rows=[],filename='cslian-export',sheetName='Data';
     if(id==='finance'){
       filename=`cslian-expenses-${fromKey()}`;sheetName='Chi phí';
-      rows=[['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền VNĐ'],
-        ...allExpenses.map(e=>[e.ngay,e.mo_ta,e.danh_muc,e.loai,e.nguoi_chi,e.so_tien])];
+      const XL=lib;
+      const S={
+        hdr:{font:{bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'1A2850'}},alignment:{horizontal:'center'},border:{bottom:{style:'thin',color:{rgb:'3B82F6'}}}},
+        money:{alignment:{horizontal:'right'},numFmt:'#,##0'},
+        total:{font:{bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'1A2850'}},numFmt:'#,##0',alignment:{horizontal:'right'}},
+        totalLabel:{font:{bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'1A2850'}}}
+      };
+      const hdrs=['Ngày','Mô tả','Danh mục','Loại','Người chi','Số tiền (VNĐ)','Ghi chú'];
+      const ws={};
+      let r=0;
+      const range={s:{r:0,c:0},e:{r:0,c:hdrs.length-1}};
+      // Header row
+      hdrs.forEach((h,c)=>{
+        const addr=XL.utils.encode_cell({r,c});
+        ws[addr]={v:h,t:'s',s:S.hdr};
+        range.e.c=Math.max(range.e.c,c);
+      });
+      r++;
+      // Salary rows first
+      const salRows=(allSalary||[]).map(s=>{
+        const p=allProfiles.find(x=>x.id===s.user_id);
+        return{ngay:s.thang+'-01',mo_ta:`Lương: ${p?p.full_name:'NV'}`,danh_muc:'Lương',loai:'Lương Sale',nguoi_chi:'',so_tien:s.tong_luong_vnd||0,ghi_chu:`T${s.thang}`};
+      }).filter(s=>s.so_tien>0);
+      const allRows=[...allExpenses,...salRows].sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||''));
+      let totalAmt=0;
+      allRows.forEach(e=>{
+        const rowData=[e.ngay||'',e.mo_ta||'',e.danh_muc||'',e.loai==='sal'?'Lương Sale':e.loai==='ops'?'Vận hành':e.loai==='invest'?'Đầu tư':e.loai||'',e.nguoi_chi||'',e.so_tien||0,e.ghi_chu||''];
+        rowData.forEach((v,c)=>{
+          const addr=XL.utils.encode_cell({r,c});
+          if(c===5){ws[addr]={v:parseFloat(v)||0,t:'n',s:S.money};}
+          else ws[addr]={v:String(v),t:'s'};
+        });
+        totalAmt+=(parseFloat(e.so_tien)||0);
+        range.e.r=r; r++;
+      });
+      // Total row
+      const totRow=['Total','','','','',totalAmt,''];
+      totRow.forEach((v,c)=>{
+        const addr=XL.utils.encode_cell({r,c});
+        if(c===5)ws[addr]={v:parseFloat(v)||0,t:'n',s:S.total};
+        else ws[addr]={v:String(v),t:'s',s:S.totalLabel};
+      });
+      range.e.r=r;
+      ws['!ref']=XL.utils.encode_range(range);
+      ws['!autofilter']={ref:XL.utils.encode_range({s:{r:0,c:0},e:{r:0,c:hdrs.length-1}})};
+      ws['!freeze']={xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft',state:'frozen'};
+      ws['!cols']=[{wch:14},{wch:30},{wch:16},{wch:14},{wch:16},{wch:20},{wch:20}];
+      const wb=lib.utils.book_new();
+      lib.utils.book_append_sheet(wb,ws,sheetName);
+      lib.writeFile(wb,filename+'.xlsx');
+      toast('Đã xuất file Excel Chi phí','green');
+      return;
     }else if(id==='hr'){
-      filename=`cslian-salary-${fromKey()}`;sheetName='Lương';
       rows=[['Nhân viên','Tháng','Ngày công','P1','P2','P3B+C','Bonus P3A USD','Tổng VNĐ','Đã duyệt'],
         ...allSalary.map(s=>{const p=allProfiles.find(x=>x.id===s.user_id);return[p?p.full_name:'—',s.thang,s.ngay_cong_thuc_te,s.p1_thuc_te,(s.p2a||0)+(s.p2b||0)+(s.p2c||0),(s.p3b_chuyen_can||0)+(s.p3c_kpi||0),s.p3a_total_usd||0,s.tong_luong_vnd,s.da_chot?'Yes':'No'];})];
     }
