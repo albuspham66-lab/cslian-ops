@@ -1087,6 +1087,66 @@ textarea{resize:vertical;min-height:72px;}
   </div>
 </div>
 
+<!-- Modal: Chỉnh sửa lương -->
+<div class="mbg" id="m-sal-edit">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">✏️ Chỉnh sửa lương</div>
+    <input type="hidden" id="sal-edit-id">
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div style="flex:1;background:var(--card2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);">Nhân viên</div>
+        <div style="font-weight:600;" id="sal-edit-name">—</div>
+      </div>
+      <div style="flex:1;background:var(--card2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;color:var(--text3);">Tháng</div>
+        <div style="font-weight:600;" id="sal-edit-thang">—</div>
+      </div>
+    </div>
+    <div class="fgrid2">
+      <div class="fg">
+        <label class="fl">Ngày công thực tế</label>
+        <input type="number" id="sal-ngay" min="0" max="31" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P1 — Lương cơ bản (VNĐ)</label>
+        <input type="number" id="sal-p1" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P2A — Ăn uống, đi lại (VNĐ)</label>
+        <input type="number" id="sal-p2a" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P2B — Phụ cấp chức năng (VNĐ)</label>
+        <input type="number" id="sal-p2b" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P2C — Phụ cấp năng lực (VNĐ)</label>
+        <input type="number" id="sal-p2c" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P3B — Chuyên cần (VNĐ)</label>
+        <input type="number" id="sal-p3b" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P3C — KPI (VNĐ)</label>
+        <input type="number" id="sal-p3c" min="0" oninput="calcSalTotal2()">
+      </div>
+      <div class="fg">
+        <label class="fl">P3A — Bonus (USD)</label>
+        <input type="number" id="sal-p3a" min="0" step="0.01" oninput="calcSalTotal2()">
+      </div>
+    </div>
+    <div style="background:var(--card2);border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--text2);font-size:13px;">Tổng lương thực nhận</span>
+      <span style="font-size:18px;font-weight:700;color:var(--blue2);" id="sal-edit-total">0đ</span>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-sal-edit')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveSalaryEdit()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Thêm tạm ứng -->
 <div class="mbg" id="m-tu">
   <div class="modal">
@@ -2384,7 +2444,8 @@ function renderExpenseTable(){
     const p=allProfiles.find(x=>x.id===s.user_id);
     return{
       ngay:s.thang+'-01',mo_ta:`Lương: ${p?p.full_name:'NV'}`,danh_muc:'Lương',
-      loai:'sal',nguoi_chi:'',so_tien:s.tong_luong_vnd||0,ghi_chu:`T${s.thang}`,_salary:true
+      loai:'sal',nguoi_chi:'',so_tien:s.tong_luong_vnd||0,ghi_chu:`T${s.thang}`,
+      _salary:true,_salaryId:s.id
     };
   }).filter(s=>s.so_tien>0);
   const allRows=[...list,...salaryRows].sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||''));
@@ -2399,7 +2460,11 @@ function renderExpenseTable(){
     <td><span class="b ${e.nguoi_chi==='Manager'?'b-blue':'b-purple'}" style="font-size:10px;">${e.nguoi_chi||'—'}</span></td>
     <td class="num" style="color:var(--red2);">${fmtVND(e.so_tien)}</td>
     <td style="color:var(--text3);font-size:12px;">${e.ghi_chu||''}</td>
-    <td>${e._salary?'':` <button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button>`}</td>
+    <td>${e._salary
+      ?`<button class="act-btn" onclick="openSalaryEdit(${e._salaryId})" title="Chỉnh sửa lương">✏️</button>
+         <button class="act-btn act-del" onclick="deleteSalary(${e._salaryId})" title="Xoá">✕</button>`
+      :`<button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button>`}
+    </td>
   </tr>`).join('');
   setTxt('exp-foot',fmtVND(total));
 }
@@ -2417,7 +2482,74 @@ async function delExpense(id){
   catch(e){toast('Lỗi: '+e.message,'red');}
 }
 
-// ─── COMMISSION RECEIVED ───
+// ─── SALARY EDIT / DELETE ───
+function calcSalTotal2(){
+  const p1=parseFloat(document.getElementById('sal-p1').value)||0;
+  const p2a=parseFloat(document.getElementById('sal-p2a').value)||0;
+  const p2b=parseFloat(document.getElementById('sal-p2b').value)||0;
+  const p2c=parseFloat(document.getElementById('sal-p2c').value)||0;
+  const p3b=parseFloat(document.getElementById('sal-p3b').value)||0;
+  const p3c=parseFloat(document.getElementById('sal-p3c').value)||0;
+  const p3a=parseFloat(document.getElementById('sal-p3a').value)||0;
+  const total=p1+p2a+p2b+p2c+p3b+p3c+Math.round(p3a*(CFG.rate||25000));
+  setTxt('sal-edit-total',fmtVND(total));
+  return total;
+}
+
+function openSalaryEdit(id){
+  const s=allSalary.find(x=>x.id===id);
+  if(!s){toast('Không tìm thấy dữ liệu lương','red');return;}
+  const p=allProfiles.find(x=>x.id===s.user_id);
+  document.getElementById('sal-edit-id').value=id;
+  setTxt('sal-edit-name',p?p.full_name:'—');
+  setTxt('sal-edit-thang',s.thang||'—');
+  document.getElementById('sal-ngay').value=s.ngay_cong_thuc_te||0;
+  document.getElementById('sal-p1').value=s.p1_thuc_te||0;
+  document.getElementById('sal-p2a').value=s.p2a||0;
+  document.getElementById('sal-p2b').value=s.p2b||0;
+  document.getElementById('sal-p2c').value=s.p2c||0;
+  document.getElementById('sal-p3b').value=s.p3b_chuyen_can||0;
+  document.getElementById('sal-p3c').value=s.p3c_kpi||0;
+  document.getElementById('sal-p3a').value=s.p3a_total_usd||0;
+  calcSalTotal2();
+  openModal('m-sal-edit');
+}
+
+async function saveSalaryEdit(){
+  const id=document.getElementById('sal-edit-id').value;
+  if(!id){toast('Lỗi: không có ID','red');return;}
+  const total=calcSalTotal2();
+  const data={
+    ngay_cong_thuc_te:parseFloat(document.getElementById('sal-ngay').value)||0,
+    p1_thuc_te:parseFloat(document.getElementById('sal-p1').value)||0,
+    p2a:parseFloat(document.getElementById('sal-p2a').value)||0,
+    p2b:parseFloat(document.getElementById('sal-p2b').value)||0,
+    p2c:parseFloat(document.getElementById('sal-p2c').value)||0,
+    p3b_chuyen_can:parseFloat(document.getElementById('sal-p3b').value)||0,
+    p3c_kpi:parseFloat(document.getElementById('sal-p3c').value)||0,
+    p3a_total_usd:parseFloat(document.getElementById('sal-p3a').value)||0,
+    tong_luong_vnd:total
+  };
+  try{
+    await sbPatch('salary_monthly',`id=eq.${id}`,data);
+    // Cập nhật local cache
+    const s=allSalary.find(x=>x.id===parseInt(id));
+    if(s)Object.assign(s,data);
+    closeModal('m-sal-edit');
+    renderExpenseTable();
+    toast('✅ Đã lưu lương','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
+
+async function deleteSalary(id){
+  if(!confirm('Xoá cứng record lương này? Sẽ mất ở cả tab Nhân sự & Lương.'))return;
+  try{
+    await sbDelete('salary_monthly',id);
+    allSalary=allSalary.filter(x=>x.id!==id);
+    renderExpenseTable();
+    toast('Đã xoá','green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
 async function toggleCommReceived(orderId,val){
   try{
     await fetch(`${CFG.url}/rest/v1/orders?id=eq.${orderId}`,{
