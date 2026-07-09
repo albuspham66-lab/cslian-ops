@@ -1762,9 +1762,8 @@ function calcOrderChenhLech(orderId){
   if(!allOrderItems||!allOrderItems.length)return 0;
   return allOrderItems.filter(it=>it.order_id===orderId).reduce((s,it)=>{
     if(it.is_gift)return s;
-    // Khi có override, dùng chenh_lech đã lưu trong DB (tránh tính lại sai)
-    if((it.chenh_comm_override!=null&&parseFloat(it.chenh_comm_override)!==0)||
-       (it.rate_comm_override!=null&&parseFloat(it.rate_comm_override)!==0)){
+    // Khi có override (kể cả =0), dùng chenh_lech đã lưu trong DB
+    if(it.rate_comm_override!=null||it.chenh_comm_override!=null){
       return s+(parseFloat(it.chenh_lech)||0);
     }
     const unitPrice=parseFloat(it.gia_ban_thuc)||0;
