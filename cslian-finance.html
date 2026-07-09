@@ -1761,6 +1761,12 @@ function calcOrderShipping(orderId){
 function calcOrderChenhLech(orderId){
   if(!allOrderItems||!allOrderItems.length)return 0;
   return allOrderItems.filter(it=>it.order_id===orderId).reduce((s,it)=>{
+    if(it.is_gift)return s;
+    // Khi có override, dùng chenh_lech đã lưu trong DB (tránh tính lại sai)
+    if((it.chenh_comm_override!=null&&parseFloat(it.chenh_comm_override)!==0)||
+       (it.rate_comm_override!=null&&parseFloat(it.rate_comm_override)!==0)){
+      return s+(parseFloat(it.chenh_lech)||0);
+    }
     const unitPrice=parseFloat(it.gia_ban_thuc)||0;
     let vendorCost=parseFloat(it.vendor_cost)||0;
     if(vendorCost<=0)vendorCost=getVendorCostFallback(it);
@@ -3199,8 +3205,12 @@ async function saveOrderItem(itemId){
   const row=document.querySelector(`#od-body tr[data-item-id="${itemId}"]`);
   if(!row)return;
   const data={};
+  // Chỉ lưu các field thực sự được user nhập — KHÔNG lưu chenh_lech (tự tính),
+  // KHÔNG xóa rate_comm_override/chenh_comm_override (override phải xóa thủ công)
+  const SKIP_SAVE=['chenh_lech','bonus_chenh_lech'];
   row.querySelectorAll('[data-f]').forEach(inp=>{
     const f=inp.dataset.f;
+    if(SKIP_SAVE.includes(f))return;
     if(inp.tagName==='SELECT'){data[f]=inp.value;return;}
     if(inp.type==='checkbox'){data[f]=inp.checked;return;}
     data[f]=inp.type==='number'?(parseFloat(inp.value)||0):inp.value.trim();
