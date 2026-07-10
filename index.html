@@ -738,41 +738,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div id="emp-grid" style="display:grid;gap:10px"></div>
     </div>
 
-
-    <!-- CHAT -->
-        <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
-      </div>
-      <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
-        <div style="font-size:48px">🎯</div>
-        <div style="font-size:16px;font-weight:700">C-Slian CRM</div>
-        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
-        <a href="https://cnail1911-maker.github.io/csilan-crm/index.html?v=39" target="_blank"
-          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
-          🚀 Mở CRM
-        </a>
-      </div>
-      <iframe id="crm-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
-        allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
-    </div>
-
-
-        <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
-      </div>
-      <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
-        <div style="font-size:48px">💹</div>
-        <div style="font-size:16px;font-weight:700">C-Slian Finance</div>
-        <div style="font-size:13px;color:var(--text2);max-width:280px">Trình duyệt không cho phép nhúng trang này.<br>Bấm nút bên dưới để mở trong tab mới.</div>
-        <a href="https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html" target="_blank"
-          style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--manager);color:#fff;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
-          🚀 Mở Finance
-        </a>
-      </div>
-      <iframe id="finance-iframe" src="" style="width:100%;height:100%;border:none;display:block;position:relative;z-index:1"
-        allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
-    </div>
-
-
-
     <!-- MODAL: Tạo phòng chat -->
     <div class="modal-bg" id="create-room-modal">
       <div class="modal-box" style="max-width:460px;padding:0;overflow:hidden">
@@ -4218,6 +4183,18 @@ async function renderSaleDashboard(){
   const pctTarget=Math.round(dsCur/myTarget*100);
   const datTarget=dsCur>=myTarget;
 
+  // Lấy số đơn và vendor breakdown từ orders (không phụ thuộc kpi_monthly)
+  const soOrdersCur=ordsCur.length;
+  const soOrdersP=ordsP.length;
+  const aovCur=soOrdersCur>0?dsCur/soOrdersCur:0;
+  // Vendor breakdown: đọc từ orders.revenue_bolsa/ons/tspa
+  const {data:ordersDetail}=await sb.from('orders')
+    .select('revenue_bolsa,revenue_ons,revenue_tspa,total_amount')
+    .eq('user_id',uid).eq('billing_month',thang);
+  const revBolsa=(ordersDetail||[]).reduce((s,o)=>s+(o.revenue_bolsa||0),0);
+  const revOns=(ordersDetail||[]).reduce((s,o)=>s+(o.revenue_ons||0),0);
+  const revTspa=(ordersDetail||[]).reduce((s,o)=>s+(o.revenue_tspa||0),0);
+
   // Backup status
   const prevTyLe=salPrev.p3a_ty_le_dat||0;
   const prevGap=Math.max(0,myTarget-dsP);
@@ -4252,8 +4229,8 @@ async function renderSaleDashboard(){
     </div>
     <div class="stat-card">
       <div class="stat-label">📦 Số đơn · AOV</div>
-      <div class="stat-val" style="color:var(--accent)">${kpi.so_orders||0} đơn</div>
-      <div class="stat-sub">${trend(kpi.so_orders||0,kpiP.so_orders||0)}<br>AOV: ${usd(kpi.aov||0)} · Chốt: ${((kpi.ty_le_chot||0)*100).toFixed(0)}%</div>
+      <div class="stat-val" style="color:var(--accent)">${soOrdersCur} đơn</div>
+      <div class="stat-sub">${trend(soOrdersCur,soOrdersP)}<br>AOV: ${usd(aovCur)} · Chốt: ${((kpi.ty_le_chot||0)*100).toFixed(0)}%</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">📞 Calls/ngày</div>
@@ -4272,16 +4249,16 @@ async function renderSaleDashboard(){
     <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
       <div style="font-weight:700;font-size:14px;margin-bottom:16px">📈 Doanh số theo vendor</div>
       ${sdashBarChart([
-        {label:'BOLSA',cur:kpi.doanh_thu_bolsa||0,prev:kpiP.doanh_thu_bolsa||0,color:'#6d28d9'},
-        {label:'ONS',cur:kpi.doanh_thu_ons||0,prev:kpiP.doanh_thu_ons||0,color:'#0ea5e9'},
-        {label:'TSPA',cur:kpi.doanh_thu_tspa||0,prev:kpiP.doanh_thu_tspa||0,color:'#f59e0b'},
+        {label:'BOLSA',cur:revBolsa,prev:kpiP.doanh_thu_bolsa||0,color:'#6d28d9'},
+        {label:'ONS',cur:revOns,prev:kpiP.doanh_thu_ons||0,color:'#0ea5e9'},
+        {label:'TSPA',cur:revTspa,prev:kpiP.doanh_thu_tspa||0,color:'#f59e0b'},
       ],prevMonth)}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
-        ${[['BOLSA',kpi.doanh_thu_bolsa||0,'#6d28d9'],['ONS',kpi.doanh_thu_ons||0,'#0ea5e9'],['TSPA',kpi.doanh_thu_tspa||0,'#f59e0b']].map(([v,val,c])=>`
+        ${[['BOLSA',revBolsa,'#6d28d9'],['ONS',revOns,'#0ea5e9'],['TSPA',revTspa,'#f59e0b']].map(([v,val,c])=>`
         <div style="text-align:center;padding:8px;background:var(--bg3);border-radius:8px">
           <div style="color:${c};font-weight:700;font-size:11px">${v}</div>
           <div style="font-size:13px;font-weight:600">${usd(val)}</div>
-          <div style="font-size:10px;color:var(--text3)">${kpi.doanh_thu_total?Math.round(val/(kpi.doanh_thu_total)*100):0}%</div>
+          <div style="font-size:10px;color:var(--text3)">${dsCur>0?Math.round(val/dsCur*100):0}%</div>
         </div>`).join('')}
       </div>
     </div>
