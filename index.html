@@ -411,7 +411,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   /* Dashboard chart row stack */
   #dash-chart-revenue,#dash-chart-orders{grid-column:1/-1}
   .topbar-logo-icon{width:26px;height:26px;font-size:14px}
-  #page-crm,#page-finance{height:calc(100dvh - 82px)!important}
+
 }
 @media(max-width:380px){
   .nav-btn{padding:8px 5px;font-size:10px}
@@ -469,12 +469,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div class="nav" id="main-nav">
       <button class="nav-btn active" onclick="switchTab('attendance',this)">📅 Chấm công</button>
       <button class="nav-btn" onclick="switchTab('orders',this)">📦 Đơn hàng</button>
+      <button class="nav-btn nav-sale-only" onclick="switchTab('sale-dashboard',this)" style="display:none">📊 Dashboard</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Lương & KPI</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
-      <button class="nav-btn" onclick="switchTab('crm',this)">🎯 CRM</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('finance',this)" style="display:none">💹 Finance</button>
+
+
     </div>
     <button class="nav-scroll-btn" id="nav-scroll-right" onclick="navScroll(1)">›</button>
   </div>
@@ -568,6 +569,23 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <tbody id="ord-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- SALE DASHBOARD -->
+    <div id="page-sale-dashboard" class="page-content">
+      <div class="page-header">
+        <div><h2>📊 Dashboard</h2><div class="page-sub" id="sdash-sub">Kết quả & kế hoạch của bạn</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="month-nav">
+            <button class="mnbtn" onclick="changeSaleDashMonth(-1)">‹</button>
+            <span class="mlabel" id="sdash-month-label"></span>
+            <button class="mnbtn" onclick="changeSaleDashMonth(1)">›</button>
+          </div>
+        </div>
+      </div>
+      <div id="sdash-content" style="display:flex;flex-direction:column;gap:20px">
+        <div style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner"></div></div>
       </div>
     </div>
 
@@ -722,10 +740,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
 
     <!-- CHAT -->
-    <!-- CRM -->
-    <div id="page-crm" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
-      <div id="crm-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
-        <div class="spinner" style="width:36px;height:36px"></div>
         <div style="font-size:13px;color:var(--text2)">Đang tải CRM...</div>
       </div>
       <div id="crm-blocked" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
@@ -741,10 +755,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         allow="clipboard-read;clipboard-write" allowfullscreen></iframe>
     </div>
 
-    <!-- FINANCE -->
-    <div id="page-finance" class="page-content" style="padding:0;height:calc(100vh - 96px);position:relative">
-      <div id="finance-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)">
-        <div class="spinner" style="width:36px;height:36px"></div>
+
         <div style="font-size:13px;color:var(--text2)">Đang tải Finance...</div>
       </div>
       <div id="finance-blocked" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);text-align:center;padding:24px">
@@ -1303,9 +1314,11 @@ async function initApp(user){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
     setTimeout(updateNavScrollBtns,50);
   }
-  // Finance chỉ Manager (không phải Leader)
-  var financeBtn = document.querySelector('.nav-btn[onclick*="finance"]');
-  if(financeBtn) financeBtn.style.display = curProfile.role==='manager' ? 'flex' : 'none';
+  // Dashboard tab chỉ Sale thấy (Manager đã có dashboard riêng)
+  if(curProfile.role==='sale'){
+    document.querySelectorAll('.nav-sale-only').forEach(b=>b.style.display='flex');
+  }
+
 
 
   populateSelects();
@@ -2349,7 +2362,46 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // P3A = (bonusBase + bonusGiường) × tỷ lệ + vượtTarget
   const p3aTotalUsd=(bonusBase+bolsaHeadspaBonus)*tyLeDat+vuotBonus;
   const p3aVnd=Math.round(p3aTotalUsd*TY_GIA);
-  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3aVnd;
+
+  // ── Backup Bonus (tháng T+1 bù GAP tháng T) ─────────────────────────
+  // Điều kiện: tháng trước không đạt target VÀ tháng này DS ≥ Target + GAP tháng trước
+  // Chỉ áp dụng 2 tháng liền kề — không carry forward
+  let backupBonusUsd=0;
+  try{
+    // Tháng trước = tháng T-1
+    const prevYear=salMonth===0?salYear-1:salYear;
+    const prevMonth=salMonth===0?11:salMonth-1;
+    const prevThang=monthStr(prevYear,prevMonth);
+    const prevTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
+
+    // Đọc salary_monthly tháng trước
+    const {data:prevSal}=await sb.from('salary_monthly')
+      .select('p3a_total_usd,p3a_ty_le_dat')
+      .eq('user_id',empId).eq('thang',prevThang).maybeSingle();
+
+    if(prevSal&&prevSal.p3a_ty_le_dat<1.0){
+      // Tháng trước không đạt — tính GAP
+      const {data:prevOrds}=await sb.from('orders')
+        .select('total_amount').eq('user_id',empId).eq('billing_month',prevThang);
+      const prevDT=(prevOrds||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+      const gap=Math.max(0,prevTarget-prevDT);
+
+      // Doanh số tháng này (tất cả đơn) để xét điều kiện backup
+      const curTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
+      const curDT=(allOrdsRes.data||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+
+      if(gap>0&&curDT>=curTarget+gap){
+        // Đủ điều kiện — tính bonus đã mất tháng trước
+        const p3aFull=prevSal.p3a_ty_le_dat>0
+          ?(prevSal.p3a_total_usd/prevSal.p3a_ty_le_dat)
+          :0;
+        backupBonusUsd=Math.max(0,p3aFull-prevSal.p3a_total_usd);
+      }
+    }
+  }catch(e){console.warn('[backup bonus]',e.message);}
+
+  const backupBonusVnd=Math.round(backupBonusUsd*TY_GIA);
+  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3aVnd+backupBonusVnd;
 
   return {user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
     so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,
@@ -2359,6 +2411,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     p3a_vuot_target_usd:vuotBonus,p3a_chenh_lech_usd:bonusChenh,
     p3a_base_usd:bonusBase,
     p3a_ty_le_dat:tyLeDat,p3a_total_usd:p3aTotalUsd,ty_gia:TY_GIA,
+    backup_bonus_usd:backupBonusUsd,
     tong_luong_vnd:tongLuong};
 }
 
@@ -2491,6 +2544,7 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P3A — Bonus Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Bonus doanh số 1% + Chênh lệch (${usd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
+      ${(sal.backup_bonus_usd>0)?`<div class="salary-row" style="background:rgba(16,185,129,0.08);border-radius:8px;padding:4px 8px"><span class="salary-label" style="color:#10b981">🔄 Backup Bonus tháng trước (${usd(sal.backup_bonus_usd)})</span><span class="salary-val" style="color:#10b981">${vnd((sal.backup_bonus_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
     </div>
@@ -3098,6 +3152,7 @@ function switchTab(name,el){
     renderAllLog();
   }
   else if(name==='orders'){document.getElementById('ord-emp-sel-wrap').style.display=isMgr?'block':'none';renderOrders();}
+  else if(name==='sale-dashboard'){renderSaleDashboard();}
   else if(name==='salary'){
     // Mặc định hiện sub-tab KPI
     var kpibtn = document.getElementById('stb-kpi');
@@ -3107,8 +3162,8 @@ function switchTab(name,el){
   else if(name==='dashboard'){initDashFilter();renderDashboard();}
   else if(name==='team')renderEmpGrid();
 
-  else if(name==='crm'){ loadIframeTab('crm','https://cnail1911-maker.github.io/csilan-crm/index.html?v=39'); }
-  else if(name==='finance'){ loadIframeTab('finance','https://albuspham66-lab.github.io/cslian-ops/cslian-finance.html'); }
+
+
 }
 
 
@@ -4113,6 +4168,273 @@ function pwaDoUpdate(){
   // Reload đơn giản để lấy bản mới nhất — an toàn nếu không có Service Worker đặc biệt nào cần activate.
   window.location.reload();
 }
+
+// ============================================================
+// SALE DASHBOARD — kết quả tháng hiện tại vs tháng trước
+// ============================================================
+let sdashYear=new Date().getFullYear(), sdashMonth=new Date().getMonth();
+
+function changeSaleDashMonth(d){
+  sdashMonth+=d;
+  if(sdashMonth>11){sdashMonth=0;sdashYear++;}
+  if(sdashMonth<0){sdashMonth=11;sdashYear--;}
+  renderSaleDashboard();
+}
+
+async function renderSaleDashboard(){
+  const thang=monthStr(sdashYear,sdashMonth);
+  const prevYear=sdashMonth===0?sdashYear-1:sdashYear;
+  const prevMonth=sdashMonth===0?11:sdashMonth-1;
+  const prevThang=monthStr(prevYear,prevMonth);
+
+  document.getElementById('sdash-month-label').textContent=`Tháng ${sdashMonth+1}/${sdashYear}`;
+  document.getElementById('sdash-content').innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner"></div></div>';
+
+  const uid=curProfile.id;
+  const isProbation=(curProfile.contract_type==='probation'||curProfile.contract_type==='thu-viec');
+  const myTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
+  const workDaysNext=calcWorkDaysInMonth(sdashYear,sdashMonth===11?0:sdashMonth+1,sdashYear+(sdashMonth===11?1:0));
+
+  // Fetch dữ liệu song song
+  const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes]=await Promise.all([
+    sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',thang).maybeSingle(),
+    sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
+    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang),
+    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang),
+    sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
+    sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
+  ]);
+
+  const kpi=kpiCurRes.data||{};
+  const kpiP=kpiPrevRes.data||{};
+  const ordsCur=ordsCurRes.data||[];
+  const ordsP=ordsPrevRes.data||[];
+  const salCur=salCurRes.data||{};
+  const salPrev=salPrevRes.data||{};
+
+  const dsCur=ordsCur.reduce((s,o)=>s+(o.total_amount||0),0);
+  const dsP=ordsP.reduce((s,o)=>s+(o.total_amount||0),0);
+  const dsSettled=ordsCur.filter(o=>o.is_settled).reduce((s,o)=>s+(o.total_amount||0),0);
+  const pctTarget=Math.round(dsCur/myTarget*100);
+  const datTarget=dsCur>=myTarget;
+
+  // Backup status
+  const prevTyLe=salPrev.p3a_ty_le_dat||0;
+  const prevGap=Math.max(0,myTarget-dsP);
+  const bonusDaMat=prevTyLe<1&&prevTyLe>0
+    ?Math.max(0,(salPrev.p3a_total_usd||0)/prevTyLe-(salPrev.p3a_total_usd||0)):0;
+  const needForBackup=prevTyLe<1&&prevGap>0?myTarget+prevGap:0;
+  const backupDone=(salCur.backup_bonus_usd||0)>0;
+  const backupPct=needForBackup>0?Math.min(100,Math.round(dsCur/needForBackup*100)):0;
+
+  // Số ngày làm tháng tới
+  const nextMonthLabel=`${sdashMonth===11?'1':sdashMonth+2}/${sdashMonth===11?sdashYear+1:sdashYear}`;
+
+  const trend=(cur,prev)=>{
+    if(!prev)return '';
+    const diff=cur-prev;
+    const pct=Math.abs(Math.round(diff/prev*100));
+    return diff>=0
+      ?`<span style="color:#10b981;font-size:11px">↑ +${pct}% so T${prevMonth+1}</span>`
+      :`<span style="color:#ef4444;font-size:11px">↓ -${pct}% so T${prevMonth+1}</span>`;
+  };
+
+  document.getElementById('sdash-content').innerHTML=`
+  <!-- Section 1: KPI Cards -->
+  <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card">
+      <div class="stat-label">💰 Doanh số tháng</div>
+      <div class="stat-val" style="color:${datTarget?'var(--success)':'var(--warn)'};font-size:20px">${usd(dsCur)}</div>
+      <div class="stat-sub">${trend(dsCur,dsP)}<br>Target: ${usd(myTarget)} · ${pctTarget}%</div>
+      <div style="margin-top:8px;height:6px;background:var(--bg3);border-radius:4px">
+        <div style="height:100%;width:${Math.min(100,pctTarget)}%;background:${datTarget?'#10b981':'#f59e0b'};border-radius:4px;transition:width .5s"></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">📦 Số đơn · AOV</div>
+      <div class="stat-val" style="color:var(--accent)">${kpi.so_orders||0} đơn</div>
+      <div class="stat-sub">${trend(kpi.so_orders||0,kpiP.so_orders||0)}<br>AOV: ${usd(kpi.aov||0)} · Chốt: ${((kpi.ty_le_chot||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">📞 Calls/ngày</div>
+      <div class="stat-val" style="color:${(kpi.calls_ngay||0)>=15?'var(--success)':'var(--warn)'}">${(kpi.calls_ngay||0).toFixed(1)}</div>
+      <div class="stat-sub">${trend(kpi.calls_ngay||0,kpiP.calls_ngay||0)}<br>Vi phạm: ${kpi.total_call_vi_pham||0} ngày · Talk: ${(kpi.talktime_ngay||0).toFixed(0)}p</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">⭐ KPI điểm</div>
+      <div class="stat-val" style="color:${(kpi.diem_tong||0)>=70?'var(--success)':'var(--warn)'}">${(kpi.diem_tong||0).toFixed(0)}<span style="font-size:13px;color:var(--text3)">/100</span></div>
+      <div class="stat-sub">${trend(kpi.diem_tong||0,kpiP.diem_tong||0)}<br>Xếp loại: ${kpi.xep_loai||'—'}</div>
+    </div>
+  </div>
+
+  <!-- Section 2: Doanh số & KPI điểm -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:16px">📈 Doanh số theo vendor</div>
+      ${sdashBarChart([
+        {label:'BOLSA',cur:kpi.doanh_thu_bolsa||0,prev:kpiP.doanh_thu_bolsa||0,color:'#6d28d9'},
+        {label:'ONS',cur:kpi.doanh_thu_ons||0,prev:kpiP.doanh_thu_ons||0,color:'#0ea5e9'},
+        {label:'TSPA',cur:kpi.doanh_thu_tspa||0,prev:kpiP.doanh_thu_tspa||0,color:'#f59e0b'},
+      ],prevMonth)}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
+        ${[['BOLSA',kpi.doanh_thu_bolsa||0,'#6d28d9'],['ONS',kpi.doanh_thu_ons||0,'#0ea5e9'],['TSPA',kpi.doanh_thu_tspa||0,'#f59e0b']].map(([v,val,c])=>`
+        <div style="text-align:center;padding:8px;background:var(--bg3);border-radius:8px">
+          <div style="color:${c};font-weight:700;font-size:11px">${v}</div>
+          <div style="font-size:13px;font-weight:600">${usd(val)}</div>
+          <div style="font-size:10px;color:var(--text3)">${kpi.doanh_thu_total?Math.round(val/(kpi.doanh_thu_total)*100):0}%</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:16px">🎯 KPI điểm chi tiết</div>
+      <div style="display:flex;align-items:center;gap:20px">
+        <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+          <svg viewBox="0 0 36 36" style="width:90px;height:90px;transform:rotate(-90deg)">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg3)" stroke-width="3"/>
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="${(kpi.diem_tong||0)>=70?'#10b981':'#f59e0b'}" stroke-width="3"
+              stroke-dasharray="${Math.min(100,kpi.diem_tong||0)} 100" stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:18px;font-weight:700;color:${(kpi.diem_tong||0)>=70?'#10b981':'#f59e0b'}">${(kpi.diem_tong||0).toFixed(0)}</div>
+            <div style="font-size:9px;color:var(--text3)">/ 100</div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          ${[['Nhóm 1',kpi.diem_nhom1||0,'#6d28d9'],['Nhóm 2',kpi.diem_nhom2||0,'#0ea5e9'],['Nhóm 3',kpi.diem_nhom3||0,'#10b981']].map(([g,v,c])=>`
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+              <span style="color:var(--text2)">${g}</span><span style="color:${c};font-weight:600">${v.toFixed(0)}</span>
+            </div>
+            <div style="height:5px;background:var(--bg3);border-radius:3px">
+              <div style="height:100%;width:${Math.min(100,v)}%;background:${c};border-radius:3px"></div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Call / Talktime / Potential -->
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:16px">📞 Hoạt động hàng ngày</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      ${[
+        {icon:'📞',label:'Calls/ngày',cur:kpi.calls_ngay||0,prev:kpiP.calls_ngay||0,target:15,unit:'cuộc',vi:kpi.total_call_vi_pham||0,color:'#6d28d9'},
+        {icon:'🎙️',label:'Talktime/ngày',cur:kpi.talktime_ngay||0,prev:kpiP.talktime_ngay||0,target:50,unit:'phút',vi:kpi.total_talk_vi_pham||0,color:'#0ea5e9'},
+        {icon:'🎯',label:'Potential',cur:kpi.potential_count||0,prev:kpiP.potential_count||0,target:Math.round(4*22),unit:'KH',vi:0,color:'#10b981'},
+      ].map(({icon,label,cur,prev,target,unit,vi,color})=>`
+      <div style="background:var(--bg3);border-radius:12px;padding:16px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">${icon} ${label}</div>
+        <div style="font-size:22px;font-weight:700;color:${cur>=target?'#10b981':'#f59e0b'}">${typeof cur==='number'?cur.toFixed(1):cur} <span style="font-size:11px;color:var(--text3)">${unit}</span></div>
+        <div style="font-size:11px;color:var(--text3);margin:4px 0">T${prevMonth+1}: ${typeof prev==='number'?prev.toFixed(1):prev} ${unit} ${trend(cur,prev)}</div>
+        <div style="height:5px;background:var(--bg2);border-radius:3px;margin:8px 0">
+          <div style="height:100%;width:${Math.min(100,Math.round(cur/target*100))}%;background:${color};border-radius:3px"></div>
+        </div>
+        ${vi>0?`<div style="font-size:10px;color:#ef4444">⚠️ Vi phạm: ${vi} ngày</div>`:`<div style="font-size:10px;color:#10b981">✅ Đạt chuẩn</div>`}
+        <div style="margin-top:8px;display:flex;gap:8px;font-size:10px;color:var(--text3)">
+          <span>Báo giá: ${kpi.bao_gia_count||0}</span>
+          <span>Follow-up: ${((kpi.followup_rate_pct||0)).toFixed(0)}%</span>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- Section 4: Backup Status -->
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:16px">🔄 Backup Bonus Status</div>
+    ${prevTyLe>=1.0?`
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:rgba(16,185,129,0.1);border-radius:12px;border:1px solid rgba(16,185,129,0.3)">
+      <div style="font-size:32px">✅</div>
+      <div><div style="font-weight:600;color:#10b981">Tháng trước đạt target</div><div style="font-size:12px;color:var(--text3)">Không cần backup — tiếp tục duy trì phong độ!</div></div>
+    </div>`
+    :backupDone?`
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:rgba(16,185,129,0.1);border-radius:12px;border:1px solid rgba(16,185,129,0.3)">
+      <div style="font-size:32px">🎉</div>
+      <div><div style="font-weight:600;color:#10b981">Backup thành công! Nhận lại ${usd(salCur.backup_bonus_usd||0)}</div><div style="font-size:12px;color:var(--text3)">Phần bonus tháng trước đã được hoàn trả vào lương tháng này.</div></div>
+    </div>`
+    :`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:var(--bg3);border-radius:12px;padding:16px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:8px">📅 Tháng T${prevMonth+1} (tháng trước)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Doanh số</span><span>${usd(dsP)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">GAP cần bù</span><span style="color:#f59e0b;font-weight:600">${usd(prevGap)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Bonus đã mất</span><span style="color:#ef4444;font-weight:600">${usd(bonusDaMat)}</span></div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:12px;padding:16px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:8px">🎯 Điều kiện tháng T${sdashMonth+1} này</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Cần đạt</span><span style="font-weight:600">${usd(needForBackup)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Đã đạt</span><span style="color:${dsCur>=needForBackup?'#10b981':'var(--warn)'};font-weight:600">${usd(dsCur)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Còn thiếu</span><span style="color:#ef4444;font-weight:600">${dsCur>=needForBackup?'—':usd(needForBackup-dsCur)}</span></div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+            <span style="color:var(--text3)">Tiến độ backup</span>
+            <span style="font-weight:600;color:${backupPct>=100?'#10b981':'#f59e0b'}">${backupPct}%</span>
+          </div>
+          <div style="height:8px;background:var(--bg2);border-radius:4px">
+            <div style="height:100%;width:${backupPct}%;background:${backupPct>=100?'#10b981':'#f59e0b'};border-radius:4px;transition:width .5s"></div>
+          </div>
+          ${backupPct>=100?`<div style="font-size:11px;color:#10b981;margin-top:6px">⚡ Đủ điều kiện — sẽ nhận lại ${usd(bonusDaMat)} khi chốt lương!</div>`
+          :`<div style="font-size:11px;color:var(--text3);margin-top:6px">⚡ Cần thêm ${usd(needForBackup-dsCur)} để unlock ${usd(bonusDaMat)}</div>`}
+        </div>
+      </div>
+    </div>`}
+  </div>
+
+  <!-- Section 5: Kế hoạch tháng tới -->
+  <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:16px">📅 Kế hoạch tháng ${nextMonthLabel} (${workDaysNext} ngày công)</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      ${[
+        {icon:'💰',label:'Target DS',val:usd(myTarget),sub:'Cần đạt để 100% bonus',color:'#10b981'},
+        {icon:'📞',label:'Calls/ngày',val:`${180}`,sub:`${180} × ${workDaysNext} ngày = ${180*workDaysNext} tổng`,color:'#6d28d9'},
+        {icon:'🎙️',label:'Talktime/ngày',val:`${120} phút`,sub:`${120} × ${workDaysNext} ngày = ${(120*workDaysNext/60).toFixed(0)}h tổng`,color:'#0ea5e9'},
+        {icon:'🎯',label:'Potential',val:`${4}/ngày`,sub:`${4} × ${workDaysNext} ngày = ${4*workDaysNext} KH tổng`,color:'#f59e0b'},
+      ].map(({icon,label,val,sub,color})=>`
+      <div style="background:var(--bg3);border-radius:12px;padding:14px;border-left:3px solid ${color}">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${icon} ${label}</div>
+        <div style="font-size:16px;font-weight:700;color:${color}">${val}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">${sub}</div>
+      </div>`).join('')}
+    </div>
+    ${needForBackup>0&&!backupDone&&!datTarget?`
+    <div style="margin-top:12px;padding:12px 16px;background:rgba(245,158,11,0.1);border-radius:10px;border:1px solid rgba(245,158,11,0.3);font-size:12px">
+      ⚡ <strong>Lưu ý backup:</strong> Tháng ${nextMonthLabel} cần đạt <strong>${usd(myTarget + Math.max(0,myTarget-dsCur))}</strong> để backup bonus tháng ${sdashMonth+1}/${sdashYear}
+    </div>`:''}
+  </div>`;
+}
+
+// Helper: tính số ngày làm việc (T2-T6) trong tháng
+function calcWorkDaysInMonth(year, month, y2){
+  const m=month, yr=y2||year;
+  const days=new Date(yr,m+1,0).getDate();
+  let count=0;
+  for(let d=1;d<=days;d++){const day=new Date(yr,m,d).getDay();if(day>=1&&day<=5)count++;}
+  return count;
+}
+
+// Helper: bar chart so sánh 2 tháng
+function sdashBarChart(items, prevMonth){
+  const max=Math.max(...items.map(i=>Math.max(i.cur,i.prev)),1);
+  return `<div style="display:flex;align-items:flex-end;gap:12px;height:80px">
+    ${items.map(({label,cur,prev,color})=>`
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div style="display:flex;gap:3px;align-items:flex-end;height:60px">
+        <div style="width:16px;background:var(--bg3);border-radius:3px 3px 0 0;height:${Math.round(prev/max*100)}%;min-height:2px" title="T${prevMonth+1}: ${usd(prev)}"></div>
+        <div style="width:16px;background:${color};border-radius:3px 3px 0 0;height:${Math.round(cur/max*100)}%;min-height:2px" title="${usd(cur)}"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3)">${label}</div>
+    </div>`).join('')}
+    <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding-bottom:18px">
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;background:var(--bg3);border-radius:2px"></div><span style="font-size:9px;color:var(--text3)">T${prevMonth+1}</span></div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;background:var(--accent);border-radius:2px"></div><span style="font-size:9px;color:var(--text3)">T hiện tại</span></div>
+    </div>
+  </div>`;
+}
+
 function initNavScroll(){
   var nav=document.getElementById('main-nav');
   if(!nav)return;
