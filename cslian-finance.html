@@ -1251,6 +1251,36 @@ textarea{resize:vertical;min-height:72px;}
       <button class="btn btn-primary btn-sm" onclick="saveOrderMeta()">💾 Lưu trạng thái đơn</button>
     </div>
 
+    <!-- Tính nhanh chênh lệch -->
+    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:var(--rsm);padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--blue2);margin-bottom:10px;">⚡ Tính nhanh chênh lệch</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:120px;"><label class="fl" style="font-size:10px;">Giá sàn ($)</label>
+          <input type="number" id="qc-floor" step="0.01" placeholder="0" oninput="calcQuick()" style="padding:6px 10px;font-size:13px;"></div>
+        <div style="flex:1;min-width:120px;"><label class="fl" style="font-size:10px;">Giá bán ($)</label>
+          <input type="number" id="qc-price" step="0.01" readonly style="padding:6px 10px;font-size:13px;opacity:.6;"></div>
+        <div style="flex:1;min-width:120px;"><label class="fl" style="font-size:10px;">Chênh lệch ($)</label>
+          <input type="number" id="qc-chenh" readonly style="padding:6px 10px;font-size:13px;color:var(--green2);opacity:.8;"></div>
+        <div style="flex:1;min-width:130px;"><label class="fl" style="font-size:10px;">% HH Chênh lệch</label>
+          <div style="display:flex;gap:4px;">
+            <select id="qc-chenh-pct" onchange="qcChenhPctChange();calcQuick();" style="flex:1;padding:6px 8px;font-size:12px;">
+              <option value="0.70">70%</option><option value="1.00">100%</option><option value="custom">Tuỳ chỉnh</option>
+            </select>
+            <input type="number" id="qc-chenh-custom" step="0.01" placeholder="%" style="width:60px;padding:6px 8px;font-size:12px;display:none;" oninput="calcQuick()">
+          </div></div>
+        <div style="flex:1;min-width:130px;"><label class="fl" style="font-size:10px;">% HH Theo rate</label>
+          <div style="display:flex;gap:4px;">
+            <select id="qc-rate-pct" onchange="qcRatePctChange();calcQuick();" style="flex:1;padding:6px 8px;font-size:12px;">
+              <option value="0.03">3%</option><option value="0.05">5%</option><option value="0.07">7%</option><option value="custom">Tuỳ chỉnh</option>
+            </select>
+            <input type="number" id="qc-rate-custom" step="0.01" placeholder="%" style="width:60px;padding:6px 8px;font-size:12px;display:none;" oninput="calcQuick()">
+          </div></div>
+        <div style="flex:1;min-width:120px;"><label class="fl" style="font-size:10px;">Tổng HH ($)</label>
+          <input type="number" id="qc-total-hh" readonly style="padding:6px 10px;font-size:13px;font-weight:700;color:var(--teal2);opacity:.8;"></div>
+        <button class="btn btn-primary btn-sm" onclick="applyQuickCalc()" style="white-space:nowrap;">Áp dụng</button>
+      </div>
+    </div>
+
     <div class="tw">
       <table>
         <thead><tr>
@@ -2129,7 +2159,7 @@ function renderOrdersTable(orders){
       <td style="font-size:12px;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;" title="${agent}">${agent}</td>
       <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.shop_name||''}">${o.shop_name||'—'}</td>
       <td style="white-space:nowrap;">${vendors.join(' ')||'—'}</td>
-      <td class="num" style="color:var(--green2);font-weight:600;white-space:nowrap;">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="color:var(--green2);font-weight:600;white-space:nowrap;cursor:pointer;text-decoration:underline dotted;" onclick="event.stopPropagation();viewOrderDetail('${o.id}')" title="Click để tính nhanh chênh lệch">${fmtUSD(o.total_amount)}</td>
       <td class="num" style="white-space:nowrap;">${shipping>0?fmtUSD(shipping):'—'}</td>
       <td class="num" style="white-space:nowrap;color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
       <td class="num" style="white-space:nowrap;color:${(o.balance_due||0)<0?'var(--red2)':(o.balance_due||0)>0?'var(--amber2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
@@ -2354,8 +2384,18 @@ function renderFinance(){
       <span style="color:var(--blue2);">🔷 ${fmtUSD(_vr2.ons)}</span>
       <span style="color:var(--purple2);">💜 ${fmtUSD(_vr2.tspa)}</span>
     </div>`);
-  // Stat card HH: hiển thị TOÀN BỘ đơn (kể cả Pending)
+  // HH stat card: tổng + đã thu / chưa thu
+  const commReceived=ordByMonth().filter(o=>o.commission_received)
+    .reduce((s,o)=>s+calcOrderCommission(o.id),0);
+  const commPending=commProj.total-commReceived;
   setTxt('pf-comm',commProj.total>0?fmtUSD(commProj.total):'—');
+  const _oldCommSub=document.getElementById('comm-recv-sub');
+  if(_oldCommSub)_oldCommSub.remove();
+  document.getElementById('pf-comm').insertAdjacentHTML('afterend',
+    `<div id="comm-recv-sub" style="font-size:11px;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="color:var(--green2);">✅ ${fmtUSD(commReceived)}</span>
+      <span style="color:var(--amber2);">⏳ ${fmtUSD(commPending)}</span>
+    </div>`);
   setHTML('pf-exp',fmtVND(exp)+trendHTML(exp,prevExp,true));
   setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
@@ -2487,7 +2527,71 @@ async function delExpense(id){
   catch(e){toast('Lỗi: '+e.message,'red');}
 }
 
-// ─── SALARY EDIT / DELETE ───
+// ─── TÍNH NHANH CHÊNH LỆCH ───
+function qcChenhPctChange(){
+  const sel=document.getElementById('qc-chenh-pct');
+  document.getElementById('qc-chenh-custom').style.display=sel.value==='custom'?'block':'none';
+}
+function qcRatePctChange(){
+  const sel=document.getElementById('qc-rate-pct');
+  document.getElementById('qc-rate-custom').style.display=sel.value==='custom'?'block':'none';
+}
+function calcQuick(){
+  const price=parseFloat(document.getElementById('qc-price').value)||0;
+  const floor=parseFloat(document.getElementById('qc-floor').value)||0;
+  const chenh=Math.max(0,price-floor);
+  document.getElementById('qc-chenh').value=chenh.toFixed(2);
+  const chenhSel=document.getElementById('qc-chenh-pct').value;
+  const chenhPct=chenhSel==='custom'
+    ?(parseFloat(document.getElementById('qc-chenh-custom').value)||0)/100
+    :parseFloat(chenhSel)||0.7;
+  const rateSel=document.getElementById('qc-rate-pct').value;
+  const ratePct=rateSel==='custom'
+    ?(parseFloat(document.getElementById('qc-rate-custom').value)||0)/100
+    :parseFloat(rateSel)||0.05;
+  const hhChenh=chenh*chenhPct;
+  const hhRate=(price-chenh)*ratePct;
+  document.getElementById('qc-total-hh').value=(hhChenh+hhRate).toFixed(2);
+}
+async function applyQuickCalc(){
+  if(!_odCurrentOrderId){toast('Không xác định được đơn hàng','red');return;}
+  const price=parseFloat(document.getElementById('qc-price').value)||0;
+  const floor=parseFloat(document.getElementById('qc-floor').value)||0;
+  const chenh=Math.max(0,price-floor);
+  const chenhSel=document.getElementById('qc-chenh-pct').value;
+  const chenhPct=chenhSel==='custom'
+    ?(parseFloat(document.getElementById('qc-chenh-custom').value)||0)/100
+    :parseFloat(chenhSel)||0.7;
+  const rateSel=document.getElementById('qc-rate-pct').value;
+  const ratePct=rateSel==='custom'
+    ?(parseFloat(document.getElementById('qc-rate-custom').value)||0)/100
+    :parseFloat(rateSel)||0.05;
+  const hhChenh=chenh*chenhPct;
+  const hhRate=(price-chenh)*ratePct;
+  const items=allOrderItems.filter(it=>it.order_id===_odCurrentOrderId&&!it.is_gift);
+  const nonShip=items.filter(it=>!(it.ten_sp_invoice||'').match(/shipping/i));
+  if(!nonShip.length){toast('Không có sản phẩm để áp dụng','amber');return;}
+  try{
+    // Item đầu: ghi override
+    await sbPatch('order_items',`id=eq.${nonShip[0].id}`,{
+      chenh_lech:chenh, chenh_lech_rate:chenhPct,
+      chenh_comm_override:parseFloat(hhChenh.toFixed(2)),
+      rate_comm_override:parseFloat(hhRate.toFixed(2))
+    });
+    // Items còn lại: reset về 0
+    for(const it of nonShip.slice(1)){
+      await sbPatch('order_items',`id=eq.${it.id}`,{
+        chenh_lech:0,chenh_comm_override:0,rate_comm_override:0
+      });
+    }
+    // Update local cache
+    nonShip[0].chenh_lech=chenh;nonShip[0].chenh_lech_rate=chenhPct;
+    nonShip[0].chenh_comm_override=hhChenh;nonShip[0].rate_comm_override=hhRate;
+    nonShip.slice(1).forEach(it=>{it.chenh_lech=0;it.chenh_comm_override=0;it.rate_comm_override=0;});
+    renderOrders();
+    toast(`✅ Áp dụng: Chênh $${chenh.toFixed(2)} | HH Rate $${hhRate.toFixed(2)} | HH Chênh $${hhChenh.toFixed(2)}`,'green');
+  }catch(e){toast('Lỗi: '+e.message,'red');}
+}
 function calcSalTotal2(){
   const p1=parseFloat(document.getElementById('sal-p1').value)||0;
   const p2a=parseFloat(document.getElementById('sal-p2a').value)||0;
@@ -3152,6 +3256,18 @@ function viewOrderDetail(orderId){
       </tr>`;
     }).join('');
   }
+  // Init tính nhanh
+  const qcPrice=document.getElementById('qc-price');
+  const qcFloor=document.getElementById('qc-floor');
+  if(qcPrice)qcPrice.value=(o.total_amount||0).toFixed(2);
+  if(qcFloor)qcFloor.value='';
+  document.getElementById('qc-chenh').value='';
+  document.getElementById('qc-total-hh').value='';
+  document.getElementById('qc-chenh-pct').value='0.70';
+  document.getElementById('qc-rate-pct').value='0.05';
+  document.getElementById('qc-chenh-custom').style.display='none';
+  document.getElementById('qc-rate-custom').style.display='none';
+
   openModal('m-order-detail');
 }
 
