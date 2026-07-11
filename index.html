@@ -4160,15 +4160,68 @@ async function renderSaleDashboard(){
   const myTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
   const workDaysNext=calcWorkDaysInMonth(sdashYear,sdashMonth===11?0:sdashMonth+1,sdashYear+(sdashMonth===11?1:0));
 
+  // Ngày đầu/cuối tháng và tính ngày làm việc
+  const firstDay=`${thang}-01`;
+  const lastDayDate=new Date(sdashYear,sdashMonth+1,0);
+  const lastDay=lastDayDate.toISOString().slice(0,10);
+  // Ngày hôm nay (giới hạn trong tháng đang xem)
+  const todayDate=new Date();
+  const todayInMonth=new Date(Math.min(todayDate,lastDayDate));
+  const todayStr=todayInMonth.toISOString().slice(0,10);
+  // Số ngày làm việc T2-T6 từ đầu tháng đến hôm nay
+  function countWorkDaysUntil(year,month,untilDate){
+    let count=0;
+    const until=new Date(untilDate);
+    for(let d=new Date(year,month,1);d<=until;d.setDate(d.getDate()+1)){
+      const day=d.getDay();if(day>=1&&day<=5)count++;
+    }
+    return count;
+  }
+  const workDaysCur=calcWorkDaysInMonth(sdashYear,sdashMonth); // tổng T2-T6 cả tháng
+  const workDaysSoFar=countWorkDaysUntil(sdashYear,sdashMonth,todayStr); // đã qua
+  const workDaysLeft=Math.max(0,workDaysCur-workDaysSoFar);
+
+  // Target cả tháng
+  const targetCalls=180*workDaysCur;
+  const targetTalk=120*workDaysCur;   // phút
+  const targetPotential=4*workDaysCur;
+
   // Fetch dữ liệu song song
-  const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes]=await Promise.all([
+  const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes,dtRes]=await Promise.all([
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang),
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
+    sb.from('daily_tracking').select('total_calls,talktime_minutes,potential_calls,so_bao_gia,total_call_vi_pham,total_talk_vi_pham')
+      .eq('user_id',uid).gte('tracking_date',firstDay).lte('tracking_date',todayStr),
   ]);
+
+  // Tổng hợp daily_tracking
+  const dtRows=dtRes.data||[];
+  const dtTotalCalls=dtRows.reduce((s,r)=>s+(r.total_calls||0),0);
+  const dtTotalTalk=dtRows.reduce((s,r)=>s+(r.talktime_minutes||0),0); // phút
+  const dtTotalPotential=dtRows.reduce((s,r)=>s+(r.potential_calls||0),0);
+  const dtViolCall=dtRows.reduce((s,r)=>s+(r.total_call_vi_pham||0),0);
+  const dtViolTalk=dtRows.reduce((s,r)=>s+(r.total_talk_vi_pham||0),0);
+  const dtBaoGia=dtRows.reduce((s,r)=>s+(r.so_bao_gia||0),0);
+  // Trung bình thực tế/ngày (chia cho ngày đã qua)
+  const avgCallDay=workDaysSoFar>0?dtTotalCalls/workDaysSoFar:0;
+  const avgTalkDay=workDaysSoFar>0?dtTotalTalk/workDaysSoFar:0;
+  const avgPotDay=workDaysSoFar>0?dtTotalPotential/workDaysSoFar:0;
+  // Còn cần chạy
+  const needCalls=Math.max(0,targetCalls-dtTotalCalls);
+  const needTalk=Math.max(0,targetTalk-dtTotalTalk);
+  const needPotential=Math.max(0,targetPotential-dtTotalPotential);
+  // Cần/ngày còn lại
+  const needCallDay=workDaysLeft>0?needCalls/workDaysLeft:0;
+  const needTalkDay=workDaysLeft>0?needTalk/workDaysLeft:0;
+  const needPotDay=workDaysLeft>0?needPotential/workDaysLeft:0;
+  // % hoàn thành
+  const pctCalls=targetCalls>0?Math.min(100,Math.round(dtTotalCalls/targetCalls*100)):0;
+  const pctTalk=targetTalk>0?Math.min(100,Math.round(dtTotalTalk/targetTalk*100)):0;
+  const pctPot=targetPotential>0?Math.min(100,Math.round(dtTotalPotential/targetPotential*100)):0;
 
   const kpi=kpiCurRes.data||{};
   const kpiP=kpiPrevRes.data||{};
@@ -4291,26 +4344,47 @@ async function renderSaleDashboard(){
     </div>
   </div>
 
-  <!-- Section 3: Call / Talktime / Potential -->
+  <!-- Section 3: Call / Talktime / Potential từ daily_tracking -->
   <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
-    <div style="font-weight:700;font-size:14px;margin-bottom:16px">📞 Hoạt động hàng ngày</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px">📞 Hoạt động hàng ngày</div>
+      <div style="font-size:11px;color:var(--text3)">${workDaysSoFar}/${workDaysCur} ngày đã qua · còn ${workDaysLeft} ngày</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
       ${[
-        {icon:'📞',label:'Calls/ngày',cur:kpi.calls_ngay||0,prev:kpiP.calls_ngay||0,target:15,unit:'cuộc',vi:kpi.total_call_vi_pham||0,color:'#6d28d9'},
-        {icon:'🎙️',label:'Talktime/ngày',cur:kpi.talktime_ngay||0,prev:kpiP.talktime_ngay||0,target:50,unit:'phút',vi:kpi.total_talk_vi_pham||0,color:'#0ea5e9'},
-        {icon:'🎯',label:'Potential',cur:kpi.potential_count||0,prev:kpiP.potential_count||0,target:Math.round(4*22),unit:'KH',vi:0,color:'#10b981'},
-      ].map(({icon,label,cur,prev,target,unit,vi,color})=>`
-      <div style="background:var(--bg3);border-radius:12px;padding:16px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">${icon} ${label}</div>
-        <div style="font-size:22px;font-weight:700;color:${cur>=target?'#10b981':'#f59e0b'}">${typeof cur==='number'?cur.toFixed(1):cur} <span style="font-size:11px;color:var(--text3)">${unit}</span></div>
-        <div style="font-size:11px;color:var(--text3);margin:4px 0">T${prevMonth+1}: ${typeof prev==='number'?prev.toFixed(1):prev} ${unit} ${trend(cur,prev)}</div>
-        <div style="height:5px;background:var(--bg2);border-radius:3px;margin:8px 0">
-          <div style="height:100%;width:${Math.min(100,Math.round(cur/target*100))}%;background:${color};border-radius:3px"></div>
+        {icon:'📞',label:'CALLS',total:dtTotalCalls,target:targetCalls,avg:avgCallDay,need:needCallDay,pct:pctCalls,vi:dtViolCall,unit:'cuộc',color:'#6d28d9'},
+        {icon:'🎙️',label:'TALKTIME',total:Math.round(dtTotalTalk),target:targetTalk,avg:avgTalkDay,need:needTalkDay,pct:pctTalk,vi:dtViolTalk,unit:'ph',color:'#0ea5e9'},
+        {icon:'🎯',label:'POTENTIAL',total:dtTotalPotential,target:targetPotential,avg:avgPotDay,need:needPotDay,pct:pctPot,vi:0,unit:'KH',color:'#10b981'},
+      ].map(({icon,label,total,target,avg,need,pct,vi,unit,color})=>`
+      <div style="background:var(--bg3);border-radius:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:700;color:${color};letter-spacing:.05em">${icon} ${label}</span>
+          <span style="font-size:11px;font-weight:700;color:${pct>=100?'#10b981':pct>=70?'#f59e0b':'#ef4444'};background:${pct>=100?'rgba(16,185,129,0.1)':pct>=70?'rgba(245,158,11,0.1)':'rgba(239,68,68,0.1)'};padding:2px 8px;border-radius:20px">${pct}%</span>
         </div>
-        ${vi>0?`<div style="font-size:10px;color:#ef4444">⚠️ Vi phạm: ${vi} ngày</div>`:`<div style="font-size:10px;color:#10b981">✅ Đạt chuẩn</div>`}
-        <div style="margin-top:8px;display:flex;gap:8px;font-size:10px;color:var(--text3)">
-          <span>Báo giá: ${kpi.bao_gia_count||0}</span>
-          <span>Follow-up: ${((kpi.followup_rate_pct||0)).toFixed(0)}%</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:10px">
+          <div style="background:var(--bg2);border-radius:8px;padding:6px 8px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">Đã chạy</div>
+            <div style="font-weight:700;color:var(--text)">${total.toLocaleString()} <span style="font-size:9px;color:var(--text3)">${unit}</span></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:8px;padding:6px 8px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">Mục tiêu</div>
+            <div style="font-weight:700;color:var(--text3)">${target.toLocaleString()} <span style="font-size:9px">${unit}</span></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:8px;padding:6px 8px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">TB/ngày TT</div>
+            <div style="font-weight:700;color:${avg>=need?'#10b981':'#f59e0b'}">${avg.toFixed(1)} <span style="font-size:9px;color:var(--text3)">${unit}</span></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:8px;padding:6px 8px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">Cần/ngày còn</div>
+            <div style="font-weight:700;color:${avg>=need?'#10b981':'#ef4444'}">${need.toFixed(1)} <span style="font-size:9px;color:var(--text3)">${unit}</span></div>
+          </div>
+        </div>
+        <div style="height:6px;background:var(--bg2);border-radius:3px;margin-bottom:8px">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px">
+          ${vi>0?`<span style="color:#ef4444">⚠️ Vi phạm: ${vi} ngày</span>`:`<span style="color:#10b981">✅ Đạt chuẩn</span>`}
+          ${label==='POTENTIAL'?`<span style="color:var(--text3)">Báo giá: ${dtBaoGia}</span>`:''}
         </div>
       </div>`).join('')}
     </div>
