@@ -724,6 +724,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
         <div id="dash-daily-summary" style="margin-top:8px"></div>
       </div>
+      <!-- Weekly Tracking per Sale -->
+      <div id="dash-weekly-tracking" style="margin-bottom:20px"></div>
 
       <!-- LEADERBOARD — 1 BẢNG gộp Leader + Sale -->
       <div class="card" style="margin-bottom:20px">
@@ -3949,64 +3951,74 @@ async function renderDashboard(){
 
   var fromMonth=fromDate.slice(0,7);
   var today=getTodayVN();
-
   var planMonths=1;
   if(_dashActivePeriod==='quarter')planMonths=3;
   else if(_dashActivePeriod==='year')planMonths=12;
-  else if(_dashActivePeriod==='custom'){
-    var ms=new Date(toDate)-new Date(fromDate);
-    planMonths=Math.max(1,Math.round(ms/(30*24*3600*1000)));
-  }
+  else if(_dashActivePeriod==='custom'){var ms=new Date(toDate)-new Date(fromDate);planMonths=Math.max(1,Math.round(ms/(30*24*3600*1000)));}
 
   var fromLabel=fromDate.slice(8)+'/'+fromDate.slice(5,7)+'/'+fromDate.slice(0,4);
   var toLabel=toDate.slice(8)+'/'+toDate.slice(5,7)+'/'+toDate.slice(0,4);
-  document.getElementById('dash-sub').textContent=fromLabel+' \u2192 '+toLabel;
+  document.getElementById('dash-sub').textContent=fromLabel+' → '+toLabel;
 
-  var [tgt, ordersRes, dailyAllRes, dailyTodayRes] = await Promise.all([
+  // ── Fetch ─────────────────────────────────────────────────────────────
+  var [tgt,ordersRes,dailyAllRes,dailyTodayRes,profilesRes]=await Promise.all([
     getTarget(fromMonth),
-    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role)').gte('order_date',fromDate).lte('order_date',toDate),
+    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type)').gte('order_date',fromDate).lte('order_date',toDate),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
-    sb.from('daily_tracking').select('*').eq('ngay',today)
+    sb.from('daily_tracking').select('*').eq('ngay',today),
+    Promise.resolve({data:allProfiles}),
   ]);
 
-  var planDS=tgt.target_doanh_so*planMonths;
-  var planDon=tgt.target_don_hang*planMonths;
   var ords=ordersRes.data||[];
+  var dtAll=dailyAllRes.data||[];
+  var saleProfiles=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';});
+
+  // ── Target Team = Σ target từng Sale (thử việc × 85%, chính thức × 100%) ──
+  var TARGET_CHINH_THUC=23500, TARGET_THU_VIEC=19975;
+  var planDSTeam=saleProfiles.reduce(function(s,p){
+    var t=(p.contract_type==='probation'||p.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    return s+t*planMonths;
+  },0);
+  var planDon=tgt.target_don_hang*planMonths;
 
   var totalDS=ords.reduce(function(s,o){return s+(o.total_amount||0);},0);
   var totalDon=ords.length;
   var aov=totalDon>0?totalDS/totalDon:0;
-  var totalBaoGia=(dailyAllRes.data||[]).reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
+  var totalBaoGia=dtAll.reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
   var convRate=totalBaoGia>0?(totalDon/totalBaoGia*100):0;
-  var gapDS=planDS-totalDS,gapDon=planDon-totalDon;
-  var pctDS=planDS>0?(totalDS/planDS*100):0,pctDon=planDon>0?(totalDon/planDon*100):0;
+  var gapDS=planDSTeam-totalDS,gapDon=planDon-totalDon;
+  var pctDS=planDSTeam>0?(totalDS/planDSTeam*100):0,pctDon=planDon>0?(totalDon/planDon*100):0;
 
+  // ── Row 1: KPI Cards ──────────────────────────────────────────────────
   document.getElementById('dash-overview').innerHTML=`
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCB5 Doanh s\u1ED1 Active</div><div class="stat-val" style="color:var(--success);font-size:18px">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</div><div class="stat-sub">Plan: $${planDS.toLocaleString('en-US',{maximumFractionDigits:0})} \u00B7 Gap: <span style="color:${gapDS<=0?'var(--success)':'var(--danger)'}">$${Math.abs(gapDS).toLocaleString('en-US',{maximumFractionDigits:0})}</span></div></div>
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCE6 \u0110\u01A1n h\u00E0ng</div><div class="stat-val" style="color:var(--accent)">${totalDon}</div><div class="stat-sub">Plan: ${planDon} \u00B7 Gap: <span style="color:${gapDon<=0?'var(--success)':'var(--danger)'}">${Math.abs(gapDon)}</span></div></div>
-    <div class="stat-card"><div class="stat-label">\uD83D\uDCC8 AOV</div><div class="stat-val" style="color:var(--warn);font-size:18px">$${aov.toLocaleString('en-US',{maximumFractionDigits:0})}</div><div class="stat-sub">Doanh s\u1ED1 \u00F7 \u0110\u01A1n h\u00E0ng</div></div>
-    <div class="stat-card"><div class="stat-label">\uD83D\uDD04 Conversion Rate</div><div class="stat-val" style="color:var(--manager)">${totalBaoGia>0?convRate.toFixed(1)+'%':'—'}</div><div class="stat-sub">${totalDon} \u0111\u01A1n / ${totalBaoGia||0} b\u00E1o gi\u00E1</div></div>`;
+    <div class="stat-card"><div class="stat-label">💵 Doanh số Active</div><div class="stat-val" style="color:var(--success);font-size:18px">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</div><div class="stat-sub">Plan team: $${planDSTeam.toLocaleString('en-US',{maximumFractionDigits:0})} · Gap: <span style="color:${gapDS<=0?'var(--success)':'var(--danger)'}">$${Math.abs(gapDS).toLocaleString('en-US',{maximumFractionDigits:0})}</span></div></div>
+    <div class="stat-card"><div class="stat-label">📦 Đơn hàng</div><div class="stat-val" style="color:var(--accent)">${totalDon}</div><div class="stat-sub">Plan: ${planDon} · Gap: <span style="color:${gapDon<=0?'var(--success)':'var(--danger)'}">$${Math.abs(gapDon)}</span></div></div>
+    <div class="stat-card"><div class="stat-label">📈 AOV</div><div class="stat-val" style="color:var(--warn);font-size:18px">$${aov.toLocaleString('en-US',{maximumFractionDigits:0})}</div><div class="stat-sub">Doanh số ÷ Đơn hàng</div></div>
+    <div class="stat-card"><div class="stat-label">🔄 Conversion Rate</div><div class="stat-val" style="color:var(--manager)">${totalBaoGia>0?convRate.toFixed(1)+'%':'—'}</div><div class="stat-sub">${totalDon} đơn / ${totalBaoGia||0} báo giá</div></div>`;
 
+  // ── Row 2: Progress bars ───────────────────────────────────────────────
   document.getElementById('dash-progress').innerHTML=`
-    <div class="card"><div class="card-title"><span class="dot"></span>% Ho\u00E0n th\u00E0nh Doanh s\u1ED1</div>
-      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</span><span style="color:var(--text2);font-weight:600">${pctDS.toFixed(1)}%</span><span style="color:var(--text2)">$${planDS.toLocaleString('en-US',{maximumFractionDigits:0})}</span></div>
+    <div class="card"><div class="card-title"><span class="dot"></span>% Hoàn thành Doanh số</div>
+      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">$${totalDS.toLocaleString('en-US',{maximumFractionDigits:0})}</span><span style="color:var(--text2);font-weight:600">${pctDS.toFixed(1)}%</span><span style="color:var(--text2)">$${planDSTeam.toLocaleString('en-US',{maximumFractionDigits:0})}</span></div>
       <div style="background:var(--bg4);border-radius:8px;height:16px;overflow:hidden"><div style="height:100%;border-radius:8px;background:linear-gradient(90deg,${pctDS>=100?'var(--success)':pctDS>=70?'var(--accent)':'var(--danger)'},${pctDS>=100?'#059669':pctDS>=70?'#7c3aed':'#dc2626'});width:${Math.min(100,pctDS)}%;transition:width .5s"></div></div>
       <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:700;color:${pctDS>=100?'var(--success)':pctDS>=70?'var(--accent)':'var(--danger)'}">${pctDS.toFixed(1)}%</div></div>
-    <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>% Ho\u00E0n th\u00E0nh \u0110\u01A1n h\u00E0ng</div>
-      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">${totalDon} \u0111\u01A1n</span><span style="color:var(--text2);font-weight:600">${pctDon.toFixed(1)}%</span><span style="color:var(--text2)">${planDon} \u0111\u01A1n</span></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>% Hoàn thành Đơn hàng</div>
+      <div style="margin:12px 0 6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">${totalDon} đơn</span><span style="color:var(--text2);font-weight:600">${pctDon.toFixed(1)}%</span><span style="color:var(--text2)">${planDon} đơn</span></div>
       <div style="background:var(--bg4);border-radius:8px;height:16px;overflow:hidden"><div style="height:100%;border-radius:8px;background:linear-gradient(90deg,${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'},${pctDon>=100?'#059669':pctDon>=70?'#d97706':'#dc2626'});width:${Math.min(100,pctDon)}%;transition:width .5s"></div></div>
       <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:700;color:${pctDon>=100?'var(--success)':pctDon>=70?'var(--warn)':'var(--danger)'}">${pctDon.toFixed(1)}%</div></div>`;
 
+  // ── Row 3: Vendor ─────────────────────────────────────────────────────
   var vendorBolsa=ords.reduce(function(s,o){return s+(o.revenue_bolsa||0);},0);
   var vendorOns=ords.reduce(function(s,o){return s+(o.revenue_ons||0);},0);
   var vendorTspa=ords.reduce(function(s,o){return s+(o.revenue_tspa||0);},0);
   var vendorTotal=vendorBolsa+vendorOns+vendorTspa||1;
-  function vendorBar(val,total,color){var pct=Math.round(val/total*100);return `<div style="margin-top:6px;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${color};width:${Math.min(100,pct)}%;transition:width .5s"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}% t\u1ED5ng DT</div>`;}
+  function vendorBar(val,total,color){var pct=Math.round(val/total*100);return `<div style="margin-top:6px;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${color};width:${Math.min(100,pct)}%;transition:width .5s"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}% tổng DT</div>`;}
   document.getElementById('dash-vendor').innerHTML=`
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#60a5fa;text-transform:uppercase;margin-bottom:6px">BOLSA</div><div style="font-size:20px;font-weight:700;color:#60a5fa">$${vendorBolsa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorBolsa,vendorTotal,'#3b82f6')}</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#fb923c;text-transform:uppercase;margin-bottom:6px">ONS</div><div style="font-size:20px;font-weight:700;color:#fb923c">$${vendorOns.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorOns,vendorTotal,'#f97316')}</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#a78bfa;text-transform:uppercase;margin-bottom:6px">TSPA</div><div style="font-size:20px;font-weight:700;color:#a78bfa">$${vendorTspa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorTspa,vendorTotal,'#8b5cf6')}</div>`;
 
+  // ── Row 4: Charts DS + Đơn theo tháng với % chênh lệch ───────────────
   var monthlyData={};
   ords.forEach(function(o){var m=o.order_date?o.order_date.slice(0,7):'';if(!m)return;if(!monthlyData[m])monthlyData[m]={ds:0,don:0};monthlyData[m].ds+=(o.total_amount||0);monthlyData[m].don++;});
   var allMonths=[],cur=new Date(fromDate.slice(0,7)+'-01'),toD=new Date(toDate.slice(0,7)+'-01');
@@ -4014,15 +4026,56 @@ async function renderDashboard(){
   var labels=allMonths.map(function(m){return m.slice(5)+'/'+m.slice(0,4);});
   var dsData=allMonths.map(function(m){return monthlyData[m]?Math.round(monthlyData[m].ds):0;});
   var donData=allMonths.map(function(m){return monthlyData[m]?monthlyData[m].don:0;});
+  // % chênh lệch tháng trước
+  var dsPctChange=dsData.map(function(v,i){if(i===0||dsData[i-1]===0)return null;return Math.round((v-dsData[i-1])/dsData[i-1]*100);});
+  var donPctChange=donData.map(function(v,i){if(i===0||donData[i-1]===0)return null;return Math.round((v-donData[i-1])/donData[i-1]*100);});
   var maxDS=Math.max(...dsData,tgt.target_doanh_so)*1.15||1000;
   var maxDon=Math.max(...donData,tgt.target_don_hang)*1.2||5;
 
   if(chartRevenue)chartRevenue.destroy();
-  chartRevenue=new Chart(document.getElementById('chart-revenue').getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'Doanh s\u1ED1 ($)',data:dsData,backgroundColor:'rgba(79,127,255,0.6)',borderColor:'rgba(79,127,255,1)',borderWidth:1,borderRadius:6},{label:'Target ($)',data:allMonths.map(function(){return tgt.target_doanh_so;}),type:'line',borderColor:'rgba(255,181,71,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:0,max:Math.round(maxDS),ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}}}});
-  if(chartOrders)chartOrders.destroy();
-  chartOrders=new Chart(document.getElementById('chart-orders').getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'S\u1ED1 \u0111\u01A1n',data:donData,backgroundColor:'rgba(255,181,71,0.6)',borderColor:'rgba(255,181,71,1)',borderWidth:1,borderRadius:6},{label:'Target \u0111\u01A1n',data:allMonths.map(function(){return tgt.target_don_hang;}),type:'line',borderColor:'rgba(34,199,122,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{labels:{color:'#8b92a8',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+  chartRevenue=new Chart(document.getElementById('chart-revenue').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Doanh số ($)',data:dsData,backgroundColor:'rgba(79,127,255,0.6)',borderColor:'rgba(79,127,255,1)',borderWidth:1,borderRadius:6},
+      {label:'Target ($)',data:allMonths.map(function(){return tgt.target_doanh_so;}),type:'line',borderColor:'rgba(255,181,71,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,plugins:{
+      legend:{labels:{color:'#8b92a8',font:{size:11}}},
+      tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=dsPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
+    },scales:{
+      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
+      y:{min:0,max:Math.round(maxDS),ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}
+    }}
+  });
 
-  // Daily tracking today (UTC+7 fix)
+  // % chênh lệch hiển thị inline dưới chart
+  var dsChgHtml=dsPctChange.map(function(pct,i){if(pct===null)return '<span style="flex:1"></span>';var c=pct>=0?'#10b981':'#ef4444';return '<span style="flex:1;text-align:center;font-size:10px;color:'+c+'">'+(pct>=0?'▲+':'▼')+pct+'%</span>';}).join('');
+  var dsChgRow=document.getElementById('chart-revenue').parentElement.querySelector('.pct-change-row');
+  if(!dsChgRow){dsChgRow=document.createElement('div');dsChgRow.className='pct-change-row';dsChgRow.style.cssText='display:flex;padding:4px 0 0 42px;gap:0';document.getElementById('chart-revenue').parentElement.appendChild(dsChgRow);}
+  dsChgRow.innerHTML=dsChgHtml;
+
+  if(chartOrders)chartOrders.destroy();
+  chartOrders=new Chart(document.getElementById('chart-orders').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Số đơn',data:donData,backgroundColor:'rgba(255,181,71,0.6)',borderColor:'rgba(255,181,71,1)',borderWidth:1,borderRadius:6},
+      {label:'Target đơn',data:allMonths.map(function(){return tgt.target_don_hang;}),type:'line',borderColor:'rgba(34,199,122,0.8)',borderWidth:2,borderDash:[5,5],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,plugins:{
+      legend:{labels:{color:'#8b92a8',font:{size:11}}},
+      tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=donPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
+    },scales:{
+      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
+      y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}
+    }}
+  });
+
+  var donChgHtml=donPctChange.map(function(pct,i){if(pct===null)return '<span style="flex:1"></span>';var c=pct>=0?'#10b981':'#ef4444';return '<span style="flex:1;text-align:center;font-size:10px;color:'+c+'">'+(pct>=0?'▲+':'▼')+pct+'%</span>';}).join('');
+  var donChgRow=document.getElementById('chart-orders').parentElement.querySelector('.pct-change-row');
+  if(!donChgRow){donChgRow=document.createElement('div');donChgRow.className='pct-change-row';donChgRow.style.cssText='display:flex;padding:4px 0 0 42px;gap:0';document.getElementById('chart-orders').parentElement.appendChild(donChgRow);}
+  donChgRow.innerHTML=donChgHtml;
+
+  // ── Row 5: Daily tracking hôm nay ────────────────────────────────────
   document.getElementById('dash-daily-date').textContent=today;
   var dt=dailyTodayRes.data||[];
   dt.forEach(function(d){if(!d.profiles)d.profiles=allProfiles.find(function(p){return p.id===d.user_id;})||null;});
@@ -4030,18 +4083,133 @@ async function renderDashboard(){
   var tPot=dt.reduce(function(s,d){return s+(d.potential_calls||0);},0);
   var tBG=dt.reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
   var tTalk=dt.reduce(function(s,d){return s+(d.talktime_phut||0);},0);
-  var salesCount=allProfiles.filter(function(p){return p.role==='sale';}).length;
+  var salesCount=saleProfiles.length;
   function gapColor(a,t){return a>=t?'var(--success)':'var(--danger)';}
   document.getElementById('dash-daily-summary').innerHTML=dt.length===0
-    ?'<div class="empty" style="padding:12px 0">Ch\u01B0a c\u00F3 d\u1EEF li\u1EC7u daily tracking h\u00F4m nay</div>'
+    ?'<div class="empty" style="padding:12px 0">Chưa có dữ liệu daily tracking hôm nay</div>'
     :`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total Calls</div><div style="font-size:20px;font-weight:700;color:${gapColor(tCalls,40*salesCount)}">${tCalls}</div><div style="font-size:10px;color:var(--text3)">Target: ${40*salesCount}</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Potential</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${tPot}</div><div style="font-size:10px;color:var(--text3)">${dt.length} ng\u01B0\u1EDDi nh\u1EADp</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">B\u00E1o gi\u00E1</div><div style="font-size:20px;font-weight:700;color:var(--warn)">${tBG}</div><div style="font-size:10px;color:var(--text3)">t\u1ED5ng team</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Talktime</div><div style="font-size:20px;font-weight:700;color:${gapColor(tTalk,120*salesCount)}">${tTalk}'</div><div style="font-size:10px;color:var(--text3)">Target: ${120*salesCount}'</div></div>
-    </div><div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){var p=d.profiles;var ok=d.total_calls>=40&&d.talktime_phut>=120;return '<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid '+(ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)')+';border-radius:20px;font-size:11px"><span style="color:'+(ok?'var(--success)':'var(--danger)')+'\">'+(ok?'\u2713':'!')+'</span><span>'+(p?p.nickname||p.full_name:'\u2014')+'</span><span style="color:var(--text3)">'+d.total_calls+'c/'+d.talktime_phut+"'</span></div>";}).join('')}</div>`;
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total Calls</div><div style="font-size:20px;font-weight:700;color:${gapColor(tCalls,180*salesCount)}">${tCalls.toLocaleString()}</div><div style="font-size:10px;color:var(--text3)">Target: ${(180*salesCount).toLocaleString()}</div></div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Talktime</div><div style="font-size:20px;font-weight:700;color:${gapColor(tTalk,120*salesCount)}">${Math.round(tTalk).toLocaleString()}'</div><div style="font-size:10px;color:var(--text3)">Target: ${(120*salesCount).toLocaleString()}'</div></div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Potential</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${tPot}</div><div style="font-size:10px;color:var(--text3)">${dt.length} người nhập</div></div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Báo giá</div><div style="font-size:20px;font-weight:700;color:var(--warn)">${tBG}</div><div style="font-size:10px;color:var(--text3)">tổng team</div></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){var p=d.profiles;var okC=d.total_calls>=180,okT=d.talktime_phut>=120,ok=okC&&okT;return '<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid '+(ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)')+';border-radius:20px;font-size:11px"><span style="color:'+(ok?'var(--success)':'var(--danger)')+'\">'+(ok?'✓':'!')+'</span><span>'+(p?p.nickname||p.full_name:'—')+'</span><span style="color:var(--text3)">'+d.total_calls+'c / '+Math.round(d.talktime_phut||0)+"'</span></div>";}).join('')}</div>`;
 
-  // Leaderboard — Leader + Sale, 1 board, no Manager
+  // ── Row 6: Weekly Tracking từng Sale ─────────────────────────────────
+  // Tính tuần theo lịch (T2-CN) trong tháng
+  var curMonth=fromDate.slice(0,7);
+  var mYear=parseInt(curMonth.slice(0,4)),mMonth=parseInt(curMonth.slice(5,7))-1;
+  var firstOfMonth=new Date(mYear,mMonth,1);
+  var lastOfMonth=new Date(mYear,mMonth+1,0);
+  // Tìm tất cả tuần (T2-CN) có giao với tháng này
+  var weeks=[];
+  var d=new Date(firstOfMonth);
+  // Tìm T2 đầu tiên <= firstOfMonth
+  while(d.getDay()!==1)d.setDate(d.getDate()-1);
+  while(d<=lastOfMonth){
+    var wStart=new Date(d),wEnd=new Date(d);
+    wEnd.setDate(wEnd.getDate()+4); // T6
+    weeks.push({
+      start:new Date(Math.max(wStart,firstOfMonth)),
+      end:new Date(Math.min(wEnd,lastOfMonth)),
+      wStartStr:wStart.toISOString().slice(0,10),
+      wEndStr:wEnd.toISOString().slice(0,10),
+    });
+    d.setDate(d.getDate()+7);
+  }
+
+  // Tính ngày làm việc cả tháng và đã qua tính đến hôm nay
+  var todayD=new Date(today);
+  function countWorkDays(from,to){var c=0,d=new Date(from);while(d<=to){if(d.getDay()>=1&&d.getDay()<=5)c++;d.setDate(d.getDate()+1);}return c;}
+  var totalWorkDays=countWorkDays(firstOfMonth,lastOfMonth);
+  var workDaysSoFar=countWorkDays(firstOfMonth,new Date(Math.min(todayD,lastOfMonth)));
+  var workDaysLeft=Math.max(0,totalWorkDays-workDaysSoFar);
+
+  // Group daily_tracking by user + week
+  var dtMap={};
+  dtAll.forEach(function(r){
+    var uid=r.user_id,ngay=r.ngay||r.tracking_date;
+    if(!dtMap[uid])dtMap[uid]={weeks:{}};
+    weeks.forEach(function(w,wi){
+      if(ngay>=w.start.toISOString().slice(0,10)&&ngay<=w.end.toISOString().slice(0,10)){
+        if(!dtMap[uid].weeks[wi])dtMap[uid].weeks[wi]={calls:0,talk:0,pot:0,days:0};
+        dtMap[uid].weeks[wi].calls+=(r.total_calls||0);
+        dtMap[uid].weeks[wi].talk+=(r.talktime_phut||0);
+        dtMap[uid].weeks[wi].pot+=(r.potential_calls||0);
+        dtMap[uid].weeks[wi].days++;
+      }
+    });
+  });
+
+  // Header tuần
+  var weekHeaders=weeks.map(function(w){
+    var s=w.start,e=w.end;
+    return '<th style="text-align:center;padding:8px 4px;font-size:10px;color:var(--text3);white-space:nowrap">'+
+      String(s.getDate()).padStart(2,'0')+'/'+(s.getMonth()+1)+' – '+String(e.getDate()).padStart(2,'0')+'/'+(e.getMonth()+1)+'</th>';
+  }).join('');
+
+  var rows=saleProfiles.map(function(p){
+    var myTarget=(p.contract_type==='probation'||p.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    var totalTarget=180*totalWorkDays;
+    var totalTalkTarget=120*totalWorkDays;
+    var totalPotTarget=4*totalWorkDays;
+    var ud=dtMap[p.id]||{weeks:{}};
+
+    // Tổng cả tháng
+    var totCalls=0,totTalk=0,totPot=0;
+    Object.values(ud.weeks).forEach(function(w){totCalls+=w.calls;totTalk+=w.talk;totPot+=w.pot;});
+    var avgCallDay=workDaysSoFar>0?(totCalls/workDaysSoFar):0;
+    var avgTalkDay=workDaysSoFar>0?(totTalk/workDaysSoFar):0;
+    var needCallDay=workDaysLeft>0?Math.max(0,totalTarget-totCalls)/workDaysLeft:0;
+    var pctCalls=totalTarget>0?Math.min(100,Math.round(totCalls/totalTarget*100)):0;
+    var pctTalk=totalTalkTarget>0?Math.min(100,Math.round(totTalk/totalTalkTarget*100)):0;
+
+    var weekCells=weeks.map(function(w,wi){
+      var wd=ud.weeks[wi];
+      if(!wd||wd.days===0)return '<td style="text-align:center;color:var(--text3);font-size:12px;padding:8px 4px">—</td>';
+      var wWorkDays=countWorkDays(w.start,w.end);
+      var avgC=wd.days>0?(wd.calls/wd.days):0;
+      var cOk=avgC>=180;
+      return '<td style="padding:6px 4px;vertical-align:top"><div style="font-size:12px;font-weight:600;color:'+
+        (cOk?'#10b981':'#f59e0b')+'">'+wd.calls.toLocaleString()+'c</div>'+
+        '<div style="font-size:10px;color:var(--text3)">'+Math.round(wd.talk||0)+"'</div>"+
+        '<div style="font-size:10px;color:var(--text3)">TB: '+avgC.toFixed(0)+'/ng</div></td>';
+    }).join('');
+
+    return '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:10px 12px;white-space:nowrap">'+
+        '<div style="font-weight:600;font-size:13px">'+p.full_name+'</div>'+
+        '<div style="font-size:10px;color:var(--text3)">'+p.employee_code+' · Target: $'+myTarget.toLocaleString()+'</div>'+
+      '</td>'+
+      weekCells+
+      '<td style="padding:8px 12px;white-space:nowrap;border-left:1px solid var(--border)">'+
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">'+
+          '<span style="font-size:12px;font-weight:700;color:'+(pctCalls>=100?'#10b981':pctCalls>=70?'#f59e0b':'#ef4444')+'">'+totCalls.toLocaleString()+' calls</span>'+
+          '<span style="font-size:11px;font-weight:600;background:'+(pctCalls>=100?'rgba(16,185,129,0.15)':pctCalls>=70?'rgba(245,158,11,0.15)':'rgba(239,68,68,0.15)')+
+            ';color:'+(pctCalls>=100?'#10b981':pctCalls>=70?'#f59e0b':'#ef4444')+';border-radius:20px;padding:1px 6px">'+pctCalls+'%</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">'+Math.round(totTalk||0)+"' talk · "+pctTalk+'%</div>'+
+        '<div style="height:4px;background:var(--bg4);border-radius:2px;margin-bottom:4px">'+
+          '<div style="height:100%;width:'+pctCalls+'%;background:'+(pctCalls>=100?'#10b981':pctCalls>=70?'#f59e0b':'#ef4444')+';border-radius:2px"></div>'+
+        '</div>'+
+        '<div style="font-size:10px;color:var(--text3)">TB: '+avgCallDay.toFixed(0)+'/ng · Cần: '+needCallDay.toFixed(0)+'/ng còn</div>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('dash-weekly-tracking').innerHTML=saleProfiles.length===0?'':
+    '<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>Hoạt động theo tuần — '+curMonth+'</div>'+
+    '<div style="overflow-x:auto;margin-top:12px">'+
+    '<table style="width:100%;border-collapse:collapse">'+
+    '<thead><tr style="border-bottom:2px solid var(--border)">'+
+      '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap">NHÂN VIÊN</th>'+
+      weekHeaders+
+      '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap;border-left:1px solid var(--border)">TỔNG THÁNG / KẾ HOẠCH</th>'+
+    '</tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+    '</table></div></div>';
+
+  // ── Leaderboard ───────────────────────────────────────────────────────
   var lbMap={};
   ords.forEach(function(o){
     var uid=o.user_id;
@@ -4051,30 +4219,29 @@ async function renderDashboard(){
     lbMap[uid].ds+=(o.total_amount||0);
     lbMap[uid].don++;
   });
-  allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';}).forEach(function(p){
-    if(!lbMap[p.id])lbMap[p.id]={emp:p,ds:0,don:0};
-  });
+  saleProfiles.forEach(function(p){if(!lbMap[p.id])lbMap[p.id]={emp:p,ds:0,don:0};});
   var lbArr=Object.values(lbMap).sort(function(a,b){return b.ds-a.ds;});
   var medals=['🥇','🥈','🥉'];
-  document.getElementById('leaderboard-list').innerHTML=lbArr.length===0?'<div class="empty">Ch\u01B0a c\u00F3 d\u1EEF li\u1EC7u</div>':lbArr.map(function(s,i){
-    var pct=planDS>0?(s.ds/planDS*100):0;
-    var isTop=i<3;
+  document.getElementById('leaderboard-list').innerHTML=lbArr.length===0?'<div class="empty">Chưa có dữ liệu</div>':lbArr.map(function(s,i){
+    var myT=(s.emp.contract_type==='probation'||s.emp.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    var pct=myT>0?(s.ds/myT*100):0;
     var bc=i===0?'var(--warn)':i===1?'rgba(192,192,192,0.5)':i===2?'rgba(205,127,50,0.5)':'var(--border)';
     var dsD=s.ds>0?'$'+s.ds.toLocaleString('en-US',{maximumFractionDigits:0}):'—';
     var rb=s.emp.role==='leader'?'<span style="font-size:9px;background:var(--leader-bg);color:var(--leader);border:1px solid rgba(52,211,153,0.3);border-radius:4px;padding:1px 5px;margin-left:4px">Leader</span>':'';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${bc};border-radius:${isTop?'10px':'8px'};margin-bottom:8px${isTop?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
-      <div style="font-size:${isTop?'22px':'14px'};flex-shrink:0;width:30px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid ${bc};border-radius:${i<3?'10px':'8px'};margin-bottom:8px${i<3?';box-shadow:0 2px 12px rgba(0,0,0,0.3)':''}">
+      <div style="font-size:${i<3?'22px':'14px'};flex-shrink:0;width:30px;text-align:center">${i<3?medals[i]:'#'+(i+1)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${s.emp.full_name} ${rb} <span style="font-size:11px;color:var(--text2)">(${s.emp.employee_code})</span></div>
         <div style="margin-top:4px;background:var(--bg4);border-radius:4px;height:5px;overflow:hidden"><div style="height:100%;background:${i===0?'linear-gradient(90deg,var(--warn),#d97706)':i===1?'linear-gradient(90deg,#9ca3af,#6b7280)':i===2?'linear-gradient(90deg,#c9a227,#92550a)':'var(--accent)'};width:${Math.min(100,pct)}%"></div></div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:13px;font-weight:700;color:${i===0?'var(--warn)':i===1?'#9ca3af':i===2?'#c9a227':'var(--text)'}">${dsD}</div>
-        <div style="font-size:10px;color:var(--text2)">${s.don} \u0111\u01A1n \u00B7 ${pct.toFixed(1)}%</div>
+        <div style="font-size:10px;color:var(--text2)">${s.don} đơn · ${pct.toFixed(1)}% target</div>
       </div>
     </div>`;
   }).join('');
 }
+
 
 
 function closeModal(id){document.getElementById(id).classList.remove('open')}
