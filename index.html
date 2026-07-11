@@ -4194,14 +4194,14 @@ async function renderSaleDashboard(){
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
-    sb.from('daily_tracking').select('total_calls,talktime_minutes,potential_calls,so_bao_gia')
+    sb.from('daily_tracking').select('total_calls,talktime_phut,potential_calls,so_bao_gia')
       .eq('user_id',uid).gte('ngay',firstDay).lte('ngay',todayStr),
   ]);
 
   // Tổng hợp daily_tracking
   const dtRows=dtRes.data||[];
   const dtTotalCalls=dtRows.reduce((s,r)=>s+(r.total_calls||0),0);
-  const dtTotalTalk=dtRows.reduce((s,r)=>s+(r.talktime_minutes||0),0); // phút
+  const dtTotalTalk=dtRows.reduce((s,r)=>s+(r.talktime_phut||0),0);
   const dtTotalPotential=dtRows.reduce((s,r)=>s+(r.potential_calls||0),0);
   const dtViolCall=0;
   const dtViolTalk=0;
