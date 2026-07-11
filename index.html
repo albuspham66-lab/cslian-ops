@@ -719,9 +719,6 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </div>
       </div>
 
-      <!-- DAILY TRACKING SUMMARY (today) -->
-      <div class="card" style="margin-bottom:20px" id="dash-daily-wrap">
-        <div class="card-title"><span class="dot" style="background:var(--leader)"></span>Daily Tracking hôm nay — <span id="dash-daily-date"></span></div>
         <div id="dash-daily-summary" style="margin-top:8px"></div>
       </div>
       <!-- Weekly Tracking per Sale -->
@@ -3963,7 +3960,7 @@ async function renderDashboard(){
   // ── Fetch ─────────────────────────────────────────────────────────────
   var [tgt,ordersRes,dailyAllRes,dailyTodayRes,profilesRes]=await Promise.all([
     getTarget(fromMonth),
-    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type)').gte('order_date',fromDate).lte('order_date',toDate),
+    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('order_date',fromDate).lte('order_date',toDate),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
     sb.from('daily_tracking').select('*').eq('ngay',today),
     Promise.resolve({data:allProfiles}),
@@ -3972,6 +3969,8 @@ async function renderDashboard(){
   var ords=ordersRes.data||[];
   var dtAll=dailyAllRes.data||[];
   var saleProfiles=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';});
+  // allProfiles có thể chỉ load nhân viên active — đảm bảo include nghỉ việc
+  // (fetch riêng nếu cần, hiện dùng allProfiles từ initApp)
 
   // ── Target Team = Σ target từng Sale (thử việc × 85%, chính thức × 100%) ──
   var TARGET_CHINH_THUC=23500, TARGET_THU_VIEC=19975;
@@ -4075,63 +4074,60 @@ async function renderDashboard(){
   if(!donChgRow){donChgRow=document.createElement('div');donChgRow.className='pct-change-row';donChgRow.style.cssText='display:flex;padding:4px 0 0 42px;gap:0';document.getElementById('chart-orders').parentElement.appendChild(donChgRow);}
   donChgRow.innerHTML=donChgHtml;
 
-  // ── Row 5: Daily tracking hôm nay ────────────────────────────────────
-  document.getElementById('dash-daily-date').textContent=today;
-  var dt=dailyTodayRes.data||[];
-  dt.forEach(function(d){if(!d.profiles)d.profiles=allProfiles.find(function(p){return p.id===d.user_id;})||null;});
-  var tCalls=dt.reduce(function(s,d){return s+(d.total_calls||0);},0);
-  var tPot=dt.reduce(function(s,d){return s+(d.potential_calls||0);},0);
-  var tBG=dt.reduce(function(s,d){return s+(d.so_bao_gia||0);},0);
-  var tTalk=dt.reduce(function(s,d){return s+(d.talktime_phut||0);},0);
-  var salesCount=saleProfiles.length;
-  function gapColor(a,t){return a>=t?'var(--success)':'var(--danger)';}
-  document.getElementById('dash-daily-summary').innerHTML=dt.length===0
-    ?'<div class="empty" style="padding:12px 0">Chưa có dữ liệu daily tracking hôm nay</div>'
-    :`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total Calls</div><div style="font-size:20px;font-weight:700;color:${gapColor(tCalls,180*salesCount)}">${tCalls.toLocaleString()}</div><div style="font-size:10px;color:var(--text3)">Target: ${(180*salesCount).toLocaleString()}</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Talktime</div><div style="font-size:20px;font-weight:700;color:${gapColor(tTalk,120*salesCount)}">${Math.round(tTalk).toLocaleString()}'</div><div style="font-size:10px;color:var(--text3)">Target: ${(120*salesCount).toLocaleString()}'</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Potential</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${tPot}</div><div style="font-size:10px;color:var(--text3)">${dt.length} người nhập</div></div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Báo giá</div><div style="font-size:20px;font-weight:700;color:var(--warn)">${tBG}</div><div style="font-size:10px;color:var(--text3)">tổng team</div></div>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">${dt.map(function(d){var p=d.profiles;var okC=d.total_calls>=180,okT=d.talktime_phut>=120,ok=okC&&okT;return '<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg4);border:1px solid '+(ok?'rgba(34,199,122,0.3)':'rgba(255,92,92,0.3)')+';border-radius:20px;font-size:11px"><span style="color:'+(ok?'var(--success)':'var(--danger)')+'\">'+(ok?'✓':'!')+'</span><span>'+(p?p.nickname||p.full_name:'—')+'</span><span style="color:var(--text3)">'+d.total_calls+'c / '+Math.round(d.talktime_phut||0)+"'</span></div>";}).join('')}</div>`;
-
-  // ── Row 6: Weekly Tracking từng Sale ─────────────────────────────────
-  // Tính tuần theo lịch (T2-CN) trong tháng
-  var curMonth=fromDate.slice(0,7);
-  var mYear=parseInt(curMonth.slice(0,4)),mMonth=parseInt(curMonth.slice(5,7))-1;
-  var firstOfMonth=new Date(mYear,mMonth,1);
-  var lastOfMonth=new Date(mYear,mMonth+1,0);
-  // Tìm tất cả tuần (T2-CN) có giao với tháng này
-  var weeks=[];
-  var d=new Date(firstOfMonth);
-  // Tìm T2 đầu tiên <= firstOfMonth
-  while(d.getDay()!==1)d.setDate(d.getDate()-1);
-  while(d<=lastOfMonth){
-    var wStart=new Date(d),wEnd=new Date(d);
-    wEnd.setDate(wEnd.getDate()+4); // T6
-    weeks.push({
-      start:new Date(Math.max(wStart,firstOfMonth)),
-      end:new Date(Math.min(wEnd,lastOfMonth)),
-      wStartStr:wStart.toISOString().slice(0,10),
-      wEndStr:wEnd.toISOString().slice(0,10),
-    });
-    d.setDate(d.getDate()+7);
-  }
-
-  // Tính ngày làm việc cả tháng và đã qua tính đến hôm nay
+  // ── Row 5: Tracking từng Sale — Tháng: tuần | Quý: tháng | Năm: quý ──
   var todayD=new Date(today);
   function countWorkDays(from,to){var c=0,d=new Date(from);while(d<=to){if(d.getDay()>=1&&d.getDay()<=5)c++;d.setDate(d.getDate()+1);}return c;}
-  var totalWorkDays=countWorkDays(firstOfMonth,lastOfMonth);
-  var workDaysSoFar=countWorkDays(firstOfMonth,new Date(Math.min(todayD,lastOfMonth)));
+
+  var periodLabel='';
+  var periods=[];
+  var fromD=new Date(fromDate),toDateD=new Date(toDate);
+
+  if(_dashActivePeriod==='month'||(_dashActivePeriod==='custom'&&(toDateD-fromD)<35*24*3600*1000)){
+    periodLabel='tuần';
+    var mYear=parseInt(fromDate.slice(0,4)),mMonth=parseInt(fromDate.slice(5,7))-1;
+    var firstOfMonth=new Date(mYear,mMonth,1),lastOfMonth=new Date(mYear,mMonth+1,0);
+    var dw=new Date(firstOfMonth);
+    while(dw.getDay()!==1)dw.setDate(dw.getDate()-1);
+    while(dw<=lastOfMonth){
+      var wS=new Date(dw),wE=new Date(dw);wE.setDate(wE.getDate()+4);
+      var pS=new Date(Math.max(+wS,+firstOfMonth)),pE=new Date(Math.min(+wE,+lastOfMonth));
+      periods.push({label:String(pS.getDate()).padStart(2,'0')+'/'+(pS.getMonth()+1)+'-'+String(pE.getDate()).padStart(2,'0')+'/'+(pE.getMonth()+1),start:pS.toISOString().slice(0,10),end:pE.toISOString().slice(0,10)});
+      dw.setDate(dw.getDate()+7);
+    }
+  } else if(_dashActivePeriod==='quarter'||(_dashActivePeriod==='custom'&&(toDateD-fromD)<100*24*3600*1000)){
+    periodLabel='tháng';
+    var cur2=new Date(fromDate.slice(0,7)+'-01'),toM=new Date(toDate.slice(0,7)+'-01');
+    while(cur2<=toM){
+      var yr=cur2.getFullYear(),mo=cur2.getMonth();
+      var pS2=new Date(yr,mo,1),pE2=new Date(yr,mo+1,0);
+      periods.push({label:(mo+1)+'/'+yr,start:pS2.toISOString().slice(0,10),end:pE2.toISOString().slice(0,10)});
+      cur2.setMonth(cur2.getMonth()+1);
+    }
+  } else {
+    periodLabel='quý';
+    var startY=parseInt(fromDate.slice(0,4)),endY=parseInt(toDate.slice(0,4));
+    for(var yr2=startY;yr2<=endY;yr2++){
+      for(var q=0;q<4;q++){
+        var qS=new Date(yr2,q*3,1),qE=new Date(yr2,q*3+3,0);
+        if(qE<fromD||qS>toDateD)continue;
+        var aS=new Date(Math.max(+qS,+fromD)),aE=new Date(Math.min(+qE,+toDateD));
+        periods.push({label:'Q'+(q+1)+'/'+yr2,start:aS.toISOString().slice(0,10),end:aE.toISOString().slice(0,10)});
+      }
+    }
+  }
+
+  var totalWorkDays=countWorkDays(fromD,toDateD);
+  var workDaysSoFar=countWorkDays(fromD,new Date(Math.min(+todayD,+toDateD)));
   var workDaysLeft=Math.max(0,totalWorkDays-workDaysSoFar);
 
-  // Group daily_tracking by user + week
+  // Group daily_tracking by user + period
+  // Group daily_tracking by user + period
   var dtMap={};
   dtAll.forEach(function(r){
     var uid=r.user_id,ngay=r.ngay||r.tracking_date;
     if(!dtMap[uid])dtMap[uid]={weeks:{}};
-    weeks.forEach(function(w,wi){
-      if(ngay>=w.start.toISOString().slice(0,10)&&ngay<=w.end.toISOString().slice(0,10)){
+    periods.forEach(function(w,wi){
+      if(ngay>=w.start&&ngay<=w.end){
         if(!dtMap[uid].weeks[wi])dtMap[uid].weeks[wi]={calls:0,talk:0,pot:0,days:0};
         dtMap[uid].weeks[wi].calls+=(r.total_calls||0);
         dtMap[uid].weeks[wi].talk+=(r.talktime_phut||0);
@@ -4141,14 +4137,25 @@ async function renderDashboard(){
     });
   });
 
-  // Header tuần
-  var weekHeaders=weeks.map(function(w){
-    var s=w.start,e=w.end;
-    return '<th style="text-align:center;padding:8px 4px;font-size:10px;color:var(--text3);white-space:nowrap">'+
-      String(s.getDate()).padStart(2,'0')+'/'+(s.getMonth()+1)+' – '+String(e.getDate()).padStart(2,'0')+'/'+(e.getMonth()+1)+'</th>';
+  // Header cột (tuần/tháng/quý)
+  var weekHeaders=periods.map(function(w){
+    return '<th style="text-align:center;padding:8px 4px;font-size:10px;color:var(--text3);white-space:nowrap">'+w.label+'</th>';
   }).join('');
 
-  var rows=saleProfiles.map(function(p){
+  // Sắp xếp nhân viên: Chính thức → Thử việc → Nghỉ việc
+  var sortedSaleProfiles=saleProfiles.slice().sort(function(a,b){
+    function rank(p){
+      if(!p.is_active||p.ngay_nghi_viec)return 2;
+      if(p.contract_type==='probation'||p.contract_type==='thu-viec')return 1;
+      return 0;
+    }
+    return rank(a)-rank(b);
+  });
+
+  var rows=sortedSaleProfiles.map(function(p){
+    var isResigned=!p.is_active||!!p.ngay_nghi_viec;
+    var resignedSince=p.ngay_nghi_viec||null;
+    var daysSinceResign=resignedSince?Math.floor((new Date()-new Date(resignedSince))/(1000*60*60*24)):0;
     var myTarget=(p.contract_type==='probation'||p.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
     var totalTarget=180*totalWorkDays;
     var totalTalkTarget=120*totalWorkDays;
@@ -4164,10 +4171,10 @@ async function renderDashboard(){
     var pctCalls=totalTarget>0?Math.min(100,Math.round(totCalls/totalTarget*100)):0;
     var pctTalk=totalTalkTarget>0?Math.min(100,Math.round(totTalk/totalTalkTarget*100)):0;
 
-    var weekCells=weeks.map(function(w,wi){
+    var weekCells=periods.map(function(w,wi){
       var wd=ud.weeks[wi];
       if(!wd||wd.days===0)return '<td style="text-align:center;color:var(--text3);font-size:12px;padding:8px 4px">—</td>';
-      var wWorkDays=countWorkDays(w.start,w.end);
+      var wWorkDays=countWorkDays(new Date(w.start),new Date(w.end));
       var avgC=wd.days>0?(wd.calls/wd.days):0;
       var cOk=avgC>=180;
       return '<td style="padding:6px 4px;vertical-align:top"><div style="font-size:12px;font-weight:600;color:'+
@@ -4178,8 +4185,9 @@ async function renderDashboard(){
 
     return '<tr style="border-bottom:1px solid var(--border)">'+
       '<td style="padding:10px 12px;white-space:nowrap">'+
-        '<div style="font-weight:600;font-size:13px">'+p.full_name+'</div>'+
-        '<div style="font-size:10px;color:var(--text3)">'+p.employee_code+' · Target: $'+myTarget.toLocaleString()+'</div>'+
+        '<div style="font-weight:600;font-size:13px;color:'+(isResigned?'rgba(239,68,68,0.7)':'var(--text)')+'">'+p.full_name+(isResigned?' <span style="font-size:9px;color:rgba(239,68,68,0.7);background:rgba(239,68,68,0.1);border-radius:4px;padding:1px 5px">Nghỉ việc</span>':'')+'</div>'+
+        '<div style="font-size:10px;color:var(--text3)">'+p.employee_code+(p.contract_type==='probation'||p.contract_type==='thu-viec'?' · Thử việc':'')+' · Target: $'+myTarget.toLocaleString()+'</div>'+
+        (isResigned&&resignedSince?'<div style="font-size:10px;color:rgba(239,68,68,0.6)">Nghỉ từ '+resignedSince+' · '+daysSinceResign+' ngày</div>':'')+
       '</td>'+
       weekCells+
       '<td style="padding:8px 12px;white-space:nowrap;border-left:1px solid var(--border)">'+
@@ -4198,7 +4206,7 @@ async function renderDashboard(){
   }).join('');
 
   document.getElementById('dash-weekly-tracking').innerHTML=saleProfiles.length===0?'':
-    '<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>Hoạt động theo tuần — '+curMonth+'</div>'+
+    '<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>Hoạt động theo '+periodLabel+' — '+fromDate.slice(0,7)+(fromDate.slice(0,7)!==toDate.slice(0,7)?' → '+toDate.slice(0,7):'')+'</div>'+
     '<div style="overflow-x:auto;margin-top:12px">'+
     '<table style="width:100%;border-collapse:collapse">'+
     '<thead><tr style="border-bottom:2px solid var(--border)">'+
