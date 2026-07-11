@@ -4200,7 +4200,7 @@ async function renderDashboard(){
         '<div style="height:4px;background:var(--bg4);border-radius:2px;margin-bottom:4px">'+
           '<div style="height:100%;width:'+pctCalls+'%;background:'+(pctCalls>=100?'#10b981':pctCalls>=70?'#f59e0b':'#ef4444')+';border-radius:2px"></div>'+
         '</div>'+
-        '<div style="font-size:10px;color:var(--text3)">TB: '+avgCallDay.toFixed(0)+'/ng · Cần: '+needCallDay.toFixed(0)+'/ng còn</div>'+
+        '<div style="font-size:10px;color:var(--text3)">TB: '+avgCallDay.toFixed(0)+'/ng'+(workDaysLeft>0?' · Cần: '+needCallDay.toFixed(0)+'/ng còn':' · Hết kỳ')+'</div>'+
       '</td>'+
     '</tr>';
   }).join('');
@@ -4212,7 +4212,7 @@ async function renderDashboard(){
     '<thead><tr style="border-bottom:2px solid var(--border)">'+
       '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap">NHÂN VIÊN</th>'+
       weekHeaders+
-      '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap;border-left:1px solid var(--border)">TỔNG THÁNG / KẾ HOẠCH</th>'+
+      '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap;border-left:1px solid var(--border)">TỔNG '+(periodLabel==='tuần'?'THÁNG':periodLabel==='tháng'?'QUÝ':'NĂM')+' / KẾ HOẠCH</th>'+
     '</tr></thead>'+
     '<tbody>'+rows+'</tbody>'+
     '</table></div></div>';
