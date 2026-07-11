@@ -4195,7 +4195,7 @@ async function renderSaleDashboard(){
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('daily_tracking').select('total_calls,talktime_minutes,potential_calls,so_bao_gia,total_call_vi_pham,total_talk_vi_pham')
-      .eq('user_id',uid).gte('tracking_date',firstDay).lte('tracking_date',todayStr),
+      .eq('user_id',uid).gte('ngay',firstDay).lte('ngay',todayStr),
   ]);
 
   // Tổng hợp daily_tracking
@@ -4383,7 +4383,7 @@ async function renderSaleDashboard(){
           <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .5s"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px">
-          ${vi>0?`<span style="color:#ef4444">⚠️ Vi phạm: ${vi} ngày</span>`:`<span style="color:#10b981">✅ Đạt chuẩn</span>`}
+          ${vi>0?`<span style="color:#ef4444">⚠️ Vi phạm: ${vi} ngày</span>`:(total>0&&avg>=need)?`<span style="color:#10b981">✅ Đạt chuẩn</span>`:(total===0?`<span style="color:var(--text3)">— Chưa có dữ liệu</span>`:`<span style="color:#f59e0b">⚡ Cần tăng tốc</span>`)}
           ${label==='POTENTIAL'?`<span style="color:var(--text3)">Báo giá: ${dtBaoGia}</span>`:''}
         </div>
       </div>`).join('')}
