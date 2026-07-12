@@ -3941,7 +3941,11 @@ function initDailyFilter(){
   document.getElementById('dqb-daily-month').classList.add('active');
 }
 
+var _dashRendering=false;
 async function renderDashboard(){
+  if(_dashRendering)return;
+  _dashRendering=true;
+  try{
   var fromDate=document.getElementById('dash-from').value;
   var toDate=document.getElementById('dash-to').value;
   if(!fromDate||!toDate){initDashFilter();fromDate=document.getElementById('dash-from').value;toDate=document.getElementById('dash-to').value;}
@@ -3963,14 +3967,13 @@ async function renderDashboard(){
     sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('order_date',fromDate).lte('order_date',toDate),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
     sb.from('daily_tracking').select('*').eq('ngay',today),
-    Promise.resolve({data:allProfiles}),
+    sb.from('profiles').select('id,employee_code,full_name,nickname,role,contract_type,is_active,ngay_nghi_viec,lever').order('employee_code'),
   ]);
 
   var ords=ordersRes.data||[];
   var dtAll=dailyAllRes.data||[];
-  var saleProfiles=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';});
-  // allProfiles có thể chỉ load nhân viên active — đảm bảo include nghỉ việc
-  // (fetch riêng nếu cần, hiện dùng allProfiles từ initApp)
+  var allProfilesFresh=profilesRes.data||allProfiles;
+  var saleProfiles=allProfilesFresh.filter(function(p){return p.role==='sale'||p.role==='leader';});
 
   // ── Target Team = Σ target từng Sale (thử việc × 85%, chính thức × 100%) ──
   var TARGET_CHINH_THUC=23500, TARGET_THU_VIEC=19975;
@@ -4032,7 +4035,7 @@ async function renderDashboard(){
   var maxDS=Math.max(...dsData,tgt.target_doanh_so)*1.15||1000;
   var maxDon=Math.max(...donData,tgt.target_don_hang)*1.2||5;
 
-  if(chartRevenue)chartRevenue.destroy();
+  try{if(chartRevenue&&typeof chartRevenue.destroy==='function')chartRevenue.destroy();}catch(e){}chartRevenue=null;
   chartRevenue=new Chart(document.getElementById('chart-revenue').getContext('2d'),{
     type:'bar',
     data:{labels,datasets:[
@@ -4054,7 +4057,7 @@ async function renderDashboard(){
   if(!dsChgRow){dsChgRow=document.createElement('div');dsChgRow.className='pct-change-row';dsChgRow.style.cssText='display:flex;padding:4px 0 0 42px;gap:0';document.getElementById('chart-revenue').parentElement.appendChild(dsChgRow);}
   dsChgRow.innerHTML=dsChgHtml;
 
-  if(chartOrders)chartOrders.destroy();
+  try{if(chartOrders&&typeof chartOrders.destroy==='function')chartOrders.destroy();}catch(e){}chartOrders=null;
   chartOrders=new Chart(document.getElementById('chart-orders').getContext('2d'),{
     type:'bar',
     data:{labels,datasets:[
@@ -4125,10 +4128,10 @@ async function renderDashboard(){
   // Group daily_tracking by user + period
   var dtMap={};
   dtAll.forEach(function(r){
-    var uid=r.user_id,ngay=r.ngay||r.tracking_date;
+    var uid=r.user_id,ngay=(r.ngay||r.tracking_date||'').slice(0,10);
     if(!dtMap[uid])dtMap[uid]={weeks:{}};
     periods.forEach(function(w,wi){
-      if(ngay>=w.start&&ngay<=w.end){
+      var ws=w.start.slice(0,10),we=w.end.slice(0,10);if(ngay>=ws&&ngay<=we){
         if(!dtMap[uid].weeks[wi])dtMap[uid].weeks[wi]={calls:0,talk:0,pot:0,days:0};
         dtMap[uid].weeks[wi].calls+=(r.total_calls||0);
         dtMap[uid].weeks[wi].talk+=(r.talktime_phut||0);
@@ -4228,13 +4231,13 @@ async function renderDashboard(){
   var lbMap={};
   ords.forEach(function(o){
     var uid=o.user_id;
-    var prof=o.profiles||allProfiles.find(function(p){return p.id===uid;});
+    var prof=o.profiles||allProfilesFresh.find(function(p){return p.id===uid;});
     if(!prof||prof.role==='manager')return;
     if(!lbMap[uid])lbMap[uid]={emp:prof,ds:0,don:0};
     lbMap[uid].ds+=(o.total_amount||0);
     lbMap[uid].don++;
   });
-  saleProfiles.forEach(function(p){if(!lbMap[p.id])lbMap[p.id]={emp:p,ds:0,don:0};});
+  sortedSaleProfiles.forEach(function(p){if(!lbMap[p.id])lbMap[p.id]={emp:p,ds:0,don:0};});
   var lbArr=Object.values(lbMap).sort(function(a,b){return b.ds-a.ds;});
   var medals=['🥇','🥈','🥉'];
   document.getElementById('leaderboard-list').innerHTML=''; // reset
@@ -4256,6 +4259,7 @@ async function renderDashboard(){
       </div>
     </div>`;
   }).join('');
+  }finally{_dashRendering=false;}
 }
 
 
