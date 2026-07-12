@@ -4012,6 +4012,7 @@ async function renderDashboard(){
   var vendorTspa=ords.reduce(function(s,o){return s+(o.revenue_tspa||0);},0);
   var vendorTotal=vendorBolsa+vendorOns+vendorTspa||1;
   function vendorBar(val,total,color){var pct=Math.round(val/total*100);return `<div style="margin-top:6px;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${color};width:${Math.min(100,pct)}%;transition:width .5s"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}% tổng DT</div>`;}
+  document.getElementById('dash-vendor').innerHTML='';
   document.getElementById('dash-vendor').innerHTML=`
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#60a5fa;text-transform:uppercase;margin-bottom:6px">BOLSA</div><div style="font-size:20px;font-weight:700;color:#60a5fa">$${vendorBolsa.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorBolsa,vendorTotal,'#3b82f6')}</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#fb923c;text-transform:uppercase;margin-bottom:6px">ONS</div><div style="font-size:20px;font-weight:700;color:#fb923c">$${vendorOns.toLocaleString('en-US',{maximumFractionDigits:0})}</div>${vendorBar(vendorOns,vendorTotal,'#f97316')}</div>
@@ -4143,7 +4144,11 @@ async function renderDashboard(){
   }).join('');
 
   // Sắp xếp nhân viên: Chính thức → Thử việc → Nghỉ việc
-  var sortedSaleProfiles=saleProfiles.slice().sort(function(a,b){
+  var hideResigned=document.getElementById('dash-hide-resigned')&&document.getElementById('dash-hide-resigned').checked;
+  var sortedSaleProfiles=saleProfiles.slice().filter(function(p){
+    if(hideResigned&&(!p.is_active||p.ngay_nghi_viec))return false;
+    return true;
+  }).sort(function(a,b){
     function rank(p){
       if(!p.is_active||p.ngay_nghi_viec)return 2;
       if(p.contract_type==='probation'||p.contract_type==='thu-viec')return 1;
@@ -4205,8 +4210,10 @@ async function renderDashboard(){
     '</tr>';
   }).join('');
 
+  document.getElementById('dash-weekly-tracking').innerHTML=''; // reset trước để tránh duplicate
   document.getElementById('dash-weekly-tracking').innerHTML=saleProfiles.length===0?'':
-    '<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>Hoạt động theo '+periodLabel+' — '+fromDate.slice(0,7)+(fromDate.slice(0,7)!==toDate.slice(0,7)?' → '+toDate.slice(0,7):'')+'</div>'+
+    '<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><div><span class="dot" style="background:var(--accent)"></span>Hoạt động theo '+periodLabel+' — '+fromDate.slice(0,7)+(fromDate.slice(0,7)!==toDate.slice(0,7)?' → '+toDate.slice(0,7):'')+'</div>'+
+      '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;font-weight:400"><input type="checkbox" id="dash-hide-resigned" onchange="renderDashboard()" style="cursor:pointer"> Ẩn nhân viên nghỉ việc</label></div>'+
     '<div style="overflow-x:auto;margin-top:12px">'+
     '<table style="width:100%;border-collapse:collapse">'+
     '<thead><tr style="border-bottom:2px solid var(--border)">'+
@@ -4230,6 +4237,7 @@ async function renderDashboard(){
   saleProfiles.forEach(function(p){if(!lbMap[p.id])lbMap[p.id]={emp:p,ds:0,don:0};});
   var lbArr=Object.values(lbMap).sort(function(a,b){return b.ds-a.ds;});
   var medals=['🥇','🥈','🥉'];
+  document.getElementById('leaderboard-list').innerHTML=''; // reset
   document.getElementById('leaderboard-list').innerHTML=lbArr.length===0?'<div class="empty">Chưa có dữ liệu</div>':lbArr.map(function(s,i){
     var myT=(s.emp.contract_type==='probation'||s.emp.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
     var pct=myT>0?(s.ds/myT*100):0;
