@@ -1307,7 +1307,7 @@ function initRealtime(){
       invalidateDailyCache();
       var activePage=document.querySelector('.page-content.active');
       if(activePage&&activePage.id==='page-daily')renderDaily();
-      if(activePage&&activePage.id==='page-dashboard')renderDashboard();
+      if(activePage&&activePage.id==='page-dashboard')setTimeout(renderDashboard,200);
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'targets'},function(payload){
       invalidateTargetCache();
@@ -1319,7 +1319,7 @@ function initRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(payload){
       var activePage=document.querySelector('.page-content.active');
       if(activePage&&activePage.id==='page-orders')renderOrders();
-      if(activePage&&activePage.id==='page-dashboard')renderDashboard();
+      if(activePage&&activePage.id==='page-dashboard')setTimeout(renderDashboard,200);
     })
     .subscribe(function(status){
       if(status==='SUBSCRIBED')console.log('Realtime connected');
@@ -3123,7 +3123,7 @@ function switchTab(name,el){
     if(kpibtn) doSubTab('kpi', kpibtn);
   }
   else if(name==='daily'){initDailyFilter();renderDaily();}
-  else if(name==='dashboard'){initDashFilter();renderDashboard();}
+  else if(name==='dashboard'){initDashFilter();setTimeout(renderDashboard,50);}
   else if(name==='team')renderEmpGrid();
 
 
@@ -3942,6 +3942,11 @@ function initDailyFilter(){
 }
 
 var _dashRendering=false;
+function localDateStr(d){
+  // Format date as YYYY-MM-DD using LOCAL timezone (not UTC)
+  var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
 async function renderDashboard(){
   if(_dashRendering)return;
   _dashRendering=true;
@@ -4095,7 +4100,7 @@ async function renderDashboard(){
     while(dw<=lastOfMonth){
       var wS=new Date(dw),wE=new Date(dw);wE.setDate(wE.getDate()+4);
       var pS=new Date(Math.max(+wS,+firstOfMonth)),pE=new Date(Math.min(+wE,+lastOfMonth));
-      periods.push({label:String(pS.getDate()).padStart(2,'0')+'/'+(pS.getMonth()+1)+'-'+String(pE.getDate()).padStart(2,'0')+'/'+(pE.getMonth()+1),start:pS.toISOString().slice(0,10),end:pE.toISOString().slice(0,10)});
+      periods.push({label:String(pS.getDate()).padStart(2,'0')+'/'+(pS.getMonth()+1)+'-'+String(pE.getDate()).padStart(2,'0')+'/'+(pE.getMonth()+1),start:pS.toLocaleDateString("sv-SE"),end:pE.toLocaleDateString("sv-SE")});
       dw.setDate(dw.getDate()+7);
     }
   } else if(_dashActivePeriod==='quarter'||(_dashActivePeriod==='custom'&&(toDateD-fromD)<100*24*3600*1000)){
@@ -4104,7 +4109,7 @@ async function renderDashboard(){
     while(cur2<=toM){
       var yr=cur2.getFullYear(),mo=cur2.getMonth();
       var pS2=new Date(yr,mo,1),pE2=new Date(yr,mo+1,0);
-      periods.push({label:(mo+1)+'/'+yr,start:pS2.toISOString().slice(0,10),end:pE2.toISOString().slice(0,10)});
+      periods.push({label:(mo+1)+'/'+yr,start:pS2.toLocaleDateString("sv-SE"),end:pE2.toLocaleDateString("sv-SE")});
       cur2.setMonth(cur2.getMonth()+1);
     }
   } else {
@@ -4115,7 +4120,7 @@ async function renderDashboard(){
         var qS=new Date(yr2,q*3,1),qE=new Date(yr2,q*3+3,0);
         if(qE<fromD||qS>toDateD)continue;
         var aS=new Date(Math.max(+qS,+fromD)),aE=new Date(Math.min(+qE,+toDateD));
-        periods.push({label:'Q'+(q+1)+'/'+yr2,start:aS.toISOString().slice(0,10),end:aE.toISOString().slice(0,10)});
+        periods.push({label:'Q'+(q+1)+'/'+yr2,start:aS.toLocaleDateString("sv-SE"),end:aE.toLocaleDateString("sv-SE")});
       }
     }
   }
@@ -4218,7 +4223,7 @@ async function renderDashboard(){
     '<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><div><span class="dot" style="background:var(--accent)"></span>Hoạt động theo '+periodLabel+' — '+fromDate.slice(0,7)+(fromDate.slice(0,7)!==toDate.slice(0,7)?' → '+toDate.slice(0,7):'')+'</div>'+
       '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;font-weight:400"><input type="checkbox" id="dash-hide-resigned" onchange="renderDashboard()" style="cursor:pointer"> Ẩn nhân viên nghỉ việc</label></div>'+
     '<div style="overflow-x:auto;margin-top:12px">'+
-    '<table style="width:100%;border-collapse:collapse">'+
+    '<table style="width:100%;border-collapse:collapse;table-layout:fixed">'+
     '<thead><tr style="border-bottom:2px solid var(--border)">'+
       '<th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);white-space:nowrap">NHÂN VIÊN</th>'+
       weekHeaders+
