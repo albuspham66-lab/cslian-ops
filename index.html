@@ -4779,6 +4779,8 @@ async function renderDocs(){
   const {data,error}=await sb.from('documents').select('*').eq('is_active',true).order('category').order('created_at',{ascending:false});
   _allDocs=data||[];
   renderDocList();
+  // Init button colors
+  filterDocs(_currentDocCat);
 }
 
 function renderDocList(){
@@ -4802,7 +4804,6 @@ function renderDocList(){
     return `<div class="doc-item${isActive?' active':''}" onclick="previewDoc(${d.id})">
       <div class="doc-item-title">${d.title}</div>
       <span class="doc-item-cat" style="background:${cm.color}22;color:${cm.color}">${cm.icon} ${cm.label}</span>
-      ${d.description?`<div class="doc-item-desc">${d.description}</div>`:''}
       ${isMgr?`<div style="display:flex;gap:4px;margin-top:6px">
         <button class="icon-btn" style="font-size:11px;padding:2px 6px" onclick="event.stopPropagation();openEditDocModal(${d.id})">✏️</button>
         <button class="icon-btn" style="font-size:11px;padding:2px 6px;color:var(--danger)" onclick="event.stopPropagation();deleteDoc(${d.id})">🗑️</button>
@@ -4811,10 +4812,16 @@ function renderDocList(){
   }).join('');
 }
 
+var CAT_COLORS={'':'#6366f1','quy-trinh':'#6d28d9','san-pham':'#0ea5e9','training':'#10b981','chinh-sach':'#f59e0b'};
 function filterDocs(cat){
   _currentDocCat=cat;
-  document.querySelectorAll('.doc-cat-btn').forEach(b=>{
-    b.classList.toggle('active',b.dataset.cat===cat);
+  document.querySelectorAll('.doc-cat-btn').forEach(function(b){
+    var isActive=b.dataset.cat===cat;
+    var color=CAT_COLORS[b.dataset.cat]||'#6366f1';
+    b.classList.toggle('active',isActive);
+    b.style.background=isActive?color:'';
+    b.style.color=isActive?'#fff':'';
+    b.style.borderColor=isActive?color:'';
   });
   renderDocList();
 }
@@ -4828,17 +4835,21 @@ function previewDoc(id){
   document.getElementById('docs-preview-title').textContent=doc.title;
   document.getElementById('docs-preview-desc').textContent=doc.description||'';
 
-  // Convert Google Drive link to embed URL
-  let embedUrl=doc.file_url||'';
-  if(embedUrl.includes('drive.google.com/file/d/')){
-    const match=embedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if(match)embedUrl=`https://drive.google.com/file/d/${match[1]}/preview`;
-  } else if(embedUrl.includes('docs.google.com/document')){
-    embedUrl=embedUrl.replace('/edit','/preview').replace('/view','/preview');
-  } else if(embedUrl.includes('docs.google.com/presentation')){
-    embedUrl=embedUrl.replace('/edit','/embed').replace('/pub?','?');
-  } else if(embedUrl.includes('docs.google.com/spreadsheets')){
-    embedUrl=embedUrl.replace('/edit','/preview');
+  // Convert Google Drive/Docs link to embeddable URL
+  var rawUrl=doc.file_url||'';
+  var embedUrl=rawUrl;
+  if(rawUrl.includes('drive.google.com/file/d/')){
+    var match=rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if(match)embedUrl='https://drive.google.com/file/d/'+match[1]+'/preview';
+  } else if(rawUrl.includes('docs.google.com/document')){
+    embedUrl=rawUrl.split('/edit')[0].split('/view')[0]+'/preview';
+  } else if(rawUrl.includes('docs.google.com/presentation')){
+    embedUrl=rawUrl.split('/edit')[0]+'/embed?start=false&loop=false&delayms=3000';
+  } else if(rawUrl.includes('docs.google.com/spreadsheets')){
+    embedUrl=rawUrl.split('/edit')[0]+'/preview';
+  } else if(rawUrl.match(/\.(pdf|PDF)$/)||rawUrl.includes('/pdf')){
+    // PDF: use Google Docs Viewer for public PDFs
+    embedUrl='https://docs.google.com/viewer?url='+encodeURIComponent(rawUrl)+'&embedded=true';
   }
 
   const iframe=document.getElementById('docs-preview-iframe');
