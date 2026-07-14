@@ -474,6 +474,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
+      <button class="nav-btn" onclick="switchTab('docs',this)">📚 Tài liệu</button>
 
 
     </div>
@@ -734,6 +735,88 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div id="page-team" class="page-content">
       <div class="page-header"><div><h2>Nhân viên</h2></div><div style="display:flex;gap:8px"><button class="btn-sm btn-primary" onclick="openAddEmpModal()" style="font-size:12px;padding:6px 14px">+ Thêm nhân viên</button></div></div>
       <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+    <!-- TÀI LIỆU -->
+    <div id="page-docs" class="page-content">
+      <div class="page-header">
+        <div><h2>📚 Tài liệu</h2><div class="page-sub">Tài liệu nội bộ · Quy trình · Sản phẩm · Training</div></div>
+        <div id="docs-mgr-actions" style="display:none">
+          <button class="btn-sm btn-primary" onclick="openAddDocModal()">+ Thêm tài liệu</button>
+        </div>
+      </div>
+      <!-- Filter categories -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="docs-cats">
+        <button class="doc-cat-btn active" onclick="filterDocs('')" data-cat="">Tất cả</button>
+        <button class="doc-cat-btn" onclick="filterDocs('quy-trinh')" data-cat="quy-trinh">📋 Quy trình</button>
+        <button class="doc-cat-btn" onclick="filterDocs('san-pham')" data-cat="san-pham">📦 Sản phẩm</button>
+        <button class="doc-cat-btn" onclick="filterDocs('training')" data-cat="training">🎓 Training</button>
+        <button class="doc-cat-btn" onclick="filterDocs('chinh-sach')" data-cat="chinh-sach">📜 Chính sách</button>
+      </div>
+      <!-- Main layout: list + preview -->
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;height:calc(100vh - 220px)">
+        <!-- List -->
+        <div style="background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);overflow-y:auto">
+          <div id="docs-list" style="padding:8px"></div>
+        </div>
+        <!-- Preview -->
+        <div style="background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+          <div id="docs-preview-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div id="docs-preview-title" style="font-weight:700;font-size:15px">Chọn tài liệu để xem</div>
+              <div id="docs-preview-desc" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <a id="docs-preview-download" href="#" target="_blank" style="display:none" class="btn-sm">⬇️ Tải về</a>
+              <div id="docs-mgr-edit-btns" style="display:none;gap:8px;display:none"></div>
+            </div>
+          </div>
+          <div style="flex:1;overflow:hidden;position:relative">
+            <iframe id="docs-preview-iframe" src="" style="width:100%;height:100%;border:none;display:none"></iframe>
+            <div id="docs-preview-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);gap:12px">
+              <div style="font-size:48px">📄</div>
+              <div style="font-size:14px">Chọn tài liệu từ danh sách bên trái</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal thêm/sửa tài liệu -->
+    <div class="modal-bg" id="add-doc-modal" style="display:none" onclick="if(event.target===this)closeAddDocModal()">
+      <div class="modal-box" style="max-width:480px">
+        <div style="padding:20px 24px 16px;background:linear-gradient(135deg,var(--accent),#7c3aed);border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+          <div style="font-weight:700;font-size:16px;color:#fff" id="add-doc-modal-title">Thêm tài liệu</div>
+        </div>
+        <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+          <input type="hidden" id="doc-edit-id">
+          <div>
+            <label class="form-label">Tên tài liệu *</label>
+            <input class="form-input" id="doc-title" placeholder="VD: Quy trình xử lý đơn hàng">
+          </div>
+          <div>
+            <label class="form-label">Danh mục</label>
+            <select class="form-input" id="doc-category">
+              <option value="quy-trinh">📋 Quy trình</option>
+              <option value="san-pham">📦 Sản phẩm</option>
+              <option value="training">🎓 Training</option>
+              <option value="chinh-sach">📜 Chính sách</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Link tài liệu * <span style="font-size:10px;color:var(--text3)">(Google Drive, PDF URL, bất kỳ URL nào)</span></label>
+            <input class="form-input" id="doc-url" placeholder="https://drive.google.com/file/d/...">
+          </div>
+          <div>
+            <label class="form-label">Mô tả ngắn</label>
+            <input class="form-input" id="doc-desc" placeholder="Tóm tắt nội dung tài liệu">
+          </div>
+        </div>
+        <div style="padding:0 24px 20px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn-sm" onclick="closeAddDocModal()">Huỷ</button>
+          <button class="btn-sm btn-primary" onclick="saveDoc()">💾 Lưu</button>
+        </div>
+      </div>
     </div>
 
     <!-- MODAL: Tạo phòng chat -->
@@ -1275,6 +1358,11 @@ async function initApp(user){
 
   if(curProfile.role==='manager'||curProfile.role==='leader'){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
+    // Show Manager actions in docs tab
+    var docsAct=document.getElementById('docs-mgr-actions');
+    if(docsAct)docsAct.style.display='flex';
+    var docsEditBtns=document.getElementById('docs-mgr-edit-btns');
+    if(docsEditBtns)docsEditBtns.style.display='flex';
     setTimeout(updateNavScrollBtns,50);
   }
   // Dashboard tab chỉ Sale thấy (Manager đã có dashboard riêng)
@@ -3123,6 +3211,7 @@ function switchTab(name,el){
   }
   else if(name==='daily'){initDailyFilter();renderDaily();}
   else if(name==='dashboard'){initDashFilter();scheduleRenderDashboard();}
+  else if(name==='docs'){renderDocs();}
   else if(name==='team')renderEmpGrid();
 
 
@@ -4678,6 +4767,151 @@ function sdashBarChart(items, prevMonth){
       <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;background:var(--accent);border-radius:2px"></div><span style="font-size:9px;color:var(--text3)">T hiện tại</span></div>
     </div>
   </div>`;
+}
+
+
+// ============================================================
+// TÀI LIỆU — Documents management
+// ============================================================
+var _allDocs=[], _currentDocCat='', _currentDocId=null;
+
+async function renderDocs(){
+  const {data,error}=await sb.from('documents').select('*').eq('is_active',true).order('category').order('created_at',{ascending:false});
+  _allDocs=data||[];
+  renderDocList();
+}
+
+function renderDocList(){
+  const filtered=_currentDocCat?_allDocs.filter(d=>d.category===_currentDocCat):_allDocs;
+  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const catMeta={
+    'quy-trinh':{icon:'📋',color:'#6d28d9',label:'Quy trình'},
+    'san-pham':{icon:'📦',color:'#0ea5e9',label:'Sản phẩm'},
+    'training':{icon:'🎓',color:'#10b981',label:'Training'},
+    'chinh-sach':{icon:'📜',color:'#f59e0b',label:'Chính sách'},
+  };
+  const list=document.getElementById('docs-list');
+  if(!list)return;
+  if(filtered.length===0){
+    list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Chưa có tài liệu nào</div>';
+    return;
+  }
+  list.innerHTML=filtered.map(d=>{
+    const cm=catMeta[d.category]||{icon:'📄',color:'var(--text3)',label:d.category||''};
+    const isActive=d.id===_currentDocId;
+    return `<div class="doc-item${isActive?' active':''}" onclick="previewDoc(${d.id})">
+      <div class="doc-item-title">${d.title}</div>
+      <span class="doc-item-cat" style="background:${cm.color}22;color:${cm.color}">${cm.icon} ${cm.label}</span>
+      ${d.description?`<div class="doc-item-desc">${d.description}</div>`:''}
+      ${isMgr?`<div style="display:flex;gap:4px;margin-top:6px">
+        <button class="icon-btn" style="font-size:11px;padding:2px 6px" onclick="event.stopPropagation();openEditDocModal(${d.id})">✏️</button>
+        <button class="icon-btn" style="font-size:11px;padding:2px 6px;color:var(--danger)" onclick="event.stopPropagation();deleteDoc(${d.id})">🗑️</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function filterDocs(cat){
+  _currentDocCat=cat;
+  document.querySelectorAll('.doc-cat-btn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.cat===cat);
+  });
+  renderDocList();
+}
+
+function previewDoc(id){
+  _currentDocId=id;
+  const doc=_allDocs.find(d=>d.id===id);
+  if(!doc)return;
+  renderDocList(); // update active state
+
+  document.getElementById('docs-preview-title').textContent=doc.title;
+  document.getElementById('docs-preview-desc').textContent=doc.description||'';
+
+  // Convert Google Drive link to embed URL
+  let embedUrl=doc.file_url||'';
+  if(embedUrl.includes('drive.google.com/file/d/')){
+    const match=embedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if(match)embedUrl=`https://drive.google.com/file/d/${match[1]}/preview`;
+  } else if(embedUrl.includes('docs.google.com/document')){
+    embedUrl=embedUrl.replace('/edit','/preview').replace('/view','/preview');
+  } else if(embedUrl.includes('docs.google.com/presentation')){
+    embedUrl=embedUrl.replace('/edit','/embed').replace('/pub?','?');
+  } else if(embedUrl.includes('docs.google.com/spreadsheets')){
+    embedUrl=embedUrl.replace('/edit','/preview');
+  }
+
+  const iframe=document.getElementById('docs-preview-iframe');
+  const placeholder=document.getElementById('docs-preview-placeholder');
+  const dlBtn=document.getElementById('docs-preview-download');
+
+  iframe.src=embedUrl;
+  iframe.style.display='block';
+  placeholder.style.display='none';
+  dlBtn.href=doc.file_url;
+  dlBtn.style.display='inline-flex';
+}
+
+function openAddDocModal(){
+  document.getElementById('add-doc-modal-title').textContent='Thêm tài liệu';
+  document.getElementById('doc-edit-id').value='';
+  document.getElementById('doc-title').value='';
+  document.getElementById('doc-category').value='quy-trinh';
+  document.getElementById('doc-url').value='';
+  document.getElementById('doc-desc').value='';
+  document.getElementById('add-doc-modal').style.display='flex';
+}
+
+function openEditDocModal(id){
+  const doc=_allDocs.find(d=>d.id===id);
+  if(!doc)return;
+  document.getElementById('add-doc-modal-title').textContent='Sửa tài liệu';
+  document.getElementById('doc-edit-id').value=id;
+  document.getElementById('doc-title').value=doc.title||'';
+  document.getElementById('doc-category').value=doc.category||'quy-trinh';
+  document.getElementById('doc-url').value=doc.file_url||'';
+  document.getElementById('doc-desc').value=doc.description||'';
+  document.getElementById('add-doc-modal').style.display='flex';
+}
+
+function closeAddDocModal(){
+  document.getElementById('add-doc-modal').style.display='none';
+}
+
+async function saveDoc(){
+  const id=document.getElementById('doc-edit-id').value;
+  const title=document.getElementById('doc-title').value.trim();
+  const category=document.getElementById('doc-category').value;
+  const file_url=document.getElementById('doc-url').value.trim();
+  const description=document.getElementById('doc-desc').value.trim();
+  if(!title){toast('Vui lòng nhập tên tài liệu','error');return;}
+  if(!file_url){toast('Vui lòng nhập link tài liệu','error');return;}
+  const payload={title,category,file_url,description,is_active:true,created_by:curProfile.id};
+  let error;
+  if(id){
+    ({error}=await sb.from('documents').update(payload).eq('id',id));
+  } else {
+    ({error}=await sb.from('documents').insert(payload));
+  }
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast(id?'Đã cập nhật tài liệu':'Đã thêm tài liệu');
+  closeAddDocModal();
+  renderDocs();
+}
+
+async function deleteDoc(id){
+  if(!confirm('Xoá tài liệu này?'))return;
+  const {error}=await sb.from('documents').update({is_active:false}).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  if(_currentDocId===id){
+    _currentDocId=null;
+    document.getElementById('docs-preview-iframe').style.display='none';
+    document.getElementById('docs-preview-placeholder').style.display='flex';
+    document.getElementById('docs-preview-title').textContent='Chọn tài liệu để xem';
+    document.getElementById('docs-preview-download').style.display='none';
+  }
+  toast('Đã xoá tài liệu');
+  renderDocs();
 }
 
 function initNavScroll(){
