@@ -4886,7 +4886,7 @@ async function saveDoc(){
   const description=document.getElementById('doc-desc').value.trim();
   if(!title){toast('Vui lòng nhập tên tài liệu','error');return;}
   if(!file_url){toast('Vui lòng nhập link tài liệu','error');return;}
-  const payload={title,category,file_url,description,is_active:true,created_by:curProfile.id};
+  const payload={title,category,file_url,description,is_active:true};
   let error;
   if(id){
     ({error}=await sb.from('documents').update(payload).eq('id',id));
