@@ -747,11 +747,11 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <!-- Filter categories -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="docs-cats">
-        <button class="doc-cat-btn active" onclick="filterDocs('')" data-cat="">Tất cả</button>
-        <button class="doc-cat-btn" onclick="filterDocs('quy-trinh')" data-cat="quy-trinh">📋 Quy trình</button>
-        <button class="doc-cat-btn" onclick="filterDocs('san-pham')" data-cat="san-pham">📦 Sản phẩm</button>
-        <button class="doc-cat-btn" onclick="filterDocs('training')" data-cat="training">🎓 Training</button>
-        <button class="doc-cat-btn" onclick="filterDocs('chinh-sach')" data-cat="chinh-sach">📜 Chính sách</button>
+        <button class="doc-cat-btn active" onclick="filterDocs('')" data-cat="" style="--cat-color:#6366f1">🗂 Tất cả</button>
+        <button class="doc-cat-btn" onclick="filterDocs('quy-trinh')" data-cat="quy-trinh" style="--cat-color:#6d28d9">📋 Quy trình</button>
+        <button class="doc-cat-btn" onclick="filterDocs('san-pham')" data-cat="san-pham" style="--cat-color:#0ea5e9">📦 Sản phẩm</button>
+        <button class="doc-cat-btn" onclick="filterDocs('training')" data-cat="training" style="--cat-color:#10b981">🎓 Training</button>
+        <button class="doc-cat-btn" onclick="filterDocs('chinh-sach')" data-cat="chinh-sach" style="--cat-color:#f59e0b">📜 Chính sách</button>
       </div>
       <!-- Main layout: list + preview -->
       <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;height:calc(100vh - 220px)">
@@ -4845,11 +4845,21 @@ function previewDoc(id){
   const placeholder=document.getElementById('docs-preview-placeholder');
   const dlBtn=document.getElementById('docs-preview-download');
 
+  // Reset iframe to detect load errors
+  iframe.onerror=null;
+  iframe.onload=function(){
+    // Check if blocked (some browsers report empty contentDocument)
+    try{
+      var blocked=!iframe.contentDocument||iframe.contentDocument.title==='';
+      if(blocked)showDocFallback(doc.file_url);
+    }catch(e){} // cross-origin error = loaded OK in iframe
+  };
   iframe.src=embedUrl;
   iframe.style.display='block';
   placeholder.style.display='none';
   dlBtn.href=doc.file_url;
   dlBtn.style.display='inline-flex';
+  dlBtn.textContent='🔗 Mở tài liệu';
 }
 
 function openAddDocModal(){
@@ -4872,6 +4882,18 @@ function openEditDocModal(id){
   document.getElementById('doc-url').value=doc.file_url||'';
   document.getElementById('doc-desc').value=doc.description||'';
   document.getElementById('add-doc-modal').style.display='flex';
+}
+
+function showDocFallback(url){
+  const iframe=document.getElementById('docs-preview-iframe');
+  const placeholder=document.getElementById('docs-preview-placeholder');
+  iframe.style.display='none';
+  placeholder.style.display='flex';
+  placeholder.innerHTML=`<div style="text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🔗</div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:16px">Tài liệu không thể hiển thị trực tiếp<br><span style="font-size:12px;color:var(--text3)">Google Drive cần mở trong tab mới</span></div>
+    <a href="${url}" target="_blank" class="btn-sm btn-primary" style="text-decoration:none">Mở tài liệu ↗</a>
+  </div>`;
 }
 
 function closeAddDocModal(){
