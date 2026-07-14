@@ -417,6 +417,12 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   .nav-btn{padding:8px 5px;font-size:10px}
   .stat-grid{grid-template-columns:1fr!important}
 }
+.doc-cat-btn{padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--bg3)!important;color:var(--text2)!important;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;outline:none}
+.doc-item{padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .15s;border:1px solid transparent;margin-bottom:4px}
+.doc-item:hover{background:var(--bg3)}
+.doc-item.active{background:rgba(79,127,255,0.1);border-color:rgba(79,127,255,0.3)}
+.doc-item-title{font-size:13px;font-weight:600;color:var(--text)}
+.doc-item-cat{font-size:10px;padding:1px 6px;border-radius:4px;margin-top:3px;display:inline-block}
 
 </style>
 </head>
@@ -4779,8 +4785,8 @@ async function renderDocs(){
   const {data,error}=await sb.from('documents').select('*').eq('is_active',true).order('category').order('created_at',{ascending:false});
   _allDocs=data||[];
   renderDocList();
-  // Init button colors
-  filterDocs(_currentDocCat);
+  // Init button colors on load
+  setTimeout(function(){filterDocs(_currentDocCat);},0);
 }
 
 function renderDocList(){
@@ -4804,9 +4810,9 @@ function renderDocList(){
     return `<div class="doc-item${isActive?' active':''}" onclick="previewDoc(${d.id})">
       <div class="doc-item-title">${d.title}</div>
       <span class="doc-item-cat" style="background:${cm.color}22;color:${cm.color}">${cm.icon} ${cm.label}</span>
-      ${isMgr?`<div style="display:flex;gap:4px;margin-top:6px">
-        <button class="icon-btn" style="font-size:11px;padding:2px 6px" onclick="event.stopPropagation();openEditDocModal(${d.id})">✏️</button>
-        <button class="icon-btn" style="font-size:11px;padding:2px 6px;color:var(--danger)" onclick="event.stopPropagation();deleteDoc(${d.id})">🗑️</button>
+      ${isMgr?`<div style="display:flex;gap:4px;margin-top:6px;flex-direction:row">
+        <button class="icon-btn" title="Sửa" onclick="event.stopPropagation();openEditDocModal(${d.id})">✏️</button>
+        <button class="icon-btn" title="Xoá" style="color:var(--danger)" onclick="event.stopPropagation();deleteDoc(${d.id})">🗑️</button>
       </div>`:''}
     </div>`;
   }).join('');
@@ -4819,9 +4825,12 @@ function filterDocs(cat){
     var isActive=b.dataset.cat===cat;
     var color=CAT_COLORS[b.dataset.cat]||'#6366f1';
     b.classList.toggle('active',isActive);
-    b.style.background=isActive?color:'';
-    b.style.color=isActive?'#fff':'';
-    b.style.borderColor=isActive?color:'';
+    // Override !important via setAttribute style
+    if(isActive){
+      b.setAttribute('style','background:'+color+'!important;color:#fff!important;border-color:'+color+'!important;box-shadow:0 2px 8px rgba(0,0,0,.25)');
+    } else {
+      b.removeAttribute('style');
+    }
   });
   renderDocList();
 }
@@ -4856,21 +4865,28 @@ function previewDoc(id){
   const placeholder=document.getElementById('docs-preview-placeholder');
   const dlBtn=document.getElementById('docs-preview-download');
 
-  // Reset iframe to detect load errors
-  iframe.onerror=null;
-  iframe.onload=function(){
-    // Check if blocked (some browsers report empty contentDocument)
-    try{
-      var blocked=!iframe.contentDocument||iframe.contentDocument.title==='';
-      if(blocked)showDocFallback(doc.file_url);
-    }catch(e){} // cross-origin error = loaded OK in iframe
-  };
-  iframe.src=embedUrl;
+  // Thử embed trực tiếp — nếu Google Drive block thì hiển thị fallback sau 3s
+  iframe.onload=null;
+  iframe.src='about:blank';
   iframe.style.display='block';
   placeholder.style.display='none';
-  dlBtn.href=doc.file_url;
+  dlBtn.href=rawUrl;
   dlBtn.style.display='inline-flex';
   dlBtn.textContent='🔗 Mở tài liệu';
+
+  // Set src sau 1 tick để đảm bảo reset hoàn toàn
+  setTimeout(function(){
+    iframe.src=embedUrl;
+    // Sau 4s kiểm tra xem đã load chưa — nếu vẫn bị block thì show fallback
+    setTimeout(function(){
+      try{
+        // Nếu cross-origin error → đang load → OK
+        var t=iframe.contentDocument;
+        // Nếu không có error nhưng contentDocument rỗng → bị block
+        if(!t||!t.body||t.body.innerHTML===''){showDocFallback(rawUrl);}
+      }catch(e){/* cross-origin = loading normally */}
+    },4000);
+  },50);
 }
 
 function openAddDocModal(){
