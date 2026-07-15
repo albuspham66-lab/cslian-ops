@@ -4808,12 +4808,14 @@ function renderDocList(){
     const cm=catMeta[d.category]||{icon:'📄',color:'var(--text3)',label:d.category||''};
     const isActive=d.id===_currentDocId;
     return `<div class="doc-item${isActive?' active':''}" onclick="previewDoc(${d.id})">
-      <div class="doc-item-title">${d.title}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <div class="doc-item-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.title}</div>
+        ${isMgr?`<div style="display:flex;gap:3px;flex-shrink:0">
+          <button onclick="event.stopPropagation();openEditDocModal(${d.id})" style="padding:1px 5px;font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">✏️</button>
+          <button onclick="event.stopPropagation();deleteDoc(${d.id})" style="padding:1px 5px;font-size:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;color:#ef4444;cursor:pointer">🗑️</button>
+        </div>`:''}
+      </div>
       <span class="doc-item-cat" style="background:${cm.color}22;color:${cm.color}">${cm.icon} ${cm.label}</span>
-      ${isMgr?`<div style="display:flex;flex-direction:row;gap:6px;margin-top:6px">
-        <button onclick="event.stopPropagation();openEditDocModal(${d.id})" style="padding:2px 8px;font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;white-space:nowrap">✏️ Sửa</button>
-        <button onclick="event.stopPropagation();deleteDoc(${d.id})" style="padding:2px 8px;font-size:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;white-space:nowrap">🗑️ Xoá</button>
-      </div>`:''}
     </div>`;
   }).join('');
 }
