@@ -4810,9 +4810,9 @@ function renderDocList(){
     return `<div class="doc-item${isActive?' active':''}" onclick="previewDoc(${d.id})">
       <div class="doc-item-title">${d.title}</div>
       <span class="doc-item-cat" style="background:${cm.color}22;color:${cm.color}">${cm.icon} ${cm.label}</span>
-      ${isMgr?`<div style="display:flex;gap:4px;margin-top:6px;flex-direction:row">
-        <button class="icon-btn" title="Sửa" onclick="event.stopPropagation();openEditDocModal(${d.id})">✏️</button>
-        <button class="icon-btn" title="Xoá" style="color:var(--danger)" onclick="event.stopPropagation();deleteDoc(${d.id})">🗑️</button>
+      ${isMgr?`<div style="display:flex;flex-direction:row;gap:6px;margin-top:6px">
+        <button onclick="event.stopPropagation();openEditDocModal(${d.id})" style="padding:2px 8px;font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;white-space:nowrap">✏️ Sửa</button>
+        <button onclick="event.stopPropagation();deleteDoc(${d.id})" style="padding:2px 8px;font-size:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;white-space:nowrap">🗑️ Xoá</button>
       </div>`:''}
     </div>`;
   }).join('');
@@ -4839,54 +4839,35 @@ function previewDoc(id){
   _currentDocId=id;
   const doc=_allDocs.find(d=>d.id===id);
   if(!doc)return;
-  renderDocList(); // update active state
+  renderDocList();
 
   document.getElementById('docs-preview-title').textContent=doc.title;
   document.getElementById('docs-preview-desc').textContent=doc.description||'';
 
-  // Convert Google Drive/Docs link to embeddable URL
-  var rawUrl=doc.file_url||'';
-  var embedUrl=rawUrl;
-  if(rawUrl.includes('drive.google.com/file/d/')){
-    var match=rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if(match)embedUrl='https://drive.google.com/file/d/'+match[1]+'/preview';
-  } else if(rawUrl.includes('docs.google.com/document')){
-    embedUrl=rawUrl.split('/edit')[0].split('/view')[0]+'/preview';
-  } else if(rawUrl.includes('docs.google.com/presentation')){
-    embedUrl=rawUrl.split('/edit')[0]+'/embed?start=false&loop=false&delayms=3000';
-  } else if(rawUrl.includes('docs.google.com/spreadsheets')){
-    embedUrl=rawUrl.split('/edit')[0]+'/preview';
-  } else if(rawUrl.match(/\.(pdf|PDF)$/)||rawUrl.includes('/pdf')){
-    // PDF: use Google Docs Viewer for public PDFs
-    embedUrl='https://docs.google.com/viewer?url='+encodeURIComponent(rawUrl)+'&embedded=true';
-  }
-
-  const iframe=document.getElementById('docs-preview-iframe');
-  const placeholder=document.getElementById('docs-preview-placeholder');
+  const rawUrl=doc.file_url||'';
   const dlBtn=document.getElementById('docs-preview-download');
-
-  // Thử embed trực tiếp — nếu Google Drive block thì hiển thị fallback sau 3s
-  iframe.onload=null;
-  iframe.src='about:blank';
-  iframe.style.display='block';
-  placeholder.style.display='none';
   dlBtn.href=rawUrl;
   dlBtn.style.display='inline-flex';
   dlBtn.textContent='🔗 Mở tài liệu';
 
-  // Set src sau 1 tick để đảm bảo reset hoàn toàn
-  setTimeout(function(){
-    iframe.src=embedUrl;
-    // Sau 4s kiểm tra xem đã load chưa — nếu vẫn bị block thì show fallback
-    setTimeout(function(){
-      try{
-        // Nếu cross-origin error → đang load → OK
-        var t=iframe.contentDocument;
-        // Nếu không có error nhưng contentDocument rỗng → bị block
-        if(!t||!t.body||t.body.innerHTML===''){showDocFallback(rawUrl);}
-      }catch(e){/* cross-origin = loading normally */}
-    },4000);
-  },50);
+  // Google Drive/Docs block iframe — hiển thị card với nút mở tab mới
+  const iframe=document.getElementById('docs-preview-iframe');
+  const placeholder=document.getElementById('docs-preview-placeholder');
+  iframe.src='about:blank';
+  iframe.style.display='none';
+  placeholder.style.display='flex';
+
+  const catIcons={'quy-trinh':'📋','san-pham':'📦','training':'🎓','chinh-sach':'📜'};
+  const icon=catIcons[doc.category]||'📄';
+  placeholder.innerHTML=`<div style="text-align:center;padding:32px 20px">
+    <div style="font-size:64px;margin-bottom:16px">${icon}</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px;color:var(--text)">${doc.title}</div>
+    ${doc.description?`<div style="font-size:13px;color:var(--text3);margin-bottom:24px;max-width:420px;line-height:1.5">${doc.description}</div>`:'<div style="margin-bottom:24px"></div>'}
+    <a href="${rawUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
+      📄 Mở tài liệu ↗
+    </a>
+    <div style="font-size:11px;color:var(--text3);margin-top:12px">Mở trong tab mới</div>
+  </div>`;
 }
 
 function openAddDocModal(){
