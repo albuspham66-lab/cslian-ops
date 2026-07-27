@@ -2115,8 +2115,8 @@ async function renderOrders(){
 
   // Stats
   const totalRev=list.reduce((s,o)=>s+(o.total_amount||0),0);
-  const totalBonusChenh=list.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
-  const totalBonusMacDinh=list.reduce((s,o)=>s+(bonusMacDinhMap[o.id]||0),0);
+  const totalBonusChenh=list.reduce((s,o)=>s+(o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0)),0);
+  const totalBonusMacDinh=list.reduce((s,o)=>s+(o.bonus_giuong_override!=null?o.bonus_giuong_override:(bonusMacDinhMap[o.id]||0)),0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const tatToanCount=list.filter(o=>o.is_settled||o.balance_due===0).length;
   document.getElementById('ord-stats').innerHTML=`
