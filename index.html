@@ -825,6 +825,37 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
+    <!-- MODAL: Điều chỉnh Bonus đơn hàng -->
+    <div class="modal-bg" id="bonus-edit-modal" style="display:none" onclick="if(event.target===this)closeBonusEditModal()">
+      <div class="modal-box" style="max-width:440px">
+        <div style="padding:18px 24px 14px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+          <div style="font-weight:700;font-size:15px;color:#fff">💰 Điều chỉnh Bonus</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px" id="bonus-modal-inv"></div>
+        </div>
+        <div style="padding:18px 24px;display:flex;flex-direction:column;gap:14px">
+          <input type="hidden" id="bonus-modal-order-id">
+          <div style="padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:12px;color:var(--text3)">
+            ⚠️ Override sẽ ghi đè giá trị tính tự động. Để trống = dùng giá trị tự động.
+          </div>
+          <div>
+            <label class="form-label">Bonus Chênh lệch ($) <span style="color:var(--text3);font-weight:400">— tự động: <span id="bonus-modal-chenh-auto">$0</span></span></label>
+            <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-chenh" placeholder="Để trống = tự động">
+          </div>
+          <div>
+            <label class="form-label">Bonus Giường ($) <span style="color:var(--text3);font-weight:400">— tự động: <span id="bonus-modal-giuong-auto">$0</span></span></label>
+            <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-giuong" placeholder="Để trống = tự động">
+          </div>
+        </div>
+        <div style="padding:0 24px 18px;display:flex;gap:8px;justify-content:space-between">
+          <button class="btn-sm btn-danger" onclick="clearBonusOverride()" style="font-size:12px">🔄 Xoá override</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm" onclick="closeBonusEditModal()">Huỷ</button>
+            <button class="btn-sm btn-primary" onclick="saveBonusOverride()">💾 Lưu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MODAL: Tạo phòng chat -->
     <div class="modal-bg" id="create-room-modal">
       <div class="modal-box" style="max-width:460px;padding:0;overflow:hidden">
@@ -1928,9 +1959,11 @@ async function exportOrdersExcel(){
     const tatToan=o.is_settled||o.balance_due===0;
     const datTargetSale=isOrderDatTarget(o);
     const tyLeSale=datTargetSale?1.0:0.5;
-    const bonusGiuong=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
+    const bonusGiuongAuto=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);
+    const bonusGiuong=o.bonus_giuong_override!=null?o.bonus_giuong_override:bonusGiuongAuto;
     const chenhSale=chenhSaleMap[o.id]||0;
-    const bonusChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
+    const bonusChenhAuto=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
+    const bonusChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:bonusChenhAuto;
     const giaBanGocGiuong=giaBanGocGiuongMap[o.id]||0;
     const truyThu=o.truy_thu_usd||0;
     // Total Bonus = ((Doanh số - Chênh lệch - Giá gốc giường) × 1% + Bonus CL + Bonus Giường) × tỷ lệ sale - Truy thu
@@ -2102,13 +2135,14 @@ async function renderOrders(){
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd((o.bonus_sale_usd??o.bonus_chenh_lech)??0)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusMacDinh)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(bonusChenh)}${o.bonus_sale_usd_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusGiuong)}${o.bonus_giuong_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance_due||0)}</td>
       <td><span class="pill ${tatToan?'pill-approved':'pill-pending'}">${tatToan?'✅ Tất toán':'⏳ Còn nợ'}</span></td>
       <td>
         <button class="icon-btn" onclick="toggleOrderItemsDetail('${o.id}')" title="Xem sản phẩm">👁️</button>
+        ${isMgr?`<button class="icon-btn" onclick="openBonusEditModal('${o.id}','${o.invoice_no}')" title="Điều chỉnh Bonus">💰</button>`:''}
         ${isMgr?`<button class="icon-btn" onclick="approveOrder('${o.id}',${!o.da_duyet})" title="Duyệt">${o.da_duyet?'↩️':'✅'}</button>`:''}
         <button class="icon-btn" onclick="deleteOrder('${o.id}')" title="Xoá">🗑️</button>
       </td>
@@ -2190,6 +2224,66 @@ async function deleteOrder(id){
   renderOrders();
 }
 function changeMonthOrd(d){ordMonth+=d;if(ordMonth>11){ordMonth=0;ordYear++;}if(ordMonth<0){ordMonth=11;ordYear--;}renderOrders();}
+
+// ── Bonus Override Modal ────────────────────────────────────────────
+var _bonusModalOrder=null;
+async function openBonusEditModal(orderId, invoiceNo){
+  // Fetch fresh order data
+  const {data:o}=await sb.from('orders').select('*').eq('id',orderId).maybeSingle();
+  if(!o){toast('Không tìm thấy đơn hàng','error');return;}
+  _bonusModalOrder=o;
+
+  document.getElementById('bonus-modal-order-id').value=orderId;
+  document.getElementById('bonus-modal-inv').textContent=invoiceNo+' — '+( o.shop_name||'');
+
+  // Calculate auto values
+  const thang=monthStr(ordYear,ordMonth);
+  const autoChenhRes=await sb.from('order_items').select('bonus_sale_usd,bonus_chenh_lech').eq('order_id',orderId);
+  const autoChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
+
+  const giuongRes=await sb.from('order_items').select('so_luong').eq('order_id',orderId).eq('la_bolsa',true);
+  const soGiuong=(giuongRes.data||[]).reduce((s,i)=>s+(i.so_luong||0),0);
+  const autoGiuong=calcHeadspaBedBonusForOrder(soGiuong);
+
+  document.getElementById('bonus-modal-chenh-auto').textContent=usd(autoChenh);
+  document.getElementById('bonus-modal-giuong-auto').textContent=usd(autoGiuong);
+
+  // Fill current overrides if exist
+  document.getElementById('bonus-modal-chenh').value=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:'';
+  document.getElementById('bonus-modal-giuong').value=o.bonus_giuong_override!=null?o.bonus_giuong_override:'';
+
+  document.getElementById('bonus-edit-modal').style.display='flex';
+}
+
+function closeBonusEditModal(){
+  document.getElementById('bonus-edit-modal').style.display='none';
+  _bonusModalOrder=null;
+}
+
+async function saveBonusOverride(){
+  const orderId=document.getElementById('bonus-modal-order-id').value;
+  const chenhVal=document.getElementById('bonus-modal-chenh').value.trim();
+  const giuongVal=document.getElementById('bonus-modal-giuong').value.trim();
+
+  const update={};
+  update.bonus_sale_usd_override=chenhVal!==''?parseFloat(chenhVal):null;
+  update.bonus_giuong_override=giuongVal!==''?parseFloat(giuongVal):null;
+
+  const {error}=await sb.from('orders').update(update).eq('id',orderId);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã lưu điều chỉnh bonus');
+  closeBonusEditModal();
+  renderOrders();
+}
+
+async function clearBonusOverride(){
+  const orderId=document.getElementById('bonus-modal-order-id').value;
+  const {error}=await sb.from('orders').update({bonus_sale_usd_override:null,bonus_giuong_override:null}).eq('id',orderId);
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast('Đã xoá override — dùng giá trị tự động');
+  closeBonusEditModal();
+  renderOrders();
+}
 
 // ============================================================
 // KPI
