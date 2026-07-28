@@ -842,8 +842,31 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-chenh" placeholder="Để trống = tự động">
           </div>
           <div>
-            <label class="form-label">Bonus Giường ($) <span style="color:var(--text3);font-weight:400">— tự động: <span id="bonus-modal-giuong-auto">$0</span></span></label>
-            <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-giuong" placeholder="Để trống = tự động">
+            <label class="form-label">% Bonus Giường <span style="color:var(--text3);font-weight:400">— tự động: <span id="bonus-modal-giuong-auto">100%</span></span></label>
+            <select class="form-input" id="bonus-modal-pct-giuong">
+              <option value="">-- Mặc định 100% --</option>
+              <option value="100">100% — Bình thường</option>
+              <option value="75">75%</option>
+              <option value="50">50% — Trợ giá 50%</option>
+              <option value="25">25%</option>
+              <option value="0">0% — Miễn bonus giường</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1">
+              <label class="form-label">Lý do</label>
+              <select class="form-input" id="bonus-modal-lydo">
+                <option value="">-- Không có --</option>
+                <option value="Giảm giá lấy đơn">Giảm giá lấy đơn</option>
+                <option value="Trợ giá">Trợ giá</option>
+                <option value="Khách yêu cầu">Khách yêu cầu</option>
+                <option value="Điều chỉnh khác">Điều chỉnh khác</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label class="form-label">Ghi chú</label>
+              <input class="form-input" type="text" id="bonus-modal-ghichu" placeholder="Ghi chú thêm...">
+            </div>
           </div>
         </div>
         <div style="padding:0 24px 18px;display:flex;gap:8px;justify-content:space-between">
@@ -2166,24 +2189,158 @@ async function toggleOrderItemsDetail(orderId){
   const content=document.getElementById('order-detail-content-'+orderId);
   if(!row||!content)return;
   if(row.style.display!=='none'){row.style.display='none';return;}
-
   content.innerHTML='<div style="font-size:12px;color:var(--text3)">Đang tải...</div>';
   row.style.display='table-row';
+  await loadOrderItemsDetail(orderId);
+}
+
+const LY_DO_OPTIONS=['Giảm giá lấy đơn','Trợ giá','Khách yêu cầu','Điều chỉnh khác'];
+
+async function loadOrderItemsDetail(orderId){
+  const content=document.getElementById('order-detail-content-'+orderId);
   const {data:items}=await sb.from('order_items').select('*').eq('order_id',orderId).order('id');
   if(!items||!items.length){content.innerHTML='<div style="font-size:12px;color:var(--text3)">Không có sản phẩm</div>';return;}
 
-  content.innerHTML=`<table style="width:100%;font-size:12px">
-    <thead><tr style="color:var(--text3)"><th style="text-align:left;padding:4px 8px">Sản phẩm</th><th style="text-align:right;padding:4px 8px">SL</th><th style="text-align:right;padding:4px 8px">Giá bán</th><th style="text-align:right;padding:4px 8px">Chênh lệch</th><th style="text-align:right;padding:4px 8px">Bonus chênh</th><th style="text-align:center;padding:4px 8px">🎁 Gift</th></tr></thead>
-    <tbody>${items.map(it=>`
-      <tr>
-        <td style="padding:4px 8px">${it.ten_sp_invoice}</td>
-        <td style="text-align:right;padding:4px 8px">${it.so_luong}</td>
-        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace">${usd(it.gia_ban_thuc)}</td>
-        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace">${usd(it.chenh_lech)}</td>
-        <td style="text-align:right;padding:4px 8px;font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(it.bonus_chenh_lech)}</td>
-        <td style="text-align:center;padding:4px 8px"><input type="checkbox" ${it.is_gift?'checked':''} onchange="toggleItemGift('${it.id}','${orderId}',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>
-      </tr>`).join('')}
-    </tbody></table>`;
+  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+
+  const rows=items.map(it=>{
+    const isShipping=it.is_shipping||(it.ten_sp_invoice||'').toLowerCase().includes('ship');
+    const giaChuanDisplay=usd(it.gia_ban_goc||0);
+    const bonusCL=it.bonus_sale_usd!=null?it.bonus_sale_usd:(it.bonus_chenh_lech||0);
+    const hasAdj=it.dieu_chinh_ly_do||it.pct_bonus!=null&&it.pct_bonus!==100;
+    const lyDoLabel=it.dieu_chinh_ly_do||'';
+    const ghiChu=it.dieu_chinh_ghi_chu||'';
+    const pct=it.pct_bonus!=null?it.pct_bonus:100;
+
+    if(isShipping||it.is_gift) return `<tr style="opacity:.6">
+      <td style="padding:6px 8px">${it.ten_sp_invoice}${it.is_gift?' <span style="font-size:10px;background:rgba(16,185,129,.15);color:#10b981;border-radius:4px;padding:1px 5px">🎁 Gift</span>':''}</td>
+      <td style="text-align:right;padding:6px 8px">${it.so_luong}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--text3)">${giaChuanDisplay}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--text3)">${usd(it.gia_ban_thuc||0)}</td>
+      <td colspan="4" style="text-align:center;padding:6px 8px;color:var(--text3);font-size:11px">— ${it.is_shipping?'Shipping':'Tặng kèm'} —</td>
+      <td style="text-align:center;padding:6px 8px"><input type="checkbox" ${it.is_gift?'checked':''} onchange="toggleItemGift('${it.id}','${orderId}',this.checked)" style="cursor:pointer"></td>
+    </tr>`;
+
+    return `<tr id="item-row-${it.id}" data-giachuan="${it.gia_ban_goc||0}">
+      <td style="padding:6px 8px;font-size:12px">${it.ten_sp_invoice}${it.la_bolsa?' 🛏️':''}</td>
+      <td style="text-align:right;padding:6px 8px">${it.so_luong}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--text3)">${giaChuanDisplay}</td>
+      <td style="text-align:right;padding:6px 8px">
+        ${isMgrLocal?`<input type="number" value="${it.gia_ban_thuc||0}" min="0" step="0.01"
+          style="width:90px;text-align:right;background:var(--bg4);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:2px 6px;font-size:11px;font-family:'JetBrains Mono',monospace"
+          onchange="recalcItemBonus('${it.id}','${orderId}',this)" id="price-${it.id}">`
+        :`<span style="font-family:'JetBrains Mono',monospace">${usd(it.gia_ban_thuc||0)}</span>`}
+      </td>
+      <td style="text-align:right;padding:6px 8px;font-family:'JetBrains Mono',monospace" id="chenh-${it.id}">${usd((it.chenh_sale!=null?it.chenh_sale:it.chenh_lech)||0)}</td>
+      <td style="text-align:center;padding:6px 8px">
+        ${isMgrLocal?`<select style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:2px 4px;font-size:11px" id="pct-${it.id}" onchange="recalcItemBonus('${it.id}','${orderId}',null)">
+          ${[100,75,50,25,0].map(p=>`<option value="${p}" ${pct===p?'selected':''}>${p}%</option>`).join('')}
+        </select>`:pct+'%'}
+      </td>
+      <td style="text-align:right;padding:6px 8px;font-family:'JetBrains Mono',monospace;color:var(--warn)" id="bonus-${it.id}">${usd(bonusCL)}</td>
+      <td style="padding:6px 8px;font-size:11px">
+        ${isMgrLocal?`<div style="display:flex;gap:4px">
+          <select style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;color:var(--text3);padding:2px 4px;font-size:10px;max-width:120px" id="lydo-${it.id}">
+            <option value="">-- Lý do --</option>
+            ${LY_DO_OPTIONS.map(l=>`<option value="${l}" ${lyDoLabel===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+          <input type="text" placeholder="Ghi chú..." value="${ghiChu}" id="ghichu-${it.id}"
+            style="width:90px;background:var(--bg4);border:1px solid var(--border);border-radius:5px;color:var(--text3);padding:2px 5px;font-size:10px">
+        </div>`:lyDoLabel?(lyDoLabel+(ghiChu?' — '+ghiChu:'')):''}
+      </td>
+      <td style="text-align:center;padding:6px 8px"><input type="checkbox" ${it.is_gift?'checked':''} onchange="toggleItemGift('${it.id}','${orderId}',this.checked)" style="cursor:pointer"></td>
+    </tr>`;
+  }).join('');
+
+  content.innerHTML=`
+    <div style="overflow-x:auto">
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr style="color:var(--text3);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 8px">Sản phẩm</th>
+        <th style="text-align:right;padding:6px 8px">SL</th>
+        <th style="text-align:right;padding:6px 8px">Giá CRM</th>
+        <th style="text-align:right;padding:6px 8px">Giá bán</th>
+        <th style="text-align:right;padding:6px 8px">Chênh lệch</th>
+        <th style="text-align:center;padding:6px 8px">% Bonus</th>
+        <th style="text-align:right;padding:6px 8px">Bonus CL</th>
+        <th style="text-align:left;padding:6px 8px">Lý do / Ghi chú</th>
+        <th style="text-align:center;padding:6px 8px">🎁</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+    ${isMgrLocal?`<div style="display:flex;justify-content:flex-end;margin-top:10px;gap:8px">
+      <button class="btn-sm" onclick="toggleOrderItemsDetail('${orderId}')">Đóng</button>
+      <button class="btn-sm btn-primary" onclick="saveItemsAdjustment('${orderId}')">💾 Lưu điều chỉnh</button>
+    </div>`:''}`;
+}
+
+function recalcItemBonus(itemId, orderId, priceInput){
+  const priceEl=document.getElementById('price-'+itemId);
+  const pctEl=document.getElementById('pct-'+itemId);
+  const chenhEl=document.getElementById('chenh-'+itemId);
+  const bonusEl=document.getElementById('bonus-'+itemId);
+  if(!priceEl||!pctEl||!chenhEl||!bonusEl)return;
+
+  // Giá chuẩn từ data-attribute (lưu khi render)
+  const rowEl=document.getElementById('item-row-'+itemId);
+  const giaChuanAttr=rowEl?rowEl.dataset.giachuan:null;
+  const giaChuanNum=giaChuanAttr?parseFloat(giaChuanAttr):0;
+
+  const giaBan=parseFloat(priceEl.value)||0;
+  const pct=parseInt(pctEl.value)||100;
+  // chenh_sale = gia_ban_thuc - gia_ban_goc (best_price/sale_price)
+  const chenh=Math.max(0,giaBan-giaChuanNum);
+  const bonus=chenh*0.3*pct/100; // per unit, qty tính khi save
+
+  chenhEl.textContent='$'+chenh.toFixed(2);
+  bonusEl.textContent='$'+bonus.toFixed(2);
+}
+
+async function saveItemsAdjustment(orderId){
+  const {data:items}=await sb.from('order_items').select('id,so_luong,gia_ban_goc').eq('order_id',orderId);
+  if(!items)return;
+
+  let totalBonusSale=0;
+  const updates=items.map(it=>{
+    const priceEl=document.getElementById('price-'+it.id);
+    const pctEl=document.getElementById('pct-'+it.id);
+    const lyDoEl=document.getElementById('lydo-'+it.id);
+    const ghiChuEl=document.getElementById('ghichu-'+it.id);
+    if(!priceEl)return null; // shipping/gift rows - skip
+
+    const giaBan=parseFloat(priceEl.value)||0;
+    const pct=parseInt(pctEl?.value)||100;
+    const qty=it.so_luong||1;
+    const giaChuanNum=it.gia_ban_goc||0;
+    const chenh=Math.max(0,giaBan-giaChuanNum);
+    const bonus=chenh*0.3*qty*pct/100;
+    totalBonusSale+=bonus;
+
+    return {
+      id:it.id,
+      gia_ban_thuc:giaBan,
+      chenh_sale:chenh,
+      bonus_sale_usd:bonus,
+      pct_bonus:pct,
+      dieu_chinh_ly_do:lyDoEl?.value||null,
+      dieu_chinh_ghi_chu:ghiChuEl?.value||null,
+    };
+  }).filter(Boolean);
+
+  // Update từng item
+  for(const u of updates){
+    const {id,...fields}=u;
+    await sb.from('order_items').update(fields).eq('id',id);
+  }
+
+  // Update orders.bonus_sale_usd = tổng mới (chỉ OPS field, không đụng Finance)
+  await sb.from('orders').update({bonus_sale_usd:totalBonusSale}).eq('id',orderId);
+
+  toast('Đã lưu điều chỉnh — bảng lương sẽ tính lại tự động');
+  toggleOrderItemsDetail(orderId);
+  toggleOrderItemsDetail(orderId);
+  renderOrders();
 }
 
 // Tick Gift → loại hoàn toàn item đó khỏi bonus chênh lệch (30%) ngay tại nguồn —
@@ -2256,11 +2413,13 @@ function openBonusEditModal(orderId, invoiceNo){
   const autoGiuong=calcHeadspaBedBonusForOrder(soGiuong);
 
   document.getElementById('bonus-modal-chenh-auto').textContent=usd(autoChenh);
-  document.getElementById('bonus-modal-giuong-auto').textContent=usd(autoGiuong);
+  document.getElementById('bonus-modal-giuong-auto').textContent=(o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100)+'%';
 
   // Fill current overrides
   document.getElementById('bonus-modal-chenh').value=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:'';
-  document.getElementById('bonus-modal-giuong').value=o.bonus_giuong_override!=null?o.bonus_giuong_override:'';
+  document.getElementById('bonus-modal-pct-giuong').value=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:'';
+  document.getElementById('bonus-modal-lydo').value=o.bonus_giuong_ly_do||'';
+  document.getElementById('bonus-modal-ghichu').value=o.bonus_giuong_ghi_chu||'';
 
   document.getElementById('bonus-edit-modal').style.display='flex';
 }
@@ -2275,9 +2434,17 @@ async function saveBonusOverride(){
   const chenhVal=document.getElementById('bonus-modal-chenh').value.trim();
   const giuongVal=document.getElementById('bonus-modal-giuong').value.trim();
 
+  const pctGiuongVal=document.getElementById('bonus-modal-pct-giuong').value.trim();
+  const lyDoVal=document.getElementById('bonus-modal-lydo').value.trim();
+  const ghiChuVal=document.getElementById('bonus-modal-ghichu').value.trim();
+
   const update={};
   update.bonus_sale_usd_override=chenhVal!==''?parseFloat(chenhVal):null;
-  update.bonus_giuong_override=giuongVal!==''?parseFloat(giuongVal):null;
+  update.pct_bonus_giuong=pctGiuongVal!==''?parseInt(pctGiuongVal):null;
+  update.bonus_giuong_ly_do=lyDoVal||null;
+  update.bonus_giuong_ghi_chu=ghiChuVal||null;
+  // Clear old override field (replaced by pct_bonus_giuong)
+  update.bonus_giuong_override=null;
 
   const {error}=await sb.from('orders').update(update).eq('id',orderId);
   if(error){toast('Lỗi: '+error.message,'error');return;}
@@ -2288,7 +2455,7 @@ async function saveBonusOverride(){
 
 async function clearBonusOverride(){
   const orderId=document.getElementById('bonus-modal-order-id').value;
-  const {error}=await sb.from('orders').update({bonus_sale_usd_override:null,bonus_giuong_override:null}).eq('id',orderId);
+  const {error}=await sb.from('orders').update({bonus_sale_usd_override:null,bonus_giuong_override:null,pct_bonus_giuong:null,bonus_giuong_ly_do:null,bonus_giuong_ghi_chu:null}).eq('id',orderId);
   if(error){toast('Lỗi: '+error.message,'error');return;}
   toast('Đã xoá override — dùng giá trị tự động');
   closeBonusEditModal();
@@ -2496,18 +2663,23 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const soGiuongMap_emp={};
   headspaItems.forEach(i=>{soGiuongMap_emp[i.order_id]=(soGiuongMap_emp[i.order_id]||0)+(i.so_luong||0);});
 
-  // Số giường + bonus bậc thang (tính theo tổng tháng)
+  // Số giường tổng tháng để xác định rate và extra
   const soGiuong=headspaItems.reduce((s,i)=>s+(i.so_luong||0),0);
-  let bolsaHeadspaBonusAuto=0;
-  if(soGiuong<10)bolsaHeadspaBonusAuto=soGiuong*15;
-  else if(soGiuong<20)bolsaHeadspaBonusAuto=soGiuong*15+100;
-  else if(soGiuong<30)bolsaHeadspaBonusAuto=soGiuong*17+150;
-  else if(soGiuong<40)bolsaHeadspaBonusAuto=soGiuong*20+200;
-  else bolsaHeadspaBonusAuto=soGiuong*25+250;
-  // Dùng tổng override giường nếu Manager đã điều chỉnh, fallback về tính tự động
-  const bolsaHeadspaBonus=ords.some(o=>o.bonus_giuong_override!=null)
-    ?ords.reduce((s,o)=>s+(o.bonus_giuong_override!=null?o.bonus_giuong_override:calcHeadspaBedBonusForOrder(soGiuongMap_emp[o.id]||0)),0)
-    :bolsaHeadspaBonusAuto;
+  // Rate và extra theo mốc tổng giường tháng
+  let rateGiuong=15,extraGiuong=0;
+  if(soGiuong>=40){rateGiuong=25;extraGiuong=250;}
+  else if(soGiuong>=30){rateGiuong=20;extraGiuong=200;}
+  else if(soGiuong>=20){rateGiuong=17;extraGiuong=150;}
+  else if(soGiuong>=10){rateGiuong=15;extraGiuong=100;}
+
+  // Bonus giường = Σ(mỗi đơn: soGiuong_đơn × rate × pct_bonus_giuong/100) + extra
+  // Extra KHÔNG nhân pct — luôn nhận full
+  const bolsaHeadspaBonus=ords.reduce((s,o)=>{
+    const soG=soGiuongMap_emp[o.id]||0;
+    if(!soG)return s;
+    const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+    return s+soG*rateGiuong*pct/100;
+  },0)+extraGiuong;
 
   // bonusBase: Σ mỗi đơn settled ((DS - CL - GiáGốcGiường) × 1% + BonusCL)
   // Ưu tiên bonus_sale_usd_override nếu Manager đã điều chỉnh
