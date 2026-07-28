@@ -2492,17 +2492,25 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   const items=(itemsRes.data||[]).filter(i=>!i.is_gift);
   const headspaItems=items.filter(i=>i.la_bolsa);
+  // Map số giường per order để tính override per-order
+  const soGiuongMap_emp={};
+  headspaItems.forEach(i=>{soGiuongMap_emp[i.order_id]=(soGiuongMap_emp[i.order_id]||0)+(i.so_luong||0);});
 
   // Số giường + bonus bậc thang (tính theo tổng tháng)
   const soGiuong=headspaItems.reduce((s,i)=>s+(i.so_luong||0),0);
-  let bolsaHeadspaBonus=0;
-  if(soGiuong<10)bolsaHeadspaBonus=soGiuong*15;
-  else if(soGiuong<20)bolsaHeadspaBonus=soGiuong*15+100;
-  else if(soGiuong<30)bolsaHeadspaBonus=soGiuong*17+150;
-  else if(soGiuong<40)bolsaHeadspaBonus=soGiuong*20+200;
-  else bolsaHeadspaBonus=soGiuong*25+250;
+  let bolsaHeadspaBonusAuto=0;
+  if(soGiuong<10)bolsaHeadspaBonusAuto=soGiuong*15;
+  else if(soGiuong<20)bolsaHeadspaBonusAuto=soGiuong*15+100;
+  else if(soGiuong<30)bolsaHeadspaBonusAuto=soGiuong*17+150;
+  else if(soGiuong<40)bolsaHeadspaBonusAuto=soGiuong*20+200;
+  else bolsaHeadspaBonusAuto=soGiuong*25+250;
+  // Dùng tổng override giường nếu Manager đã điều chỉnh, fallback về tính tự động
+  const bolsaHeadspaBonus=ords.some(o=>o.bonus_giuong_override!=null)
+    ?ords.reduce((s,o)=>s+(o.bonus_giuong_override!=null?o.bonus_giuong_override:calcHeadspaBedBonusForOrder(soGiuongMap_emp[o.id]||0)),0)
+    :bolsaHeadspaBonusAuto;
 
   // bonusBase: Σ mỗi đơn settled ((DS - CL - GiáGốcGiường) × 1% + BonusCL)
+  // Ưu tiên bonus_sale_usd_override nếu Manager đã điều chỉnh
   const bonusBase=ords.reduce((s,o)=>{
     // Giá gốc giường trong đơn này
     const gbgDon=headspaItems.filter(i=>i.order_id===o.id)
@@ -2511,7 +2519,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const clDon=items.filter(i=>i.order_id===o.id&&!i.la_bolsa)
       .reduce((ss,i)=>ss+(i.chenh_sale!=null?i.chenh_sale*(i.so_luong||1):0),0);
     const netRev=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
-    const bChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
+    // Ưu tiên override, fallback về auto
+    const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
     return s+netRev*0.01+bChenh;
   },0);
 
