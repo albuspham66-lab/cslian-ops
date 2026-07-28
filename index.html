@@ -2120,29 +2120,44 @@ async function renderOrders(){
   const bonusMacDinhMap={};
   list.forEach(o=>{bonusMacDinhMap[o.id]=calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0);});
 
-  // Extra Bonus (mức tăng vượt bậc thang 10/20/30/40 giường) — tính theo TỔNG GIƯỜNG CẢ THÁNG
-  // của TỪNG SALE riêng biệt, không gộp chung khi xem "Tất cả nhân viên".
+  // Extra Bonus — tính theo TỔNG GIƯỜNG CẢ THÁNG của TỪNG SALE
   const soGiuongTheoSale={};
   list.forEach(o=>{
     const uid=o.user_id||'_unknown';
     soGiuongTheoSale[uid]=(soGiuongTheoSale[uid]||0)+(soGiuongMap[o.id]||0);
   });
   function extraBonusForGiuong(soGiuong){
-    // Phần "+100/+150/+200/+250" tách riêng khỏi đơn giá $15/$17/$20/$25 mỗi giường —
-    // đây chính là "Extra Bonus" khi vượt mốc 10/20/30/40 giường trong tháng.
     if(soGiuong<10)return 0;
     if(soGiuong<20)return 100;
     if(soGiuong<30)return 150;
     if(soGiuong<40)return 200;
     return 250;
   }
+  function rateGiuongForCount(soGiuong){
+    if(soGiuong>=40)return 25;
+    if(soGiuong>=30)return 20;
+    if(soGiuong>=20)return 17;
+    return 15;
+  }
   let totalExtraBonus=0;
   Object.keys(soGiuongTheoSale).forEach(uid=>{totalExtraBonus+=extraBonusForGiuong(soGiuongTheoSale[uid]);});
+  console.log('[stats] soGiuongTheoSale=',soGiuongTheoSale,'totalExtra=',totalExtraBonus);
 
   // Stats
   const totalRev=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalBonusChenh=list.reduce((s,o)=>s+(o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0)),0);
-  const totalBonusMacDinh=list.reduce((s,o)=>s+(o.bonus_giuong_override!=null?o.bonus_giuong_override:(bonusMacDinhMap[o.id]||0)),0);
+  // totalBonusMacDinh: phần base (rate × qty × pct) KHÔNG bao gồm extra — tránh double count
+  const totalBonusMacDinh=list.reduce((s,o)=>{
+    if(o.bonus_giuong_override!=null)return s+o.bonus_giuong_override;
+    const soG=soGiuongMap[o.id]||0;
+    if(!soG)return s;
+    const uid=o.user_id||'_unknown';
+    const totalSaleG=soGiuongTheoSale[uid]||0;
+    const rate=rateGiuongForCount(totalSaleG);
+    const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+    console.log('[stats] order=',o.invoice_no,'soG=',soG,'rate=',rate,'pct=',pct,'pct_bonus_giuong=',o.pct_bonus_giuong,'contrib=',soG*rate*pct/100);
+    return s+soG*rate*pct/100;
+  },0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const tatToanCount=list.filter(o=>o.is_settled||o.balance_due===0).length;
   document.getElementById('ord-stats').innerHTML=`
@@ -2157,7 +2172,13 @@ async function renderOrders(){
     const bonusMacDinh=bonusMacDinhMap[o.id]||0;
     // Tính bonusChenh và bonusGiuong với override support cho display
     const _bonusChenhAuto=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
-    const _bonusGiuongAuto=bonusMacDinh;
+    // bonusGiuong per row: base only (rate × qty × pct), extra hiển thị tổng ở stats card
+    const uid_row=o.user_id||'_unknown';
+    const totalSaleGRow=soGiuongTheoSale[uid_row]||0;
+    const rateRow=rateGiuongForCount(totalSaleGRow);
+    const pctRow=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+    const soGRow=soGiuongMap[o.id]||0;
+    const _bonusGiuongAuto=soGRow>0?soGRow*rateRow*pctRow/100:0;
     const bonusChenh=(o.bonus_sale_usd_override!=null&&o.bonus_sale_usd_override!==undefined)?o.bonus_sale_usd_override:_bonusChenhAuto;
     const bonusGiuong=(o.bonus_giuong_override!=null&&o.bonus_giuong_override!==undefined)?o.bonus_giuong_override:_bonusGiuongAuto;
     return `<tr>
