@@ -2432,7 +2432,7 @@ function closeBonusEditModal(){
 async function saveBonusOverride(){
   const orderId=document.getElementById('bonus-modal-order-id').value;
   const chenhVal=document.getElementById('bonus-modal-chenh').value.trim();
-  const giuongVal=document.getElementById('bonus-modal-giuong').value.trim();
+  const giuongVal=''; // field cũ đã được thay bằng pct_bonus_giuong
 
   const pctGiuongVal=document.getElementById('bonus-modal-pct-giuong').value.trim();
   const lyDoVal=document.getElementById('bonus-modal-lydo').value.trim();
