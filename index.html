@@ -2337,6 +2337,13 @@ async function saveItemsAdjustment(orderId){
   // Update orders.bonus_sale_usd = tổng mới (chỉ OPS field, không đụng Finance)
   await sb.from('orders').update({bonus_sale_usd:totalBonusSale}).eq('id',orderId);
 
+  // Xóa salary_monthly để force tính lại
+  const ordForSal=_ordersCache[orderId];
+  if(ordForSal&&ordForSal.user_id&&ordForSal.billing_month){
+    await sb.from('salary_monthly').delete()
+      .eq('user_id',ordForSal.user_id).eq('thang',ordForSal.billing_month).eq('is_locked',false);
+  }
+
   toast('Đã lưu điều chỉnh — bảng lương sẽ tính lại tự động');
   toggleOrderItemsDetail(orderId);
   toggleOrderItemsDetail(orderId);
@@ -2448,7 +2455,15 @@ async function saveBonusOverride(){
 
   const {error}=await sb.from('orders').update(update).eq('id',orderId);
   if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast('Đã lưu điều chỉnh bonus');
+
+  // Xóa salary_monthly của tháng này để force tính lại bảng lương
+  const ord=_ordersCache[orderId];
+  if(ord&&ord.user_id&&ord.billing_month){
+    await sb.from('salary_monthly').delete()
+      .eq('user_id',ord.user_id).eq('thang',ord.billing_month).eq('is_locked',false);
+  }
+
+  toast('Đã lưu điều chỉnh bonus — bảng lương sẽ tính lại tự động');
   closeBonusEditModal();
   renderOrders();
 }
@@ -2457,6 +2472,14 @@ async function clearBonusOverride(){
   const orderId=document.getElementById('bonus-modal-order-id').value;
   const {error}=await sb.from('orders').update({bonus_sale_usd_override:null,bonus_giuong_override:null,pct_bonus_giuong:null,bonus_giuong_ly_do:null,bonus_giuong_ghi_chu:null}).eq('id',orderId);
   if(error){toast('Lỗi: '+error.message,'error');return;}
+
+  // Xóa salary_monthly để force tính lại
+  const ordForClear=_ordersCache[orderId];
+  if(ordForClear&&ordForClear.user_id&&ordForClear.billing_month){
+    await sb.from('salary_monthly').delete()
+      .eq('user_id',ordForClear.user_id).eq('thang',ordForClear.billing_month).eq('is_locked',false);
+  }
+
   toast('Đã xoá override — dùng giá trị tự động');
   closeBonusEditModal();
   renderOrders();
