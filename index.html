@@ -1882,6 +1882,7 @@ async function exportOrdersExcel(){
   let chenhSaleMap={};      // tổng chenh_sale mỗi đơn
   let giaBanGocGiuongMap={}; // tổng gia_ban_goc × so_luong của giường
   let soGiuongMap={};
+  _soGiuongCache={}; // reset global cache
 
   if(orderIds.length){
     const {data:allItems}=await sb.from('order_items')
@@ -1896,6 +1897,7 @@ async function exportOrdersExcel(){
       // Giường Headspa: đếm số lượng và tổng giá gốc (để trừ ra khỏi doanh số trước khi nhân 1%)
       if(it.la_bolsa){
         soGiuongMap[oid]=(soGiuongMap[oid]||0)+(it.so_luong||0);
+        _soGiuongCache[oid]=((_soGiuongCache[oid]||0))+(it.so_luong||0);
         giaBanGocGiuongMap[oid]=(giaBanGocGiuongMap[oid]||0)+(it.gia_ban_goc||0)*(it.so_luong||1);
       }
     });
@@ -2082,6 +2084,7 @@ async function renderOrders(){
 
   const {data:orders}=await query;
   const list=orders||[];
+  _ordersCache={}; list.forEach(o=>{_ordersCache[o.id]=o;});
 
   // Lấy số giường Headspa Bed (la_bolsa=true) của từng đơn để tính bonus mặc định riêng
   const orderIds=list.map(o=>o.id);
@@ -2141,8 +2144,8 @@ async function renderOrders(){
       <td style="font-size:11px">${o.order_date||'—'}</td>
       <td style="font-size:11px;color:var(--accent)">${o.billing_month||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(bonusChenh)}${o.bonus_sale_usd_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
-      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusGiuong)}${o.bonus_giuong_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)${isMgr?';cursor:pointer':''}" ${isMgr?`onclick="openBonusEditModal('${o.id}','${o.invoice_no}')"`:''}>${usd(bonusChenh)}${o.bonus_sale_usd_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830${isMgr?';cursor:pointer':''}" ${isMgr?`onclick="openBonusEditModal('${o.id}','${o.invoice_no}')"`:''}>${usd(bonusGiuong)}${o.bonus_giuong_override!=null?'<span title="Override" style="font-size:9px;color:var(--accent);margin-left:2px">✏️</span>':''}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${(o.truy_thu_usd||0)>0?'var(--danger)':'var(--text3)'}">${usd(o.truy_thu_usd||0)}</td>
       <td style="font-family:'JetBrains Mono',monospace;color:${tatToan?'var(--success)':'var(--warn)'}">${usd(o.balance_due||0)}</td>
       <td><span class="pill ${tatToan?'pill-approved':'pill-pending'}">${tatToan?'✅ Tất toán':'⏳ Còn nợ'}</span></td>
@@ -2233,28 +2236,29 @@ function changeMonthOrd(d){ordMonth+=d;if(ordMonth>11){ordMonth=0;ordYear++;}if(
 
 // ── Bonus Override Modal ────────────────────────────────────────────
 var _bonusModalOrder=null;
-async function openBonusEditModal(orderId, invoiceNo){
-  // Fetch fresh order data
-  const {data:o}=await sb.from('orders').select('*').eq('id',orderId).maybeSingle();
-  if(!o){toast('Không tìm thấy đơn hàng','error');return;}
+var _ordersCache={};
+var _soGiuongCache={};
+// Cache order data từ renderOrders để mở modal ngay không cần fetch lại
+var _ordersCache={};
+
+function openBonusEditModal(orderId, invoiceNo){
+  // Dùng data đã có từ cache renderOrders — không cần fetch
+  const o=_ordersCache[orderId];
+  if(!o){toast('Không tìm thấy đơn hàng — thử reload trang','error');return;}
   _bonusModalOrder=o;
 
   document.getElementById('bonus-modal-order-id').value=orderId;
-  document.getElementById('bonus-modal-inv').textContent=invoiceNo+' — '+( o.shop_name||'');
+  document.getElementById('bonus-modal-inv').textContent=invoiceNo+' — '+(o.shop_name||'');
 
-  // Calculate auto values
-  const thang=monthStr(ordYear,ordMonth);
-  const autoChenhRes=await sb.from('order_items').select('bonus_sale_usd,bonus_chenh_lech').eq('order_id',orderId);
+  // Auto values từ cache (đã tính trong renderOrders)
   const autoChenh=(o.bonus_sale_usd??o.bonus_chenh_lech)??0;
-
-  const giuongRes=await sb.from('order_items').select('so_luong').eq('order_id',orderId).eq('la_bolsa',true);
-  const soGiuong=(giuongRes.data||[]).reduce((s,i)=>s+(i.so_luong||0),0);
+  const soGiuong=_soGiuongCache[orderId]||0;
   const autoGiuong=calcHeadspaBedBonusForOrder(soGiuong);
 
   document.getElementById('bonus-modal-chenh-auto').textContent=usd(autoChenh);
   document.getElementById('bonus-modal-giuong-auto').textContent=usd(autoGiuong);
 
-  // Fill current overrides if exist
+  // Fill current overrides
   document.getElementById('bonus-modal-chenh').value=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:'';
   document.getElementById('bonus-modal-giuong').value=o.bonus_giuong_override!=null?o.bonus_giuong_override:'';
 
