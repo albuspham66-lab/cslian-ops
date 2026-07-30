@@ -608,7 +608,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="page-header">
         <div><h2>KPI tháng</h2></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="kpi-emp-sel" onchange="renderKPI()"></select>
+          <select id="kpi-emp-sel" onchange="kpiSelectedEmp=this.value;renderKPI()"></select>
           <div class="month-nav">
             <button class="mnbtn" onclick="changeMonthKPI(-1)">‹</button>
             <span class="mlabel" id="kpi-month-label"></span>
@@ -617,6 +617,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Nhập KPI</button>
         </div>
       </div>
+      <div id="kpi-team-summary" style="margin-bottom:16px"></div>
       <div id="kpi-display"></div>
       </div>
       <div id="stc-reviews" style="display:none">
@@ -2425,6 +2426,7 @@ function changeMonthOrd(d){ordMonth+=d;if(ordMonth>11){ordMonth=0;ordYear++;}if(
 
 // ── Bonus Override Modal ────────────────────────────────────────────
 var _bonusModalOrder=null;
+var kpiSelectedEmp=null;
 var _ordersCache={};
 var _soGiuongCache={};
 // Cache order data từ renderOrders để mở modal ngay không cần fetch lại
@@ -2560,15 +2562,46 @@ function calcKPIScore(data,nguongDat){
   };
 }
 
-function openKPIForm(){
-  const empId=document.getElementById('kpi-emp-sel').value;
+async function openKPIForm(empIdArg){
+  const empId=empIdArg||document.getElementById('kpi-emp-sel').value;
+  if(empIdArg){
+    // update dropdown to match
+    const sel=document.getElementById('kpi-emp-sel');
+    if(sel)sel.value=empId;
+    kpiSelectedEmp=empId;
+  }
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
+  const thang=monthStr(kpiYear,kpiMonth);
   document.getElementById('kpi-modal-title').textContent=`${emp.full_name} — Tháng ${kpiMonth+1}/${kpiYear}`;
+
+  // Auto-fill from daily_tracking
+  const {data:dtRows}=await sb.from('daily_tracking').select('total_calls,talktime_phut,potential_calls')
+    .eq('user_id',empId).gte('ngay',thang+'-01').lte('ngay',thang+'-31');
+  const totalCalls=(dtRows||[]).reduce((s,r)=>s+(r.total_calls||0),0);
+  const totalTalk=(dtRows||[]).reduce((s,r)=>s+(r.talktime_phut||0),0);
+  const totalPotential=(dtRows||[]).reduce((s,r)=>s+(r.potential_calls||0),0);
+  document.getElementById('kf-total-calls').value=totalCalls||'';
+  document.getElementById('kf-talktime').value=Math.round(totalTalk)||'';
+  document.getElementById('kf-potential').value=totalPotential||'';
+
+  // Pre-fill existing KPI data if any
+  const {data:existKpi}=await sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  if(existKpi){
+    document.getElementById('kf-bao-gia').value=existKpi.bao_gia_count||existKpi.so_bao_gia||'';
+    document.getElementById('kf-crm-vipham').value=existKpi.crm_vi_pham_diem||'';
+    document.getElementById('kf-estimate-rev').value=existKpi.estimate_revenue||'';
+    document.getElementById('kf-note').value=existKpi.ghi_chu||'';
+  } else {
+    document.getElementById('kf-bao-gia').value='';
+    document.getElementById('kf-crm-vipham').value='';
+    document.getElementById('kf-estimate-rev').value='';
+    document.getElementById('kf-note').value='';
+  }
   document.getElementById('kpi-modal').classList.add('open');
 }
 
 async function saveKPI(){
-  const empId=document.getElementById('kpi-emp-sel').value;
+  const empId=(kpiSelectedEmp||document.getElementById('kpi-emp-sel').value);
   const thang=monthStr(kpiYear,kpiMonth);
   // Get orders data for this emp/month
   const {data:orders}=await sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang);
@@ -2603,39 +2636,116 @@ async function saveKPI(){
 }
 
 async function renderKPI(){
-  const empId=document.getElementById('kpi-emp-sel').value||curProfile?.id;
+  const empId=(kpiSelectedEmp||document.getElementById('kpi-emp-sel').value||curProfile?.id);
   if(!empId)return;
+  kpiSelectedEmp=empId;
   document.getElementById('kpi-month-label').textContent=`Tháng ${kpiMonth+1}/${kpiYear}`;
   const thang=monthStr(kpiYear,kpiMonth);
   const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+  if(isMgrLocal)await renderKPITeamSummary(thang);
+  await renderKPIDetail(empId,thang);
+}
 
+async function renderKPITeamSummary(thang){
+  const summaryEl=document.getElementById('kpi-team-summary');
+  if(!summaryEl)return;
+
+  const [{data:allKpi},{data:kpiSet}]=await Promise.all([
+    sb.from('kpi_monthly').select('*,profiles(full_name,employee_code,contract_type,is_active,ngay_nghi_viec)').eq('thang',thang),
+    sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle(),
+  ]);
+  const nguongDat=kpiSet?.nguong_dat||80;
+  const saleProfiles=allProfiles.filter(p=>p.role==='sale'||p.role==='leader');
+
+  // Merge: all sales + their KPI if exists
+  const rows=saleProfiles.map(p=>{
+    const k=(allKpi||[]).find(r=>r.user_id===p.id);
+    const isResigned=!p.is_active||!!p.ngay_nghi_viec;
+    const winRate=k&&k.estimate_revenue>0?Math.round(k.doanh_thu_total/k.estimate_revenue*100):null;
+    const dat=k&&k.diem_tong>=nguongDat;
+    const p3c=dat?'+500k':'0';
+    const isSelected=(kpiSelectedEmp||'')===p.id;
+    return {p,k,isResigned,winRate,dat,p3c,isSelected};
+  }).sort((a,b)=>{
+    // Chính thức → Thử việc → Nghỉ
+    function rank(x){if(x.isResigned)return 2;if(x.p.contract_type==='probation'||x.p.contract_type==='thu-viec')return 1;return 0;}
+    return rank(a)-rank(b);
+  });
+
+  summaryEl.innerHTML=`<div class="card" style="margin-bottom:0">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span><span class="dot" style="background:var(--accent)"></span>Tổng hợp KPI Team — Tháng ${thang} · Ngưỡng: ${nguongDat}đ</span>
+      <span style="font-size:11px;color:var(--text3)">${rows.filter(r=>r.dat).length}/${rows.length} đạt</span>
+    </div>
+    <div style="overflow-x:auto;margin-top:10px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--text3);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 10px">Nhân viên</th>
+        <th style="text-align:center;padding:6px 8px">Nhóm A</th>
+        <th style="text-align:center;padding:6px 8px">Nhóm B</th>
+        <th style="text-align:center;padding:6px 8px">Tổng</th>
+        <th style="text-align:center;padding:6px 8px">Win Rate</th>
+        <th style="text-align:center;padding:6px 8px">P3C</th>
+        <th style="text-align:center;padding:6px 8px">Trạng thái</th>
+        <th style="text-align:center;padding:6px 8px">Thao tác</th>
+      </tr></thead>
+      <tbody>${rows.map(({p,k,isResigned,winRate,dat,p3c,isSelected})=>`
+        <tr style="border-bottom:1px solid var(--border);background:${isSelected?'rgba(99,102,241,.08)':''}; cursor:pointer" onclick="selectKPIEmp('${p.id}')">
+          <td style="padding:8px 10px">
+            <div style="font-weight:600;color:${isResigned?'rgba(239,68,68,.7)':'var(--text)'}">${p.full_name}</div>
+            <div style="font-size:10px;color:var(--text3)">${p.employee_code}${p.contract_type==='probation'||p.contract_type==='thu-viec'?' · Thử việc':''}</div>
+          </td>
+          <td style="text-align:center;padding:6px 8px">${k?k.diem_nhom1+'đ':'—'}</td>
+          <td style="text-align:center;padding:6px 8px">${k?k.diem_nhom2+'đ':'—'}</td>
+          <td style="text-align:center;padding:6px 8px;font-weight:700;color:${k?(dat?'#10b981':'#ef4444'):'var(--text3)'}">${k?k.diem_tong+'đ':'—'}</td>
+          <td style="text-align:center;padding:6px 8px;color:${winRate>=20?'#10b981':winRate!=null?'#f59e0b':'var(--text3)'}">${winRate!=null?winRate+'%':'—'}</td>
+          <td style="text-align:center;padding:6px 8px;color:${dat?'#10b981':'var(--text3)'}">${k?p3c:'—'}</td>
+          <td style="text-align:center;padding:6px 8px">
+            ${k?`<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${dat?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${dat?'#10b981':'#ef4444'}">${dat?'✅ Đạt':'❌ Chưa đạt'}</span>`
+            :'<span style="font-size:10px;color:var(--text3)">Chưa nhập</span>'}
+          </td>
+          <td style="text-align:center;padding:6px 8px" onclick="event.stopPropagation()">
+            <button class="btn-sm" style="font-size:10px;padding:2px 8px" onclick="openKPIForm('${p.id}')">✏️ Nhập</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+function selectKPIEmp(empId){
+  kpiSelectedEmp=empId;
+  const sel=document.getElementById('kpi-emp-sel');
+  if(sel)sel.value=empId;
+  // Re-render detail section only (team summary stays)
+  const thang=monthStr(kpiYear,kpiMonth);
+  renderKPIDetail(empId,thang);
+}
+
+async function renderKPIDetail(empId,thang){
+  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
   const [{data:kpi},{data:kpiSet}]=await Promise.all([
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
     sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle(),
   ]);
   const nguongDat=kpiSet?.nguong_dat||80;
-
-  // Win rate
   const winRate=kpi&&kpi.estimate_revenue>0?Math.round(kpi.doanh_thu_total/kpi.estimate_revenue*100):null;
-
-  const emp=allProfiles.find(p=>p.id===empId)||curProfile;
-
-  // Manager: show nguong_dat setting UI
-  const nguongUI=isMgrLocal?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(99,102,241,.08);border-radius:8px;border:1px solid rgba(99,102,241,.2)">
+  const nguongUI=isMgrLocal?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px">
     <span style="font-size:12px;color:var(--text2)">Ngưỡng xét duyệt tháng này:</span>
     <input type="number" id="kpi-nguong-input" value="${nguongDat}" min="0" max="112" style="width:60px;background:var(--bg4);border:1px solid var(--border2);border-radius:5px;padding:3px 8px;color:var(--text);font-size:13px;text-align:center">
     <span style="font-size:12px;color:var(--text3)">điểm</span>
     <button class="btn-sm" style="font-size:11px;padding:3px 10px" onclick="saveKPINguong('${thang}')">💾 Lưu ngưỡng</button>
-  </div>`:'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Ngưỡng đạt tháng này: <strong>${nguongDat}đ</strong></div>';
+  </div>`:`<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Ngưỡng đạt tháng này: <strong>${nguongDat}đ</strong></div>`;
 
   if(!kpi){
-    document.getElementById('kpi-display').innerHTML=nguongUI+`<div class="card"><div class="empty">Chưa có dữ liệu KPI tháng này<br><br>${isMgrLocal?'<button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Nhập KPI ngay</button>':''}</div></div>`;
+    document.getElementById('kpi-display').innerHTML=nguongUI+`<div class="card"><div class="empty">Chưa có dữ liệu KPI — <button class="btn-sm btn-primary" onclick="openKPIForm('${empId}')">✏️ Nhập ngay</button></div></div>`;
     return;
   }
-
   const scoreColor=kpi.diem_tong>=nguongDat?'var(--success)':kpi.diem_tong>=(nguongDat*0.7)?'var(--warn)':'var(--danger)';
-
+  const emp=allProfiles.find(p=>p.id===empId)||curProfile;
   document.getElementById('kpi-display').innerHTML=nguongUI+`
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">👤 ${emp.full_name} · ${emp.employee_code}</div>
     <div class="stat-grid">
       <div class="stat-card" style="text-align:center">
         <div class="stat-label">🎯 Tổng điểm KPI</div>
@@ -2643,9 +2753,9 @@ async function renderKPI(){
         <div class="stat-sub">${kpi.xep_loai} · Ngưỡng: ${nguongDat}đ</div>
         <div style="margin-top:6px;font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block;background:${kpi.diem_tong>=nguongDat?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${kpi.diem_tong>=nguongDat?'#10b981':'#ef4444'}">${kpi.diem_tong>=nguongDat?'✅ Đạt KPI':'❌ Chưa đạt KPI'}</div>
       </div>
-      <div class="stat-card"><div class="stat-label">📈 Nhóm A — Kết quả (max 72đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom1}<span style="font-size:14px">/72</span></div><div class="stat-sub">DS: ${usd(kpi.doanh_thu_total)} · ${kpi.so_orders} đơn</div></div>
-      <div class="stat-card"><div class="stat-label">🔄 Nhóm B — Hoạt động (max 40đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom2}<span style="font-size:14px">/40</span></div><div class="stat-sub">Talktime: ${kpi.talktime_phut||0}ph · Calls: ${kpi.total_calls_thang||0}</div></div>
-      <div class="stat-card"><div class="stat-label">📊 Win Rate</div><div class="stat-val" style="color:${winRate>=20?'var(--success)':'var(--warn)'}">${winRate!=null?winRate+'%':'—'}</div><div class="stat-sub">DS thực / Estimate · Chuẩn ≥20%</div></div>
+      <div class="stat-card"><div class="stat-label">📈 Nhóm A (max 72đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom1}<span style="font-size:14px">/72</span></div><div class="stat-sub">DS: ${usd(kpi.doanh_thu_total)} · ${kpi.so_orders} đơn</div></div>
+      <div class="stat-card"><div class="stat-label">🔄 Nhóm B (max 40đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom2}<span style="font-size:14px">/40</span></div><div class="stat-sub">Talktime: ${kpi.talktime_phut||0}ph · Calls: ${kpi.total_calls_thang||0}</div></div>
+      <div class="stat-card"><div class="stat-label">📊 Win Rate</div><div class="stat-val" style="color:${winRate>=20?'var(--success)':'var(--warn)'}">${winRate!=null?winRate+'%':'—'}</div><div class="stat-sub">Chuẩn ≥20% để xét tăng Level</div></div>
     </div>
     <div class="two-col" style="margin-top:16px">
       <div class="card">
@@ -2665,7 +2775,7 @@ async function renderKPI(){
         <div class="salary-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span class="salary-label" style="color:var(--text3)">Điểm Nhóm B</span><span class="salary-val" style="color:var(--accent)">${kpi.diem_nhom2}đ</span></div>
       </div>
     </div>
-    ${isMgrLocal?`<div style="text-align:right;margin-top:12px"><button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Chỉnh sửa KPI</button></div>`:''}`;
+    ${isMgrLocal?`<div style="text-align:right;margin-top:12px"><button class="btn-sm btn-primary" onclick="openKPIForm('${empId}')">✏️ Chỉnh sửa KPI</button></div>`:''}`;
 }
 
 async function saveKPINguong(thang){
