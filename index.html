@@ -988,26 +988,30 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
 <!-- MODAL: KPI form -->
 <div class="modal-bg" id="kpi-modal">
-  <div class="modal-box" style="max-width:600px;width:92vw">
+  <div class="modal-box" style="max-width:620px;width:92vw">
     <h3>📊 Nhập KPI tháng — <span id="kpi-modal-title"></span></h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div style="padding:8px 12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;font-size:11px;color:var(--text3);margin-bottom:14px">
+      Nhóm A tự tính từ đơn hàng · Nhóm B Manager nhập thủ công
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div class="kpi-section">
-        <div class="kpi-section-title">📈 Nhóm 2 — Quy trình bán hàng</div>
-        <div class="kpi-field"><label>Potential cold call/ngày <span>≥6: 10đ</span></label><input type="number" id="kf-potential" placeholder="6"/></div>
-        <div class="kpi-field"><label>Total call/ngày <span>Gate: &lt;40 × 3 lần = -5đ</span></label><input type="number" id="kf-total-call" placeholder="45"/></div>
-        <div class="kpi-field"><label>Tỷ lệ báo giá % <span>≥45%: 8đ</span></label><input type="number" id="kf-bao-gia" placeholder="45"/></div>
-        <div class="kpi-field"><label>Conversion rate % <span>≥35%: 10đ</span></label><input type="number" id="kf-conv" placeholder="35"/></div>
-        <div class="kpi-field"><label>Pipeline coverage × <span>≥2×: 7đ</span></label><input type="number" step="0.1" id="kf-pipeline" placeholder="2.0"/></div>
-        <div class="kpi-field"><label>Số lần vi phạm total call <span>Dưới 40 calls</span></label><input type="number" id="kf-vi-pham" placeholder="0"/></div>
+        <div class="kpi-section-title">📈 Nhóm A — Kết quả (tự tính)</div>
+        <div class="kpi-field" style="opacity:.6"><label>Doanh số thực thu <span>(DS/$23,500)×40, max 48đ</span></label><input type="number" disabled placeholder="Tự tính từ đơn hàng"/></div>
+        <div class="kpi-field" style="opacity:.6"><label>Số đơn chốt <span>(Đơn/5)×20, max 24đ</span></label><input type="number" disabled placeholder="Tự tính từ đơn hàng"/></div>
       </div>
       <div class="kpi-section">
-        <div class="kpi-section-title">🎯 Nhóm 3 — Kỷ luật & Hành vi</div>
-        <div class="kpi-field"><label>Talktime phút/ngày <span>≥120': 4đ</span></label><input type="number" id="kf-talktime" placeholder="120"/></div>
-        <div class="kpi-field"><label>Follow-up rate % <span>≥90%: 6đ</span></label><input type="number" id="kf-followup" placeholder="90"/></div>
-        <div class="kpi-field"><label>CRM data quality % <span>≥95%: 5đ</span></label><input type="number" id="kf-crm" placeholder="95"/></div>
+        <div class="kpi-section-title">🎯 Nhóm B — Hoạt động (nhập tay)</div>
+        <div class="kpi-field"><label>Potential tháng <span>(Tổng/88)×10, max 10đ</span></label><input type="number" id="kf-potential" placeholder="88"/></div>
+        <div class="kpi-field"><label>Báo giá hợp lệ (lượt) <span>(BG/18)×10, max 10đ</span></label><input type="number" id="kf-bao-gia" placeholder="18"/></div>
+        <div class="kpi-field"><label>Tổng Talktime (phút) <span>(Phút/2640)×10, max 10đ</span></label><input type="number" id="kf-talktime" placeholder="2640"/></div>
+        <div class="kpi-field"><label>Tổng cuộc gọi tháng <span>(Calls/3960)×5, max 5đ</span></label><input type="number" id="kf-total-calls" placeholder="3960"/></div>
+        <div class="kpi-field"><label>Điểm trừ CRM (0-5) <span>-1đ/lần vi phạm, max -5đ</span></label><input type="number" id="kf-crm-vipham" placeholder="0" min="0" max="5"/></div>
       </div>
     </div>
-    <div class="kpi-field"><label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Ghi chú</label><input type="text" id="kf-note" placeholder="Tuỳ chọn..." style="width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);font-family:'Be Vietnam Pro',sans-serif;outline:none"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="kpi-field"><label style="font-size:12px;color:var(--text2)">Estimate Revenue ($) <span style="font-size:10px;color:var(--text3)">Tổng DS báo giá — dùng tính Win Rate</span></label><input type="number" id="kf-estimate-rev" placeholder="0" style="width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);outline:none"/></div>
+      <div class="kpi-field"><label style="font-size:12px;color:var(--text2)">Ghi chú</label><input type="text" id="kf-note" placeholder="Tuỳ chọn..." style="width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);outline:none"/></div>
+    </div>
     <div class="mactions">
       <button class="btn-sm" onclick="closeModal('kpi-modal')">Huỷ</button>
       <button class="btn-sm btn-primary" onclick="saveKPI()">💾 Lưu & Tính điểm</button>
@@ -2509,42 +2513,51 @@ async function clearBonusOverride(){
 // ============================================================
 // KPI
 // ============================================================
-function calcKPIScore(data){
-  let d1=0,d2=0,d3=0;
-  // Nhóm 1 — từ orders (tự tính)
-  const pct=data.doanh_thu_total/TARGET_USD*100;
-  const veto=pct<70;
-  if(pct>=120)d1+=35;else if(pct>=100)d1+=30;else if(pct>=85)d1+=23;else if(pct>=70)d1+=15;
-  const orders=data.so_orders||0;
-  if(orders>=5)d1+=12;else if(orders===4)d1+=8;else if(orders===3)d1+=5;
-  const aov=data.aov||0;
-  if(aov>=4700)d1+=8;else if(aov>=3500)d1+=4;
-  // Nhóm 2
-  const pot=data.potential_ngay||0;
-  if(pot>=6)d2+=10;else if(pot>=4)d2+=6;
-  const bg=data.bao_gia_pct||0;
-  if(bg>=45)d2+=8;else if(bg>=35)d2+=5;else if(bg>=20)d2+=3;
-  const cv=data.conv_rate_pct||0;
-  if(cv>=35)d2+=10;else if(cv>=25)d2+=7;else if(cv>=15)d2+=4;
-  const pipe=data.pipeline_coverage||0;
-  if(pipe>=2)d2+=7;else if(pipe>=1.5)d2+=4;
-  if((data.total_call_vi_pham||0)>=3)d2-=5;
-  // Nhóm 3
-  const tt=data.talktime_phut||0;
-  if(tt>=120)d3+=4;else if(tt>=90)d3+=2;
-  const fu=data.followup_rate_pct||0;
-  if(fu>=90)d3+=6;else if(fu>=70)d3+=3;
-  const crm=data.crm_quality_pct||0;
-  if(crm>=95)d3+=5;else if(crm>=80)d3+=3;
+function calcKPIScore(data,nguongDat){
+  nguongDat=nguongDat||80;
+  // ── Nhóm A — Kết quả Doanh số (max 72đ, cap 120%) ────────────────
+  // 1. Doanh số thực thu: (DS / 23,500) × 40, max 120% = 48đ
+  const dsScore=Math.min((data.doanh_thu_total||0)/TARGET_USD*40, 48);
+  // 2. Số đơn: (Đơn / 5) × 20, max 120% = 24đ
+  const donScore=Math.min((data.so_orders||0)/5*20, 24);
+  const d1=dsScore+donScore;
 
-  let total=d1+d2+d3;
-  if(veto)total=Math.min(total,60);
+  // ── Nhóm B — Hoạt động & Quá trình (max 40đ, cap 100%) ──────────
+  // 3. Potential: (Tổng / 88) × 10, cap 100% = 10đ
+  const potScore=Math.min((data.potential_count||data.potential_month||0)/88*10, 10);
+  // 4. Báo giá hợp lệ: (Số BG / 18) × 10, cap 100% = 10đ
+  const bgScore=Math.min((data.bao_gia_count||data.so_bao_gia||0)/18*10, 10);
+  // 5. Talktime: (Tổng phút / 2640) × 10, cap 100% = 10đ
+  const ttScore=Math.min((data.talktime_phut||0)/2640*10, 10);
+  // 6. Total calls: (Tổng / 3960) × 5, cap 100% = 5đ
+  const callScore=Math.min((data.total_calls_thang||data.total_call_ngay||0)/3960*5, 5);
+  // 7. CRM: 5đ - điểm vi phạm (Manager nhập, tối đa trừ 5đ)
+  const crmScore=Math.max(0, 5-(data.crm_vi_pham_diem||0));
+  const d2=potScore+bgScore+ttScore+callScore+crmScore;
+
+  const total=Math.min(112, d1+d2); // max lý thuyết 112đ (nhóm A vượt cap)
+  const nguong=nguongDat;
   let xepLoai='Không đạt';
   if(total>=95)xepLoai='Xuất sắc';
   else if(total>=85)xepLoai='Tốt';
-  else if(total>=70)xepLoai='Đạt yêu cầu';
+  else if(total>=nguong)xepLoai='Đạt yêu cầu';
   else if(total>=55)xepLoai='Cần cải thiện';
-  return{d1:Math.max(0,d1),d2:Math.max(0,d2),d3:Math.max(0,d3),total:Math.max(0,total),veto,xepLoai};
+  return{
+    d1:Math.round(d1*10)/10,
+    d2:Math.round(d2*10)/10,
+    d3:0,
+    total:Math.round(total*10)/10,
+    dsScore:Math.round(dsScore*10)/10,
+    donScore:Math.round(donScore*10)/10,
+    potScore:Math.round(potScore*10)/10,
+    bgScore:Math.round(bgScore*10)/10,
+    ttScore:Math.round(ttScore*10)/10,
+    callScore:Math.round(callScore*10)/10,
+    crmScore:Math.round(crmScore*10)/10,
+    nguongDat:nguong,
+    xepLoai,
+    veto:false
+  };
 }
 
 function openKPIForm(){
@@ -2567,20 +2580,21 @@ async function saveKPI(){
   const kd={
     user_id:empId,thang,
     doanh_thu_total:dtTotal,so_orders:soOrders,aov,
-    potential_ngay:parseFloat(document.getElementById('kf-potential').value)||0,
-    total_call_ngay:parseFloat(document.getElementById('kf-total-call').value)||0,
-    bao_gia_pct:parseFloat(document.getElementById('kf-bao-gia').value)||0,
-    conv_rate_pct:parseFloat(document.getElementById('kf-conv').value)||0,
-    pipeline_coverage:parseFloat(document.getElementById('kf-pipeline').value)||0,
-    total_call_vi_pham:parseInt(document.getElementById('kf-vi-pham').value)||0,
+    potential_count:parseFloat(document.getElementById('kf-potential').value)||0,
+    bao_gia_count:parseInt(document.getElementById('kf-bao-gia').value)||0,
     talktime_phut:parseFloat(document.getElementById('kf-talktime').value)||0,
-    followup_rate_pct:parseFloat(document.getElementById('kf-followup').value)||0,
-    crm_quality_pct:parseFloat(document.getElementById('kf-crm').value)||0,
+    total_calls_thang:parseInt(document.getElementById('kf-total-calls').value)||0,
+    crm_vi_pham_diem:parseInt(document.getElementById('kf-crm-vipham').value)||0,
+    estimate_revenue:parseFloat(document.getElementById('kf-estimate-rev').value)||0,
     ghi_chu:document.getElementById('kf-note').value
   };
-  const score=calcKPIScore(kd);
-  kd.diem_nhom1=score.d1;kd.diem_nhom2=score.d2;kd.diem_nhom3=score.d3;
-  kd.diem_tong=score.total;kd.co_veto=score.veto;kd.xep_loai=score.xepLoai;
+  // Đọc ngưỡng xét duyệt tháng này từ kpi_settings
+  const {data:kpiSetting}=await sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle();
+  const nguongDat=kpiSetting?.nguong_dat||80;
+
+  const score=calcKPIScore(kd,nguongDat);
+  kd.diem_nhom1=score.d1;kd.diem_nhom2=score.d2;kd.diem_nhom3=0;
+  kd.diem_tong=score.total;kd.co_veto=false;kd.xep_loai=score.xepLoai;
 
   const {error}=await sb.from('kpi_monthly').upsert(kd,{onConflict:'user_id,thang'});
   if(error){toast('Lỗi: '+error.message,'error');return;}
@@ -2593,44 +2607,75 @@ async function renderKPI(){
   if(!empId)return;
   document.getElementById('kpi-month-label').textContent=`Tháng ${kpiMonth+1}/${kpiYear}`;
   const thang=monthStr(kpiYear,kpiMonth);
-  const {data:kpi}=await sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+
+  const [{data:kpi},{data:kpiSet}]=await Promise.all([
+    sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
+    sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle(),
+  ]);
+  const nguongDat=kpiSet?.nguong_dat||80;
+
+  // Win rate
+  const winRate=kpi&&kpi.estimate_revenue>0?Math.round(kpi.doanh_thu_total/kpi.estimate_revenue*100):null;
+
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
 
+  // Manager: show nguong_dat setting UI
+  const nguongUI=isMgrLocal?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:rgba(99,102,241,.08);border-radius:8px;border:1px solid rgba(99,102,241,.2)">
+    <span style="font-size:12px;color:var(--text2)">Ngưỡng xét duyệt tháng này:</span>
+    <input type="number" id="kpi-nguong-input" value="${nguongDat}" min="0" max="112" style="width:60px;background:var(--bg4);border:1px solid var(--border2);border-radius:5px;padding:3px 8px;color:var(--text);font-size:13px;text-align:center">
+    <span style="font-size:12px;color:var(--text3)">điểm</span>
+    <button class="btn-sm" style="font-size:11px;padding:3px 10px" onclick="saveKPINguong('${thang}')">💾 Lưu ngưỡng</button>
+  </div>`:'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Ngưỡng đạt tháng này: <strong>${nguongDat}đ</strong></div>';
+
   if(!kpi){
-    document.getElementById('kpi-display').innerHTML=`<div class="card"><div class="empty">Chưa có dữ liệu KPI tháng này<br><br><button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Nhập KPI ngay</button></div></div>`;
+    document.getElementById('kpi-display').innerHTML=nguongUI+`<div class="card"><div class="empty">Chưa có dữ liệu KPI tháng này<br><br>${isMgrLocal?'<button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Nhập KPI ngay</button>':''}</div></div>`;
     return;
   }
 
-  const scoreColor=kpi.diem_tong>=85?'var(--success)':kpi.diem_tong>=70?'var(--accent)':kpi.diem_tong>=55?'var(--warn)':'var(--danger)';
-  document.getElementById('kpi-display').innerHTML=`
+  const scoreColor=kpi.diem_tong>=nguongDat?'var(--success)':kpi.diem_tong>=(nguongDat*0.7)?'var(--warn)':'var(--danger)';
+
+  document.getElementById('kpi-display').innerHTML=nguongUI+`
     <div class="stat-grid">
       <div class="stat-card" style="text-align:center">
         <div class="stat-label">🎯 Tổng điểm KPI</div>
         <div class="stat-val" style="color:${scoreColor};font-size:40px">${kpi.diem_tong}</div>
-        <div class="stat-sub">${kpi.xep_loai}${kpi.co_veto?' ⚠️ VETO':''}</div>
+        <div class="stat-sub">${kpi.xep_loai} · Ngưỡng: ${nguongDat}đ</div>
+        <div style="margin-top:6px;font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block;background:${kpi.diem_tong>=nguongDat?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${kpi.diem_tong>=nguongDat?'#10b981':'#ef4444'}">${kpi.diem_tong>=nguongDat?'✅ Đạt KPI':'❌ Chưa đạt KPI'}</div>
       </div>
-      <div class="stat-card"><div class="stat-label">📈 Nhóm 1 — Kết quả</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom1}<span style="font-size:14px">/50</span></div><div class="stat-sub">DT: ${usd(kpi.doanh_thu_total)} · ${kpi.so_orders} orders</div></div>
-      <div class="stat-card"><div class="stat-label">🔄 Nhóm 2 — Quy trình</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom2}<span style="font-size:14px">/35</span></div><div class="stat-sub">Potential: ${kpi.potential_ngay}/ngày</div></div>
-      <div class="stat-card"><div class="stat-label">🎖 Nhóm 3 — Kỷ luật</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom3}<span style="font-size:14px">/15</span></div><div class="stat-sub">Talktime: ${kpi.talktime_phut}'/ngày</div></div>
+      <div class="stat-card"><div class="stat-label">📈 Nhóm A — Kết quả (max 72đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom1}<span style="font-size:14px">/72</span></div><div class="stat-sub">DS: ${usd(kpi.doanh_thu_total)} · ${kpi.so_orders} đơn</div></div>
+      <div class="stat-card"><div class="stat-label">🔄 Nhóm B — Hoạt động (max 40đ)</div><div class="stat-val" style="color:var(--accent)">${kpi.diem_nhom2}<span style="font-size:14px">/40</span></div><div class="stat-sub">Talktime: ${kpi.talktime_phut||0}ph · Calls: ${kpi.total_calls_thang||0}</div></div>
+      <div class="stat-card"><div class="stat-label">📊 Win Rate</div><div class="stat-val" style="color:${winRate>=20?'var(--success)':'var(--warn)'}">${winRate!=null?winRate+'%':'—'}</div><div class="stat-sub">DS thực / Estimate · Chuẩn ≥20%</div></div>
     </div>
     <div class="two-col" style="margin-top:16px">
       <div class="card">
-        <div class="card-title"><span class="dot"></span>Chi tiết Nhóm 2</div>
-        <div class="salary-row"><span class="salary-label">Potential cold call/ngày</span><span class="salary-val">${kpi.potential_ngay}</span></div>
-        <div class="salary-row"><span class="salary-label">Total call/ngày</span><span class="salary-val">${kpi.total_call_ngay}</span></div>
-        <div class="salary-row"><span class="salary-label">Tỷ lệ báo giá</span><span class="salary-val">${kpi.bao_gia_pct}%</span></div>
-        <div class="salary-row"><span class="salary-label">Conversion rate</span><span class="salary-val">${kpi.conv_rate_pct}%</span></div>
-        <div class="salary-row"><span class="salary-label">Pipeline coverage</span><span class="salary-val">${kpi.pipeline_coverage}×</span></div>
+        <div class="card-title"><span class="dot"></span>Chi tiết Nhóm A</div>
+        <div class="salary-row"><span class="salary-label">Doanh số thực thu</span><span class="salary-val">${usd(kpi.doanh_thu_total)}</span></div>
+        <div class="salary-row"><span class="salary-label">Số đơn chốt</span><span class="salary-val">${kpi.so_orders} đơn</span></div>
+        <div class="salary-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span class="salary-label" style="color:var(--text3)">Điểm Nhóm A</span><span class="salary-val" style="color:var(--accent)">${kpi.diem_nhom1}đ</span></div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>Chi tiết Nhóm 3</div>
-        <div class="salary-row"><span class="salary-label">Talktime</span><span class="salary-val">${kpi.talktime_phut} phút/ngày</span></div>
-        <div class="salary-row"><span class="salary-label">Follow-up rate</span><span class="salary-val">${kpi.followup_rate_pct}%</span></div>
-        <div class="salary-row"><span class="salary-label">CRM quality</span><span class="salary-val">${kpi.crm_quality_pct}%</span></div>
-        <div class="salary-row"><span class="salary-label">Vi phạm total call</span><span class="salary-val" style="color:${kpi.total_call_vi_pham>=3?'var(--danger)':'inherit'}">${kpi.total_call_vi_pham} lần${kpi.total_call_vi_pham>=3?' (-5đ)':''}</span></div>
+        <div class="card-title"><span class="dot"></span>Chi tiết Nhóm B</div>
+        <div class="salary-row"><span class="salary-label">Potential tháng</span><span class="salary-val">${kpi.potential_count||kpi.potential_month||0}</span></div>
+        <div class="salary-row"><span class="salary-label">Báo giá hợp lệ</span><span class="salary-val">${kpi.bao_gia_count||kpi.so_bao_gia||0} lượt</span></div>
+        <div class="salary-row"><span class="salary-label">Tổng Talktime</span><span class="salary-val">${kpi.talktime_phut||0} phút</span></div>
+        <div class="salary-row"><span class="salary-label">Tổng cuộc gọi</span><span class="salary-val">${kpi.total_calls_thang||0} cuộc</span></div>
+        <div class="salary-row"><span class="salary-label">Điểm trừ CRM</span><span class="salary-val" style="color:${(kpi.crm_vi_pham_diem||0)>0?'var(--danger)':'inherit'}">-${kpi.crm_vi_pham_diem||0}đ</span></div>
+        <div class="salary-row"><span class="salary-label">Estimate Revenue</span><span class="salary-val">${usd(kpi.estimate_revenue||0)}</span></div>
+        <div class="salary-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span class="salary-label" style="color:var(--text3)">Điểm Nhóm B</span><span class="salary-val" style="color:var(--accent)">${kpi.diem_nhom2}đ</span></div>
       </div>
-    </div>`;
+    </div>
+    ${isMgrLocal?`<div style="text-align:right;margin-top:12px"><button class="btn-sm btn-primary" onclick="openKPIForm()">✏️ Chỉnh sửa KPI</button></div>`:''}`;
 }
+
+async function saveKPINguong(thang){
+  const nguong=parseInt(document.getElementById('kpi-nguong-input').value)||80;
+  const {error}=await sb.from('kpi_settings').upsert({thang,nguong_dat:nguong,created_by:curProfile.id},{onConflict:'thang'});
+  if(error){toast('Lỗi: '+error.message,'error');return;}
+  toast(`Đã lưu ngưỡng ${nguong}đ cho tháng này`);
+  renderKPI();
+}
+
 function changeMonthKPI(d){kpiMonth+=d;if(kpiMonth>11){kpiMonth=0;kpiYear++;}if(kpiMonth<0){kpiMonth=11;kpiYear--;}renderKPI();}
 
 // ============================================================
@@ -2685,7 +2730,10 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const p3b=!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0);
 
   const kpi=kpiRes.data;
-  const p3c=(kpi&&kpi.diem_tong>=70)?500000:0;
+  // P3C: đọc ngưỡng từ kpi_settings tháng này, fallback 80
+  const {data:kpiSet}=await sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle();
+  const p3cNguong=kpiSet?.nguong_dat||80;
+  const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
 
   const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
