@@ -4963,7 +4963,7 @@ async function renderSaleDashboard(){
   const targetPotential=4*workDaysCur;
 
   // Fetch dữ liệu song song
-  const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes,dtRes]=await Promise.all([
+  const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes,dtRes,kpiSetRes]=await Promise.all([
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang),
@@ -4972,7 +4972,9 @@ async function renderSaleDashboard(){
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('daily_tracking').select('total_calls,talktime_phut,potential_calls,so_bao_gia')
       .eq('user_id',uid).gte('ngay',firstDay).lte('ngay',todayStr),
+    sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle(),
   ]);
+  const nguongKPI=kpiSetRes?.data?.nguong_dat||80;
 
   // Tổng hợp daily_tracking
   const dtRows=dtRes.data||[];
@@ -5093,28 +5095,47 @@ async function renderSaleDashboard(){
     </div>
     <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:20px">
       <div style="font-weight:700;font-size:14px;margin-bottom:16px">🎯 KPI điểm chi tiết</div>
-      <div style="display:flex;align-items:center;gap:20px">
+      <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px">
         <div style="position:relative;width:90px;height:90px;flex-shrink:0">
           <svg viewBox="0 0 36 36" style="width:90px;height:90px;transform:rotate(-90deg)">
             <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg3)" stroke-width="3"/>
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="${(kpi.diem_tong||0)>=70?'#10b981':'#f59e0b'}" stroke-width="3"
-              stroke-dasharray="${Math.min(100,kpi.diem_tong||0)} 100" stroke-linecap="round"/>
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="${(kpi.diem_tong||0)>=nguongKPI?'#10b981':'#f59e0b'}" stroke-width="3"
+              stroke-dasharray="${Math.min(100,(kpi.diem_tong||0)/112*100)} 100" stroke-linecap="round"/>
           </svg>
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <div style="font-size:18px;font-weight:700;color:${(kpi.diem_tong||0)>=70?'#10b981':'#f59e0b'}">${(kpi.diem_tong||0).toFixed(0)}</div>
-            <div style="font-size:9px;color:var(--text3)">/ 100</div>
+            <div style="font-size:18px;font-weight:700;color:${(kpi.diem_tong||0)>=nguongKPI?'#10b981':'#f59e0b'}">${(kpi.diem_tong||0).toFixed(0)}</div>
+            <div style="font-size:9px;color:var(--text3)">/ 112</div>
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-          ${[['Nhóm 1',kpi.diem_nhom1||0,'#6d28d9'],['Nhóm 2',kpi.diem_nhom2||0,'#0ea5e9'],['Nhóm 3',kpi.diem_nhom3||0,'#10b981']].map(([g,v,c])=>`
+          ${[['Nhóm A — Kết quả',kpi.diem_nhom1||0,72,'#6d28d9'],['Nhóm B — Hoạt động',kpi.diem_nhom2||0,40,'#0ea5e9']].map(([g,v,max,c])=>`
           <div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-              <span style="color:var(--text2)">${g}</span><span style="color:${c};font-weight:600">${v.toFixed(0)}</span>
+              <span style="color:var(--text2)">${g}</span><span style="color:${c};font-weight:600">${v.toFixed(0)}/${max}</span>
             </div>
             <div style="height:5px;background:var(--bg3);border-radius:3px">
-              <div style="height:100%;width:${Math.min(100,v)}%;background:${c};border-radius:3px"></div>
+              <div style="height:100%;width:${Math.min(100,v/max*100)}%;background:${c};border-radius:3px"></div>
             </div>
           </div>`).join('')}
+          <div style="font-size:11px;color:${(kpi.diem_tong||0)>=nguongKPI?'#10b981':'#f59e0b'};margin-top:2px">
+            ${(kpi.diem_tong||0)>=nguongKPI?'✅ Đạt KPI':'❌ Chưa đạt KPI'} · Ngưỡng: ${nguongKPI}đ
+          </div>
+        </div>
+      </div>
+      <!-- Chi tiết từng chỉ số -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-weight:700;color:#6d28d9;margin-bottom:6px">📈 Nhóm A — Kết quả</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--text3)">Doanh số ($${(kpi.doanh_thu_total||0).toLocaleString()})</span><span style="color:#6d28d9">${((kpi.diem_nhom1||0)-Math.min(24,(kpi.so_orders||0)/5*24)).toFixed(1)}đ</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Số đơn (${kpi.so_orders||0} đơn)</span><span style="color:#6d28d9">${Math.min(24,(kpi.so_orders||0)/5*20).toFixed(1)}đ</span></div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-weight:700;color:#0ea5e9;margin-bottom:6px">🔄 Nhóm B — Hoạt động</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="color:var(--text3)">Potential (${kpi.potential_count||kpi.potential_month||0})</span><span style="color:#0ea5e9">${Math.min(10,(kpi.potential_count||kpi.potential_month||0)/88*10).toFixed(1)}đ</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="color:var(--text3)">Báo giá (${kpi.bao_gia_count||kpi.so_bao_gia||0} lượt)</span><span style="color:#0ea5e9">${Math.min(10,(kpi.bao_gia_count||kpi.so_bao_gia||0)/18*10).toFixed(1)}đ</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="color:var(--text3)">Talktime (${(kpi.talktime_phut||0).toLocaleString()}ph)</span><span style="color:#0ea5e9">${Math.min(10,(kpi.talktime_phut||0)/2640*10).toFixed(1)}đ</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="color:var(--text3)">Calls (${(kpi.total_calls_thang||0).toLocaleString()})</span><span style="color:#0ea5e9">${Math.min(5,(kpi.total_calls_thang||0)/3960*5).toFixed(1)}đ</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">CRM vi phạm</span><span style="color:${(kpi.crm_vi_pham_diem||0)>0?'#ef4444':'#0ea5e9'}">-${kpi.crm_vi_pham_diem||0}đ</span></div>
         </div>
       </div>
     </div>
