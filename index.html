@@ -2918,8 +2918,18 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const prevThang=monthStr(prevYear,prevMonth);
     const prevTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
 
-    // Đọc salary_monthly tháng trước
-    const {data:prevSal}=await sb.from('salary_monthly')
+    // ── Chặn Backup Bonus xuyên mốc đổi người dùng chung account ──────
+    // Khi 1 account (employee_code) được tái sử dụng cho nhân viên mới
+    // (người cũ nghỉ việc, người mới vào dùng lại login), start_date trên
+    // profile được cập nhật thành ngày người mới bắt đầu. Nếu start_date
+    // rơi vào đúng tháng đang tính lương (thang) → tháng trước (prevThang)
+    // là dữ liệu/hiệu suất của người cũ, KHÔNG được dùng để hoàn backup
+    // bonus cho người mới. Chặn tại đây trước khi đọc salary_monthly tháng trước.
+    const startMonthStr=emp.start_date?String(emp.start_date).slice(0,7):null;
+    const isNewOccupantThisMonth=startMonthStr===thang;
+
+    // Đọc salary_monthly tháng trước (bỏ qua nếu vừa đổi người trong tháng này)
+    const {data:prevSal}=isNewOccupantThisMonth?{data:null}:await sb.from('salary_monthly')
       .select('p3a_total_usd,p3a_ty_le_dat')
       .eq('user_id',empId).eq('thang',prevThang).maybeSingle();
 
