@@ -2912,8 +2912,13 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     // Giá gốc giường trong đơn này
     const gbgDon=headspaItems.filter(i=>i.order_id===o.id)
       .reduce((ss,i)=>ss+(i.gia_ban_goc||0)*(i.so_luong||1),0);
-    // Chênh lệch sale trong đơn này (từ order_items.chenh_sale)
-    const clDon=items.filter(i=>i.order_id===o.id&&!i.la_bolsa)
+    // Chênh lệch sale trong đơn này (từ order_items.chenh_sale) — TẤT CẢ item
+    // (kể cả giường). Không được loại giường ở đây: gbgDon chỉ trừ phần
+    // gia_ban_goc của giường, nếu không trừ luôn chenh_sale của giường thì
+    // phần markup (gia_ban_thuc - gia_ban_goc) của giường vẫn sót lại trong
+    // netRev, trong khi Bonus Giường đã được cộng riêng ở bolsaHeadspaBonus
+    // → double-count doanh số giường.
+    const clDon=items.filter(i=>i.order_id===o.id)
       .reduce((ss,i)=>ss+(i.chenh_sale!=null?i.chenh_sale*(i.so_luong||1):0),0);
     const netRev=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
     // Ưu tiên override, fallback về auto
