@@ -1965,7 +1965,9 @@ async function exportOrdersExcel(){
     {header:'Ngày đơn',        key:'order_date',        width:13},
     {header:'Tháng Bonus',     key:'billing_month',     width:13},
     {header:'Doanh số ($)',    key:'total_amount',       width:14},
+    {header:'Số giường',       key:'so_giuong',          width:11},
     {header:'Chênh lệch ($)',  key:'chenh_lech_sale',   width:14},
+    {header:'Bonus DS trừ giường ($)', key:'bonus_ds_tru_giuong', width:18},
     {header:'Bonus CL ($)',    key:'bonus_chenh_lech',  width:14},
     {header:'Bonus giường ($)',key:'bonus_giuong',       width:15},
     {header:'Truy thu ($)',    key:'truy_thu_usd',       width:13},
@@ -1976,7 +1978,7 @@ async function exportOrdersExcel(){
   ];
 
   // AutoFilter trên header — cho phép lọc từng cột
-  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:14}};
+  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:16}};
 
   // ── Style constants ──
   const RED_DARK='FF9B1C1C';   // đỏ đậm header/total
@@ -1994,8 +1996,8 @@ async function exportOrdersExcel(){
     cell.border=BORDER_FULL;
   });
 
-  // Money columns by index (1-based)
-  const moneyCols=[6,7,8,9,10,12,13];
+  // Money columns by index (1-based) — đã dời do thêm 2 cột mới (Số giường, Bonus DS trừ giường)
+  const moneyCols=[6,8,9,10,11,12,14,15];
 
   // ── Data rows ──
   list.forEach((o,idx)=>{
@@ -2020,7 +2022,9 @@ async function exportOrdersExcel(){
       order_date:    o.order_date||'',
       billing_month: o.billing_month||'',
       total_amount:  o.total_amount||0,
+      so_giuong:     soGiuongMap[o.id]||0,
       chenh_lech_sale: chenhSale,
+      bonus_ds_tru_giuong: netRev*0.01,
       bonus_chenh_lech: bonusChenh,
       bonus_giuong:  bonusGiuong,
       truy_thu_usd:  truyThu,
@@ -2036,14 +2040,15 @@ async function exportOrdersExcel(){
       cell.border={top:BORDER_THIN,left:BORDER_THIN,bottom:BORDER_THIN,right:BORDER_THIN};
       if(isEven)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF5F5'}};
       if(moneyCols.includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
+      if(colNum===7){cell.alignment={horizontal:'center'};} // Số giường
       // Target column
-      if(colNum===11){
+      if(colNum===13){
         cell.alignment={horizontal:'center'};
         cell.font={size:10.5,name:'Calibri',bold:true,
           color:{argb:datTargetSale?'FF15803D':'FFB45309'}};
       }
       // Trạng thái column
-      if(colNum===14){
+      if(colNum===16){
         cell.alignment={horizontal:'center'};
         cell.font={size:10.5,name:'Calibri',bold:true,
           color:{argb:tatToan?'FF15803D':'FFB45309'}};
@@ -2053,12 +2058,15 @@ async function exportOrdersExcel(){
 
   // ── Dòng tổng — đỏ đậm, chữ trắng ──
   const totDoanhSo=list.reduce((s,o)=>s+(o.total_amount||0),0);
+  const totSoGiuong=list.reduce((s,o)=>s+(soGiuongMap[o.id]||0),0);
   const totChenh=list.reduce((s,o)=>s+(chenhSaleMap[o.id]||0),0);
   const totBonusCL=list.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
   const totBonusGiuong=list.reduce((s,o)=>s+calcHeadspaBedBonusForOrder(soGiuongMap[o.id]||0),0);
   const totTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const totBalance=list.reduce((s,o)=>s+(o.balance_due||0),0);
-  const totNetRev=Math.max(0,totDoanhSo-totChenh-list.reduce((s,o)=>s+(giaBanGocGiuongMap[o.id]||0),0));
+  const totGiaBanGocGiuong=list.reduce((s,o)=>s+(giaBanGocGiuongMap[o.id]||0),0);
+  const totNetRev=Math.max(0,totDoanhSo-totChenh-totGiaBanGocGiuong);
+  const totBonusDsTruGiuong=totNetRev*0.01;
   // Dòng tổng: cộng Total Bonus từng đơn đã tính per-sale (không dùng tyLe chung)
   // Lưu lại totalBonus từng đơn trong mảng để tổng hợp
   const totBonus=Math.max(0,list.reduce((s,o)=>{
@@ -2074,7 +2082,9 @@ async function exportOrdersExcel(){
   const totalRow=ws.addRow({
     invoice_no:'TOTAL',
     total_amount:totDoanhSo,
+    so_giuong:totSoGiuong,
     chenh_lech_sale:totChenh,
+    bonus_ds_tru_giuong:totBonusDsTruGiuong,
     bonus_chenh_lech:totBonusCL,
     bonus_giuong:totBonusGiuong,
     truy_thu_usd:totTruyThu,
@@ -2088,7 +2098,7 @@ async function exportOrdersExcel(){
     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED_DARK}};
     cell.border={top:{style:'double',color:{argb:RED_DARK}},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
     if(moneyCols.includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
-    if(colNum===11||colNum===14){cell.alignment={horizontal:'center'};}
+    if(colNum===7||colNum===13||colNum===16){cell.alignment={horizontal:'center'};}
   });
 
   const buf=await wb.xlsx.writeBuffer();
