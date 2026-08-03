@@ -1830,21 +1830,34 @@ async function saveDay(){
   const co=document.getElementById('dm-co').value;
   const note=document.getElementById('dm-note').value;
   const isWD=st==='WD';
-  // Convert HH:MM → full ISO timestamp với ngày ds
+  // Convert HH:MM (giờ VN, người dùng nhập) → timestamp UTC THẬT.
+  // Toàn hệ thống (fmtTime, calcDayLogic) đọc checkin/checkout_time bằng cách
+  // cộng +7h để ra giờ VN — nghĩa là giá trị lưu trong DB PHẢI là UTC thật
+  // (giờ VN trừ 7h), giống hệt timestamp do self check-in sinh ra.
+  // (Bản cũ lưu thẳng số giờ VN dưới nhãn giả +00:00 → bị hệ thống cộng nhầm
+  // thêm 7h khi hiển thị/tính công. Đã sửa tại đây.)
+  function vnToUtcParts(ds,hhmm){
+    const [h,m]=hhmm.split(':').map(Number);
+    // ds 12:00 giờ VN dùng làm mốc trung tính để cộng/trừ giờ không lệch ngày do DST/edge-case
+    const base=new Date(ds+'T12:00:00Z'); // 12:00 UTC ds — dùng làm neo ngày
+    const utcDate=new Date(base);
+    utcDate.setUTCHours(h-7,m,0,0); // giờ VN - 7h = UTC thật
+    return utcDate;
+  }
   function toISO(ds,hhmm){
     if(!hhmm)return null;
     // hhmm = "22:01", ds = "2026-05-14"
-    // Ca đêm: checkin 22:xx thuộc ngày ds, checkout 06:xx thuộc ngày ds+1
-    const [h,m]=hhmm.split(':').map(Number);
-    const coDate=new Date(ds+'T12:00:00');
-    if(h<14)coDate.setDate(coDate.getDate()+1); // checkout sáng hôm sau
-    const y=coDate.getFullYear(),mo=String(coDate.getMonth()+1).padStart(2,'0'),d=String(coDate.getDate()).padStart(2,'0');
-    return `${y}-${mo}-${d}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+00:00`;
+    // Ca đêm: checkout giờ VN sáng hôm sau (VD 06:05) khi trừ 7h ra UTC thật
+    // vẫn rơi vào ngày ds (ngày checkin) — KHÔNG cộng thêm ngày như bản cũ.
+    const utcDate=vnToUtcParts(ds,hhmm);
+    const y=utcDate.getUTCFullYear(),mo=String(utcDate.getUTCMonth()+1).padStart(2,'0'),d=String(utcDate.getUTCDate()).padStart(2,'0');
+    return `${y}-${mo}-${d}T${String(utcDate.getUTCHours()).padStart(2,'0')}:${String(utcDate.getUTCMinutes()).padStart(2,'0')}:00+00:00`;
   }
   function toISOCheckin(ds,hhmm){
     if(!hhmm)return null;
-    const [h,m]=hhmm.split(':').map(Number);
-    return `${ds}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+00:00`;
+    const utcDate=vnToUtcParts(ds,hhmm);
+    const y=utcDate.getUTCFullYear(),mo=String(utcDate.getUTCMonth()+1).padStart(2,'0'),d=String(utcDate.getUTCDate()).padStart(2,'0');
+    return `${y}-${mo}-${d}T${String(utcDate.getUTCHours()).padStart(2,'0')}:${String(utcDate.getUTCMinutes()).padStart(2,'0')}:00+00:00`;
   }
   const payload={
     user_id:empId, date:ds, status:st,
