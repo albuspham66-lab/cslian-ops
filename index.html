@@ -759,6 +759,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <button class="doc-cat-btn" onclick="filterDocs('san-pham')" data-cat="san-pham" style="--cat-color:#0ea5e9">📦 Sản phẩm</button>
         <button class="doc-cat-btn" onclick="filterDocs('training')" data-cat="training" style="--cat-color:#10b981">🎓 Training</button>
         <button class="doc-cat-btn" onclick="filterDocs('chinh-sach')" data-cat="chinh-sach" style="--cat-color:#f59e0b">📜 Chính sách</button>
+        <button class="doc-cat-btn" onclick="filterDocs('ung-dung')" data-cat="ung-dung" style="--cat-color:#ec4899">🧩 Ứng dụng</button>
       </div>
       <!-- Main layout: list + preview -->
       <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;height:calc(100vh - 220px)">
@@ -808,6 +809,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
               <option value="san-pham">📦 Sản phẩm</option>
               <option value="training">🎓 Training</option>
               <option value="chinh-sach">📜 Chính sách</option>
+              <option value="ung-dung">🧩 Ứng dụng</option>
             </select>
           </div>
           <div>
@@ -5407,6 +5409,7 @@ function renderDocList(){
     'san-pham':{icon:'📦',color:'#0ea5e9',label:'Sản phẩm'},
     'training':{icon:'🎓',color:'#10b981',label:'Training'},
     'chinh-sach':{icon:'📜',color:'#f59e0b',label:'Chính sách'},
+    'ung-dung':{icon:'🧩',color:'#ec4899',label:'Ứng dụng'},
   };
   const list=document.getElementById('docs-list');
   if(!list)return;
@@ -5430,7 +5433,7 @@ function renderDocList(){
   }).join('');
 }
 
-var CAT_COLORS={'':'#6366f1','quy-trinh':'#6d28d9','san-pham':'#0ea5e9','training':'#10b981','chinh-sach':'#f59e0b'};
+var CAT_COLORS={'':'#6366f1','quy-trinh':'#6d28d9','san-pham':'#0ea5e9','training':'#10b981','chinh-sach':'#f59e0b','ung-dung':'#ec4899'};
 function filterDocs(cat){
   _currentDocCat=cat;
   document.querySelectorAll('.doc-cat-btn').forEach(function(b){
@@ -5469,7 +5472,7 @@ function previewDoc(id){
   iframe.style.display='none';
   placeholder.style.display='flex';
 
-  const catIcons={'quy-trinh':'📋','san-pham':'📦','training':'🎓','chinh-sach':'📜'};
+  const catIcons={'quy-trinh':'📋','san-pham':'📦','training':'🎓','chinh-sach':'📜','ung-dung':'🧩'};
   const icon=catIcons[doc.category]||'📄';
   placeholder.innerHTML=`<div style="text-align:center;padding:32px 20px">
     <div style="font-size:64px;margin-bottom:16px">${icon}</div>
