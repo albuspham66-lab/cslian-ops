@@ -5558,8 +5558,8 @@ function renderUnitConv(){
   if(isNaN(val)||!group.units[fromKey]){resultsEl.innerHTML='';return;}
   const baseVal=val*group.units[fromKey].factor;
   resultsEl.innerHTML=Object.keys(group.units).filter(function(k){return k!==fromKey;}).map(function(k){
-    const out=baseVal/group.units[k].factor;
-    const outFmt=out>=1000?out.toLocaleString('vi-VN',{maximumFractionDigits:2}):out.toLocaleString('vi-VN',{maximumFractionDigits:4});
+    const out=Math.round((baseVal/group.units[k].factor)*100)/100;
+    const outFmt=out.toLocaleString('vi-VN',{minimumFractionDigits:0,maximumFractionDigits:2});
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-radius:8px">
       <span style="font-size:13px;color:var(--text2)">${group.units[k].label}</span>
       <span style="font-size:15px;font-weight:700;color:var(--text)">${outFmt}</span>
