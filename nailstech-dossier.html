@@ -629,7 +629,8 @@ function toast(msg, type){
   el.className = 'toast ' + type;
   el.textContent = msg;
   wrap.appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),260); }, 3200);
+  const duration = type === 'err' ? 7000 : (type === 'info' ? 5000 : 3200);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),260); }, duration);
 }
 
 function escapeHtml(s){
@@ -1102,6 +1103,8 @@ function exportJSON(){
     uploadToDrive(filename, 'application/json', blob)
       .then(() => toast('Đã lưu JSON lên Google Drive', 'ok'))
       .catch(e => toast('Lỗi lưu Drive: ' + e.message, 'err'));
+  } else if (state.driveClientId){
+    toast('Phiên kết nối Google Drive đã hết hạn (mất khi tải lại trang) — mở "☁ Google Drive" và bấm Kết nối lại nếu muốn lưu file này lên Drive.', 'info');
   }
 }
 function importJSON(file){
@@ -1188,21 +1191,39 @@ function disconnectDrive(){
   toast('Đã ngắt kết nối Google Drive', 'info');
 }
 
-async function uploadToDrive(filename, mimeType, blob){
-  if (!driveConnected()) throw new Error('Chưa kết nối Google Drive');
+async function driveUploadRaw(filename, mimeType, blob, withParent){
   const metadata = { name: filename, mimeType };
-  if (state.driveFolderId) metadata.parents = [state.driveFolderId];
+  if (withParent && state.driveFolderId) metadata.parents = [state.driveFolderId];
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
   form.append('file', blob);
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+  return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,parents', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + driveAccessToken },
     body: form,
   });
+}
+
+async function uploadToDrive(filename, mimeType, blob){
+  if (!driveConnected()) throw new Error('Chưa kết nối Google Drive');
+
+  let res = await driveUploadRaw(filename, mimeType, blob, true);
+
+  if (!res.ok && state.driveFolderId){
+    // Most common cause: the folder ID wasn't created/opened by this app, so the
+    // drive.file scope doesn't grant write access into it. Retry at My Drive root.
+    const retryRes = await driveUploadRaw(filename, mimeType, blob, false);
+    if (retryRes.ok){
+      toast('Không có quyền ghi vào thư mục Drive đã chỉ định (thư mục phải do chính app tạo). Đã lưu vào thư mục gốc "My Drive" thay thế.', 'info');
+      return retryRes.json();
+    }
+    const txt = await retryRes.text();
+    throw new Error('Lỗi tải lên Drive (HTTP ' + retryRes.status + '): ' + txt.slice(0,300));
+  }
+
   if (!res.ok){
     const txt = await res.text();
-    throw new Error('Lỗi tải lên Drive (HTTP ' + res.status + '): ' + txt.slice(0,200));
+    throw new Error('Lỗi tải lên Drive (HTTP ' + res.status + '): ' + txt.slice(0,300));
   }
   return res.json();
 }
@@ -1280,6 +1301,8 @@ async function handleExportPdf(){
       }catch(e){
         toast('Lỗi lưu Drive: ' + e.message, 'err');
       }
+    } else if (state.driveClientId){
+      toast('Phiên kết nối Google Drive đã hết hạn (mất khi tải lại trang) — mở "☁ Google Drive" và bấm Kết nối lại nếu muốn lưu file này lên Drive.', 'info');
     }
   }catch(e){
     console.error(e);
