@@ -2937,7 +2937,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // dạng 1 dòng "Điều chỉnh thử việc" trừ vào TỔNG, không trừ riêng từng dòng.
   const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong);
   const congRatio=ngayCong/CONG_CHUAN;
-  const p2a=Math.round(704550*congRatio); // P2A — trước đây 500,000
+  const p2a=Math.round(504550*congRatio); // P2A — Phụ cấp ăn giữa ca (trước đây gộp chung 704,550 với đi lại)
+  const p3d=Math.round(200000*congRatio); // P3D — Phụ cấp đi lại/xăng xe (tách riêng từ P2A)
   const p2b=Math.round(1593000*congRatio); // P2B — Tiền lương ca đêm, trước đây 1,240,000
   const p2c=P2C_MAP[emp.lever||1]||0;
   // Công < 50% công chuẩn → không hưởng chuyên cần, bất kể số lần trễ
@@ -2950,9 +2951,9 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const p3cNguong=kpiSet?.nguong_dat||80;
   const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
 
-  // Điều chỉnh thử việc: 15% của (P1+P2A+P2B+P2C+P3B+P3C) — trừ 1 lần vào
-  // tổng, KHÔNG trừ riêng từng dòng. Bằng 0 nếu là nhân viên chính thức.
-  const subtotalP1P2P3B=p1+p2a+p2b+p2c+p3b+p3c;
+  // Điều chỉnh thử việc: 15% của (P1+P2A+P2B+P2C+P3B+P3C+P3D) — trừ 1 lần
+  // vào tổng, KHÔNG trừ riêng từng dòng. Bằng 0 nếu là nhân viên chính thức.
+  const subtotalP1P2P3B=p1+p2a+p2b+p2c+p3b+p3c+p3d;
   const dieuChinhThuViec=heCoP1<1?Math.round(subtotalP1P2P3B*(1-heCoP1)):0;
 
   const ords=ords0;
@@ -3070,7 +3071,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   }catch(e){console.warn('[backup bonus]',e.message);}
 
   const backupBonusVnd=Math.round(backupBonusUsd*TY_GIA);
-  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c-dieuChinhThuViec+p3aVnd+backupBonusVnd;
+  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d-dieuChinhThuViec+p3aVnd+backupBonusVnd;
 
   // ── BHXH & Thuế TNCN ──────────────────────────────────────────────
   const bhxhVnd=calcBHXH(p1,isProbation);
@@ -3080,7 +3081,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   return {user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
     so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,
-    p1_he_so:heCoP1,p1_thuc_te:p1,p2a,p2b,p2c,p3b_chuyen_can:p3b,p3c_kpi:p3c,
+    p1_he_so:heCoP1,p1_thuc_te:p1,p2a,p2b,p2c,p3b_chuyen_can:p3b,p3c_kpi:p3c,p3d_di_lai:p3d,
     dieu_chinh_thu_viec_vnd:dieuChinhThuViec,
     p3a_bolsa_usd:bolsaHeadspaBonus,p3a_bolsa_headspa_usd:bolsaHeadspaBonus,
     p3a_bolsa_other_usd:0,p3a_ons_tspa_usd:0,
@@ -3214,7 +3215,8 @@ async function viewSalaryDetail(empId,thang){
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.full_name} · Tháng ${thang} · ${sal.p1_he_so===0.85?'Thử việc':'Chính thức'} ${sal.is_locked?'· 🔒 Đã chốt':''}</div>
       <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày)</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
+      <div class="salary-row"><span class="salary-label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p3d_di_lai)}</span></div>
       <div class="salary-row"><span class="salary-label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
       <div class="salary-row"><span class="salary-label">P2C — Năng lực Level ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
       <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
@@ -3224,7 +3226,7 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
       ${(sal.backup_bonus_usd>0)?`<div class="salary-row" style="background:rgba(16,185,129,0.08);border-radius:8px;padding:4px 8px"><span class="salary-label" style="color:#10b981">🔄 Backup Bonus tháng trước (${usd(sal.backup_bonus_usd)})</span><span class="salary-val" style="color:#10b981">${vnd((sal.backup_bonus_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
-      ${(sal.dieu_chinh_thu_viec_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.dieu_chinh_thu_viec_vnd)}</span></div>`:''}
+      ${(sal.dieu_chinh_thu_viec_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.dieu_chinh_thu_viec_vnd)}</span></div>`:''}
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
     </div>
     <div style="margin-top:12px"><button class="btn-sm btn-ghost" onclick="renderSalary()">← Quay lại danh sách</button></div>`;
@@ -3269,10 +3271,11 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-section-title">A — Lương cơ bản & Phụ cấp</div>
       <table class="pl-table">
         <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày)</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
-        <tr><td class="label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
+        <tr><td class="label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
+        <tr><td class="label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P3D</td><td class="amount">${vndFmt(sal.p3d_di_lai)}</td></tr>
         <tr><td class="label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
         <tr><td class="label">P2C — Phụ cấp năng lực (Level ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
-        <tr class="subtotal"><td class="label">Tổng P1+P2 (100%)</td><td class="formula">ΣP1P2</td><td class="amount">${vndFmt((sal.p1_thuc_te||0)+(sal.p2a||0)+(sal.p2b||0)+(sal.p2c||0))}</td></tr>
+        <tr class="subtotal"><td class="label">Tổng P1+P2 (100%)</td><td class="formula">ΣP1P2</td><td class="amount">${vndFmt((sal.p1_thuc_te||0)+(sal.p2a||0)+(sal.p3d_di_lai||0)+(sal.p2b||0)+(sal.p2c||0))}</td></tr>
       </table>
     </div>
 
@@ -3292,7 +3295,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
     <div class="pl-section">
       <div class="pl-section-title">C — Tổng hợp</div>
       <table class="pl-table">
-        ${sal.dieu_chinh_thu_viec_vnd>0?`<tr><td class="label">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C)</td><td class="formula">−15%</td><td class="amount" style="color:#c0392b">−${vndFmt(sal.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
+        ${sal.dieu_chinh_thu_viec_vnd>0?`<tr><td class="label">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</td><td class="formula">−15%</td><td class="amount" style="color:#c0392b">−${vndFmt(sal.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
         <tr class="subtotal"><td class="label">TỔNG LƯƠNG (GROSS)</td><td class="formula">P1+P2+P3</td><td class="amount" style="font-size:13px">${vndFmt(sal.tong_luong_vnd)}</td></tr>
         <tr><td class="label">BHXH/BHYT/BHTN (8%+1.5%+1%, trên P1)${sal.p1_he_so===0.85?' — thử việc: không đóng':''}</td><td class="formula">−10.5%×P1</td><td class="amount" style="color:#c0392b">${sal.bhxh_vnd?'−'+vndFmt(sal.bhxh_vnd):vndFmt(0)}</td></tr>
         <tr><td class="label">Thuế TNCN${sal.p1_he_so===0.85?' (khấu trừ 10% — HĐ thử việc <3 tháng)':` (biểu lũy tiến, GT gia cảnh: bản thân 15.5tr${sal.so_nguoi_phu_thuoc_snapshot?` + ${sal.so_nguoi_phu_thuoc_snapshot} người phụ thuộc×6.2tr`:''})`}</td><td class="formula">−Thuế</td><td class="amount" style="color:#c0392b">${sal.thue_tncn_vnd?'−'+vndFmt(sal.thue_tncn_vnd):vndFmt(0)}</td></tr>
