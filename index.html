@@ -1065,7 +1065,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div class="mrow"><label>Điểm tháng 1</label><input type="number" step="0.1" id="rm-d1" placeholder="0"/></div>
     <div class="mrow"><label>Điểm tháng 2</label><input type="number" step="0.1" id="rm-d2" placeholder="0"/></div>
     <div class="mrow"><label>Điểm tháng 3</label><input type="number" step="0.1" id="rm-d3" placeholder="0"/></div>
-    <div class="mrow"><label>Lever hiện tại</label><select id="rm-lever-cu"><option value="1">Lever 1</option><option value="2">Lever 2</option><option value="3">Lever 3</option><option value="4">Lever 4</option><option value="5">Lever 5</option></select></div>
+    <div class="mrow"><label>Level hiện tại</label><select id="rm-lever-cu"><option value="1">Level 1</option><option value="2">Level 2</option><option value="3">Level 3</option><option value="4">Level 4</option><option value="5">Level 5</option></select></div>
     <div class="mrow"><label>Ghi chú</label><input type="text" id="rm-note" placeholder="Tuỳ chọn..." style="flex:1"/></div>
     <div class="mactions">
       <button class="btn-sm" onclick="closeModal('review-modal')">Huỷ</button>
@@ -1178,13 +1178,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <option value="manager">Manager</option>
         </select>
       </div>
-      <div class="form-f"><label>Lever</label>
+      <div class="form-f"><label>Level</label>
         <select id="ae-lever">
-          <option value="1">Lever 1</option>
-          <option value="2">Lever 2</option>
-          <option value="3">Lever 3</option>
-          <option value="4">Lever 4</option>
-          <option value="5">Lever 5</option>
+          <option value="1">Level 1</option>
+          <option value="2">Level 2</option>
+          <option value="3">Level 3</option>
+          <option value="4">Level 4</option>
+          <option value="5">Level 5</option>
         </select>
       </div>
       <div class="form-f"><label>Ngày bắt đầu</label><input type="date" id="ae-start-date"/></div>
@@ -1229,13 +1229,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <option value="manager">Manager</option>
         </select>
       </div>
-      <div class="form-f"><label>Lever hiện tại</label>
+      <div class="form-f"><label>Level hiện tại</label>
         <select id="ep-lever">
-          <option value="1">Lever 1</option>
-          <option value="2">Lever 2</option>
-          <option value="3">Lever 3</option>
-          <option value="4">Lever 4</option>
-          <option value="5">Lever 5</option>
+          <option value="1">Level 1</option>
+          <option value="2">Level 2</option>
+          <option value="3">Level 3</option>
+          <option value="4">Level 4</option>
+          <option value="5">Level 5</option>
         </select>
       </div>
       <div class="form-f"><label>Ngày bắt đầu làm việc</label><input type="date" id="ep-start-date"/></div>
@@ -1649,7 +1649,7 @@ async function renderCheckinPage(){
   const dow2=new Date(ds+'T12:00:00').getDay();
   const dayNames=['CN','T2','T3','T4','T5','T6','T7'];
   const badge=document.getElementById('ci-badge');
-  badge.innerHTML=`<span style="background:${rv.bg};color:${rv.color};border:1px solid ${rv.color}33;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">${rv.label} · Lever ${p.lever||1}</span> <span style="font-size:11px;color:var(--text2);margin-left:6px">📅 Ca: ${dayNames[dow2]} ${cd}/${cm2}</span>`;
+  badge.innerHTML=`<span style="background:${rv.bg};color:${rv.color};border:1px solid ${rv.color}33;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">${rv.label} · Level ${p.lever||1}</span> <span style="font-size:11px;color:var(--text2);margin-left:6px">📅 Ca: ${dayNames[dow2]} ${cd}/${cm2}</span>`;
   // Micro-cache for checkin page (5s) to avoid redundant fetches
   const _ciCacheKey='ci-'+p.id+'-'+ds;
   let rec;
@@ -2929,21 +2929,27 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     else if(rec&&r.hours>0){ngayCong+=r.hours/8;if(r.isLate)soLanTre++;}
   }
 
-  let heCoP1=isProbation?0.85:1.0;
+  const heCoP1=isProbation?0.85:1.0;
 
+  // P1 + P2A + P2B + P2C + P3B + P3C: tính đủ 100% trước, sau đó nhân đều
+  // hệ số thử việc (0.85) cho TẤT CẢ (không riêng P1 như công thức cũ) —
+  // 85%×(P1+P2A+P2B+P2C+P3B+P3C) = 85%×P1+85%×P2A+...+85%×P3C (phân phối),
+  // nên áp trực tiếp heCoP1 vào từng dòng cho ra đúng kết quả tổng.
   const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong*heCoP1);
   // P2A/P2B theo tỷ lệ ngày công thực tế / công chuẩn (22 ngày)
   const congRatio=ngayCong/CONG_CHUAN;
-  const p2a=Math.round(500000*congRatio),p2b=Math.round(1240000*congRatio),p2c=P2C_MAP[emp.lever||1]||0;
+  const p2a=Math.round(704550*congRatio*heCoP1); // P2A — trước đây 500,000
+  const p2b=Math.round(1593000*congRatio*heCoP1); // P2B — Tiền lương ca đêm, trước đây 1,240,000
+  const p2c=Math.round((P2C_MAP[emp.lever||1]||0)*heCoP1);
   // Công < 50% công chuẩn → không hưởng chuyên cần, bất kể số lần trễ
   const duCongChuyenCan=congRatio>=0.5;
-  const p3b=!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0);
+  const p3b=Math.round((!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0))*heCoP1);
 
   const kpi=kpiRes.data;
   // P3C: đọc ngưỡng từ kpi_settings tháng này, fallback 80
   const {data:kpiSet}=await sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle();
   const p3cNguong=kpiSet?.nguong_dat||80;
-  const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
+  const p3c=Math.round(((kpi&&kpi.diem_tong>=p3cNguong)?500000:0)*heCoP1);
 
   const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
@@ -3198,14 +3204,14 @@ async function viewSalaryDetail(empId,thang){
       <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}<span style="font-size:14px;font-weight:400;color:var(--text3)">/${CONG_CHUAN}</span></div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
       <div class="stat-card"><div class="stat-label">💵 Lương thực nhận</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(sal.tong_luong_vnd)}</div><div class="stat-sub">Tháng ${thang}</div></div>
       <div class="stat-card"><div class="stat-label">🎯 Bonus P3A</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(sal.p3a_total_usd)}</div><div class="stat-sub">${sal.p3a_ty_le_dat===1?'✅ Đạt target 100%':'⚠️ Không đạt 50%'}</div></div>
-      <div class="stat-card"><div class="stat-label">⭐ Lever P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
+      <div class="stat-card"><div class="stat-label">⭐ Level P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
     </div>
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.full_name} · Tháng ${thang} ${sal.is_locked?'· 🔒 Đã chốt':''}</div>
-      <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
+      <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày)</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
       <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2B — Phụ cấp chức năng (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2C — Năng lực Lever ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2C — Năng lực Level ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
       <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
       <div class="salary-row"><span class="salary-label">P3C — KPI tháng</span><span class="salary-val">${vnd(sal.p3c_kpi)}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Bonus Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
@@ -3228,7 +3234,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
   <div class="pl-wrap" id="pl-content">
     <div class="pl-header">
       <div>
-        <div class="pl-logo-name">C-SLIAN</div>
+        <div class="pl-logo-name">MAISON DE KCT</div>
         <div class="pl-logo-sub">Hệ thống quản lý nhân sự</div>
       </div>
       <div style="text-align:right;font-size:11px;color:#666">
@@ -3248,17 +3254,17 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-info-row"><span class="pl-info-label">Công chuẩn:</span><span class="pl-info-val">22 ngày</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Chức danh:</span><span class="pl-info-val">${{manager:'Manager',leader:'Leader',sale:'Sale'}[emp.role]||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Ngày công TT:</span><span class="pl-info-val">${sal.ngay_cong_thuc_te||0} ngày</span></div>
-      <div class="pl-info-row"><span class="pl-info-label">Lever:</span><span class="pl-info-val">Lever ${emp.lever||1}</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Level:</span><span class="pl-info-val">Level ${emp.lever||1}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Số lần đi trễ:</span><span class="pl-info-val">${sal.so_lan_tre||0} lần</span></div>
     </div>
 
     <div class="pl-section">
       <div class="pl-section-title">A — Lương cơ bản & Phụ cấp</div>
       <table class="pl-table">
-        <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày × ${sal.p1_he_so===0.85?'85%':'100%'})</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
+        <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày)</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
         <tr><td class="label">P2A — Phụ cấp ăn uống, đi lại (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
-        <tr><td class="label">P2B — Phụ cấp chức năng (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
-        <tr><td class="label">P2C — Phụ cấp năng lực (Lever ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
+        <tr><td class="label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
+        <tr><td class="label">P2C — Phụ cấp năng lực (Level ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
       </table>
     </div>
 
@@ -3435,7 +3441,7 @@ async function saveReview(){
     else if(diem_tb>=85){xepLoai='Tốt';thuong=250000;}
     else if(diem_tb>=75)xepLoai='Đạt yêu cầu';
     else if(diem_tb>=60)xepLoai='Cần cải thiện';
-    // Lever logic
+    // Level logic
   } else {
     if(diem_tb>=93){xepLoai='Xuất sắc';thuong=0;}// tháng 13 + 3tr
     else if(diem_tb>=85){xepLoai='Tốt';}
@@ -3460,7 +3466,7 @@ async function saveReview(){
     await sb.from('profiles').update({lever:leverMoi}).eq('id',empId);
     await loadAllProfiles();
   }
-  toast(`Đã duyệt nghiệm thu ${ky} — ${xepLoai}${duDieuKien?` · Tăng Lever ${leverCu}→${leverMoi}`:''}`);
+  toast(`Đã duyệt nghiệm thu ${ky} — ${xepLoai}${duDieuKien?` · Tăng Level ${leverCu}→${leverMoi}`:''}`);
   closeModal('review-modal');renderReviews();
 }
 
@@ -3493,7 +3499,7 @@ async function renderReviews(){
           </div>
           <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
             ${r.thuong_vnd>0?`<span class="pill pill-approved">Thưởng: ${vnd(r.thuong_vnd)}</span>`:''}
-            ${r.du_dieu_kien_tang_lever?`<span class="pill" style="background:var(--manager-bg);color:var(--manager)">Lever ${r.lever_cu}→${r.lever_moi}</span>`:''}
+            ${r.du_dieu_kien_tang_lever?`<span class="pill" style="background:var(--manager-bg);color:var(--manager)">Level ${r.lever_cu}→${r.lever_moi}</span>`:''}
             ${r.da_duyet?`<span class="pill pill-approved">✅ Đã duyệt</span>`:''}
             ${r.ghi_chu?`<span style="font-size:12px;color:var(--text2)">${r.ghi_chu}</span>`:''}
           </div>
@@ -3567,7 +3573,7 @@ function renderEmpGrid(){
       }
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600">${p.full_name} <span style="font-size:12px;color:var(--text2)">(${p.nickname||''})</span>${isInactive?'<span style="font-size:10px;background:var(--danger-bg);color:var(--danger);border-radius:4px;padding:1px 6px;margin-left:6px">Đã nghỉ</span>':''}</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.employee_code} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Lever ${p.lever||1}</span></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">${p.employee_code} · ${roleMap[p.role]||p.role} · <span style="color:var(--accent)">Level ${p.lever||1}</span></div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Vào: ${startDate} · ${contractLabel}${ngayNghi}</div>
         ${bdLabel?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${bdLabel}</div>`:''}
       </div>
