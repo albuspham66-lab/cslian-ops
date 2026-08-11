@@ -897,7 +897,7 @@ async function syncFromCRM(){
       'Accept':'application/json'
     };
     const[invRaw,itemsRaw,custsRaw,profsRaw]=await Promise.all([
-      fetch(`${CRM_URL}/rest/v1/invoices?select=*&order=date.desc&limit=500`,{headers:hdrs}),
+      fetch(`${CRM_URL}/rest/v1/invoices?select=*&approval_status=eq.approved&order=date.desc&limit=500`,{headers:hdrs}),
       fetch(`${CRM_URL}/rest/v1/invoice_items?select=*&limit=2000`,{headers:hdrs}),
       fetch(`${CRM_URL}/rest/v1/customers?select=*&limit=500`,{headers:hdrs}),
       fetch(`${CRM_URL}/rest/v1/profiles?select=*`,{headers:hdrs}),
@@ -914,7 +914,8 @@ async function syncFromCRM(){
       const prof=Array.isArray(profs)?profs.find(p=>p.id===inv.sale_id):null;
       const invItems=Array.isArray(items)?items.filter(i=>i.invoice_id===inv.id):[];
       const products=[...new Set(invItems.map(i=>i.product_name||i.description||'').filter(Boolean))].join(', ');
-      const isSettled=inv.payment_status==='paid'||inv.status==='completed';
+      const statusMap={'Đang sản xuất':'production','Đã nhận hàng':'delivered','Đã ship':'shipped','Hoàn thành':'completed'};
+      const mappedStatus=statusMap[inv.order_status]||(isSettled?'completed':'pending');
       return{
         invoice_no:inv.invoice_no,
         order_date:inv.date,
@@ -935,7 +936,7 @@ async function syncFromCRM(){
         payment_method:inv.payment_method||'',
         tracking_number:inv.tracking_number||'',
         vendor:'BOLSA',
-        status:isSettled?'completed':inv.order_status||'pending',
+        status:mappedStatus,
         crm_order_id:String(inv.id),
         commission:0,price_gap:0,cost_price:0,selling_expenses:0,
         commission_received:false
