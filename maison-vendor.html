@@ -1121,7 +1121,17 @@ function exportReport(){
 // ══ HELPERS ══
 function fmtUSD(v){return'$'+(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
-function statusBadge(s){const m={pending:'s-pending Pending',production:'s-production Đang làm',shipped:'s-shipped Đã ship',delivered:'s-delivered Đã nhận',completed:'s-completed Hoàn thành'};const[cls,lbl]=(m[s]||'s-pending Pending').split(' ');return`<span class="status ${cls}">${lbl}</span>`;}
+function statusBadge(s){
+  const m={
+    pending:{cls:'s-pending',lbl:'Pending'},
+    production:{cls:'s-production',lbl:'Đang làm hàng'},
+    shipped:{cls:'s-shipped',lbl:'Đã ship'},
+    delivered:{cls:'s-delivered',lbl:'Đã nhận hàng'},
+    completed:{cls:'s-completed',lbl:'Hoàn thành'}
+  };
+  const{cls,lbl}=m[s]||{cls:'s-pending',lbl:'Pending'};
+  return`<span class="status ${cls}">${lbl}</span>`;
+}
 function vendorTag(v){const m={BOLSA:'bolsa',ONS:'ons',TSPA:'tspa'};return`<span class="tag tag-${m[v?.toLowerCase()]||'bolsa'}">${v||'—'}</span>`;}
 
 function toast(msg,color='var(--text)'){
