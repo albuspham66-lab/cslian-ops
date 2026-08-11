@@ -450,15 +450,35 @@ th.num{text-align:right;}
   </div>
 </div>
 
-<!-- Order Cost Price Modal -->
+<!-- Order Detail Edit Modal -->
 <div class="mbg" id="m-cost">
   <div class="modal">
-    <div class="modal-title">Cập nhật Cost Price</div>
+    <div class="modal-title">✏️ Chỉnh sửa đơn hàng</div>
     <input type="hidden" id="cost-order-id">
-    <div class="fg"><label class="fl">Tên đơn hàng</label><div id="cost-name" style="font-size:14px;color:var(--text);padding:8px 0;"></div></div>
-    <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0"></div>
-    <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
-    <div class="fg"><label class="fl">Ghi chú</label><textarea id="cost-note" rows="2"></textarea></div>
+    <div id="cost-name" style="font-size:13px;color:var(--gold);margin-bottom:16px;font-weight:600;"></div>
+    <div class="fgrid2">
+      <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Price Gap ($)</label><input type="number" id="cost-gap" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Commission ($)</label><input type="number" id="cost-comm" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Payment Method</label>
+        <select id="cost-payment">
+          <option value="">-- Chọn --</option>
+          <option>Zelle Kashant</option><option>Zelle Bolsa</option>
+          <option>Check Kashant</option><option>Check Bolsa</option>
+          <option>Wire Transfer</option><option>Credit Card</option>
+          <option value="__other__">Khác...</option>
+        </select>
+        <input type="text" id="cost-payment-other" placeholder="Nhập phương thức khác..." style="margin-top:6px;display:none;">
+      </div>
+      <div class="fg"><label class="fl">Order Type</label>
+        <select id="cost-order-type">
+          <option value="">-- Chọn --</option>
+          <option>Custom</option><option>In Stock</option>
+        </select>
+      </div>
+      <div class="fg span2"><label class="fl">Note (Admin)</label><textarea id="cost-note" rows="2"></textarea></div>
+    </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('m-cost')">Huỷ</button>
       <button class="btn btn-gold" onclick="saveCost()">Lưu</button>
@@ -608,15 +628,27 @@ async function loadAccounts(){
 
 // ══ REALTIME ══
 function subscribeRealtime(){
-  realtimeSub=sb.channel('notifications-ch')
+  realtimeSub=sb.channel('realtime-ch')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>{
       if(currentProfile?.role==='admin'||payload.new.created_by===currentUser.id){
         allNotifs.unshift(payload.new);
-        updateNotifBadge();
-        renderNotifs();
+        updateNotifBadge();renderNotifs();
         toast(`🔔 ${payload.new.message}`,'var(--gold)');
       }
-    }).subscribe();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'vendor_orders'},payload=>{
+      const n=payload.new;
+      if(currentProfile?.role==='admin'||currentProfile?.vendor_access?.includes(n.vendor)){
+        allOrders.unshift(n);
+        renderOrders();renderDashboard();populateMonthFilter();
+        toast(`📦 Đơn mới: ${n.invoice_no} — ${n.business_name}`,'var(--green)');
+      }
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'vendor_orders'},payload=>{
+      const idx=allOrders.findIndex(x=>x.id===payload.new.id);
+      if(idx>=0){Object.assign(allOrders[idx],payload.new);renderOrders();renderDashboard();}
+    })
+    .subscribe();
 }
 
 function updateNotifBadge(){
@@ -701,12 +733,15 @@ function renderOrders(){
     <tr class="detail-row${isExp?' open':''}" id="detail-${o.id}">
       <td class="detail-cell" colspan="12">
         <div class="detail-inner">
-          <!-- Action bar -->
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);">
-            <button class="btn btn-ghost btn-sm admin-only" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Cost Price</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStatusModal('${o.id}')">🔄 Cập nhật trạng thái</button>
-            <button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openTrackingModal('${o.id}')">🚚 Cập nhật Tracking</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewInvoice('${o.id}')">🧾 Xem Invoice</button>
+            <button class="btn btn-ghost btn-sm admin-only" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Chỉnh sửa</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStatusModal('${o.id}')">🔄 Trạng thái</button>
+            <button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openTrackingModal('${o.id}')">🚚 Tracking</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewInvoice('${o.id}')">🧾 Invoice</button>
+            <button class="btn btn-sm" style="${'${'}o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2);'${'}'}"
+              onclick="event.stopPropagation();toggleCommReceived('${o.id}',${o.commission_received?'false':'true'})">
+              ${o.commission_received?'✅ HH Đã thu':'⏳ HH Chưa thu'}
+            </button>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
             <div>
@@ -718,10 +753,17 @@ function renderOrders(){
                 ${dl('State',o.state)}
                 ${dl('Bus Phone',o.phone_bus)}
                 ${dl('Cell Phone',o.phone_cell)}
-                ${dl('Order Type',o.order_type)}
-                ${dl('Payment',o.payment_method)}
+                ${dl('Order Type',o.order_type||'—')}
+                ${dl('Payment',o.payment_method||'—')}
                 ${dl('Tháng HT',o.billing_month)}
                 ${dl('Note',o.note||'—')}
+              </div>
+              <div style="margin-top:14px;">
+                <div class="section-title" style="margin-bottom:8px;">💬 Vendor Update</div>
+                <textarea id="vnotes-${o.id}" rows="3" placeholder="Vendor ghi nhận tiến độ, cập nhật thông tin..."
+                  style="width:100%;resize:vertical;font-size:12px;" onclick="event.stopPropagation()">${o.vendor_notes||''}</textarea>
+                <button class="btn btn-ghost btn-sm" style="margin-top:6px;"
+                  onclick="event.stopPropagation();saveVendorNotes('${o.id}')">💾 Lưu ghi chú</button>
               </div>
             </div>
             <div>
@@ -734,27 +776,35 @@ function renderOrders(){
                 ${dl('Commission',fmtUSD(o.commission),'','var(--blue)')}
                 ${dl('Price Gap',fmtUSD(o.price_gap))}
                 ${dl('Selling Exp',fmtUSD(o.selling_expenses),'','var(--red)')}
-                ${dl('HH đã thu',o.commission_received?'✅ Đã thu':'⏳ Chưa thu')}
               </div>
-              <!-- Tracking section -->
               <div class="tracking-section" style="margin-top:14px;">
                 <h4>🚚 Tracking Number</h4>
                 ${o.tracking_number
                   ?`<a href="https://t.17track.net/en#nums=${o.tracking_number}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:'JetBrains Mono';font-size:13px;font-weight:600;">${o.tracking_number}</a>`
                   :'<span style="color:var(--text3);font-size:12px;">Chưa có tracking</span>'}
-                <button class="btn btn-ghost btn-sm" style="margin-top:8px;display:block;" onclick="event.stopPropagation();openTrackingModal('${o.id}')">
+                <button class="btn btn-ghost btn-sm" style="margin-top:8px;display:block;"
+                  onclick="event.stopPropagation();openTrackingModal('${o.id}')">
                   ${o.tracking_number?'✏️ Cập nhật':'+ Nhập tracking'}
                 </button>
               </div>
             </div>
           </div>
           <div class="divider"></div>
-          <div class="section-title">📸 Hình ảnh tiến độ sản xuất (${photos.length})</div>
-          <div class="photo-grid">
-            ${photos.map(p=>`<img class="photo-thumb" src="${p.storage_url}" alt="${p.caption||''}" onclick="event.stopPropagation();openLightbox('${p.storage_url}')">`).join('')}
+          <div class="section-title">📸 Hình ảnh tiến độ (${photos.filter(p=>!p.caption?.startsWith('payment:')).length})</div>
+          <div class="photo-grid" style="margin-bottom:16px;">
+            ${photos.filter(p=>!p.caption?.startsWith('payment:')).map(p=>`<img class="photo-thumb" src="${p.storage_url}" onclick="event.stopPropagation();openLightbox('${p.storage_url}')">`).join('')}
             <label class="upload-btn" for="upload-${o.id}" onclick="event.stopPropagation()">
               <span style="font-size:20px;">+</span><span>Upload</span>
-              <input type="file" id="upload-${o.id}" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this)">
+              <input type="file" id="upload-${o.id}" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this,'progress')">
+            </label>
+          </div>
+          <div class="divider"></div>
+          <div class="section-title">💳 Hình ảnh thanh toán</div>
+          <div class="photo-grid">
+            ${photos.filter(p=>p.caption?.startsWith('payment:')).map(p=>`<img class="photo-thumb" src="${p.storage_url}" onclick="event.stopPropagation();openLightbox('${p.storage_url}')" style="border-color:rgba(82,212,154,.4);">`).join('')}
+            <label class="upload-btn" for="payment-${o.id}" onclick="event.stopPropagation()" style="border-color:rgba(82,212,154,.3);">
+              <span style="font-size:20px;">+</span><span style="color:var(--green);">Payment</span>
+              <input type="file" id="payment-${o.id}" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this,'payment')">
             </label>
           </div>
         </div>
@@ -775,22 +825,42 @@ function dl(label,val,cls='',color=''){
 }
 
 // ══ PHOTOS ══
-async function uploadPhotos(orderId,input){
+async function uploadPhotos(orderId,input,type='progress'){
   const files=Array.from(input.files);
   if(!files.length)return;
   toast('Đang upload…','var(--text2)');
   for(const file of files){
     const ext=file.name.split('.').pop();
-    const path=`${orderId}/${Date.now()}.${ext}`;
+    const folder=type==='payment'?'payment':'progress';
+    const path=`${orderId}/${folder}/${Date.now()}.${ext}`;
     const{error:upErr}=await sb.storage.from('order-photos').upload(path,file,{upsert:true});
     if(upErr){toast('Upload lỗi: '+upErr.message,'var(--red)');continue;}
     const{data:urlData}=sb.storage.from('order-photos').getPublicUrl(path);
-    await sb.from('order_photos').insert({order_id:orderId,storage_url:urlData.publicUrl,uploaded_by:currentUser.id});
-    allPhotos.push({order_id:orderId,storage_url:urlData.publicUrl,created_at:new Date().toISOString()});
+    const caption=type==='payment'?'payment:proof':'progress';
+    await sb.from('order_photos').insert({order_id:orderId,storage_url:urlData.publicUrl,caption,uploaded_by:currentUser.id});
+    allPhotos.push({order_id:orderId,storage_url:urlData.publicUrl,caption,created_at:new Date().toISOString()});
   }
-  input.value='';
-  renderOrders();
+  input.value='';renderOrders();
   toast('✅ Upload thành công','var(--green)');
+}
+
+async function saveVendorNotes(orderId){
+  const notes=document.getElementById(`vnotes-${orderId}`)?.value||'';
+  const{error}=await sb.from('vendor_orders').update({vendor_notes:notes}).eq('id',orderId);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  const o=allOrders.find(x=>x.id==orderId);
+  if(o)o.vendor_notes=notes;
+  toast('✅ Đã lưu ghi chú','var(--green)');
+}
+
+async function toggleCommReceived(orderId,val){
+  const boolVal=val==='true'||val===true;
+  const{error}=await sb.from('vendor_orders').update({commission_received:boolVal}).eq('id',orderId);
+  if(error){toast('Lỗi','var(--red)');return;}
+  const o=allOrders.find(x=>x.id==orderId);
+  if(o)o.commission_received=boolVal;
+  renderOrders();renderDashboard();
+  toast(boolVal?'✅ Đã đánh dấu HH đã thu':'Đã bỏ đánh dấu','var(--green)');
 }
 
 function openLightbox(url){
@@ -851,21 +921,42 @@ function openCostModal(id){
   document.getElementById('cost-order-id').value=id;
   document.getElementById('cost-name').textContent=`${o?.invoice_no} — ${o?.business_name}`;
   document.getElementById('cost-price').value=o?.cost_price||'';
+  document.getElementById('cost-gap').value=o?.price_gap||'';
   document.getElementById('cost-selling').value=o?.selling_expenses||'';
+  document.getElementById('cost-comm').value=o?.commission||'';
   document.getElementById('cost-note').value=o?.note||'';
+  document.getElementById('cost-order-type').value=o?.order_type||'';
+  // Payment method
+  const payEl=document.getElementById('cost-payment');
+  const payOther=document.getElementById('cost-payment-other');
+  const opts=['Zelle Kashant','Zelle Bolsa','Check Kashant','Check Bolsa','Wire Transfer','Credit Card'];
+  if(o?.payment_method&&!opts.includes(o.payment_method)){
+    payEl.value='__other__';payOther.style.display='block';payOther.value=o.payment_method;
+  }else{payEl.value=o?.payment_method||'';payOther.style.display='none';}
+  payEl.onchange=()=>{payOther.style.display=payEl.value==='__other__'?'block':'none';};
   openModal('m-cost');
 }
 
 async function saveCost(){
   const id=document.getElementById('cost-order-id').value;
-  const cost_price=parseFloat(document.getElementById('cost-price').value)||0;
-  const selling_expenses=parseFloat(document.getElementById('cost-selling').value)||0;
-  const note=document.getElementById('cost-note').value;
+  const payEl=document.getElementById('cost-payment');
+  const payment_method=payEl.value==='__other__'
+    ?document.getElementById('cost-payment-other').value.trim()
+    :payEl.value;
+  const data={
+    cost_price:parseFloat(document.getElementById('cost-price').value)||0,
+    price_gap:parseFloat(document.getElementById('cost-gap').value)||0,
+    selling_expenses:parseFloat(document.getElementById('cost-selling').value)||0,
+    commission:parseFloat(document.getElementById('cost-comm').value)||0,
+    note:document.getElementById('cost-note').value,
+    order_type:document.getElementById('cost-order-type').value,
+    payment_method,
+  };
+  const{error}=await sb.from('vendor_orders').update(data).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
   const o=allOrders.find(x=>x.id==id);
-  const price_gap=(o?.total_amount||0)-cost_price-selling_expenses;
-  await sb.from('vendor_orders').update({cost_price,selling_expenses,note,price_gap}).eq('id',id);
-  if(o){o.cost_price=cost_price;o.selling_expenses=selling_expenses;o.note=note;o.price_gap=price_gap;}
-  closeModal('m-cost');renderOrders();
+  if(o)Object.assign(o,data);
+  closeModal('m-cost');renderOrders();renderDashboard();
   toast('✅ Đã lưu','var(--green)');
 }
 
