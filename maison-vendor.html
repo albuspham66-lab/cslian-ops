@@ -28,10 +28,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .brand-sub{font-size:11px;color:var(--text3);letter-spacing:3px;margin-top:4px;text-transform:uppercase;}
 .fl{display:block;font-size:11px;color:var(--text2);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase;}
 input[type=email],input[type=password],input[type=text],input[type=number],input[type=date],select,textarea{
-  width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:var(--rsm);
+  width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:var(--rsm);
   color:var(--text);padding:10px 14px;font-size:13px;font-family:'Inter',sans-serif;outline:none;
-  transition:var(--tr);}
+  transition:var(--tr);-webkit-appearance:none;appearance:none;color-scheme:dark;}
 input:focus,select:focus,textarea:focus{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.04);}
+select option{background:var(--card2);color:var(--text);}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239896A6' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
 .fg{margin-bottom:16px;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border:none;
   border-radius:var(--rsm);font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:var(--tr);}
@@ -153,7 +155,10 @@ td.bold{color:var(--text);font-weight:500;}
 .tag-tspa{background:rgba(168,85,247,.12);color:#C084FC;}
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
 .filter-select{background:var(--card2);border:1px solid var(--border2);color:var(--text);
-  padding:7px 12px;border-radius:var(--rsm);font-size:12px;cursor:pointer;}
+  padding:7px 28px 7px 12px;border-radius:var(--rsm);font-size:12px;cursor:pointer;
+  -webkit-appearance:none;appearance:none;color-scheme:dark;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239896A6' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;}
 .search-input{background:var(--card2);border:1px solid var(--border2);color:var(--text);
   padding:7px 14px;border-radius:var(--rsm);font-size:12px;width:220px;}
 .section-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
