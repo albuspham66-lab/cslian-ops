@@ -682,7 +682,7 @@ function renderOrders(){
   if(!list.length){body.innerHTML='';return;}
   body.innerHTML=list.map((o,i)=>{
     const photos=allPhotos.filter(p=>p.order_id===o.id);
-    const isExp=expandedRows.has(o.id);
+    const isExp=expandedRows.has(String(o.id));
     const deposit=(o.deposit1||0)+(o.deposit2||0);
     return`<tr class="order-row${isExp?' expanded':''}" onclick="toggleRow('${o.id}')">
       <td><span class="expand-icon${isExp?' open':''}">▶</span></td>
@@ -764,8 +764,9 @@ function renderOrders(){
 }
 
 function toggleRow(id){
-  if(expandedRows.has(id))expandedRows.delete(id);
-  else expandedRows.add(id);
+  const key=String(id);
+  if(expandedRows.has(key))expandedRows.delete(key);
+  else expandedRows.add(key);
   renderOrders();
 }
 
