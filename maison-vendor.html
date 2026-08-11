@@ -894,40 +894,61 @@ async function syncFromCRM(){
     const hdrs={
       'apikey':CRM_KEY,
       'Authorization':`Bearer ${CRM_KEY}`,
-      'Accept':'application/json',
-      'Content-Type':'application/json'
+      'Accept':'application/json'
     };
-    const[ordsRes,itemsRes,profsRes]=await Promise.all([
-      fetch(`${CRM_URL}/rest/v1/orders?select=*&order=order_date.desc`,{headers:hdrs}).then(r=>r.json()),
-      fetch(`${CRM_URL}/rest/v1/order_items?select=*`,{headers:hdrs}).then(r=>r.json()),
-      fetch(`${CRM_URL}/rest/v1/profiles?select=*`,{headers:hdrs}).then(r=>r.json()),
+    const[invRaw,itemsRaw,custsRaw,profsRaw]=await Promise.all([
+      fetch(`${CRM_URL}/rest/v1/invoices?select=*&order=date.desc&limit=500`,{headers:hdrs}),
+      fetch(`${CRM_URL}/rest/v1/invoice_items?select=*&limit=2000`,{headers:hdrs}),
+      fetch(`${CRM_URL}/rest/v1/customers?select=*&limit=500`,{headers:hdrs}),
+      fetch(`${CRM_URL}/rest/v1/profiles?select=*`,{headers:hdrs}),
     ]);
-    const profiles=profsRes||[];
-    const items=itemsRes||[];
-    const rows=(ordsRes||[]).map(o=>{
-      const prof=profiles.find(p=>p.id===o.user_id);
-      const oItems=items.filter(i=>i.order_id===o.id);
-      const products=[...new Set(oItems.map(i=>i.ten_sp_invoice||i.product_name||'').filter(Boolean))].join(', ');
-      const vendor=(o.revenue_bolsa||0)>0?'BOLSA':(o.revenue_ons||0)>0?'ONS':(o.revenue_tspa||0)>0?'TSPA':'BOLSA';
-      const deposit=(o.total_amount||0)-(o.balance_due||0);
+    if(!invRaw.ok)throw new Error(`invoices ${invRaw.status}: ${await invRaw.text()}`);
+    if(!itemsRaw.ok)throw new Error(`invoice_items ${itemsRaw.status}: ${await itemsRaw.text()}`);
+    const invs=await invRaw.json();
+    const items=itemsRaw.ok?await itemsRaw.json():[];
+    const custs=custsRaw.ok?await custsRaw.json():[];
+    const profs=profsRaw.ok?await profsRaw.json():[];
+    if(!Array.isArray(invs)||!invs.length){toast('Không có invoice nào','var(--amber)');return;}
+    const rows=invs.map(inv=>{
+      const cust=Array.isArray(custs)?custs.find(c=>c.id===inv.customer_id):null;
+      const prof=Array.isArray(profs)?profs.find(p=>p.id===inv.sale_id):null;
+      const invItems=Array.isArray(items)?items.filter(i=>i.invoice_id===inv.id):[];
+      const products=[...new Set(invItems.map(i=>i.product_name||i.description||'').filter(Boolean))].join(', ');
+      const isSettled=inv.payment_status==='paid'||inv.status==='completed';
       return{
-        invoice_no:o.invoice_no,order_date:o.order_date,billing_month:o.billing_month,
-        business_name:o.shop_name,customer_name:prof?.full_name,
-        address:o.address||'',state:o.state||'',
-        order_type:'Standard',product:products,
-        total_amount:o.total_amount||0,deposit1:deposit,deposit2:0,balance_due:o.balance_due||0,
-        vendor,status:o.is_settled?'completed':'pending',
-        crm_order_id:o.id,commission:0,price_gap:0,cost_price:0,selling_expenses:0,commission_received:false
+        invoice_no:inv.invoice_no,
+        order_date:inv.date,
+        billing_month:inv.billing_month||inv.date?.slice(0,7),
+        business_name:cust?.company||cust?.name||inv.location||'',
+        customer_name:cust?.name||'',
+        address:cust?.address||inv.location||'',
+        state:cust?.state||'',
+        phone_bus:cust?.phone||'',
+        phone_cell:cust?.mobile||'',
+        order_type:inv.type||'Standard',
+        product:products,
+        total_amount:parseFloat(inv.total)||0,
+        deposit1:parseFloat(inv.deposit)||0,
+        deposit2:0,
+        balance_due:parseFloat(inv.balance_due)||0,
+        note:inv.note||'',
+        payment_method:inv.payment_method||'',
+        tracking_number:inv.tracking_number||'',
+        vendor:'BOLSA',
+        status:isSettled?'completed':inv.order_status||'pending',
+        crm_order_id:String(inv.id),
+        commission:0,price_gap:0,cost_price:0,selling_expenses:0,
+        commission_received:false
       };
     });
-    if(rows.length){
-      await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
-    }
+    const{error}=await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
+    if(error)throw new Error('Upsert: '+error.message);
     await loadOrders();await loadPhotos();
     renderOrders();renderDashboard();populateMonthFilter();
-    toast(`✅ Sync ${rows.length} đơn hàng thành công`,'var(--green)');
-  }catch(e){toast('Lỗi sync: '+e.message,'var(--red)');}
+    toast(`✅ Sync ${rows.length} invoices thành công`,'var(--green)');
+  }catch(e){toast('Lỗi sync: '+e.message,'var(--red)');console.error(e);}
 }
+
 
 // ══ REPORTS ══
 let rptData=[];
