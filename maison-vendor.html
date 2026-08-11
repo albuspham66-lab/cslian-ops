@@ -734,11 +734,11 @@ function renderOrders(){
       <td class="detail-cell" colspan="12">
         <div class="detail-inner">
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);">
-            <button class="btn btn-ghost btn-sm admin-only" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Chỉnh sửa</button>
+            ${currentProfile?.role==='admin'?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Chỉnh sửa</button>`:''}
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStatusModal('${o.id}')">🔄 Trạng thái</button>
             <button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openTrackingModal('${o.id}')">🚚 Tracking</button>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewInvoice('${o.id}')">🧾 Invoice</button>
-            <button class="btn btn-sm" style="${'${'}o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2);'${'}'}"
+            <button class="btn btn-sm" style="${o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2);'}"
               onclick="event.stopPropagation();toggleCommReceived('${o.id}',${o.commission_received?'false':'true'})">
               ${o.commission_received?'✅ HH Đã thu':'⏳ HH Chưa thu'}
             </button>
