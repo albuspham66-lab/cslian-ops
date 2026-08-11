@@ -1148,7 +1148,7 @@ async function syncFromCRM(){
       'Accept':'application/json'
     };
     const[invRaw,itemsRaw]=await Promise.all([
-      fetch(`${CRM_URL}/rest/v1/invoices?select=*&approval_status=eq.approved&order=date.desc&limit=500`,{headers:hdrs}),
+      fetch(`${CRM_URL}/rest/v1/invoices?select=*&type=eq.invoice&approval_status=eq.approved&order=date.desc&limit=500`,{headers:hdrs}),
       fetch(`${CRM_URL}/rest/v1/invoice_items?select=*&limit=3000`,{headers:hdrs}),
     ]);
     if(!invRaw.ok)throw new Error(`invoices ${invRaw.status}: ${await invRaw.text()}`);
@@ -1156,6 +1156,17 @@ async function syncFromCRM(){
     const invs=await invRaw.json();
     const items=itemsRaw.ok?await itemsRaw.json():[];
     if(!Array.isArray(invs)||!invs.length){toast('Không có invoice nào','var(--amber)');return;}
+
+    // DEBUG: đối chiếu số lượng — mở DevTools Console (F12) sau khi bấm Sync
+    // để xem bảng này, so với KPI "Đơn đã duyệt" bên CRM. Cột cần để ý là
+    // order_status — nếu có giá trị lạ (vd "Đã huỷ") mà vẫn approval_status
+    // = approved, đó chính là các đơn CRM không đếm nhưng sync vẫn lấy.
+    console.log(`[SYNC DEBUG] CRM trả về ${invs.length} invoice có approval_status=approved:`);
+    console.table(invs.map(i=>({
+      invoice_no:i.invoice_no, date:i.date,
+      approval_status:i.approval_status, order_status:i.order_status,
+      payment_status:i.payment_status, total:i.total
+    })));
 
     // Fetch đúng customers theo ID thực tế trong invoices
     const custIds=[...new Set(invs.map(i=>i.customer_id).filter(Boolean))];
