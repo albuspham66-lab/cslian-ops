@@ -112,13 +112,14 @@ td.bold{color:var(--text);font-weight:500;}
 .dl-val{font-size:13px;color:var(--text);font-weight:400;}
 
 /* ── STATUS BADGE ── */
-.status{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+.status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;}
+td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;}
+th.num{text-align:right;}
 .s-pending{background:rgba(245,166,35,.12);color:var(--amber);}
 .s-production{background:rgba(110,179,247,.12);color:var(--blue);}
 .s-shipped{background:rgba(82,212,154,.12);color:var(--green);}
 .s-delivered{background:rgba(201,168,76,.15);color:var(--gold);}
 .s-completed{background:rgba(82,212,154,.08);color:var(--green);border:1px solid rgba(82,212,154,.2);}
-
 /* ── PHOTOS ── */
 .photo-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
 .photo-thumb{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer;transition:var(--tr);}
@@ -239,7 +240,7 @@ td.bold{color:var(--text);font-weight:500;}
       <div class="kpi-grid" id="dash-kpis"></div>
       <div class="card">
         <div class="card-header"><span class="card-title">Đơn hàng gần nhất</span></div>
-        <div class="tw"><table><thead><tr><th>Invoice</th><th>Business</th><th>Vendor</th><th class="num">Total ($)</th><th>Trạng thái</th><th>Tracking</th></tr></thead>
+        <div class="tw"><table><thead><tr><th>Invoice</th><th>Business Name</th><th>Customer</th><th>Vendor</th><th class="num">Total ($)</th><th>Trạng thái</th><th>Tracking</th></tr></thead>
         <tbody id="dash-orders"></tbody></table></div>
       </div>
     </div>
@@ -276,9 +277,17 @@ td.bold{color:var(--text);font-weight:500;}
           <table id="orders-table">
             <thead><tr>
               <th style="width:30px;"></th>
-              <th>No.</th><th>Invoice</th><th>Ngày</th><th>Business Name</th>
-              <th>Vendor</th><th class="num">Total ($)</th><th class="num">Deposit ($)</th>
-              <th class="num">Balance ($)</th><th>Trạng thái</th><th>Tracking</th>
+              <th style="width:40px;">No.</th>
+              <th>Invoice</th>
+              <th>Ngày</th>
+              <th>Business Name</th>
+              <th>Customer</th>
+              <th>Vendor</th>
+              <th class="num">Total ($)</th>
+              <th class="num">Deposit ($)</th>
+              <th class="num">Balance ($)</th>
+              <th>Trạng thái</th>
+              <th>Tracking</th>
             </tr></thead>
             <tbody id="orders-body"></tbody>
           </table>
@@ -596,14 +605,15 @@ function renderDashboard(){
   const recent=allOrders.slice(0,8);
   document.getElementById('dash-orders').innerHTML=recent.length
     ?recent.map(o=>`<tr onclick="nav('orders')" style="cursor:pointer;">
-      <td class="bold">${o.invoice_no||'—'}</td>
-      <td>${o.business_name||'—'}</td>
+      <td class="bold" style="white-space:nowrap;">${o.invoice_no||'—'}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.business_name||'—'}</td>
+      <td style="color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.customer_name||'—'}</td>
       <td>${vendorTag(o.vendor)}</td>
-      <td class="num">${fmtUSD(o.total_amount)}</td>
-      <td>${statusBadge(o.status)}</td>
-      <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);">${o.tracking_number||'—'}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
+      <td style="white-space:nowrap;">${statusBadge(o.status)}</td>
+      <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);white-space:nowrap;">${o.tracking_number||'—'}</td>
     </tr>`).join('')
-    :'<tr><td colspan="6" class="empty-state">Chưa có dữ liệu</td></tr>';
+    :'<tr><td colspan="7" class="empty-state">Chưa có dữ liệu</td></tr>';
 }
 
 // ══ ORDERS ══
@@ -637,24 +647,31 @@ function renderOrders(){
     return`<tr class="order-row${isExp?' expanded':''}" onclick="toggleRow('${o.id}')">
       <td><span class="expand-icon${isExp?' open':''}">▶</span></td>
       <td style="color:var(--text3);font-size:11px;">${i+1}</td>
-      <td class="bold">${o.invoice_no||'—'}</td>
-      <td style="color:var(--text3);font-size:11px;">${o.order_date||'—'}</td>
-      <td>${o.business_name||'—'}</td>
+      <td class="bold" style="white-space:nowrap;">${o.invoice_no||'—'}</td>
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap;">${o.order_date||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.business_name||''}">${o.business_name||'—'}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3);" title="${o.customer_name||''}">${o.customer_name||'—'}</td>
       <td>${vendorTag(o.vendor)}</td>
       <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
       <td class="num" style="color:var(--green);">${fmtUSD(deposit)}</td>
       <td class="num" style="color:${(o.balance_due||0)>0?'var(--red)':'var(--text3)'};">${fmtUSD(o.balance_due)}</td>
-      <td>${statusBadge(o.status)}</td>
-      <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);">${o.tracking_number?`<a href="https://t.17track.net/en#nums=${o.tracking_number}" target="_blank" style="color:var(--blue);text-decoration:none;">${o.tracking_number}</a>`:'—'}</td>
+      <td style="white-space:nowrap;">${statusBadge(o.status)}</td>
+      <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${o.tracking_number?`<a href="https://t.17track.net/en#nums=${o.tracking_number}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:none;">${o.tracking_number}</a>`:'—'}</td>
     </tr>
     <tr class="detail-row${isExp?' open':''}" id="detail-${o.id}">
-      <td class="detail-cell" colspan="11">
+      <td class="detail-cell" colspan="12">
         <div class="detail-inner">
-          <div class="detail-grid">
+          <!-- Action bar -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);">
+            <button class="btn btn-ghost btn-sm admin-only" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Cost Price</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStatusModal('${o.id}')">🔄 Cập nhật trạng thái</button>
+            <button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openTrackingModal('${o.id}')">🚚 Cập nhật Tracking</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
             <div>
-              <div class="section-title" style="margin-bottom:14px;">Thông tin đơn hàng</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;">
-                ${dl('Tháng HT',o.billing_month)}
+              <div class="section-title" style="margin-bottom:12px;">📋 Thông tin đơn hàng</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
+                ${dl('Business Name',o.business_name)}
                 ${dl('Customer',o.customer_name)}
                 ${dl('Address',o.address)}
                 ${dl('State',o.state)}
@@ -662,34 +679,38 @@ function renderOrders(){
                 ${dl('Cell Phone',o.phone_cell)}
                 ${dl('Order Type',o.order_type)}
                 ${dl('Payment',o.payment_method)}
-                ${dl('Product',o.product,'span2')}
+                ${dl('Tháng HT',o.billing_month)}
+                ${dl('Note',o.note||'—')}
               </div>
             </div>
             <div>
-              <div class="section-title" style="margin-bottom:14px;">Tài chính</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;">
+              <div class="section-title" style="margin-bottom:12px;">💰 Tài chính</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
                 ${dl('Total',fmtUSD(o.total_amount),'','var(--gold)')}
                 ${dl('Cost Price',fmtUSD(o.cost_price),'','var(--red)')}
-                ${dl('Deposit 1',fmtUSD(o.deposit1),'','var(--green)')}
-                ${dl('Deposit 2',fmtUSD(o.deposit2),'','var(--green)')}
-                ${dl('Balance Due',fmtUSD(o.balance_due),'','(o.balance_due||0)>0?\'var(--red)\':\'var(--text3)\'')}
+                ${dl('Deposit',fmtUSD(o.deposit1),'','var(--green)')}
+                ${dl('Balance Due',fmtUSD(o.balance_due),'',o.balance_due>0?'var(--red)':'var(--text3)')}
                 ${dl('Commission',fmtUSD(o.commission),'','var(--blue)')}
                 ${dl('Price Gap',fmtUSD(o.price_gap))}
                 ${dl('Selling Exp',fmtUSD(o.selling_expenses),'','var(--red)')}
                 ${dl('HH đã thu',o.commission_received?'✅ Đã thu':'⏳ Chưa thu')}
-                ${dl('Note',o.note||'—','span2')}
               </div>
-              <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-                <button class="btn btn-ghost btn-sm admin-only" onclick="event.stopPropagation();openCostModal('${o.id}')">✏️ Cost Price</button>
-                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStatusModal('${o.id}')">🔄 Trạng thái</button>
-                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openTrackingModal('${o.id}')">🚚 Tracking</button>
+              <!-- Tracking section -->
+              <div class="tracking-section" style="margin-top:14px;">
+                <h4>🚚 Tracking Number</h4>
+                ${o.tracking_number
+                  ?`<a href="https://t.17track.net/en#nums=${o.tracking_number}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:'JetBrains Mono';font-size:13px;font-weight:600;">${o.tracking_number}</a>`
+                  :'<span style="color:var(--text3);font-size:12px;">Chưa có tracking</span>'}
+                <button class="btn btn-ghost btn-sm" style="margin-top:8px;display:block;" onclick="event.stopPropagation();openTrackingModal('${o.id}')">
+                  ${o.tracking_number?'✏️ Cập nhật':'+ Nhập tracking'}
+                </button>
               </div>
             </div>
           </div>
           <div class="divider"></div>
-          <div class="section-title">📸 Hình ảnh tiến độ (${photos.length})</div>
+          <div class="section-title">📸 Hình ảnh tiến độ sản xuất (${photos.length})</div>
           <div class="photo-grid">
-            ${photos.map(p=>`<img class="photo-thumb" src="${p.storage_url}" alt="${p.caption||''}" onclick="openLightbox('${p.storage_url}')">`).join('')}
+            ${photos.map(p=>`<img class="photo-thumb" src="${p.storage_url}" alt="${p.caption||''}" onclick="event.stopPropagation();openLightbox('${p.storage_url}')">`).join('')}
             <label class="upload-btn" for="upload-${o.id}" onclick="event.stopPropagation()">
               <span style="font-size:20px;">+</span><span>Upload</span>
               <input type="file" id="upload-${o.id}" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this)">
@@ -913,19 +934,24 @@ async function syncFromCRM(){
       const cust=Array.isArray(custs)?custs.find(c=>c.id===inv.customer_id):null;
       const prof=Array.isArray(profs)?profs.find(p=>p.id===inv.sale_id):null;
       const invItems=Array.isArray(items)?items.filter(i=>i.invoice_id===inv.id):[];
-      const products=[...new Set(invItems.map(i=>i.product_name||i.description||'').filter(Boolean))].join(', ');
+      const products=[...new Set(invItems.filter(i=>!i.is_shipping&&!i.is_gift).map(i=>i.product_name||'').filter(Boolean))].join(', ');
+      // Vendor: lấy từ item đầu tiên không phải shipping
+      const mainItem=invItems.find(i=>!i.is_shipping);
+      const vendor=(mainItem?.vendor||'BOLSA').toUpperCase();
+      // Chenh lech tổng
+      const totalChenh=invItems.reduce((s,i)=>s+parseFloat(i.chenh_lech||0),0);
       const statusMap={'Đang sản xuất':'production','Đã nhận hàng':'delivered','Đã ship':'shipped','Hoàn thành':'completed'};
-      const mappedStatus=statusMap[inv.order_status]||(isSettled?'completed':'pending');
+      const mappedStatus=statusMap[inv.order_status]||(inv.payment_status==='paid'?'completed':'pending');
       return{
         invoice_no:inv.invoice_no,
         order_date:inv.date,
         billing_month:inv.billing_month||inv.date?.slice(0,7),
-        business_name:cust?.company||cust?.name||inv.location||'',
-        customer_name:cust?.name||'',
-        address:cust?.address||inv.location||'',
+        business_name:cust?.business_name||'',
+        customer_name:cust?.customer_name||'',
+        address:cust?.address||'',
         state:cust?.state||'',
-        phone_bus:cust?.phone||'',
-        phone_cell:cust?.mobile||'',
+        phone_bus:cust?.business_phone||'',
+        phone_cell:cust?.cellphone||'',
         order_type:inv.type||'Standard',
         product:products,
         total_amount:parseFloat(inv.total)||0,
@@ -935,10 +961,10 @@ async function syncFromCRM(){
         note:inv.note||'',
         payment_method:inv.payment_method||'',
         tracking_number:inv.tracking_number||'',
-        vendor:'BOLSA',
+        vendor,
         status:mappedStatus,
         crm_order_id:String(inv.id),
-        commission:0,price_gap:0,cost_price:0,selling_expenses:0,
+        commission:0,price_gap:totalChenh,cost_price:0,selling_expenses:0,
         commission_received:false
       };
     });
