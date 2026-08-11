@@ -886,7 +886,12 @@ function openSyncModal(){
 async function syncFromCRM(){
   toast('Đang sync từ CRM…','var(--text2)');
   try{
-    const hdrs={'apikey':CRM_KEY,'Authorization':`Bearer ${CRM_KEY}`};
+    const hdrs={
+      'apikey':CRM_KEY,
+      'Authorization':`Bearer ${CRM_KEY}`,
+      'Accept':'application/json',
+      'Content-Type':'application/json'
+    };
     const[ordsRes,itemsRes,profsRes]=await Promise.all([
       fetch(`${CRM_URL}/rest/v1/orders?select=*&order=order_date.desc`,{headers:hdrs}).then(r=>r.json()),
       fetch(`${CRM_URL}/rest/v1/order_items?select=*`,{headers:hdrs}).then(r=>r.json()),
