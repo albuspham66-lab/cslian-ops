@@ -963,19 +963,24 @@ async function syncFromCRM(){
       'Authorization':`Bearer ${CRM_KEY}`,
       'Accept':'application/json'
     };
-    const[invRaw,itemsRaw,custsRaw,profsRaw]=await Promise.all([
+    const[invRaw,itemsRaw]=await Promise.all([
       fetch(`${CRM_URL}/rest/v1/invoices?select=*&approval_status=eq.approved&order=date.desc&limit=500`,{headers:hdrs}),
       fetch(`${CRM_URL}/rest/v1/invoice_items?select=*&limit=3000`,{headers:hdrs}),
-      fetch(`${CRM_URL}/rest/v1/customers?select=id,business_name,customer_name,business_phone,cellphone,address,city,state,zipcode&limit=2000`,{headers:hdrs}),
-      fetch(`${CRM_URL}/rest/v1/profiles?select=id,full_name&limit=200`,{headers:hdrs}),
     ]);
     if(!invRaw.ok)throw new Error(`invoices ${invRaw.status}: ${await invRaw.text()}`);
     if(!itemsRaw.ok)throw new Error(`invoice_items ${itemsRaw.status}: ${await itemsRaw.text()}`);
     const invs=await invRaw.json();
     const items=itemsRaw.ok?await itemsRaw.json():[];
-    const custs=custsRaw.ok?await custsRaw.json():[];
-    const profs=profsRaw.ok?await profsRaw.json():[];
     if(!Array.isArray(invs)||!invs.length){toast('Không có invoice nào','var(--amber)');return;}
+
+    // Fetch đúng customers theo ID thực tế trong invoices
+    const custIds=[...new Set(invs.map(i=>i.customer_id).filter(Boolean))];
+    const custsRaw=await fetch(`${CRM_URL}/rest/v1/customers?select=id,business_name,customer_name,business_phone,cellphone,address,city,state,zipcode&id=in.(${custIds.join(',')})`,{headers:hdrs});
+    const custs=custsRaw.ok?await custsRaw.json():[];
+
+    // Fetch profiles (sale agents) — giới hạn nhỏ
+    const profsRaw=await fetch(`${CRM_URL}/rest/v1/profiles?select=id,full_name&limit=200`,{headers:hdrs});
+    const profs=profsRaw.ok?await profsRaw.json():[];
     const rows=invs.map(inv=>{
       const cust=Array.isArray(custs)?custs.find(c=>c.id===inv.customer_id):null;
       const prof=Array.isArray(profs)?profs.find(p=>p.id===inv.sale_id):null;
