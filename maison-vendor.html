@@ -5,6 +5,7 @@
 <title>Maison De KCT — Vendor Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garant:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 :root{
   --bg:#0A0B12;--sidebar:#0C0D1A;--card:#15162A;--card2:#1C1D35;
@@ -1204,9 +1205,24 @@ async function syncFromCRM(){
     });
     const{error}=await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
     if(error)throw new Error('Upsert: '+error.message);
+
+    // Dọn dẹp đơn "mồ côi": đơn từng sync về nhưng CRM không còn approved nữa
+    // (huỷ duyệt / xoá / thay đổi) — nếu không xoá thì tổng đơn + doanh số ở
+    // Vendor Portal sẽ luôn >= CRM, không bao giờ giảm.
+    const approvedCrmIds=new Set(invs.map(i=>String(i.id)));
+    const{data:existingRows,error:exErr}=await sb.from('vendor_orders').select('id,crm_order_id').not('crm_order_id','is',null);
+    if(!exErr&&Array.isArray(existingRows)){
+      const staleIds=existingRows.filter(r=>r.crm_order_id&&!approvedCrmIds.has(r.crm_order_id)).map(r=>r.id);
+      if(staleIds.length){
+        const{error:delErr}=await sb.from('vendor_orders').delete().in('id',staleIds);
+        if(delErr)console.error('Cleanup stale orders lỗi:',delErr);
+      }
+      var staleCount=staleIds.length;
+    }
+
     await loadOrders();await loadPhotos();
     renderOrders();renderDashboard();populateMonthFilter();
-    toast(`✅ Sync ${rows.length} invoices thành công`,'var(--green)');
+    toast(`✅ Sync ${rows.length} invoices${staleCount?`, dọn ${staleCount} đơn mồ côi`:''} thành công`,'var(--green)');
   }catch(e){toast('Lỗi sync: '+e.message,'var(--red)');console.error(e);}
 }
 
@@ -1295,15 +1311,83 @@ async function runReport(){
   document.getElementById('report-summary').style.display='block';
 }
 
-function exportReport(){
+async function exportReport(){
   if(!rptData.length){toast('Chạy báo cáo trước','var(--amber)');return;}
-  const rows=[['Invoice','Tháng','Business Name','Customer','State','Product','Vendor','Total ($)','Cost Price ($)','Commission ($)','HH Đã Thu ($)','Price Gap ($)','Selling Exp ($)','Trạng thái','Tracking'],
-    ...rptData.map(o=>[o.invoice_no,o.billing_month,o.business_name,o.customer_name,o.state,o.product,o.vendor,o.total_amount,o.cost_price,o.commission,o.commission_received?o.commission:0,o.price_gap,o.selling_expenses,o.status,o.tracking_number])];
-  const csv=rows.map(r=>r.map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`maison-report-${Date.now()}.csv`;a.click();
-  toast('✅ Đã xuất file CSV','var(--green)');
+  toast('Đang tạo file Excel…','var(--text2)');
+  try{
+    const wb=new ExcelJS.Workbook();
+    wb.creator='Maison De KCT Vendor Portal';
+    wb.created=new Date();
+    const ws=wb.addWorksheet('Báo cáo',{views:[{state:'frozen',ySplit:1}]});
+    const moneyCols=new Set(['costPrice','total','deposit1','deposit2','balance','commission','priceGap','sellingExp']);
+    ws.columns=[
+      {header:'No.',key:'no',width:6},
+      {header:'Date',key:'date',width:12},
+      {header:'Month',key:'month',width:10},
+      {header:'Bussiness Name',key:'business',width:24},
+      {header:'Customer Name',key:'customer',width:18},
+      {header:'Address',key:'address',width:26},
+      {header:'Bus Phone',key:'busPhone',width:14},
+      {header:'Cell Phone',key:'cellPhone',width:14},
+      {header:'State',key:'state',width:8},
+      {header:'Order Type',key:'orderType',width:12},
+      {header:'Product',key:'product',width:24},
+      {header:'Cost Price',key:'costPrice',width:12},
+      {header:'Total Amount',key:'total',width:14},
+      {header:'Deposit 1',key:'deposit1',width:12},
+      {header:'Deposit 2',key:'deposit2',width:12},
+      {header:'Balance Duo',key:'balance',width:12},
+      {header:'Note',key:'note',width:22},
+      {header:'Payment Method',key:'paymentMethod',width:16},
+      {header:'Invoice',key:'invoice',width:16},
+      {header:'Comission',key:'commission',width:12},
+      {header:'Price gap',key:'priceGap',width:12},
+      {header:'Selling expenses',key:'sellingExp',width:14},
+      {header:'Status',key:'status',width:14},
+      {header:'Tracking Nuber',key:'tracking',width:16},
+      {header:'Picture',key:'picture',width:22},
+    ];
+    const statusLbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
+    rptData.forEach((o,i)=>{
+      const photo=allPhotos.find(p=>p.order_id===o.id&&!/^payment:/.test(p.caption||''));
+      const row=ws.addRow({
+        no:i+1,date:o.order_date||'',month:o.billing_month||'',
+        business:o.business_name||'',customer:o.customer_name||'',address:o.address||'',
+        busPhone:o.phone_bus||'',cellPhone:o.phone_cell||'',state:o.state||'',
+        orderType:o.order_type||'',product:o.product||'',
+        costPrice:o.cost_price||0,total:o.total_amount||0,
+        deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
+        note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
+        commission:o.commission||0,priceGap:o.price_gap||0,sellingExp:o.selling_expenses||0,
+        status:statusLbl[o.status]||o.status||'',tracking:o.tracking_number||'',
+        picture:photo?'Xem ảnh':''
+      });
+      if(photo){
+        row.getCell('picture').value={text:'Xem ảnh',hyperlink:photo.storage_url};
+        row.getCell('picture').font={color:{argb:'FF1155CC'},underline:true};
+      }
+      moneyCols.forEach(k=>row.getCell(k).numFmt='$#,##0.00');
+      if(i%2===1){
+        row.eachCell(c=>{if(!c.fill||!c.fill.fgColor)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF15162A'}};});
+      }
+      row.eachCell(c=>{c.border={bottom:{style:'thin',color:{argb:'FF2A2B40'}}};});
+    });
+    // Header styling — gold background, dark bold text, frozen via view above
+    const header=ws.getRow(1);
+    header.eachCell(c=>{
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC9A84C'}};
+      c.font={bold:true,color:{argb:'FF0A0B12'},size:11};
+      c.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+      c.border={bottom:{style:'medium',color:{argb:'FF0A0B12'}}};
+    });
+    header.height=24;
+    ws.autoFilter={from:{row:1,column:1},to:{row:1,column:ws.columns.length}};
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`maison-report-${Date.now()}.xlsx`;a.click();
+    toast('✅ Đã xuất file Excel','var(--green)');
+  }catch(e){toast('Lỗi xuất Excel: '+e.message,'var(--red)');console.error(e);}
 }
 
 // ══ HELPERS ══
