@@ -1367,10 +1367,14 @@ async function exportReport(){
         row.getCell('picture').font={color:{argb:'FF1155CC'},underline:true};
       }
       moneyCols.forEach(k=>row.getCell(k).numFmt='$#,##0.00');
-      if(i%2===1){
-        row.eachCell(c=>{if(!c.fill||!c.fill.fgColor)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF15162A'}};});
-      }
-      row.eachCell(c=>{c.border={bottom:{style:'thin',color:{argb:'FF2A2B40'}}};});
+      // Zebra stripe SÁNG (nền trắng/xám nhạt, chữ đen mặc định) để luôn đọc được
+      // trên mọi trình xem Excel — bảng nền tối + chữ mặc định đen là lý do bị mất chữ trước đó.
+      const isHyperlinkCell=c=>c.value&&typeof c.value==='object'&&c.value.hyperlink;
+      row.eachCell(c=>{
+        if(i%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2EFE6'}};
+        if(!isHyperlinkCell(c))c.font={color:{argb:'FF1A1A1A'}};
+        c.border={bottom:{style:'thin',color:{argb:'FFDDD5C0'}}};
+      });
     });
     // Header styling — gold background, dark bold text, frozen via view above
     const header=ws.getRow(1);
