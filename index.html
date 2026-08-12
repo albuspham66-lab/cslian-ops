@@ -2564,7 +2564,6 @@ function renderTaxDetailModal(){
       <tr><td>Phụ cấp đi lại/xăng xe</td><td style="text-align:right">${vnd(r.p3d_di_lai)}</td></tr>
       <tr><td>Lương làm việc ca đêm</td><td style="text-align:right">${vnd(r.p2b)}</td></tr>
       <tr><td>Phụ cấp năng lực (Level)</td><td style="text-align:right">${vnd(r.p2c)}</td></tr>
-      ${f.isProbation?`<tr><td style="color:#c0392b">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</td><td style="text-align:right;color:#c0392b">−${vnd(r.dieu_chinh_thu_viec_vnd||0)}</td></tr>`:''}
     </table>
 
     <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">B — THƯỞNG</div>
@@ -2606,6 +2605,7 @@ function renderTaxDetailModal(){
       <tr><td>Tổng thu nhập (Gross)</td><td style="text-align:right">${vnd(r.tong_luong_vnd)}</td></tr>
       <tr><td>Trừ BHXH/BHYT/BHTN (NLĐ)</td><td style="text-align:right;color:#c0392b">−${vnd(r.bhxh_vnd)}</td></tr>
       <tr><td>Trừ thuế TNCN</td><td style="text-align:right;color:#c0392b">−${vnd(r.thue_tncn_vnd)}</td></tr>
+      ${r.dieu_chinh_thu_viec_vnd>0?`<tr><td>Điều chỉnh thử việc (85% của thu nhập sau thuế)</td><td style="text-align:right;color:#c0392b">−${vnd(r.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
       <tr style="background:var(--bg3)"><td style="font-weight:700">Thực lĩnh (trước tạm ứng)</td><td style="text-align:right;font-weight:700">${vnd(netTruocTamUng)}</td></tr>
       <tr><td>Tạm ứng<br><input type="number" id="td-tam-ung" value="${tamUng}" style="margin-top:4px;width:140px;text-align:right;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)"></td><td style="text-align:right;color:#c0392b;vertical-align:top">−${vnd(tamUng)}</td></tr>
       <tr style="background:var(--bg3)"><td style="font-weight:700">Thực lĩnh sau tạm ứng</td><td style="text-align:right;font-weight:700;color:var(--success)">${vnd(thucLinhSauTamUng)}</td></tr>
@@ -3395,11 +3395,6 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const p3cNguong=kpiSet?.nguong_dat||80;
   const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
 
-  // Điều chỉnh thử việc: 15% của (P1+P2A+P2B+P2C+P3B+P3C+P3D) — trừ 1 lần
-  // vào tổng, KHÔNG trừ riêng từng dòng. Bằng 0 nếu là nhân viên chính thức.
-  const subtotalP1P2P3B=p1+p2a+p2b+p2c+p3b+p3c+p3d;
-  const dieuChinhThuViec=heCoP1<1?Math.round(subtotalP1P2P3B*(1-heCoP1)):0;
-
   const ords=ords0;
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
   const bonusChenh=ords.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
@@ -3515,9 +3510,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   }catch(e){console.warn('[backup bonus]',e.message);}
 
   const backupBonusVnd=Math.round(backupBonusUsd*TY_GIA);
-  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d-dieuChinhThuViec+p3aVnd+backupBonusVnd;
+  // TỔNG LƯƠNG (GROSS) = cộng ĐỦ 100% mọi khoản, kể cả P3A — hệ số thử việc
+  // KHÔNG áp vào đây. (Xem giải thích thứ tự đúng bên dưới.)
+  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d+p3aVnd+backupBonusVnd;
 
-  // ── BHXH & Thuế TNCN ──────────────────────────────────────────────
+  // ── BHXH & Thuế TNCN — tính trên GROSS ĐỦ 100% ──────────────────────
   const bhxhVnd=calcBHXH(p1,isProbation);
   const soNguoiPhuThuoc=emp.so_nguoi_phu_thuoc||0;
   // Khoản miễn thuế TNCN: tiền ăn giữa ca (P2A) + tiền lương làm đêm (P2B) —
@@ -3525,7 +3522,15 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // nên đủ điều kiện miễn thuế theo Điều 3 Thông tư 111/2013/TT-BTC.
   const mienThueVnd=p2a+p2b;
   const thueTncnVnd=calcThueTNCN(tongLuong,bhxhVnd,isProbation,soNguoiPhuThuoc,mienThueVnd);
-  const luongThucNhanVnd=tongLuong-bhxhVnd-thueTncnVnd;
+
+  // Tổng thu nhập sau thuế (trước khi áp hệ số thử việc)
+  const sauThueVnd=tongLuong-bhxhVnd-thueTncnVnd;
+  // Điều chỉnh thử việc: 15% của TỔNG THU NHẬP SAU THUẾ — áp dụng Ở BƯỚC
+  // CUỐI CÙNG, sau khi đã trừ BHXH+Thuế trên mức lương ĐỦ 100% (khớp đúng
+  // công thức "Thực lĩnh thử việc = Tổng thu nhập sau thuế × 85%" trong file
+  // Excel mẫu Calvin cung cấp — KHÔNG áp 15% trước khi tính thuế như bản cũ).
+  const dieuChinhThuViec=isProbation?Math.round(sauThueVnd*(1-heCoP1)):0;
+  const luongThucNhanVnd=sauThueVnd-dieuChinhThuViec;
 
   return {user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
     so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,cong_chuan_thang:congChuan,
@@ -3621,7 +3626,7 @@ function renderSalaryRow(emp,sal,thang,isMgr){
     `<span class="sal-lock-badge ${locked?'locked':'unlocked'}">${locked?'🔒 Đã chốt':'🔓 Đang tính'}</span>`;
   row.innerHTML=`
     <td><span class="sal-name">${emp.full_name}</span><span class="sal-code">${emp.employee_code||''}</span></td>
-    <td><span class="sal-total">${vndFmt(sal.tong_luong_vnd)}</span></td>
+    <td><span class="sal-total">${vndFmt(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</span></td>
     <td>
       <div class="sal-row-actions" style="justify-content:flex-end">
         ${lockBtn}
@@ -3657,7 +3662,7 @@ async function viewSalaryDetail(empId,thang){
   const html=`
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}<span style="font-size:14px;font-weight:400;color:var(--text3)">/${sal.cong_chuan_thang||congChuanThang(...thang.split('-').map(Number))}</span></div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
-      <div class="stat-card"><div class="stat-label">💵 Lương thực nhận</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(sal.tong_luong_vnd)}</div><div class="stat-sub">Tháng ${thang}</div></div>
+      <div class="stat-card"><div class="stat-label">💵 Lương thực nhận</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</div><div class="stat-sub">Tháng ${thang}</div></div>
       <div class="stat-card"><div class="stat-label">🎯 Bonus P3A</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(sal.p3a_total_usd)}</div><div class="stat-sub">${sal.p3a_ty_le_dat===1?'✅ Đạt target 100%':'⚠️ Không đạt 50%'}</div></div>
       <div class="stat-card"><div class="stat-label">⭐ Level P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
     </div>
@@ -3675,8 +3680,11 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
       ${(sal.backup_bonus_usd>0)?`<div class="salary-row" style="background:rgba(16,185,129,0.08);border-radius:8px;padding:4px 8px"><span class="salary-label" style="color:#10b981">🔄 Backup Bonus tháng trước (${usd(sal.backup_bonus_usd)})</span><span class="salary-val" style="color:#10b981">${vnd((sal.backup_bonus_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
-      ${(sal.dieu_chinh_thu_viec_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.dieu_chinh_thu_viec_vnd)}</span></div>`:''}
-      <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
+      <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG (GROSS)</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
+      ${sal.bhxh_vnd>0?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">BHXH/BHYT/BHTN (10.5% trên P1)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.bhxh_vnd)}</span></div>`:''}
+      <div class="salary-row"><span class="salary-label" style="color:#c0392b">Thuế TNCN</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.thue_tncn_vnd)}</span></div>
+      ${(sal.dieu_chinh_thu_viec_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">Điều chỉnh thử việc (85% của thu nhập sau thuế)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.dieu_chinh_thu_viec_vnd)}</span></div>`:''}
+      <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG THỰC NHẬN</span><span class="salary-val">${vnd(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</span></div>
     </div>
     <div style="margin-top:12px"><button class="btn-sm btn-ghost" onclick="renderSalary()">← Quay lại danh sách</button></div>`;
   document.getElementById('salary-display').innerHTML=html;
@@ -3744,11 +3752,11 @@ function buildPhieuLuongHTML(emp,sal,thang){
     <div class="pl-section">
       <div class="pl-section-title">C — Tổng hợp</div>
       <table class="pl-table">
-        ${sal.dieu_chinh_thu_viec_vnd>0?`<tr><td class="label">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</td><td class="formula">−15%</td><td class="amount" style="color:#c0392b">−${vndFmt(sal.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
         <tr class="subtotal"><td class="label">TỔNG LƯƠNG (GROSS)</td><td class="formula">P1+P2+P3</td><td class="amount" style="font-size:13px">${vndFmt(sal.tong_luong_vnd)}</td></tr>
         <tr><td class="label">BHXH/BHYT/BHTN (8%+1.5%+1%, trên P1)${sal.p1_he_so===0.85?' — thử việc: không đóng':''}</td><td class="formula">−10.5%×P1</td><td class="amount" style="color:#c0392b">${sal.bhxh_vnd?'−'+vndFmt(sal.bhxh_vnd):vndFmt(0)}</td></tr>
         <tr><td class="label">Thuế TNCN${sal.p1_he_so===0.85?' (khấu trừ 10% — HĐ thử việc <3 tháng)':` (biểu lũy tiến, GT gia cảnh: bản thân 15.5tr${sal.so_nguoi_phu_thuoc_snapshot?` + ${sal.so_nguoi_phu_thuoc_snapshot} người phụ thuộc×6.2tr`:''})`} — đã trừ ${vndFmt(sal.mien_thue_vnd||0)} thu nhập miễn thuế (ăn ca+làm đêm)</td><td class="formula">−Thuế</td><td class="amount" style="color:#c0392b">${sal.thue_tncn_vnd?'−'+vndFmt(sal.thue_tncn_vnd):vndFmt(0)}</td></tr>
-        <tr class="total"><td class="label">LƯƠNG THỰC NHẬN (NET)</td><td class="formula">Gross−BH−Thuế</td><td class="amount" style="color:#0e7c4a;font-size:14px">${vndFmt(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</td></tr>
+        ${sal.dieu_chinh_thu_viec_vnd>0?`<tr><td class="label">Điều chỉnh thử việc (85% của thu nhập sau thuế)</td><td class="formula">×85%</td><td class="amount" style="color:#c0392b">−${vndFmt(sal.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
+        <tr class="total"><td class="label">LƯƠNG THỰC NHẬN (NET)</td><td class="formula">${sal.p1_he_so===0.85?'(Gross−BH−Thuế)×85%':'Gross−BH−Thuế'}</td><td class="amount" style="color:#0e7c4a;font-size:14px">${vndFmt(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</td></tr>
       </table>
     </div>
 
