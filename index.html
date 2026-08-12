@@ -480,6 +480,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
       <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
+      <button class="nav-btn nav-mgr" onclick="switchTab('taxreport',this)" style="display:none">🧾 Báo cáo thuế</button>
       <button class="nav-btn" onclick="switchTab('docs',this)">📚 Tài liệu</button>
 
 
@@ -742,6 +743,48 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <div id="page-team" class="page-content">
       <div class="page-header"><div><h2>Nhân viên</h2></div><div style="display:flex;gap:8px"><button class="btn-sm btn-primary" onclick="openAddEmpModal()" style="font-size:12px;padding:6px 14px">+ Thêm nhân viên</button></div></div>
       <div id="emp-grid" style="display:grid;gap:10px"></div>
+    </div>
+
+    <!-- BÁO CÁO THUẾ -->
+    <div id="page-taxreport" class="page-content">
+      <div class="page-header">
+        <div><h2>🧾 Báo cáo thuế</h2><div class="page-sub">Tổng hợp quỹ lương, BHXH, thuế TNCN toàn công ty theo năm — phục vụ quyết toán thuế cuối năm</div></div>
+        <div><button class="btn-sm btn-primary" onclick="exportTaxReportExcel()">📊 Xuất Excel</button></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Năm</label>
+          <select id="tr-year" onchange="renderTaxReport()" class="form-input" style="width:110px"></select>
+        </div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Từ tháng</label>
+          <select id="tr-month-from" onchange="renderTaxReport()" class="form-input" style="width:90px"></select>
+        </div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Đến tháng</label>
+          <select id="tr-month-to" onchange="renderTaxReport()" class="form-input" style="width:90px"></select>
+        </div>
+        <div style="flex:1;min-width:180px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Tìm nhân viên</label>
+          <input type="text" id="tr-search" placeholder="Tên hoặc mã NV..." oninput="renderTaxReport()" class="form-input" style="width:100%">
+        </div>
+      </div>
+
+      <!-- Tổng hợp toàn công ty -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px" id="tr-summary-cards"></div>
+
+      <div style="overflow-x:auto">
+        <table class="def-table" style="width:100%;min-width:920px">
+          <thead>
+            <tr>
+              <th>Tháng</th><th>Mã NV</th><th>Họ tên</th><th>Loại HĐ</th>
+              <th style="text-align:right">Tổng quỹ lương (Gross)</th>
+              <th style="text-align:right">BHXH/BHYT/BHTN</th>
+              <th style="text-align:right">Thu nhập miễn thuế</th>
+              <th style="text-align:right">Thuế TNCN</th>
+              <th style="text-align:right">Tổng khấu trừ</th>
+              <th style="text-align:right">Thực lĩnh (Net)</th>
+            </tr>
+          </thead>
+          <tbody id="tr-tbody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- TÀI LIỆU -->
@@ -1198,6 +1241,9 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ae-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
       <div class="form-f"><label>Số điện thoại</label><input type="text" id="ae-phone" placeholder="0901234567"/></div>
       <div class="form-f"><label>CCCD</label><input type="text" id="ae-cccd" placeholder="012345678901"/></div>
+      <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ae-cccd-ngay-cap"/></div>
+      <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ae-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
+      <div class="form-f"><label>Quốc tịch</label><input type="text" id="ae-quoc-tich" value="Việt Nam"/></div>
       <div class="form-f" style="grid-column:1/-1"><label>Địa chỉ</label><input type="text" id="ae-address" placeholder="123 Đường ABC, Quận 1, TP.HCM"/></div>
     </div>
     <div id="ae-note" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(253,203,110,0.1);border:1px solid rgba(253,203,110,0.3);border-radius:8px;font-size:12px;color:#fdcb6e;line-height:1.6"></div>
@@ -1249,11 +1295,42 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ep-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
       <div class="form-f"><label>Số điện thoại</label><input type="text" id="ep-phone" placeholder="0901234567"/></div>
       <div class="form-f"><label>CCCD</label><input type="text" id="ep-cccd" placeholder="012345678901"/></div>
+      <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ep-cccd-ngay-cap"/></div>
+      <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ep-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
+      <div class="form-f"><label>Quốc tịch</label><input type="text" id="ep-quoc-tich" value="Việt Nam"/></div>
       <div class="form-f" style="grid-column:1/-1"><label>Địa chỉ</label><input type="text" id="ep-address" placeholder="123 Đường ABC, Quận 1, TP.HCM"/></div>
     </div>
     <div class="mactions">
       <button class="mbtn" onclick="closeModal('emp-profile-modal')">Huỷ</button>
       <button class="mbtn mbtn-p" onclick="saveEmpProfile()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Hợp đồng thử việc -->
+<div class="modal-bg" id="contract-modal">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-title">📄 Xuất hợp đồng thử việc — <span id="ct-emp-name"></span></div>
+    <div style="max-height:65vh;overflow-y:auto;padding-right:4px">
+      <div class="form-grid">
+        <div class="form-f"><label>Số hợp đồng</label><input type="text" id="ct-so-hd" placeholder="01/07-2026/HĐTV"/></div>
+        <div class="form-f"><label>Ngày ký</label><input type="date" id="ct-ngay-ky"/></div>
+        <div class="form-f"><label>Thử việc từ ngày</label><input type="date" id="ct-tu-ngay"/></div>
+        <div class="form-f"><label>Thử việc đến ngày</label><input type="date" id="ct-den-ngay"/></div>
+        <div class="form-f"><label>Chức danh</label><input type="text" id="ct-chuc-danh" value="Nhân viên"/></div>
+        <div class="form-f"><label>Bộ phận</label><input type="text" id="ct-bo-phan" value="Phòng kinh doanh"/></div>
+        <div class="form-f" style="grid-column:1/-1"><label>Địa điểm làm việc</label><input type="text" id="ct-dia-diem" value="276/29/10 Đường Mã Lò, Phường Bình Trị Đông, TP. Hồ Chí Minh"/></div>
+        <div class="form-f"><label>Giờ làm việc</label><input type="text" id="ct-gio-lam" value="Từ 22h00 đến 06h00"/></div>
+        <div class="form-f"><label>Số ngày làm việc/tuần</label><input type="text" id="ct-ngay-lam-tuan" value="5 ngày/tuần (Thứ hai - Thứ sáu)"/></div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text3);background:var(--bg3);border-radius:8px;padding:10px 12px">
+        💡 Lương & phụ cấp lấy tự động theo công thức hiện hành: Lương chính 5.310.000đ · Tiền lương làm đêm 1.593.000đ · Phụ cấp ăn giữa ca 504.550đ. Thông tin cá nhân (CCCD, địa chỉ...) lấy từ hồ sơ nhân viên — vào "✏️ Sửa" để cập nhật nếu thiếu.
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="mbtn" onclick="closeModal('contract-modal')">Huỷ</button>
+      <button class="mbtn" onclick="exportContractWord()">⬇️ Tải Word</button>
+      <button class="mbtn mbtn-p" onclick="exportContractPDF()">🖨️ In / Xuất PDF</button>
     </div>
   </div>
 </div>
@@ -1342,7 +1419,22 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS state text;
 */
 
-const LUONG_CUNG=5310000,CONG_CHUAN=22,LUONG_NGAY=Math.round(LUONG_CUNG/CONG_CHUAN),LUONG_GIO=Math.round(LUONG_NGAY/8);
+const LUONG_CUNG=5310000;
+// Ngày công tiêu chuẩn của 1 tháng = Tổng ngày trong tháng − Ngày nghỉ hằng
+// tuần (Thứ 7 + Chủ nhật) — đúng công thức trong Hợp đồng lao động/thử việc.
+// KHÔNG cố định 22 ngày vì mỗi tháng có số Thứ7/CN khác nhau (VD T7/2026=23,
+// T8/2026=21, T9/2026=22) — cố định sẽ gây thiếu/dư công sai lệch lương.
+function congChuanThang(year,month1){ // month1: 1-12
+  const daysInMonth=new Date(year,month1,0).getDate();
+  let weekend=0;
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=new Date(year,month1-1,d).getDay(); // 0=CN,6=T7
+    if(dow===0||dow===6)weekend++;
+  }
+  return daysInMonth-weekend;
+}
+function luongNgayThang(year,month1){return Math.round(LUONG_CUNG/congChuanThang(year,month1));}
+function luongGioThang(year,month1){return Math.round(luongNgayThang(year,month1)/8);}
 const PHAT1=150000,PHAT2=300000,TARGET_USD=23500,TY_GIA=25000;
 const DAYS=['CN','T2','T3','T4','T5','T6','T7'];
 const VN_HL=['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30','2025-01-31','2025-04-30','2025-05-01','2025-09-02','2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-04-30','2026-05-01','2026-09-02'];
@@ -1383,16 +1475,22 @@ function calcBHXH(p1,isProbation){
   return Math.round(p1*BH_TOTAL_RATE);
 }
 // Tính thuế TNCN cho 1 tháng lương.
-// - Thử việc (HĐ <3 tháng): khấu trừ 10% flat trên TỔNG LƯƠNG nếu ≥2 triệu,
-//   KHÔNG áp giảm trừ gia cảnh, KHÔNG trừ BHXH (vì thử việc không đóng BH).
-// - Chính thức: (Tổng lương − BHXH − Giảm trừ gia cảnh) → áp biểu lũy tiến 5 bậc.
-function calcThueTNCN(tongLuongVnd,bhxhVnd,isProbation,soNguoiPhuThuoc){
+// - Thử việc (HĐ <3 tháng): khấu trừ 10% flat trên (TỔNG LƯƠNG − các khoản
+//   miễn thuế) nếu ≥2 triệu, KHÔNG áp giảm trừ gia cảnh, KHÔNG trừ BHXH.
+// - Chính thức: (Tổng lương − BHXH − các khoản miễn thuế − Giảm trừ gia cảnh)
+//   → áp biểu lũy tiến 5 bậc.
+// mienThueVnd = các khoản miễn thuế theo Điều 2/3 Thông tư 111/2013: tiền ăn
+// giữa ca (P2A) + phần trả thêm cho giờ làm đêm (P2B). Không phải khấu trừ,
+// mà là loại khỏi thu nhập chịu thuế ngay từ đầu.
+function calcThueTNCN(tongLuongVnd,bhxhVnd,isProbation,soNguoiPhuThuoc,mienThueVnd){
+  const mienThue=mienThueVnd||0;
   if(isProbation){
-    return tongLuongVnd>=KHAU_TRU_THU_VIEC_NGUONG
-      ?Math.round(tongLuongVnd*KHAU_TRU_THU_VIEC_RATE):0;
+    const tnChiuThue=Math.max(0,tongLuongVnd-mienThue);
+    return tnChiuThue>=KHAU_TRU_THU_VIEC_NGUONG
+      ?Math.round(tnChiuThue*KHAU_TRU_THU_VIEC_RATE):0;
   }
   const giamTru=GIAM_TRU_BAN_THAN+(soNguoiPhuThuoc||0)*GIAM_TRU_NGUOI_PHU_THUOC;
-  const thuNhapChiuThue=Math.max(0,tongLuongVnd-bhxhVnd);
+  const thuNhapChiuThue=Math.max(0,tongLuongVnd-bhxhVnd-mienThue);
   const tntt=Math.max(0,thuNhapChiuThue-giamTru);
   return calcThueTNCNLuyTien(tntt);
 }
@@ -1671,7 +1769,8 @@ function updateCIButtons(rec){
   if(rec&&fmtTime(rec.checkin_time)&&fmtTime(rec.checkout_time)){
     btnIn.className='ci-btn btn-dis';btnIn.disabled=true;
     btnOut.className='ci-btn btn-dis';btnOut.disabled=true;
-    const r=calcDayLogic(rec,curProfile.type||curProfile.role);
+    const _now=new Date();
+    const r=calcDayLogic(rec,curProfile.type||curProfile.role,luongNgayThang(_now.getFullYear(),_now.getMonth()+1),luongGioThang(_now.getFullYear(),_now.getMonth()+1));
     chips=`<span class="status-chip chip-in">✅ Check in: ${fmtTime(rec.checkin_time)}</span>
            <span class="status-chip chip-out">🚪 Check out: ${fmtTime(rec.checkout_time)}</span>
            <span class="status-chip chip-earn">💰 ${r.hours}h · ${vnd(r.salary)}</span>`;
@@ -1792,11 +1891,11 @@ function fmtTime(t){
   return t.slice(0,5);
 }
 function fmtTimeDisplay(t){ return fmtTime(t)||'—'; }
-function calcDayLogic(rec,empType){
+function calcDayLogic(rec,empType,luongNgay,luongGio){
   if(!rec)return{hours:0,salary:0,isLate:false,lateMin:0};
-  if(rec.status==='NL')return{hours:8,salary:LUONG_NGAY,isLate:false,lateMin:0};
+  if(rec.status==='NL')return{hours:8,salary:luongNgay,isLate:false,lateMin:0};
   if(rec.status==='NKP')return{hours:0,salary:0,isLate:false,lateMin:0};
-  if(rec.status==='NP'){const ok=empType==='chinh-thuc'||empType==='manager'||empType==='leader';return{hours:ok?8:0,salary:ok?LUONG_NGAY:0,isLate:false,lateMin:0};}
+  if(rec.status==='NP'){const ok=empType==='chinh-thuc'||empType==='manager'||empType==='leader';return{hours:ok?8:0,salary:ok?luongNgay:0,isLate:false,lateMin:0};}
   if(!fmtTime(rec.checkin_time)||!fmtTime(rec.checkout_time))return{hours:0,salary:0,isLate:false,lateMin:0};
   // Parse ISO timestamp hoặc HH:MM string
   function toHHMM(t){
@@ -1812,7 +1911,7 @@ function calcDayLogic(rec,empType){
   const isLate=ciT>22*60+10,lateMin=isLate?ciT-22*60:0;
   const coHHMM=toHHMM(fmtTime(rec.checkout_time));
   const k=calcKhung(ciHHMM,coHHMM);
-  return{hours:k*2,salary:k*2*LUONG_GIO,isLate,lateMin};
+  return{hours:k*2,salary:k*2*luongGio,isLate,lateMin};
 }
 
 var _attCache={};
@@ -1838,16 +1937,17 @@ async function renderAttTable(){
   }
   const recMap={};(rows||[]).forEach(r=>recMap[r.date]=r);
   const today=new Date(),todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+  const _luongNgay=luongNgayThang(curYear,curMonth+1),_luongGio=luongGioThang(curYear,curMonth+1);
   let totalH=0,totalS=0,late=0,np=0,nl=0,nkp=0,wd=0,tbody='';
   for(let d=1;d<=last;d++){
     const ds=dateStr(curYear,curMonth,d),dow=new Date(curYear,curMonth,d).getDay(),we=isWE(dow),hl=isHL(ds),isToday=ds===todayStr;
-    const rec=recMap[ds],r=calcDayLogic(rec,emp.type||emp.role);
+    const rec=recMap[ds],r=calcDayLogic(rec,emp.type||emp.role,_luongNgay,_luongGio);
     let trClass=we?'tr-weekend':(isToday?'tr-today':'');
     if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="7" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
     let ciShow='—',coShow='—',hShow='—',sShow='—',statusHtml='',noteHtml='';
     if(rec){
       ciShow=fmtTime(rec.checkin_time)||'—';coShow=fmtTime(rec.checkout_time)||'—';
-      if(rec.status==='NL'||hl){statusHtml=`<span class="pill pill-nl">NL</span>`;nl++;totalH+=8;totalS+=LUONG_NGAY;hShow='8h';sShow=vnd(LUONG_NGAY);}
+      if(rec.status==='NL'||hl){statusHtml=`<span class="pill pill-nl">NL</span>`;nl++;totalH+=8;totalS+=_luongNgay;hShow='8h';sShow=vnd(_luongNgay);}
       else if(rec.status==='NP'){statusHtml=`<span class="pill pill-np">NP</span>`;np++;totalH+=r.hours;totalS+=r.salary;hShow=r.hours+'h';sShow=vnd(r.salary);}
       else if(rec.status==='NKP'){statusHtml=`<span class="pill pill-nkp">NKP</span>`;nkp++;}
       else{wd++;totalH+=r.hours;totalS+=r.salary;if(r.isLate){late++;noteHtml=`<span class="pill pill-late">Trễ ${r.lateMin}p</span>`;}
@@ -2187,6 +2287,139 @@ async function exportOrdersExcel(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Đã xuất file Excel — '+list.length+' đơn hàng');
+}
+
+// ============================================================
+// BÁO CÁO THUẾ — tổng hợp quỹ lương/BHXH/thuế TNCN toàn công ty
+// ============================================================
+function initTaxReportFilter(){
+  const yearSel=document.getElementById('tr-year');
+  if(yearSel.options.length===0){
+    const curY=new Date().getFullYear();
+    for(let y=curY;y>=curY-3;y--)yearSel.innerHTML+=`<option value="${y}">${y}</option>`;
+  }
+  const mFrom=document.getElementById('tr-month-from'),mTo=document.getElementById('tr-month-to');
+  if(mFrom.options.length===0){
+    for(let m=1;m<=12;m++){
+      mFrom.innerHTML+=`<option value="${m}">Tháng ${m}</option>`;
+      mTo.innerHTML+=`<option value="${m}">Tháng ${m}</option>`;
+    }
+    mFrom.value=1;mTo.value=12;
+  }
+}
+var _trCache=null;
+async function _fetchTaxReportData(){
+  const year=document.getElementById('tr-year').value;
+  const mFrom=parseInt(document.getElementById('tr-month-from').value);
+  const mTo=parseInt(document.getElementById('tr-month-to').value);
+  const thangFrom=`${year}-${pad2(mFrom)}`,thangTo=`${year}-${pad2(mTo)}`;
+  const {data}=await sb.from('salary_monthly').select('*')
+    .gte('thang',thangFrom).lte('thang',thangTo)
+    .order('thang',{ascending:true});
+  return data||[];
+}
+async function renderTaxReport(){
+  const search=(document.getElementById('tr-search').value||'').toLowerCase().trim();
+  const rows=await _fetchTaxReportData();
+  const filtered=rows.filter(r=>{
+    if(!search)return true;
+    const emp=allProfilesMap[r.user_id]||{};
+    return (emp.full_name||'').toLowerCase().includes(search)||(emp.employee_code||'').toLowerCase().includes(search);
+  });
+
+  // Tổng hợp toàn công ty
+  let totGross=0,totBH=0,totMienThue=0,totThue=0,totNet=0;
+  filtered.forEach(r=>{
+    totGross+=r.tong_luong_vnd||0;
+    totBH+=r.bhxh_vnd||0;
+    totMienThue+=r.mien_thue_vnd||0;
+    totThue+=r.thue_tncn_vnd||0;
+    totNet+=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
+  });
+  const totKhauTru=totBH+totThue;
+  const cardsEl=document.getElementById('tr-summary-cards');
+  const card=(label,val,color)=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-val" style="color:${color};font-size:18px">${vnd(val)}</div></div>`;
+  cardsEl.innerHTML=
+    card('💰 Tổng quỹ lương (Gross)',totGross,'var(--text)')+
+    card('🏥 Tổng BHXH/BHYT/BHTN',totBH,'var(--accent)')+
+    card('🛡️ Tổng thu nhập miễn thuế',totMienThue,'var(--success)')+
+    card('🧾 Tổng thuế TNCN',totThue,'#c0392b')+
+    card('➖ Tổng khấu trừ (BH+Thuế)',totKhauTru,'#c0392b')+
+    card('✅ Tổng thực lĩnh (Net)',totNet,'var(--success)');
+
+  const tbody=document.getElementById('tr-tbody');
+  if(filtered.length===0){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Không có dữ liệu</td></tr>';
+    return;
+  }
+  tbody.innerHTML=filtered.map(r=>{
+    const emp=allProfilesMap[r.user_id]||{};
+    const khauTru=(r.bhxh_vnd||0)+(r.thue_tncn_vnd||0);
+    const net=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
+    return `<tr>
+      <td>${r.thang}</td><td>${emp.employee_code||''}</td><td>${emp.full_name||''}</td>
+      <td>${r.p1_he_so===0.85?'Thử việc':'Chính thức'}</td>
+      <td style="text-align:right">${vnd(r.tong_luong_vnd||0)}</td>
+      <td style="text-align:right">${vnd(r.bhxh_vnd||0)}</td>
+      <td style="text-align:right">${vnd(r.mien_thue_vnd||0)}</td>
+      <td style="text-align:right;color:#c0392b">${vnd(r.thue_tncn_vnd||0)}</td>
+      <td style="text-align:right;color:#c0392b">${vnd(khauTru)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--success)">${vnd(net)}</td>
+    </tr>`;
+  }).join('');
+}
+async function exportTaxReportExcel(){
+  const rows=await _fetchTaxReportData();
+  const search=(document.getElementById('tr-search').value||'').toLowerCase().trim();
+  const filtered=rows.filter(r=>{
+    if(!search)return true;
+    const emp=allProfilesMap[r.user_id]||{};
+    return (emp.full_name||'').toLowerCase().includes(search)||(emp.employee_code||'').toLowerCase().includes(search);
+  });
+  const year=document.getElementById('tr-year').value;
+  const wb=new ExcelJS.Workbook();
+  wb.creator='C-Slian Ops';wb.created=new Date();
+  const ws=wb.addWorksheet('Bao cao thue '+year,{views:[{state:'frozen',xSplit:1,ySplit:1}]});
+  ws.columns=[
+    {header:'Tháng',key:'thang',width:12},
+    {header:'Mã NV',key:'code',width:10},
+    {header:'Họ tên',key:'name',width:22},
+    {header:'Loại HĐ',key:'hd',width:12},
+    {header:'Tổng quỹ lương (Gross)',key:'gross',width:20},
+    {header:'BHXH/BHYT/BHTN',key:'bh',width:16},
+    {header:'Thu nhập miễn thuế',key:'mienthue',width:18},
+    {header:'Thuế TNCN',key:'thue',width:16},
+    {header:'Tổng khấu trừ',key:'khautru',width:16},
+    {header:'Thực lĩnh (Net)',key:'net',width:18},
+  ];
+  const headerRow=ws.getRow(1);
+  headerRow.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF9B1C1C'}};c.alignment={horizontal:'center',vertical:'middle'};});
+  const moneyCols=[5,6,7,8,9,10];
+  let totGross=0,totBH=0,totMienThue=0,totThue=0,totKhauTru=0,totNet=0;
+  filtered.forEach(r=>{
+    const emp=allProfilesMap[r.user_id]||{};
+    const khauTru=(r.bhxh_vnd||0)+(r.thue_tncn_vnd||0);
+    const net=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
+    totGross+=r.tong_luong_vnd||0;totBH+=r.bhxh_vnd||0;totMienThue+=r.mien_thue_vnd||0;
+    totThue+=r.thue_tncn_vnd||0;totKhauTru+=khauTru;totNet+=net;
+    const row=ws.addRow({thang:r.thang,code:emp.employee_code||'',name:emp.full_name||'',
+      hd:r.p1_he_so===0.85?'Thử việc':'Chính thức',
+      gross:r.tong_luong_vnd||0,bh:r.bhxh_vnd||0,mienthue:r.mien_thue_vnd||0,
+      thue:r.thue_tncn_vnd||0,khautru:khauTru,net:net});
+    row.eachCell((cell,colNum)=>{if(moneyCols.includes(colNum)){cell.numFmt='#,##0';cell.alignment={horizontal:'right'};}});
+  });
+  const totalRow=ws.addRow({thang:'TỔNG',gross:totGross,bh:totBH,mienthue:totMienThue,thue:totThue,khautru:totKhauTru,net:totNet});
+  totalRow.eachCell((cell,colNum)=>{
+    cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF9B1C1C'}};
+    if(moneyCols.includes(colNum)){cell.numFmt='#,##0';cell.alignment={horizontal:'right'};}
+  });
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`BaoCaoThue_${year}.xlsx`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Đã xuất báo cáo thuế năm '+year);
 }
 
 // Bonus bậc giường Headspa Bed cho 1 đơn — dùng đúng công thức bậc thang
@@ -2917,12 +3150,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
   const isProbation=(emp.contract_type==='probation'||emp.contract_type==='thu-viec');
 
+  const congChuan=congChuanThang(salYear,salMonth+1);
+  const _luongNgay=luongNgayThang(salYear,salMonth+1),_luongGio=luongGioThang(salYear,salMonth+1);
   let ngayCong=0,soLanTre=0,npD=0,nlD=0,nkpD=0;
   for(let d=1;d<=last;d++){
     const ds=dateStr(salYear,salMonth,d),dow=new Date(salYear,salMonth,d).getDay();
     if(isWE(dow))continue;
     const rec=recMap[ds];
-    const r=calcDayLogic(rec,emp.role);
+    const r=calcDayLogic(rec,emp.role,_luongNgay,_luongGio);
     if(rec?.status==='NL'||isHL(ds)){nlD++;ngayCong++;}
     else if(rec?.status==='NP'){npD++;if(!isProbation)ngayCong++;}
     else if(rec?.status==='NKP'){nkpD++;}
@@ -2935,8 +3170,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // hạng mục (P1/P2A/P2B/P2C/P3B/P3C), để P1 không bao giờ hiển thị thấp
   // hơn lương sàn quy định. Hệ số thử việc (0.85) áp dụng ở BƯỚC SAU dưới
   // dạng 1 dòng "Điều chỉnh thử việc" trừ vào TỔNG, không trừ riêng từng dòng.
-  const p1=Math.round(LUONG_CUNG/CONG_CHUAN*ngayCong);
-  const congRatio=ngayCong/CONG_CHUAN;
+  const p1=Math.round(LUONG_CUNG/congChuan*ngayCong);
+  const congRatio=ngayCong/congChuan;
   const p2a=Math.round(504550*congRatio); // P2A — Phụ cấp ăn giữa ca (trước đây gộp chung 704,550 với đi lại)
   const p3d=Math.round(200000*congRatio); // P3D — Phụ cấp đi lại/xăng xe (tách riêng từ P2A)
   const p2b=Math.round(1593000*congRatio); // P2B — Tiền lương ca đêm, trước đây 1,240,000
@@ -3076,11 +3311,15 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // ── BHXH & Thuế TNCN ──────────────────────────────────────────────
   const bhxhVnd=calcBHXH(p1,isProbation);
   const soNguoiPhuThuoc=emp.so_nguoi_phu_thuoc||0;
-  const thueTncnVnd=calcThueTNCN(tongLuong,bhxhVnd,isProbation,soNguoiPhuThuoc);
+  // Khoản miễn thuế TNCN: tiền ăn giữa ca (P2A) + tiền lương làm đêm (P2B) —
+  // theo hợp đồng, P2B được xác định là "khoản trả thêm 30% cho giờ làm đêm"
+  // nên đủ điều kiện miễn thuế theo Điều 3 Thông tư 111/2013/TT-BTC.
+  const mienThueVnd=p2a+p2b;
+  const thueTncnVnd=calcThueTNCN(tongLuong,bhxhVnd,isProbation,soNguoiPhuThuoc,mienThueVnd);
   const luongThucNhanVnd=tongLuong-bhxhVnd-thueTncnVnd;
 
   return {user_id:empId,thang,ngay_cong_thuc_te:ngayCong,so_lan_tre:soLanTre,
-    so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,
+    so_ngay_np:npD,so_ngay_nl:nlD,so_ngay_nkp:nkpD,cong_chuan_thang:congChuan,
     p1_he_so:heCoP1,p1_thuc_te:p1,p2a,p2b,p2c,p3b_chuyen_can:p3b,p3c_kpi:p3c,p3d_di_lai:p3d,
     dieu_chinh_thu_viec_vnd:dieuChinhThuViec,
     p3a_bolsa_usd:bolsaHeadspaBonus,p3a_bolsa_headspa_usd:bolsaHeadspaBonus,
@@ -3091,6 +3330,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     backup_bonus_usd:backupBonusUsd,
     tong_luong_vnd:tongLuong,
     bhxh_vnd:bhxhVnd,so_nguoi_phu_thuoc_snapshot:soNguoiPhuThuoc,
+    mien_thue_vnd:mienThueVnd,
     thue_tncn_vnd:thueTncnVnd,luong_thuc_nhan_vnd:luongThucNhanVnd};
 }
 
@@ -3207,7 +3447,7 @@ async function viewSalaryDetail(empId,thang){
   const p3aVnd=Math.round((sal.p3a_total_usd||0)*(sal.ty_gia||TY_GIA));
   const html=`
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}<span style="font-size:14px;font-weight:400;color:var(--text3)">/${CONG_CHUAN}</span></div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
+      <div class="stat-card"><div class="stat-label">📅 Ngày công</div><div class="stat-val" style="color:var(--accent)">${sal.ngay_cong_thuc_te}<span style="font-size:14px;font-weight:400;color:var(--text3)">/${sal.cong_chuan_thang||congChuanThang(...thang.split('-').map(Number))}</span></div><div class="stat-sub">Trễ: ${sal.so_lan_tre} lần · NKP: ${sal.so_ngay_nkp}</div></div>
       <div class="stat-card"><div class="stat-label">💵 Lương thực nhận</div><div class="stat-val" style="color:var(--success);font-size:18px">${vnd(sal.tong_luong_vnd)}</div><div class="stat-sub">Tháng ${thang}</div></div>
       <div class="stat-card"><div class="stat-label">🎯 Bonus P3A</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(sal.p3a_total_usd)}</div><div class="stat-sub">${sal.p3a_ty_le_dat===1?'✅ Đạt target 100%':'⚠️ Không đạt 50%'}</div></div>
       <div class="stat-card"><div class="stat-label">⭐ Level P2C</div><div class="stat-val">Lv.${emp.lever||1}</div><div class="stat-sub">${vnd(sal.p2c)}/tháng</div></div>
@@ -3215,11 +3455,11 @@ async function viewSalaryDetail(empId,thang){
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot"></span>Chi tiết bảng lương — ${emp.full_name} · Tháng ${thang} · ${sal.p1_he_so===0.85?'Thử việc':'Chính thức'} ${sal.is_locked?'· 🔒 Đã chốt':''}</div>
       <div class="salary-row"><span class="salary-label">P1 — Lương cứng (${sal.ngay_cong_thuc_te} ngày)</span><span class="salary-val">${vnd(sal.p1_thuc_te)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
-      <div class="salary-row"><span class="salary-label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p3d_di_lai)}</span></div>
-      <div class="salary-row"><span class="salary-label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</span><span class="salary-val">${vnd(sal.p2a)}</span></div>
+      <div class="salary-row"><span class="salary-label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</span><span class="salary-val">${vnd(sal.p3d_di_lai)}</span></div>
+      <div class="salary-row"><span class="salary-label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</span><span class="salary-val">${vnd(sal.p2b)}</span></div>
       <div class="salary-row"><span class="salary-label">P2C — Năng lực Level ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
-      <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
+      <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
       <div class="salary-row"><span class="salary-label">P3C — KPI tháng</span><span class="salary-val">${vnd(sal.p3c_kpi)}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Bonus Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Bonus doanh số 1% + Chênh lệch (${usd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
@@ -3259,7 +3499,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-info-row"><span class="pl-info-label">Mã nhân viên:</span><span class="pl-info-val">${emp.employee_code||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Tháng lương:</span><span class="pl-info-val">${thang}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Họ và tên:</span><span class="pl-info-val">${emp.full_name||'—'}</span></div>
-      <div class="pl-info-row"><span class="pl-info-label">Công chuẩn:</span><span class="pl-info-val">22 ngày</span></div>
+      <div class="pl-info-row"><span class="pl-info-label">Công chuẩn:</span><span class="pl-info-val">${sal.cong_chuan_thang||congChuanThang(...thang.split('-').map(Number))} ngày</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Chức danh:</span><span class="pl-info-val">${{manager:'Manager',leader:'Leader',sale:'Sale'}[emp.role]||'—'}</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Ngày công TT:</span><span class="pl-info-val">${sal.ngay_cong_thuc_te||0} ngày</span></div>
       <div class="pl-info-row"><span class="pl-info-label">Level:</span><span class="pl-info-val">Level ${emp.lever||1}</span></div>
@@ -3271,9 +3511,9 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-section-title">A — Lương cơ bản & Phụ cấp</div>
       <table class="pl-table">
         <tr><td class="label">P1 — Lương cơ bản thực tế (${sal.ngay_cong_thuc_te||0} ngày)</td><td class="formula">P1</td><td class="amount">${vndFmt(sal.p1_thuc_te)}</td></tr>
-        <tr><td class="label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
-        <tr><td class="label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P3D</td><td class="amount">${vndFmt(sal.p3d_di_lai)}</td></tr>
-        <tr><td class="label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/22*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
+        <tr><td class="label">P2A — Phụ cấp ăn giữa ca (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</td><td class="formula">P2A</td><td class="amount">${vndFmt(sal.p2a)}</td></tr>
+        <tr><td class="label">P3D — Phụ cấp đi lại/xăng xe (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</td><td class="formula">P3D</td><td class="amount">${vndFmt(sal.p3d_di_lai)}</td></tr>
+        <tr><td class="label">P2B — Tiền lương ca đêm (${Math.round(sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)*100)}% công)</td><td class="formula">P2B</td><td class="amount">${vndFmt(sal.p2b)}</td></tr>
         <tr><td class="label">P2C — Phụ cấp năng lực (Level ${emp.lever||1})</td><td class="formula">P2C</td><td class="amount">${vndFmt(sal.p2c)}</td></tr>
         <tr class="subtotal"><td class="label">Tổng P1+P2 (100%)</td><td class="formula">ΣP1P2</td><td class="amount">${vndFmt((sal.p1_thuc_te||0)+(sal.p2a||0)+(sal.p3d_di_lai||0)+(sal.p2b||0)+(sal.p2c||0))}</td></tr>
       </table>
@@ -3282,7 +3522,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
     <div class="pl-section">
       <div class="pl-section-title">B — Bonus & Thưởng</div>
       <table class="pl-table">
-        <tr><td class="label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/22<0.5?'<50% công, không xét':sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
+        <tr><td class="label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)<0.5?'<50% công, không xét':sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
         <tr><td class="label">P3C — KPI tháng (${sal.p3c_kpi>0?'≥70 điểm':'<70 điểm'})</td><td class="formula">P3C</td><td class="amount">${vndFmt(sal.p3c_kpi)}</td></tr>
         <tr><td class="label">P3A — Bonus Headspa Bed (${usdFmt((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.p3a_ty_le_dat||1))})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label">P3A — Bonus doanh số 1% + Chênh lệch (${usdFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||25000))}</td></tr>
@@ -3298,7 +3538,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
         ${sal.dieu_chinh_thu_viec_vnd>0?`<tr><td class="label">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</td><td class="formula">−15%</td><td class="amount" style="color:#c0392b">−${vndFmt(sal.dieu_chinh_thu_viec_vnd)}</td></tr>`:''}
         <tr class="subtotal"><td class="label">TỔNG LƯƠNG (GROSS)</td><td class="formula">P1+P2+P3</td><td class="amount" style="font-size:13px">${vndFmt(sal.tong_luong_vnd)}</td></tr>
         <tr><td class="label">BHXH/BHYT/BHTN (8%+1.5%+1%, trên P1)${sal.p1_he_so===0.85?' — thử việc: không đóng':''}</td><td class="formula">−10.5%×P1</td><td class="amount" style="color:#c0392b">${sal.bhxh_vnd?'−'+vndFmt(sal.bhxh_vnd):vndFmt(0)}</td></tr>
-        <tr><td class="label">Thuế TNCN${sal.p1_he_so===0.85?' (khấu trừ 10% — HĐ thử việc <3 tháng)':` (biểu lũy tiến, GT gia cảnh: bản thân 15.5tr${sal.so_nguoi_phu_thuoc_snapshot?` + ${sal.so_nguoi_phu_thuoc_snapshot} người phụ thuộc×6.2tr`:''})`}</td><td class="formula">−Thuế</td><td class="amount" style="color:#c0392b">${sal.thue_tncn_vnd?'−'+vndFmt(sal.thue_tncn_vnd):vndFmt(0)}</td></tr>
+        <tr><td class="label">Thuế TNCN${sal.p1_he_so===0.85?' (khấu trừ 10% — HĐ thử việc <3 tháng)':` (biểu lũy tiến, GT gia cảnh: bản thân 15.5tr${sal.so_nguoi_phu_thuoc_snapshot?` + ${sal.so_nguoi_phu_thuoc_snapshot} người phụ thuộc×6.2tr`:''})`} — đã trừ ${vndFmt(sal.mien_thue_vnd||0)} thu nhập miễn thuế (ăn ca+làm đêm)</td><td class="formula">−Thuế</td><td class="amount" style="color:#c0392b">${sal.thue_tncn_vnd?'−'+vndFmt(sal.thue_tncn_vnd):vndFmt(0)}</td></tr>
         <tr class="total"><td class="label">LƯƠNG THỰC NHẬN (NET)</td><td class="formula">Gross−BH−Thuế</td><td class="amount" style="color:#0e7c4a;font-size:14px">${vndFmt(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</td></tr>
       </table>
     </div>
@@ -3569,7 +3809,8 @@ function renderEmpGrid(){
     const bdDaysLeft=bdThisYear?Math.round((bdThisYear-bdToday)/(1000*60*60*24)):null;
     const bdLabel=bdDate?`🎂 ${bdDate.getDate()}/${bdDate.getMonth()+1}/${bdDate.getFullYear()}${bdDaysLeft===0?' · <span style="color:var(--warn)">Hôm nay!</span>':bdDaysLeft>0&&bdDaysLeft<=7?` · <span style="color:var(--accent)">Còn ${bdDaysLeft} ngày</span>`:''}`:'';
 
-    var actions=`<button class="btn-sm" onclick="openEditProfile('${p.id}')" style="font-size:11px;padding:4px 9px">✏️ Sửa</button>`;
+    var actions=`<button class="btn-sm" onclick="openEditProfile('${p.id}')" style="font-size:11px;padding:4px 9px">✏️ Sửa</button>
+      <button class="btn-sm" onclick="openContractModal('${p.id}')" style="font-size:11px;padding:4px 9px">📄 Hợp đồng</button>`;
     if(curProfile&&curProfile.role==='manager'){
       if(isInactive){
         actions+=` <button class="btn-sm" onclick="toggleEmpStatus('${p.id}','active')" style="font-size:11px;padding:4px 9px;border-color:var(--success);color:var(--success)">✅ Kích hoạt</button>`;
@@ -3613,6 +3854,9 @@ async function openEditProfile(id){
   document.getElementById('ep-birthday').value=bdStore[p.id]||p.birthday||'';
   document.getElementById('ep-phone').value=p.phone||'';
   document.getElementById('ep-cccd').value=p.cccd||'';
+  document.getElementById('ep-cccd-ngay-cap').value=p.cccd_ngay_cap||'';
+  document.getElementById('ep-cccd-noi-cap').value=p.cccd_noi_cap||'';
+  document.getElementById('ep-quoc-tich').value=p.quoc_tich||'Việt Nam';
   document.getElementById('ep-address').value=p.address||'';
   // Avatar preview
   var prev=document.getElementById('ep-avatar-preview');
@@ -3640,6 +3884,9 @@ async function saveEmpProfile(){
   const birthday=document.getElementById('ep-birthday').value||null;
   const phone=document.getElementById('ep-phone').value.trim()||null;
   const cccd=document.getElementById('ep-cccd').value.trim()||null;
+  const cccdNgayCap=document.getElementById('ep-cccd-ngay-cap').value||null;
+  const cccdNoiCap=document.getElementById('ep-cccd-noi-cap').value.trim()||null;
+  const quocTich=document.getElementById('ep-quoc-tich').value.trim()||'Việt Nam';
   const address=document.getElementById('ep-address').value.trim()||null;
   const avatarFile=document.getElementById('ep-avatar-input').files&&document.getElementById('ep-avatar-input').files[0];
   if(!hoTen){toast('Nhập họ tên','error');return;}
@@ -3661,7 +3908,8 @@ async function saveEmpProfile(){
   var updatePayload={
     full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,
     start_date:startDate||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
-    phone,cccd,address,birthday:birthday||null
+    phone,cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
+    address,birthday:birthday||null
   };
   if(avatarUrl)updatePayload.avatar_url=avatarUrl;
 
@@ -3749,6 +3997,9 @@ async function saveNewEmp(){
   var soNguoiPhuThuoc=parseInt(document.getElementById('ae-so-nguoi-phu-thuoc').value)||0;
   var phone=document.getElementById('ae-phone').value.trim()||null;
   var cccd=document.getElementById('ae-cccd').value.trim()||null;
+  var cccdNgayCap=document.getElementById('ae-cccd-ngay-cap').value||null;
+  var cccdNoiCap=document.getElementById('ae-cccd-noi-cap').value.trim()||null;
+  var quocTich=document.getElementById('ae-quoc-tich').value.trim()||'Việt Nam';
   var address=document.getElementById('ae-address').value.trim()||null;
   var avatarFile=document.getElementById('ae-avatar-input').files&&document.getElementById('ae-avatar-input').files[0];
   var noteEl=document.getElementById('ae-note');
@@ -3773,7 +4024,8 @@ async function saveNewEmp(){
       full_name:hoTen,nickname:bietDanh||null,employee_code:maNV,
       role,lever,start_date:startDate||null,birthday:birthday||null,
       contract_type:contractType,is_active:true,status:'active',so_nguoi_phu_thuoc:soNguoiPhuThuoc,
-      phone:phone,cccd:cccd,address:address,
+      phone:phone,cccd:cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
+      address:address,
       avatar_url:avatarUrl
     };
     var {data,error}=await sb.from('profiles').insert(payload).select().single();
@@ -3802,6 +4054,150 @@ async function saveNewEmp(){
     toast('Lỗi: '+e.message,'error');
     saveBtn.disabled=false;saveBtn.textContent='💾 Lưu';
   }
+}
+
+// ============================================================
+// HỢP ĐỒNG THỬ VIỆC — xuất Word / PDF từ thông tin nhân viên
+// ============================================================
+const CTY_TEN='CÔNG TY TNHH MAISON DE KCT';
+const CTY_DIA_CHI='276/29/10 Đường Mã Lò, Phường Bình Trị Đông, Thành phố Hồ Chí Minh';
+const CTY_MST='0319594911';
+const CTY_NGUOI_DAI_DIEN='NGUYỄN THỊ MỸ TIÊN';
+const CTY_CHUC_VU='Giám đốc';
+
+var _ctEmpId=null;
+function openContractModal(empId){
+  const p=allProfiles.find(x=>x.id===empId);
+  if(!p)return;
+  _ctEmpId=empId;
+  document.getElementById('ct-emp-name').textContent=p.full_name;
+  const today=new Date();
+  const todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+  const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,today.getDate()-1);
+  document.getElementById('ct-so-hd').value=`01/${pad2(today.getMonth()+1)}-${today.getFullYear()}/HĐTV`;
+  document.getElementById('ct-ngay-ky').value=todayStr;
+  document.getElementById('ct-tu-ngay').value=todayStr;
+  document.getElementById('ct-den-ngay').value=dateStr(nextMonth.getFullYear(),nextMonth.getMonth(),nextMonth.getDate());
+  document.getElementById('ct-chuc-danh').value='Nhân viên';
+  document.getElementById('ct-bo-phan').value='Phòng kinh doanh';
+  document.getElementById('ct-dia-diem').value=CTY_DIA_CHI;
+  document.getElementById('ct-gio-lam').value='Từ 22h00 đến 06h00';
+  document.getElementById('ct-ngay-lam-tuan').value='5 ngày/tuần (Thứ hai - Thứ sáu)';
+  document.getElementById('contract-modal').classList.add('open');
+}
+function vnDate(dstr){
+  if(!dstr)return '…………';
+  const [y,m,d]=dstr.split('-');
+  return `${d}/${m}/${y}`;
+}
+function buildContractContent(){
+  const p=allProfiles.find(x=>x.id===_ctEmpId);
+  if(!p)return null;
+  const soHD=document.getElementById('ct-so-hd').value.trim()||'…';
+  const ngayKy=document.getElementById('ct-ngay-ky').value;
+  const tuNgay=document.getElementById('ct-tu-ngay').value;
+  const denNgay=document.getElementById('ct-den-ngay').value;
+  const chucDanh=document.getElementById('ct-chuc-danh').value.trim()||'Nhân viên';
+  const boPhan=document.getElementById('ct-bo-phan').value.trim()||'Phòng kinh doanh';
+  const diaDiem=document.getElementById('ct-dia-diem').value.trim()||CTY_DIA_CHI;
+  const gioLam=document.getElementById('ct-gio-lam').value.trim();
+  const ngayLamTuan=document.getElementById('ct-ngay-lam-tuan').value.trim();
+  // Ví dụ ngày công chuẩn — lấy đúng tháng bắt đầu thử việc
+  const tuDate=tuNgay?new Date(tuNgay+'T12:00:00'):new Date();
+  const vdYear=tuDate.getFullYear(),vdMonth=tuDate.getMonth()+1;
+  const vdDays=new Date(vdYear,vdMonth,0).getDate();
+  let vdT7=0,vdCN=0;
+  for(let d=1;d<=vdDays;d++){const dow=new Date(vdYear,vdMonth-1,d).getDay();if(dow===6)vdT7++;if(dow===0)vdCN++;}
+  const vdCongChuan=vdDays-vdT7-vdCN;
+  return {p,soHD,ngayKy,tuNgay,denNgay,chucDanh,boPhan,diaDiem,gioLam,ngayLamTuan,
+    vdYear,vdMonth,vdDays,vdT7,vdCN,vdCongChuan};
+}
+function contractBodyHTML(c){
+  const p=c.p;
+  const cccdInfo=`Số CCCD: <b>${p.cccd||'……………'}</b>&nbsp;&nbsp;&nbsp;Ngày cấp: <b>${vnDate(p.cccd_ngay_cap)}</b>&nbsp;&nbsp;&nbsp;Nơi cấp: <b>${p.cccd_noi_cap||'……………'}</b>`;
+  return `
+  <p style="text-align:center"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b></p>
+  <p style="text-align:center">Độc lập - Tự do - Hạnh phúc</p>
+  <p style="text-align:center;margin-top:16px"><b style="font-size:16px">HỢP ĐỒNG THỬ VIỆC</b></p>
+  <p style="text-align:center;font-style:italic">Số ${c.soHD}</p>
+  <p style="font-style:italic">- Căn cứ Bộ luật Lao động số 45/2019/QH14 ngày 20/11/2019;</p>
+  <p style="font-style:italic">- Căn cứ Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015;</p>
+  <p style="font-style:italic">- Căn cứ nhu cầu sử dụng lao động và sự thỏa thuận của các Bên;</p>
+  <p>Hôm nay, ngày ${vnDate(c.ngayKy)}, chúng tôi gồm có:</p>
+  <p><b><u>NGƯỜI SỬ DỤNG LAO ĐỘNG</u></b></p>
+  <p><b>${CTY_TEN}</b></p>
+  <p>Địa chỉ: ${CTY_DIA_CHI}</p>
+  <p>Mã số thuế: ${CTY_MST}</p>
+  <p>Người đại diện: Bà <b>${CTY_NGUOI_DAI_DIEN}</b>&nbsp;&nbsp;&nbsp;Chức vụ: ${CTY_CHUC_VU}</p>
+  <p><b><u>NGƯỜI LAO ĐỘNG</u></b></p>
+  <p>Ông/Bà: <b>${(p.full_name||'').toUpperCase()}</b></p>
+  <p>Quốc tịch: ${p.quoc_tich||'Việt Nam'}</p>
+  <p>Địa chỉ thường trú: ${p.address||'……………………'}</p>
+  <p>${cccdInfo}</p>
+  <p>Cùng thỏa thuận ký kết Hợp đồng thử việc với những điều khoản sau đây:</p>
+  <p><b>Điều 1: Thời gian và nội dung công việc</b></p>
+  <p>1. Loại hợp đồng: Hợp đồng thử việc</p>
+  <p>2. Thời gian thử việc: Từ ngày ${vnDate(c.tuNgay)} đến ngày ${vnDate(c.denNgay)}</p>
+  <p>3. Địa điểm làm việc: ${c.diaDiem}</p>
+  <p>4. Bộ phận làm việc: ${c.boPhan}</p>
+  <p>5. Chức danh: ${c.chucDanh}</p>
+  <p><b>Điều 2: Chế độ làm việc</b></p>
+  <p>1. Thời gian làm việc: ${c.gioLam}</p>
+  <p>Thời gian nghỉ giữa ca: 1 tiếng</p>
+  <p>Số ngày làm việc: ${c.ngayLamTuan}</p>
+  <p><b>Điều 3: Tiền lương và phụ cấp</b></p>
+  <p>Công thức tính ngày công chuẩn của tháng:</p>
+  <p style="text-align:center"><i>Ngày công tiêu chuẩn của tháng = Tổng ngày trong tháng − Ngày nghỉ hằng tuần (Thứ 7 và Chủ nhật)</i></p>
+  <p style="font-style:italic">VD: Tháng ${c.vdMonth}/${c.vdYear} có ${c.vdDays} ngày, được nghỉ ${c.vdT7} ngày Thứ 7 và ${c.vdCN} ngày Chủ nhật, thì ngày công chuẩn của tháng là:</p>
+  <p style="font-style:italic">Ngày công chuẩn tháng ${c.vdMonth}/${c.vdYear} = ${c.vdDays} − (${c.vdT7} + ${c.vdCN}) = ${c.vdCongChuan} (ngày công)</p>
+  <p>- Lương chính (ban ngày): 5.310.000 VNĐ/tháng</p>
+  <p>- Tiền lương làm việc vào ban đêm: 1.593.000 VNĐ/tháng (là khoản trả thêm bằng 30% tiền lương của công việc làm vào ban ngày theo quy định của pháp luật; áp dụng đối với khung giờ làm việc từ 22:00 đến 06:00)</p>
+  <p>- Phụ cấp ăn giữa ca: 504.550 VNĐ/tháng</p>
+  <p>- Phụ cấp đi lại/xăng xe: 200.000 VNĐ/tháng</p>
+  <p>- Lương hiệu quả công việc (KPI), các khoản phụ cấp khác và bổ sung: Thực hiện theo Quy chế tiền lương, thưởng và các quy định nội bộ có liên quan của Công ty, phù hợp với kết quả công việc, ngày công và điều kiện hưởng thực tế của Người lao động.</p>
+  <p>- Hình thức trả lương: Chuyển khoản</p>
+  <p>- Kỳ hạn trả lương: Trả lương hàng tháng vào ngày 10 của tháng sau</p>
+  <p>Các khoản lương, phụ cấp nêu trên được xác định trên cơ sở 100% ngày công tiêu chuẩn của từng tháng.</p>
+  <p>Mức thu nhập nêu trên chưa bao gồm thuế thu nhập cá nhân. Trường hợp phát sinh nghĩa vụ thuế thu nhập cá nhân, Công ty thực hiện khấu trừ và kê khai, nộp thuế theo quy định của pháp luật trước khi thanh toán cho Người lao động.</p>
+  <p>Trong thời gian thực hiện Hợp đồng thử việc này, Người lao động không thuộc đối tượng tham gia bảo hiểm xã hội bắt buộc theo quy định của pháp luật. Trường hợp sau khi đạt yêu cầu và ký hợp đồng lao động thuộc diện tham gia BHXH bắt buộc thì Công ty thực hiện theo quy định hiện hành.</p>
+  <p><b>Điều 4: Quyền lợi khác</b></p>
+  <p>- Nghỉ hàng tuần: 2 ngày (Thứ 7 và Chủ nhật).</p>
+  <p>- Nghỉ ngày Lễ: Theo các ngày nghỉ Lễ pháp định.</p>
+  <p style="margin-top:30px;text-align:center">Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau, mỗi Bên giữ 01 bản.</p>
+  <table style="width:100%;margin-top:20px;border:none"><tr>
+    <td style="width:50%;text-align:center;border:none"><b>NGƯỜI LAO ĐỘNG</b><br><i>(Ký, ghi rõ họ tên)</i></td>
+    <td style="width:50%;text-align:center;border:none"><b>NGƯỜI SỬ DỤNG LAO ĐỘNG</b><br><i>(Ký, ghi rõ họ tên, đóng dấu)</i></td>
+  </tr></table>`;
+}
+function exportContractPDF(){
+  const c=buildContractContent();
+  if(!c)return;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hop dong thu viec - ${c.p.full_name}</title>
+  <style>body{font-family:'Times New Roman',serif;font-size:13px;line-height:1.5;padding:30px 50px;color:#000}
+  p{margin:4px 0}table{border-collapse:collapse}</style></head><body>
+  ${contractBodyHTML(c)}
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  w.document.close();
+}
+async function exportContractWord(){
+  const c=buildContractContent();
+  if(!c)return;
+  const html=`<!DOCTYPE html>
+  <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="utf-8"><title>Hop dong thu viec</title>
+  <style>body{font-family:'Times New Roman',serif;font-size:13px;line-height:1.5;color:#000}
+  p{margin:4px 0}table{border-collapse:collapse}</style></head>
+  <body>${contractBodyHTML(c)}</body></html>`;
+  const blob=new Blob(['\ufeff',html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`HopDongThuViec_${(c.p.employee_code||'')}_${c.p.full_name.replace(/\s+/g,'')}.doc`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Đã tải hợp đồng Word');
 }
 
 // NAV
@@ -3853,6 +4249,7 @@ function switchTab(name,el){
   else if(name==='dashboard'){initDashFilter();scheduleRenderDashboard();}
   else if(name==='docs'){renderDocs();}
   else if(name==='team')renderEmpGrid();
+  else if(name==='taxreport'){initTaxReportFilter();renderTaxReport();}
 
 
 
