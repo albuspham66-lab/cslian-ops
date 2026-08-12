@@ -154,6 +154,9 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .tbl-wrap table{min-width:max-content}
 .tbl-wrap td,.tbl-wrap th{white-space:nowrap}
 table{width:100%;border-collapse:collapse;font-size:13px}
+.def-table th{text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);border-bottom:2px solid var(--border2);white-space:nowrap}
+.def-table td{padding:6px 10px;border-bottom:1px solid var(--border)}
+.def-table tr:last-child td{border-bottom:none}
 /* Dark inputs in tables */
 input[type="number"],input[type="text"],input[type="date"],input[type="time"],input[type="email"],input[type="password"],input[type="month"],select{
   color-scheme:dark;
@@ -473,15 +476,15 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
   <div class="nav-wrap" id="nav-wrap">
     <button class="nav-scroll-btn" id="nav-scroll-left" onclick="navScroll(-1)">‹</button>
     <div class="nav" id="main-nav">
-      <button class="nav-btn active" onclick="switchTab('attendance',this)">📅 Chấm công</button>
-      <button class="nav-btn" onclick="switchTab('orders',this)">📦 Đơn hàng</button>
-      <button class="nav-btn nav-sale-only" onclick="switchTab('sale-dashboard',this)" style="display:none">📊 Dashboard</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('salary',this)" style="display:none">💰 Lương & KPI</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
-      <button class="nav-btn nav-mgr" onclick="switchTab('taxreport',this)" style="display:none">🧾 Báo cáo thuế</button>
-      <button class="nav-btn" onclick="switchTab('docs',this)">📚 Tài liệu</button>
+      <button class="nav-btn active" data-tab="attendance" onclick="switchTab('attendance',this)">📅 Chấm công</button>
+      <button class="nav-btn" data-tab="orders" onclick="switchTab('orders',this)">📦 Đơn hàng</button>
+      <button class="nav-btn nav-sale-only" data-tab="sale-dashboard" onclick="switchTab('sale-dashboard',this)" style="display:none">📊 Dashboard</button>
+      <button class="nav-btn nav-mgr" data-tab="salary" onclick="switchTab('salary',this)" style="display:none">💰 Lương & KPI</button>
+      <button class="nav-btn nav-mgr" data-tab="daily" onclick="switchTab('daily',this)" style="display:none">📋 Daily Tracking</button>
+      <button class="nav-btn nav-mgr" data-tab="dashboard" onclick="switchTab('dashboard',this)" style="display:none">📊 Dashboard</button>
+      <button class="nav-btn nav-mgr" data-tab="team" onclick="switchTab('team',this)" style="display:none">👥 Nhân viên</button>
+      <button class="nav-btn nav-mgr" data-tab="taxreport" onclick="switchTab('taxreport',this)" style="display:none">🧾 Báo cáo thuế</button>
+      <button class="nav-btn" data-tab="docs" onclick="switchTab('docs',this)">📚 Tài liệu</button>
 
 
     </div>
@@ -784,6 +787,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </thead>
           <tbody id="tr-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- MODAL: Chi tiết lương (Báo cáo thuế) -->
+    <div class="modal-bg" id="tr-detail-modal">
+      <div class="modal-box" style="max-width:760px" id="tr-detail-box">
+        <!-- Nội dung sinh động bằng JS -->
       </div>
     </div>
 
@@ -1219,6 +1229,16 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <option value="sale">Sale</option>
           <option value="leader">Leader</option>
           <option value="manager">Manager</option>
+          <option value="accountant">Kế toán</option>
+          <option value="ceo">CEO</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Phòng ban</label>
+        <select id="ae-phong-ban">
+          <option value="Kinh doanh">Kinh doanh</option>
+          <option value="Kế toán">Kế toán</option>
+          <option value="Vận hành">Vận hành</option>
+          <option value="Ban giám đốc">Ban giám đốc</option>
         </select>
       </div>
       <div class="form-f"><label>Level</label>
@@ -1244,6 +1264,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ae-cccd-ngay-cap"/></div>
       <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ae-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
       <div class="form-f"><label>Quốc tịch</label><input type="text" id="ae-quoc-tich" value="Việt Nam"/></div>
+      <div class="form-f"><label>MST cá nhân <a href="https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp" target="_blank" style="font-size:10px;color:var(--accent)">🔍 Tra cứu</a></label><input type="text" id="ae-mst" placeholder="Chưa có, xem link tra cứu"/></div>
+      <div class="form-f"><label>Số sổ BHXH <a href="https://baohiemxahoi.gov.vn/tracuu" target="_blank" style="font-size:10px;color:var(--accent)">🔍 Tra cứu</a></label><input type="text" id="ae-so-bhxh" placeholder="Chưa có, xem link tra cứu"/></div>
       <div class="form-f" style="grid-column:1/-1"><label>Địa chỉ</label><input type="text" id="ae-address" placeholder="123 Đường ABC, Quận 1, TP.HCM"/></div>
     </div>
     <div id="ae-note" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(253,203,110,0.1);border:1px solid rgba(253,203,110,0.3);border-radius:8px;font-size:12px;color:#fdcb6e;line-height:1.6"></div>
@@ -1273,6 +1295,16 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <option value="sale">Sale</option>
           <option value="leader">Leader</option>
           <option value="manager">Manager</option>
+          <option value="accountant">Kế toán</option>
+          <option value="ceo">CEO</option>
+        </select>
+      </div>
+      <div class="form-f"><label>Phòng ban</label>
+        <select id="ep-phong-ban">
+          <option value="Kinh doanh">Kinh doanh</option>
+          <option value="Kế toán">Kế toán</option>
+          <option value="Vận hành">Vận hành</option>
+          <option value="Ban giám đốc">Ban giám đốc</option>
         </select>
       </div>
       <div class="form-f"><label>Level hiện tại</label>
@@ -1298,6 +1330,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ep-cccd-ngay-cap"/></div>
       <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ep-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
       <div class="form-f"><label>Quốc tịch</label><input type="text" id="ep-quoc-tich" value="Việt Nam"/></div>
+      <div class="form-f"><label>MST cá nhân <a href="https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp" target="_blank" style="font-size:10px;color:var(--accent)">🔍 Tra cứu</a></label><input type="text" id="ep-mst" placeholder="Chưa có, xem link tra cứu"/></div>
+      <div class="form-f"><label>Số sổ BHXH <a href="https://baohiemxahoi.gov.vn/tracuu" target="_blank" style="font-size:10px;color:var(--accent)">🔍 Tra cứu</a></label><input type="text" id="ep-so-bhxh" placeholder="Chưa có, xem link tra cứu"/></div>
       <div class="form-f" style="grid-column:1/-1"><label>Địa chỉ</label><input type="text" id="ep-address" placeholder="123 Đường ABC, Quận 1, TP.HCM"/></div>
     </div>
     <div class="mactions">
@@ -1435,6 +1469,11 @@ function congChuanThang(year,month1){ // month1: 1-12
 }
 function luongNgayThang(year,month1){return Math.round(LUONG_CUNG/congChuanThang(year,month1));}
 function luongGioThang(year,month1){return Math.round(luongNgayThang(year,month1)/8);}
+// CEO có toàn quyền như Manager. Leader cũng giữ quyền quản lý như cũ.
+// Kế toán cũng dùng chung logic quyền quản lý bên trong các tab được phép
+// (xem acctAllowed) — việc giới hạn CHỈ 4 tab được truy cập nằm ở phần điều
+// hướng nav riêng, không phải ở đây.
+function isManagerRole(role){return role==='manager'||role==='leader'||role==='ceo'||role==='accountant';}
 const PHAT1=150000,PHAT2=300000,TARGET_USD=23500,TY_GIA=25000;
 const DAYS=['CN','T2','T3','T4','T5','T6','T7'];
 const VN_HL=['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30','2025-01-31','2025-04-30','2025-05-01','2025-09-02','2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-04-30','2026-05-01','2026-09-02'];
@@ -1594,15 +1633,27 @@ async function initApp(user){
   av.textContent=initials(curProfile.full_name);
   av.style.background=c.bg;av.style.color=c.color;
   document.getElementById('tb-name').textContent=curProfile.nickname||curProfile.full_name;
-  document.getElementById('tb-role').textContent={manager:'🔑 Manager',leader:'⭐ Leader',sale:'💼 Sale'}[curProfile.role]||curProfile.role;
+  document.getElementById('tb-role').textContent={manager:'🔑 Manager',leader:'⭐ Leader',sale:'💼 Sale',accountant:'🧮 Kế toán',ceo:'👑 CEO'}[curProfile.role]||curProfile.role;
 
-  if(curProfile.role==='manager'||curProfile.role==='leader'){
+  if(isManagerRole(curProfile.role)){
     document.querySelectorAll('.nav-mgr').forEach(b=>b.style.display='flex');
     // Show Manager actions in docs tab
     var docsAct=document.getElementById('docs-mgr-actions');
     if(docsAct)docsAct.style.display='flex';
     var docsEditBtns=document.getElementById('docs-mgr-edit-btns');
     if(docsEditBtns)docsEditBtns.style.display='flex';
+    setTimeout(updateNavScrollBtns,50);
+  }
+  // Kế toán: quyền giới hạn — chỉ Chấm công, Lương&KPI, Nhân viên, Báo cáo thuế.
+  // KHÔNG được xem Đơn hàng, Dashboard, Daily Tracking, Tài liệu.
+  if(curProfile.role==='accountant'){
+    var acctAllowed=['attendance','salary','team','taxreport'];
+    document.querySelectorAll('#main-nav .nav-btn').forEach(function(b){
+      b.style.display=acctAllowed.includes(b.dataset.tab)?'flex':'none';
+    });
+    document.querySelectorAll('.nav-mgr').forEach(function(b){
+      if(acctAllowed.includes(b.dataset.tab))b.style.display='flex';
+    });
     setTimeout(updateNavScrollBtns,50);
   }
   // Dashboard tab chỉ Sale thấy (Manager đã có dashboard riêng)
@@ -1613,7 +1664,7 @@ async function initApp(user){
 
 
   populateSelects();
-  if(curProfile.role==='manager'||curProfile.role==='leader')renderEmpGrid();
+  if(isManagerRole(curProfile.role))renderEmpGrid();
 
   // ---- REALTIME SUBSCRIPTIONS ----
   initRealtime();
@@ -1671,7 +1722,7 @@ async function loadAllProfiles(){
   else{allProfiles=data||[];}
   buildProfilesMap();
   populateSelects();
-  if(curProfile&&(curProfile.role==='manager'||curProfile.role==='leader'))renderEmpGrid();
+  if(curProfile&&isManagerRole(curProfile.role))renderEmpGrid();
 }
 
 function populateSelects(){
@@ -1916,7 +1967,7 @@ function calcDayLogic(rec,empType,luongNgay,luongGio){
 
 var _attCache={};
 async function renderAttTable(){
-  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgr=isManagerRole(curProfile.role);
   const empId=isMgr?(document.getElementById('att-emp-sel').value||curProfile.id):curProfile.id;
   document.getElementById('att-month-label').textContent=`Tháng ${curMonth+1}/${curYear}`;
   const emp=allProfiles.find(p=>p.id===empId)||curProfile;
@@ -2081,7 +2132,7 @@ async function deleteDay(){
 // XUẤT EXCEL — đơn hàng theo tháng đang xem, format sẵn (màu, border, font, freeze header)
 // ============================================================
 async function exportOrdersExcel(){
-  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgr=isManagerRole(curProfile.role);
   const empId=isMgr?(document.getElementById('ord-emp-sel')?.value||null):curProfile.id;
   const thang=monthStr(ordYear,ordMonth);
 
@@ -2308,6 +2359,8 @@ function initTaxReportFilter(){
   }
 }
 var _trCache=null;
+var _trFilteredRows=[];
+var _trDetailIdx=0;
 async function _fetchTaxReportData(){
   const year=document.getElementById('tr-year').value;
   const mFrom=parseInt(document.getElementById('tr-month-from').value);
@@ -2326,6 +2379,7 @@ async function renderTaxReport(){
     const emp=allProfilesMap[r.user_id]||{};
     return (emp.full_name||'').toLowerCase().includes(search)||(emp.employee_code||'').toLowerCase().includes(search);
   });
+  _trFilteredRows=filtered; // dùng cho Next/Prev trong modal chi tiết
 
   // Tổng hợp toàn công ty
   let totGross=0,totBH=0,totMienThue=0,totThue=0,totNet=0;
@@ -2352,11 +2406,11 @@ async function renderTaxReport(){
     tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Không có dữ liệu</td></tr>';
     return;
   }
-  tbody.innerHTML=filtered.map(r=>{
+  tbody.innerHTML=filtered.map((r,idx)=>{
     const emp=allProfilesMap[r.user_id]||{};
     const khauTru=(r.bhxh_vnd||0)+(r.thue_tncn_vnd||0);
     const net=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
-    return `<tr>
+    return `<tr onclick="openTaxDetailModal(${idx})" style="cursor:pointer" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
       <td>${r.thang}</td><td>${emp.employee_code||''}</td><td>${emp.full_name||''}</td>
       <td>${r.p1_he_so===0.85?'Thử việc':'Chính thức'}</td>
       <td style="text-align:right">${vnd(r.tong_luong_vnd||0)}</td>
@@ -2422,6 +2476,161 @@ async function exportTaxReportExcel(){
   toast('Đã xuất báo cáo thuế năm '+year);
 }
 
+// ── Modal chi tiết lương (Báo cáo thuế → bấm 1 hàng) ────────────────
+function computeTaxDetailFigures(r){
+  const isProbation=r.p1_he_so===0.85;
+  const p1=r.p1_thuc_te||0;
+  const bhxhNld_bhxh=isProbation?0:Math.round(p1*BHXH_NLD_RATE);
+  const bhxhNld_bhyt=isProbation?0:Math.round(p1*BHYT_NLD_RATE);
+  const bhxhNld_bhtn=isProbation?0:Math.round(p1*BHTN_NLD_RATE);
+  const bhxhNld_cong=bhxhNld_bhxh+bhxhNld_bhyt+bhxhNld_bhtn;
+  // Phần Công ty đóng (21.5%) — chi phí doanh nghiệp, KHÔNG trừ vào lương NLĐ
+  const bhxhCty_bhxh=isProbation?0:Math.round(p1*0.175);
+  const bhxhCty_bhyt=isProbation?0:Math.round(p1*0.03);
+  const bhxhCty_bhtn=isProbation?0:Math.round(p1*0.01);
+  const bhxhCty_cong=bhxhCty_bhxh+bhxhCty_bhyt+bhxhCty_bhtn;
+  const tnct=Math.max(0,(r.tong_luong_vnd||0)-(r.mien_thue_vnd||0)-bhxhNld_cong);
+  const giamTru=isProbation?0:(GIAM_TRU_BAN_THAN+(r.so_nguoi_phu_thuoc_snapshot||0)*GIAM_TRU_NGUOI_PHU_THUOC);
+  const tntt=isProbation?null:Math.max(0,tnct-giamTru);
+  return {isProbation,p1,bhxhNld_bhxh,bhxhNld_bhyt,bhxhNld_bhtn,bhxhNld_cong,
+    bhxhCty_bhxh,bhxhCty_bhyt,bhxhCty_bhtn,bhxhCty_cong,tnct,giamTru,tntt};
+}
+function openTaxDetailModal(idx){
+  _trDetailIdx=idx;
+  renderTaxDetailModal();
+  document.getElementById('tr-detail-modal').classList.add('open');
+}
+function closeTaxDetailModal(){document.getElementById('tr-detail-modal').classList.remove('open');}
+function navTaxDetail(delta){
+  const newIdx=_trDetailIdx+delta;
+  if(newIdx<0||newIdx>=_trFilteredRows.length)return;
+  _trDetailIdx=newIdx;
+  renderTaxDetailModal();
+}
+async function saveTaxAdjustments(){
+  const r=_trFilteredRows[_trDetailIdx];
+  const tamUngEl=document.getElementById('td-tam-ung'),kyNhanEl=document.getElementById('td-ky-nhan');
+  const tamUng=parseInt(tamUngEl.value)||0;
+  const kyNhan=parseInt(kyNhanEl.value)||0;
+  const {error}=await sb.from('salary_monthly').update({tam_ung_vnd:tamUng,ky_nhan_vnd:kyNhan}).eq('user_id',r.user_id).eq('thang',r.thang);
+  if(error){toast('Lỗi lưu: '+error.message,'error');return;}
+  r.tam_ung_vnd=tamUng;r.ky_nhan_vnd=kyNhan;
+  toast('Đã lưu tạm ứng/ký nhận');
+  renderTaxDetailModal();
+}
+function renderTaxDetailModal(){
+  const r=_trFilteredRows[_trDetailIdx];
+  if(!r)return;
+  const emp=allProfilesMap[r.user_id]||{};
+  const f=computeTaxDetailFigures(r);
+  const tamUng=r.tam_ung_vnd||0;
+  const netTruocTamUng=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
+  const thucLinhSauTamUng=netTruocTamUng-tamUng;
+  const kyNhan=r.ky_nhan_vnd!=null?r.ky_nhan_vnd:thucLinhSauTamUng;
+  const chenhLech=kyNhan-thucLinhSauTamUng;
+  const roleMap={manager:'Manager',leader:'Leader',sale:'Nhân viên Sale',accountant:'Kế toán',ceo:'CEO'};
+  const tyGia=r.ty_gia||25000;
+  const [y,m]=r.thang.split('-');
+  const box=document.getElementById('tr-detail-box');
+  box.innerHTML=`
+    <div style="max-height:78vh;overflow-y:auto;padding-right:6px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #9B1C1C;margin-bottom:14px">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#9B1C1C;letter-spacing:.3px">MAISON DE KCT</div>
+        <div style="font-size:11px;color:var(--text3)">Hệ thống quản lý nhân sự</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--text3)">
+        Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}<br>Tháng lương: ${r.thang}
+      </div>
+    </div>
+    <div style="text-align:center;font-weight:800;font-size:15px;letter-spacing:.5px;margin-bottom:14px">CHI TIẾT LƯƠNG THÁNG ${m}/${y}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;font-size:12.5px;background:var(--bg3);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+      <div><span style="color:var(--text3)">Họ tên:</span> <b>${emp.full_name||''}</b></div>
+      <div><span style="color:var(--text3)">Mã NV:</span> <b>${emp.employee_code||''}</b></div>
+      <div><span style="color:var(--text3)">Chức vụ:</span> ${roleMap[emp.role]||emp.role||''}</div>
+      <div><span style="color:var(--text3)">Phòng ban:</span> ${emp.phong_ban||'—'}</div>
+      <div><span style="color:var(--text3)">CCCD:</span> ${emp.cccd||'—'}</div>
+      <div><span style="color:var(--text3)">MST cá nhân:</span> ${emp.mst_ca_nhan||'—'}</div>
+      <div><span style="color:var(--text3)">Loại HĐ:</span> <span style="color:${f.isProbation?'var(--warn)':'var(--success)'};font-weight:600">${f.isProbation?'Thử việc':'Chính thức'}</span></div>
+      <div><span style="color:var(--text3)">Ngày công:</span> ${r.ngay_cong_thuc_te}/${r.cong_chuan_thang||'—'} ngày</div>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">A — LƯƠNG & PHỤ CẤP</div>
+    <table class="def-table" style="margin-bottom:16px">
+      <tr><td>Lương chính (mức nền)</td><td style="text-align:right">${vnd(LUONG_CUNG)}</td></tr>
+      <tr><td>Lương cơ bản thực nhận (theo ngày công)</td><td style="text-align:right">${vnd(r.p1_thuc_te)}</td></tr>
+      <tr><td>Phụ cấp ăn giữa ca</td><td style="text-align:right">${vnd(r.p2a)}</td></tr>
+      <tr><td>Phụ cấp đi lại/xăng xe</td><td style="text-align:right">${vnd(r.p3d_di_lai)}</td></tr>
+      <tr><td>Lương làm việc ca đêm</td><td style="text-align:right">${vnd(r.p2b)}</td></tr>
+      <tr><td>Phụ cấp năng lực (Level)</td><td style="text-align:right">${vnd(r.p2c)}</td></tr>
+      ${f.isProbation?`<tr><td style="color:#c0392b">Điều chỉnh thử việc (85% của P1+P2A+P2B+P2C+P3B+P3C+P3D)</td><td style="text-align:right;color:#c0392b">−${vnd(r.dieu_chinh_thu_viec_vnd||0)}</td></tr>`:''}
+    </table>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">B — THƯỞNG</div>
+    <table class="def-table" style="margin-bottom:16px">
+      <tr><td>Thưởng chuyên cần</td><td style="text-align:right">${vnd(r.p3b_chuyen_can)}</td></tr>
+      <tr><td>Thưởng KPI (≥70 điểm)</td><td style="text-align:right">${vnd(r.p3c_kpi)}</td></tr>
+      <tr><td>Bonus Headspa Bed</td><td style="text-align:right">${vnd((r.p3a_bolsa_headspa_usd||0)*tyGia)}</td></tr>
+      <tr><td>Bonus doanh số 1% + Chênh lệch</td><td style="text-align:right">${vnd(((r.p3a_base_usd||0)+(r.p3a_chenh_lech_usd||0))*tyGia)}</td></tr>
+      <tr><td>Thưởng vượt target</td><td style="text-align:right">${vnd((r.p3a_vuot_target_usd||0)*tyGia)}</td></tr>
+      <tr><td>Backup Bonus</td><td style="text-align:right">${vnd((r.backup_bonus_usd||0)*tyGia)}</td></tr>
+      <tr style="background:var(--bg3)"><td style="font-weight:700">TỔNG THU NHẬP (GROSS)</td><td style="text-align:right;font-weight:700">${vnd(r.tong_luong_vnd)}</td></tr>
+    </table>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">C — BẢO HIỂM XÃ HỘI${f.isProbation?' <span style="font-weight:400;color:var(--text3)">(thử việc — không tham gia BHXH)</span>':''}</div>
+    <table class="def-table" style="margin-bottom:16px">
+      <tr><td colspan="2" style="color:var(--text3);font-style:italic;font-size:11.5px">Phần Công ty đóng (21.5% trên lương đóng BH — chi phí DN, không trừ NLĐ)</td></tr>
+      <tr><td>BHXH (17.5%)</td><td style="text-align:right">${vnd(f.bhxhCty_bhxh)}</td></tr>
+      <tr><td>BHYT (3%)</td><td style="text-align:right">${vnd(f.bhxhCty_bhyt)}</td></tr>
+      <tr><td>BHTN (1%)</td><td style="text-align:right">${vnd(f.bhxhCty_bhtn)}</td></tr>
+      <tr><td colspan="2" style="color:var(--text3);font-style:italic;font-size:11.5px;padding-top:10px">Phần Người lao động đóng (10.5% — trừ vào lương)</td></tr>
+      <tr><td>BHXH (8%)</td><td style="text-align:right">${vnd(f.bhxhNld_bhxh)}</td></tr>
+      <tr><td>BHYT (1.5%)</td><td style="text-align:right">${vnd(f.bhxhNld_bhyt)}</td></tr>
+      <tr><td>BHTN (1%)</td><td style="text-align:right">${vnd(f.bhxhNld_bhtn)}</td></tr>
+      <tr style="background:var(--bg3)"><td style="font-weight:700">Cộng NLĐ đóng</td><td style="text-align:right;font-weight:700">${vnd(f.bhxhNld_cong)}</td></tr>
+    </table>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">D — THUẾ TNCN</div>
+    <table class="def-table" style="margin-bottom:16px">
+      <tr><td>Thu nhập chịu thuế (TNCT)</td><td style="text-align:right">${vnd(f.tnct)}</td></tr>
+      ${f.isProbation
+        ?`<tr><td colspan="2" style="color:var(--text3);font-style:italic;font-size:11.5px">Thử việc (HĐ &lt;3 tháng) → khấu trừ 10% flat, không áp giảm trừ gia cảnh</td></tr>`
+        :`<tr><td>Giảm trừ gia cảnh (bản thân + ${r.so_nguoi_phu_thuoc_snapshot||0} người phụ thuộc)</td><td style="text-align:right">−${vnd(f.giamTru)}</td></tr>
+      <tr><td>Thu nhập tính thuế (TNTT)</td><td style="text-align:right">${vnd(f.tntt)}</td></tr>`}
+      <tr style="background:var(--bg3)"><td style="font-weight:700">Thuế TNCN phải nộp</td><td style="text-align:right;font-weight:700;color:#c0392b">${vnd(r.thue_tncn_vnd)}</td></tr>
+    </table>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">E — TỔNG HỢP</div>
+    <table class="def-table" style="margin-bottom:6px">
+      <tr><td>Tổng thu nhập (Gross)</td><td style="text-align:right">${vnd(r.tong_luong_vnd)}</td></tr>
+      <tr><td>Trừ BHXH/BHYT/BHTN (NLĐ)</td><td style="text-align:right;color:#c0392b">−${vnd(r.bhxh_vnd)}</td></tr>
+      <tr><td>Trừ thuế TNCN</td><td style="text-align:right;color:#c0392b">−${vnd(r.thue_tncn_vnd)}</td></tr>
+      <tr style="background:var(--bg3)"><td style="font-weight:700">Thực lĩnh (trước tạm ứng)</td><td style="text-align:right;font-weight:700">${vnd(netTruocTamUng)}</td></tr>
+      <tr><td>Tạm ứng<br><input type="number" id="td-tam-ung" value="${tamUng}" style="margin-top:4px;width:140px;text-align:right;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)"></td><td style="text-align:right;color:#c0392b;vertical-align:top">−${vnd(tamUng)}</td></tr>
+      <tr style="background:var(--bg3)"><td style="font-weight:700">Thực lĩnh sau tạm ứng</td><td style="text-align:right;font-weight:700;color:var(--success)">${vnd(thucLinhSauTamUng)}</td></tr>
+      <tr><td>Ký nhận<br><input type="number" id="td-ky-nhan" value="${kyNhan}" style="margin-top:4px;width:140px;text-align:right;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)"></td><td style="text-align:right;vertical-align:top">${vnd(kyNhan)}</td></tr>
+      <tr><td>Chênh lệch</td><td style="text-align:right;color:${chenhLech===0?'var(--text3)':chenhLech>0?'var(--success)':'#c0392b'}">${chenhLech>0?'+':''}${vnd(chenhLech)}</td></tr>
+    </table>
+
+    <div style="display:flex;justify-content:space-between;margin-top:26px;font-size:11.5px;text-align:center">
+      <div style="flex:1">NGƯỜI LAO ĐỘNG<br><i style="font-size:11px;color:var(--text3)">(Ký, ghi rõ họ tên)</i></div>
+      <div style="flex:1">NGƯỜI LẬP BIỂU<br><i style="font-size:11px;color:var(--text3)">(Ký, họ tên)</i></div>
+      <div style="flex:1">GIÁM ĐỐC CÔNG TY<br><i style="font-size:11px;color:var(--text3)">(Ký, họ tên, đóng dấu)</i></div>
+    </div>
+    </div>
+
+    <div class="mactions" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+      <button class="mbtn" onclick="navTaxDetail(-1)" ${_trDetailIdx<=0?'disabled':''}>‹ NV trước</button>
+      <button class="mbtn" onclick="navTaxDetail(1)" ${_trDetailIdx>=_trFilteredRows.length-1?'disabled':''}>NV tiếp ›</button>
+      <span style="align-self:center;font-size:11px;color:var(--text3)">${_trDetailIdx+1}/${_trFilteredRows.length}</span>
+      <div style="flex:1"></div>
+      <button class="mbtn" onclick="closeTaxDetailModal()">Đóng</button>
+      <button class="mbtn mbtn-p" onclick="saveTaxAdjustments()">💾 Lưu tạm ứng/ký nhận</button>
+    </div>
+  `;
+}
+
 // Bonus bậc giường Headspa Bed cho 1 đơn — dùng đúng công thức bậc thang
 // như trong calcSalaryForEmp, áp theo số giường CỦA RIÊNG đơn này.
 function calcHeadspaBedBonusForOrder(soGiuong){
@@ -2434,7 +2643,7 @@ function calcHeadspaBedBonusForOrder(soGiuong){
 }
 
 async function renderOrders(){
-  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgr=isManagerRole(curProfile.role);
   const empId=isMgr?(document.getElementById('ord-emp-sel')?.value||null):curProfile.id;
   document.getElementById('ord-month-label').textContent=`Tháng ${ordMonth+1}/${ordYear}`;
   const thang=monthStr(ordYear,ordMonth);
@@ -2560,7 +2769,7 @@ async function loadOrderItemsDetail(orderId){
   const {data:items}=await sb.from('order_items').select('*').eq('order_id',orderId).order('id');
   if(!items||!items.length){content.innerHTML='<div style="font-size:12px;color:var(--text3)">Không có sản phẩm</div>';return;}
 
-  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgrLocal=isManagerRole(curProfile.role);
 
   const rows=items.map(it=>{
     const isShipping=it.is_shipping||(it.ten_sp_invoice||'').toLowerCase().includes('ship');
@@ -2974,7 +3183,7 @@ async function renderKPI(){
   kpiSelectedEmp=empId;
   document.getElementById('kpi-month-label').textContent=`Tháng ${kpiMonth+1}/${kpiYear}`;
   const thang=monthStr(kpiYear,kpiMonth);
-  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgrLocal=isManagerRole(curProfile.role);
   if(isMgrLocal)await renderKPITeamSummary(thang);
   await renderKPIDetail(empId,thang);
 }
@@ -3057,7 +3266,7 @@ function selectKPIEmp(empId){
 }
 
 async function renderKPIDetail(empId,thang){
-  const isMgrLocal=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgrLocal=isManagerRole(curProfile.role);
   const [{data:kpi},{data:kpiSet}]=await Promise.all([
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
     sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle(),
@@ -3347,7 +3556,7 @@ async function calcAndSaveSalaryFor(empId,thang,salYear,salMonth){
 // Nhân viên đã chốt (is_locked) → đọc thẳng DB, không tính lại.
 // ============================================================
 async function renderSalary(){
-  const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
+  const isMgr=curProfile&&isManagerRole(curProfile.role);
   _salCache={};
   document.getElementById('sal-month-label').textContent=`Tháng ${salMonth+1}/${salYear}`;
   const thang=monthStr(salYear,salMonth);
@@ -3423,7 +3632,7 @@ function renderSalaryRow(emp,sal,thang,isMgr){
 }
 
 async function toggleLockSalary(empId,thang){
-  if(!(curProfile.role==='manager'||curProfile.role==='leader')){toast('Chỉ Manager mới được chốt lương','error');return;}
+  if(!(isManagerRole(curProfile.role))){toast('Chỉ Manager mới được chốt lương','error');return;}
   const {data:cur}=await sb.from('salary_monthly').select('is_locked').eq('user_id',empId).eq('thang',thang).maybeSingle();
   const newLocked=!(cur?.is_locked);
   const {error}=await sb.from('salary_monthly').update({is_locked:newLocked}).eq('user_id',empId).eq('thang',thang);
@@ -3630,7 +3839,7 @@ async function exportPhieuLuong(empId,thang){
 
 // Xuất tất cả phiếu lương trong tháng — mỗi người 1 trang, in chung 1 lần.
 async function exportAllPhieuLuong(){
-  const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
+  const isMgr=curProfile&&isManagerRole(curProfile.role);
   if(!isMgr){toast('Chỉ Manager mới xuất được hàng loạt','error');return;}
   const thang=monthStr(salYear,salMonth);
   const emps=allProfiles;
@@ -3791,10 +4000,10 @@ function renderEmpGrid(){
     return true;
   });
 
-  el.innerHTML=filtered.map(function(p,i){
+  var cards=filtered.map(function(p,i){
     const c=avColor(i);
     const isInactive=p.status==='inactive';
-    const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>'};
+    const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>',accountant:'<span class="pill pill-manager">Kế toán</span>',ceo:'<span class="pill pill-manager">CEO</span>'};
     const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
     const isThuViec=p.contract_type==='probation'||p.contract_type==='thu-viec';
     const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
@@ -3811,12 +4020,16 @@ function renderEmpGrid(){
 
     var actions=`<button class="btn-sm" onclick="openEditProfile('${p.id}')" style="font-size:11px;padding:4px 9px">✏️ Sửa</button>
       <button class="btn-sm" onclick="openContractModal('${p.id}')" style="font-size:11px;padding:4px 9px">📄 Hợp đồng</button>`;
-    if(curProfile&&curProfile.role==='manager'){
+    if(curProfile&&isManagerRole(curProfile.role)){
       if(isInactive){
         actions+=` <button class="btn-sm" onclick="toggleEmpStatus('${p.id}','active')" style="font-size:11px;padding:4px 9px;border-color:var(--success);color:var(--success)">✅ Kích hoạt</button>`;
       } else {
         actions+=` <button class="btn-sm" onclick="openDeactivateModal('${p.id}')" style="font-size:11px;padding:4px 9px;border-color:var(--danger);color:var(--danger)">🚫 Nghỉ việc</button>`;
       }
+    }
+    // Xóa vĩnh viễn: chỉ Manager/CEO — không cho Leader/Kế toán xóa hồ sơ
+    if(curProfile&&(curProfile.role==='manager'||curProfile.role==='ceo')){
+      actions+=` <button class="btn-sm" onclick="openDeleteEmpModal('${p.id}')" style="font-size:11px;padding:4px 9px;border-color:var(--danger);color:var(--danger)">🗑️ Xóa</button>`;
     }
 
     return `<div style="background:var(--bg3);border:1px solid ${isInactive?'var(--border)':'var(--border)'};border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;opacity:${isInactive?'0.6':'1'}">
@@ -3832,6 +4045,30 @@ function renderEmpGrid(){
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">${actions}</div>
     </div>`;
+  });
+
+  // Nhóm theo phòng ban — nhân viên chưa có phòng ban gộp vào "Chưa phân loại"
+  var groups={};
+  var groupOrder=[];
+  filtered.forEach(function(p,i){
+    var pb=p.phong_ban||'Chưa phân loại';
+    if(!groups[pb]){groups[pb]=[];groupOrder.push(pb);}
+    groups[pb].push(cards[i]);
+  });
+  var deptOrder=['Ban giám đốc','Kinh doanh','Kế toán','Vận hành','Chưa phân loại'];
+  groupOrder.sort(function(a,b){
+    var ia=deptOrder.indexOf(a),ib=deptOrder.indexOf(b);
+    if(ia===-1)ia=99;if(ib===-1)ib=99;
+    return ia-ib;
+  });
+  var deptIcons={'Ban giám đốc':'👑','Kinh doanh':'💼','Kế toán':'🧮','Vận hành':'⚙️','Chưa phân loại':'❔'};
+  el.innerHTML=groupOrder.map(function(dept){
+    return `<div style="margin-bottom:6px;margin-top:14px;font-size:12px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px">
+      <span>${deptIcons[dept]||'🏢'} ${dept}</span>
+      <span style="font-size:11px;font-weight:400;color:var(--text3)">(${groups[dept].length})</span>
+      <div style="flex:1;height:1px;background:var(--border2)"></div>
+    </div>
+    <div style="display:grid;gap:10px">${groups[dept].join('')}</div>`;
   }).join('')||'<div class="empty">Không có nhân viên</div>';
 }
 
@@ -3845,6 +4082,7 @@ async function openEditProfile(id){
   document.getElementById('ep-biet-danh').value=p.nickname||'';
   document.getElementById('ep-ma-nv').value=p.employee_code||'';
   document.getElementById('ep-role').value=p.role||'sale';
+  document.getElementById('ep-phong-ban').value=p.phong_ban||'Kinh doanh';
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
   const ctMap={'official':'chinh-thuc','probation':'thu-viec'};
@@ -3857,6 +4095,8 @@ async function openEditProfile(id){
   document.getElementById('ep-cccd-ngay-cap').value=p.cccd_ngay_cap||'';
   document.getElementById('ep-cccd-noi-cap').value=p.cccd_noi_cap||'';
   document.getElementById('ep-quoc-tich').value=p.quoc_tich||'Việt Nam';
+  document.getElementById('ep-mst').value=p.mst_ca_nhan||'';
+  document.getElementById('ep-so-bhxh').value=p.so_bhxh||'';
   document.getElementById('ep-address').value=p.address||'';
   // Avatar preview
   var prev=document.getElementById('ep-avatar-preview');
@@ -3876,6 +4116,7 @@ async function saveEmpProfile(){
   const bietDanh=document.getElementById('ep-biet-danh').value.trim();
   const maNV=document.getElementById('ep-ma-nv').value.trim();
   const role=document.getElementById('ep-role').value;
+  const phongBan=document.getElementById('ep-phong-ban').value;
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
   const contractTypeRaw=document.getElementById('ep-contract').value;
@@ -3887,6 +4128,8 @@ async function saveEmpProfile(){
   const cccdNgayCap=document.getElementById('ep-cccd-ngay-cap').value||null;
   const cccdNoiCap=document.getElementById('ep-cccd-noi-cap').value.trim()||null;
   const quocTich=document.getElementById('ep-quoc-tich').value.trim()||'Việt Nam';
+  const mstCaNhan=document.getElementById('ep-mst').value.trim()||null;
+  const soBHXH=document.getElementById('ep-so-bhxh').value.trim()||null;
   const address=document.getElementById('ep-address').value.trim()||null;
   const avatarFile=document.getElementById('ep-avatar-input').files&&document.getElementById('ep-avatar-input').files[0];
   if(!hoTen){toast('Nhập họ tên','error');return;}
@@ -3906,9 +4149,10 @@ async function saveEmpProfile(){
   }
 
   var updatePayload={
-    full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,
+    full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,phong_ban:phongBan,
     start_date:startDate||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
     phone,cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
+    mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
     address,birthday:birthday||null
   };
   if(avatarUrl)updatePayload.avatar_url=avatarUrl;
@@ -3948,6 +4192,33 @@ async function toggleEmpStatus(id,newStatus,ngayNghi){
   // Update local immediately
   var idx=allProfiles.findIndex(p=>p.id===id);
   if(idx>=0)Object.assign(allProfiles[idx],updateData);
+  buildProfilesMap();populateSelects();renderEmpGrid();
+}
+
+// Xóa nhân viên vĩnh viễn — KHÁC với "Nghỉ việc" (chỉ ẩn, giữ lịch sử).
+// Xóa thật sẽ mất record profiles; đơn hàng/lương/chấm công cũ tham chiếu
+// user_id này có thể lỗi tham chiếu hoặc bị chặn bởi ràng buộc khóa ngoại
+// trên DB (tùy cấu hình). Vì rủi ro mất dữ liệu lịch sử KHÔNG THỂ HOÀN TÁC,
+// bắt buộc gõ đúng tên nhân viên để xác nhận trước khi xóa.
+function openDeleteEmpModal(id){
+  var p=allProfilesMap[id];
+  if(!p)return;
+  var typed=prompt('⚠️ XÓA VĨNH VIỄN nhân viên "'+p.full_name+'" ('+p.employee_code+').\n\nHành động này KHÔNG THỂ HOÀN TÁC và có thể ảnh hưởng dữ liệu đơn hàng/lương/chấm công cũ liên quan đến người này.\n\nNếu chỉ muốn ẩn nhân viên (giữ lịch sử), dùng nút "🚫 Nghỉ việc" thay vì xóa.\n\nGõ chính xác tên "'+p.full_name+'" để xác nhận xóa:');
+  if(typed!==p.full_name){
+    if(typed!==null)toast('Tên không khớp — đã hủy xóa','error');
+    return;
+  }
+  deleteEmployee(id);
+}
+async function deleteEmployee(id){
+  var p=allProfilesMap[id];
+  var {error}=await sb.from('profiles').delete().eq('id',id);
+  if(error){
+    toast('Không thể xóa (có thể do dữ liệu liên quan còn tồn tại): '+error.message,'error');
+    return;
+  }
+  toast('Đã xóa vĩnh viễn: '+(p?p.full_name:''));
+  allProfiles=allProfiles.filter(function(x){return x.id!==id;});
   buildProfilesMap();populateSelects();renderEmpGrid();
 }
 
@@ -4000,6 +4271,8 @@ async function saveNewEmp(){
   var cccdNgayCap=document.getElementById('ae-cccd-ngay-cap').value||null;
   var cccdNoiCap=document.getElementById('ae-cccd-noi-cap').value.trim()||null;
   var quocTich=document.getElementById('ae-quoc-tich').value.trim()||'Việt Nam';
+  var mstCaNhan=document.getElementById('ae-mst').value.trim()||null;
+  var soBHXH=document.getElementById('ae-so-bhxh').value.trim()||null;
   var address=document.getElementById('ae-address').value.trim()||null;
   var avatarFile=document.getElementById('ae-avatar-input').files&&document.getElementById('ae-avatar-input').files[0];
   var noteEl=document.getElementById('ae-note');
@@ -4025,6 +4298,7 @@ async function saveNewEmp(){
       role,lever,start_date:startDate||null,birthday:birthday||null,
       contract_type:contractType,is_active:true,status:'active',so_nguoi_phu_thuoc:soNguoiPhuThuoc,
       phone:phone,cccd:cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
+      mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
       address:address,
       avatar_url:avatarUrl
     };
@@ -4229,7 +4503,7 @@ function switchTab(name,el){
   document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
   if(el)el.classList.add('active');
   document.getElementById('page-'+name).classList.add('active');
-  const isMgr=curProfile&&(curProfile.role==='manager'||curProfile.role==='leader');
+  const isMgr=curProfile&&isManagerRole(curProfile.role);
   if(name==='checkin'){renderCheckinPage();renderAllLog();}
   else if(name==='attendance'){
     document.getElementById('att-emp-sel-wrap').style.display=isMgr?'block':'none';
@@ -4386,7 +4660,7 @@ async function openHolidaysModal(){
 async function renderHolidaysList(){
   var {data}=await sb.from('holidays').select('*').order('ngay');
   var html=(data||[]).map(function(h){
-    var canDel=h.loai==='custom'||(curProfile&&curProfile.role==='manager');
+    var canDel=h.loai==='custom'||(curProfile&&isManagerRole(curProfile.role));
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:11px;color:var(--text3);width:90px;flex-shrink:0">${h.ngay}</span>
       <span style="flex:1;font-size:13px">${h.ten||''}</span>
@@ -5365,7 +5639,7 @@ async function renderDashboard(){
   ords.forEach(function(o){
     var uid=o.user_id;
     var prof=o.profiles||allProfilesFresh.find(function(p){return p.id===uid;});
-    if(!prof||prof.role==='manager')return;
+    if(!prof||prof.role==='manager'||prof.role==='ceo'||prof.role==='accountant')return;
     if(!lbMap[uid])lbMap[uid]={emp:prof,ds:0,don:0};
     lbMap[uid].ds+=(o.total_amount||0);
     lbMap[uid].don++;
@@ -5843,7 +6117,7 @@ async function renderDocs(){
 
 function renderDocList(){
   const filtered=_currentDocCat?_allDocs.filter(d=>d.category===_currentDocCat):_allDocs;
-  const isMgr=curProfile.role==='manager'||curProfile.role==='leader';
+  const isMgr=isManagerRole(curProfile.role);
   const catMeta={
     'quy-trinh':{icon:'📋',color:'#6d28d9',label:'Quy trình'},
     'san-pham':{icon:'📦',color:'#0ea5e9',label:'Sản phẩm'},
