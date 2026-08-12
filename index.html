@@ -3640,9 +3640,21 @@ async function toggleLockSalary(empId,thang){
   if(!(isManagerRole(curProfile.role))){toast('Chỉ Manager mới được chốt lương','error');return;}
   const {data:cur}=await sb.from('salary_monthly').select('is_locked').eq('user_id',empId).eq('thang',thang).maybeSingle();
   const newLocked=!(cur?.is_locked);
-  const {error}=await sb.from('salary_monthly').update({is_locked:newLocked}).eq('user_id',empId).eq('thang',thang);
-  if(error){toast('Lỗi: '+error.message,'error');return;}
-  toast(newLocked?'Đã chốt lương':'Đã mở chốt — sẽ tự tính lại');
+  if(newLocked){
+    // Khi CHỐT: bắt buộc tính lại fresh và lưu NGAY tại đúng thời điểm bấm,
+    // rồi mới set is_locked=true trong CÙNG 1 lần ghi — tránh trường hợp DB
+    // đang giữ số cũ (do timing/race với lần tính tự động trước đó) bị khóa
+    // nhầm lại số sai thay vì số mới nhất đang hiển thị trên màn hình.
+    const [ty,tm]=thang.split('-').map(Number);
+    const fresh=await calcSalaryForEmp(empId,thang,ty,tm-1);
+    if(!fresh){toast('Không tính được lương — thử lại','error');return;}
+    const {error}=await sb.from('salary_monthly').upsert({...fresh,is_locked:true},{onConflict:'user_id,thang'});
+    if(error){toast('Lỗi: '+error.message,'error');return;}
+  } else {
+    const {error}=await sb.from('salary_monthly').update({is_locked:false}).eq('user_id',empId).eq('thang',thang);
+    if(error){toast('Lỗi: '+error.message,'error');return;}
+  }
+  toast(newLocked?'Đã chốt lương (đã lưu số mới nhất)':'Đã mở chốt — sẽ tự tính lại');
   renderSalary();
 }
 
