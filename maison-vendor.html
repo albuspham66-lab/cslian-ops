@@ -447,6 +447,37 @@ th.num{text-align:right;}
   </div>
 </div>
 
+<!-- Add Design File Modal -->
+<div class="mbg" id="m-add-file">
+  <div class="modal" style="max-width:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title">📎 Thêm tài liệu thiết kế</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-add-file')">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn btn-sm" id="af-tab-upload" onclick="afSwitchTab('upload')" style="flex:1;">📤 Upload file</button>
+      <button class="btn btn-ghost btn-sm" id="af-tab-link" onclick="afSwitchTab('link')" style="flex:1;">🔗 Dán link ngoài</button>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tên hiển thị</label>
+      <input type="text" id="af-name" placeholder="VD: Hồ sơ thiết kế nội thất" style="width:100%;">
+    </div>
+    <div id="af-upload-block">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">File (PDF/ảnh, tối đa 25MB)</label>
+      <input type="file" id="af-file-input" accept=".pdf,image/*,.doc,.docx,.zip" style="width:100%;padding:8px;background:var(--card2);border-radius:var(--rsm);border:1px solid var(--border2);color:var(--text2);font-size:12px;">
+      <div id="af-progress" style="font-size:11px;color:var(--text3);margin-top:6px;display:none;">Đang upload…</div>
+    </div>
+    <div id="af-link-block" style="display:none;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">URL file (Google Drive/Dropbox…)</label>
+      <input type="text" id="af-link-input" placeholder="https://..." style="width:100%;">
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-add-file')">Huỷ</button>
+      <button class="btn btn-gold btn-sm" id="af-submit-btn" onclick="submitOrderFile()">Lưu</button>
+    </div>
+  </div>
+</div>
+
 <!-- Invoice View Modal -->
 <div class="mbg" id="m-invoice">
   <div class="modal modal-xl">
@@ -867,18 +898,21 @@ function _renderOrderView(o){
   }else{trkEl.innerHTML='<span style="color:var(--text3);font-size:12px;">Chưa có tracking</span>';trkBtn.textContent='+ Nhập tracking';}
   // Notes
   document.getElementById('ov-notes').value=o.vendor_notes||'';
-  // Design Files — chỉ lưu link (text), không upload/lưu file thật vào Storage
+  // Design Files — upload thật (Storage) hoặc link ngoài, hiển thị chung 1 danh sách
   const files=allFiles.filter(f=>String(f.order_id)===String(o.id));
   const isAdmin=currentProfile?.role==='admin';
+  const fmtSize=b=>!b?'':b>1024*1024?(b/1024/1024).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB';
   document.getElementById('ov-files').innerHTML=
     (files.length?files.map(f=>`
       <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:var(--rsm);padding:8px 12px;">
-        <a href="${f.file_url}" target="_blank" rel="noopener" style="color:var(--blue);font-size:13px;font-weight:500;text-decoration:none;display:flex;align-items:center;gap:6px;">
-          📄 ${f.file_name||'Xem tài liệu'}
+        <a href="${f.file_url}" target="_blank" rel="noopener" style="color:var(--blue);font-size:13px;font-weight:500;text-decoration:none;display:flex;align-items:center;gap:6px;min-width:0;">
+          <span>${f.is_external?'🔗':'📄'}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.file_name||'Xem tài liệu'}</span>
+          ${f.file_size?`<span style="color:var(--text3);font-size:11px;flex-shrink:0;">(${fmtSize(f.file_size)})</span>`:''}
         </a>
-        ${isAdmin?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;color:var(--red);" onclick="deleteOrderFile('${f.id}','${o.id}')">✕</button>`:''}
+        ${isAdmin?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;color:var(--red);flex-shrink:0;" onclick="deleteOrderFile('${f.id}','${o.id}')">✕</button>`:''}
       </div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Chưa có tài liệu</div>')
-    +(isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:8px;align-self:flex-start;" onclick="addOrderFile('${o.id}')">+ Thêm link tài liệu</button>`:'');
+    +(isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:8px;align-self:flex-start;" onclick="addOrderFile('${o.id}')">+ Thêm tài liệu</button>`:'');
   // Photos
   const prog=photos.filter(p=>!p.caption?.startsWith('payment:'));
   const pay=photos.filter(p=>p.caption?.startsWith('payment:'));
@@ -907,25 +941,81 @@ async function reloadOVPhotos(orderId){
   if(o)_renderOrderView(o);
 }
 
-// ── Design Files: chỉ lưu URL (text), không upload file thật lên Storage ──
-async function addOrderFile(orderId){
-  const url=(prompt('Dán link file thiết kế (Google Drive/Dropbox/link công khai):')||'').trim();
-  if(!url)return;
-  if(!/^https?:\/\//i.test(url)){toast('Link phải bắt đầu bằng http:// hoặc https://','var(--amber)');return;}
-  const name=(prompt('Tên hiển thị cho file (vd: Bản vẽ kích thước):','Tài liệu thiết kế')||'Tài liệu thiết kế').trim();
+// ── Design Files: upload file thật (Storage) hoặc dán link ngoài ──
+let _afOrderId=null,_afMode='upload';
+
+function addOrderFile(orderId){
+  _afOrderId=orderId;
+  document.getElementById('af-name').value='';
+  document.getElementById('af-file-input').value='';
+  document.getElementById('af-link-input').value='';
+  document.getElementById('af-progress').style.display='none';
+  afSwitchTab('upload');
+  openModal('m-add-file');
+}
+
+function afSwitchTab(mode){
+  _afMode=mode;
+  document.getElementById('af-upload-block').style.display=mode==='upload'?'block':'none';
+  document.getElementById('af-link-block').style.display=mode==='link'?'block':'none';
+  document.getElementById('af-tab-upload').className=mode==='upload'?'btn btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('af-tab-link').className=mode==='link'?'btn btn-sm':'btn btn-ghost btn-sm';
+}
+
+async function submitOrderFile(){
+  if(!_afOrderId)return;
+  const name=(document.getElementById('af-name').value||'').trim();
+  const btn=document.getElementById('af-submit-btn');
   try{
-    const{error}=await sb.from('order_files').insert({order_id:orderId,file_url:url,file_name:name,added_by:currentUser.id});
+    let file_url,file_size=null,mime_type=null,is_external=false;
+    if(_afMode==='upload'){
+      const input=document.getElementById('af-file-input');
+      const file=input.files&&input.files[0];
+      if(!file){toast('Chọn 1 file trước đã','var(--amber)');return;}
+      if(file.size>25*1024*1024){toast('File vượt quá 25MB — dùng tab "Dán link ngoài" thay thế','var(--amber)');return;}
+      btn.disabled=true;document.getElementById('af-progress').style.display='block';
+      const path=`${_afOrderId}/${Date.now()}_${file.name.replace(/[^\w.\-]/g,'_')}`;
+      const{error:upErr}=await sb.storage.from('order-design-files').upload(path,file,{upsert:true});
+      if(upErr)throw upErr;
+      const{data:urlData}=sb.storage.from('order-design-files').getPublicUrl(path);
+      file_url=urlData.publicUrl;file_size=file.size;mime_type=file.type;is_external=false;
+    }else{
+      const url=(document.getElementById('af-link-input').value||'').trim();
+      if(!url){toast('Dán link trước đã','var(--amber)');return;}
+      if(!/^https?:\/\//i.test(url)){toast('Link phải bắt đầu bằng http:// hoặc https://','var(--amber)');return;}
+      file_url=url;is_external=true;
+    }
+    const{error}=await sb.from('order_files').insert({
+      order_id:_afOrderId,file_url,
+      file_name:name||(_afMode==='upload'?document.getElementById('af-file-input').files[0].name:'Tài liệu thiết kế'),
+      added_by:currentUser.id,file_size,mime_type,is_external
+    });
     if(error)throw error;
     await loadFiles();
-    const o=allOrders.find(x=>String(x.id)===String(orderId));
+    const o=allOrders.find(x=>String(x.id)===String(_afOrderId));
     if(o)_renderOrderView(o);
-    toast('✅ Đã thêm link tài liệu','var(--green)');
+    closeModal('m-add-file');
+    toast('✅ Đã thêm tài liệu','var(--green)');
   }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+  finally{btn.disabled=false;document.getElementById('af-progress').style.display='none';}
 }
 
 async function deleteOrderFile(fileId,orderId){
-  if(!confirm('Xoá link tài liệu này?'))return;
+  if(!confirm('Xoá tài liệu này?'))return;
   try{
+    const f=allFiles.find(x=>String(x.id)===String(fileId));
+    // Nếu là file upload thật (không phải link ngoài) → xoá luôn khỏi Storage
+    // để thật sự giải phóng dung lượng, không chỉ xoá tham chiếu trong bảng.
+    if(f&&!f.is_external&&f.file_url){
+      try{
+        const marker='/order-design-files/';
+        const idx=f.file_url.indexOf(marker);
+        if(idx>=0){
+          const path=decodeURIComponent(f.file_url.slice(idx+marker.length));
+          await sb.storage.from('order-design-files').remove([path]);
+        }
+      }catch(se){console.error('Xoá storage lỗi (bỏ qua):',se);}
+    }
     const{error}=await sb.from('order_files').delete().eq('id',fileId);
     if(error)throw error;
     await loadFiles();
