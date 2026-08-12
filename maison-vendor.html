@@ -1362,7 +1362,7 @@ async function syncFromCRM(){
         product:products,
         total_amount:totalAmount,
         deposit1:parseFloat(inv.deposit)||0,
-        deposit2:0,
+        deposit2:parseFloat(inv.deposit2)||0,
         balance_due:parseFloat(inv.balance_due)||0,
         note:inv.note||'',
         payment_method:inv.payment_method||'',
@@ -1444,7 +1444,7 @@ async function viewInvoice(orderId){
   document.getElementById('inv-totals').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
       <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Tổng</span><span style="font-family:'JetBrains Mono';color:var(--text);">${fmtUSD(o.total_amount)}</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Đã đặt cọc</span><span style="font-family:'JetBrains Mono';color:var(--green);">${fmtUSD(o.deposit1)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Đã đặt cọc</span><span style="font-family:'JetBrains Mono';color:var(--green);">${fmtUSD((parseFloat(o.deposit1)||0)+(parseFloat(o.deposit2)||0))}</span></div>
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border2);padding-top:8px;"><span style="font-weight:600;">Balance Due</span><span style="font-family:'JetBrains Mono';font-weight:700;color:${o.balance_due>0?'var(--red)':'var(--green)'};">${fmtUSD(o.balance_due)}</span></div>
     </div>`;
   openModal('m-invoice');
@@ -1474,7 +1474,9 @@ async function printInvoicePDF(){
     const tax=parseFloat(inv.tax_pct)||0;
     const chargeFee=parseFloat(inv.charge_fee)||0;
     const extraDisc=parseFloat(inv.extra_discount)||0;
-    const deposit=parseFloat(o.deposit1)||0;
+    const deposit1=parseFloat(o.deposit1)||0;
+    const deposit2=parseFloat(o.deposit2)||0;
+    const deposit=deposit1+deposit2;
     const total=subtotal+tax+chargeFee-extraDisc;
     const balance=total-deposit;
     const cuAddr=[o.address,o.state].filter(Boolean).join(' ');
@@ -1576,7 +1578,8 @@ table.inv-table td{border-bottom:1px solid #eee;vertical-align:middle;}
     ${chargeFee>0?`<div class="inv-total-row"><span class="inv-total-label">Charge Fee</span><span>${fmt(chargeFee)}</span></div>`:''}
     ${extraDisc>0?`<div class="inv-total-row" style="color:#27AE60"><span class="inv-total-label">Extra Discount</span><span>-${fmt(extraDisc)}</span></div>`:''}
     <div class="inv-grand-total">${fmt(total)}</div>
-    <div class="inv-total-row"><span class="inv-total-label">Deposit</span><span>${fmt(deposit)}</span></div>
+    <div class="inv-total-row"><span class="inv-total-label">Deposit 1</span><span>${fmt(deposit1)}</span></div>
+    ${deposit2>0?`<div class="inv-total-row"><span class="inv-total-label">Deposit 2</span><span>${fmt(deposit2)}</span></div>`:''}
     <div class="inv-balance-row"><span>Balance Due</span><span class="inv-balance-val">${fmt(balance)}</span></div>
     </div>
   </div>
