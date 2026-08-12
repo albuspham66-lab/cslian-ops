@@ -426,6 +426,10 @@ th.num{text-align:right;}
           </div>
         </div>
       </div>
+      <!-- Design Files (chỉ lưu link, không lưu file để đỡ tốn dung lượng) -->
+      <div class="divider"></div>
+      <div class="section-title" style="margin-bottom:10px;">📎 Tài liệu thiết kế</div>
+      <div id="ov-files" style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;"></div>
       <!-- Photos -->
       <div class="divider"></div>
       <div class="section-title" style="margin-bottom:10px;">📸 Hình ảnh tiến độ</div>
@@ -616,7 +620,7 @@ const sb=window.supabase.createClient(FIN_URL,FIN_KEY);
 
 // ══ STATE ══
 let currentUser=null,currentProfile=null;
-let allOrders=[],allPhotos=[],allNotifs=[],allAccounts=[];
+let allOrders=[],allPhotos=[],allNotifs=[],allAccounts=[],allFiles=[];
 let realtimeSub=null;
 
 // ══ AUTH ══
@@ -655,7 +659,7 @@ async function doLogout(){
 
 // ══ LOAD ══
 async function loadAll(){
-  await Promise.all([loadOrders(),loadPhotos(),loadNotifs(),
+  await Promise.all([loadOrders(),loadPhotos(),loadFiles(),loadNotifs(),
     currentProfile?.role==='admin'?loadAccounts():Promise.resolve()]);
   renderDashboard();renderOrders();renderNotifs();
   if(currentProfile?.role==='admin')renderAccounts();
@@ -676,6 +680,14 @@ async function loadPhotos(){
   const ids=allOrders.map(o=>o.id);
   const{data}=await sb.from('order_photos').select('*').in('order_id',ids).order('created_at',{ascending:false});
   allPhotos=data||[];
+}
+
+async function loadFiles(){
+  if(!allOrders.length)return;
+  const ids=allOrders.map(o=>o.id);
+  const{data,error}=await sb.from('order_files').select('*').in('order_id',ids).order('created_at',{ascending:false});
+  if(error){console.error('loadFiles:',error);allFiles=[];return;}
+  allFiles=data||[];
 }
 
 async function loadNotifs(){
@@ -855,6 +867,18 @@ function _renderOrderView(o){
   }else{trkEl.innerHTML='<span style="color:var(--text3);font-size:12px;">Chưa có tracking</span>';trkBtn.textContent='+ Nhập tracking';}
   // Notes
   document.getElementById('ov-notes').value=o.vendor_notes||'';
+  // Design Files — chỉ lưu link (text), không upload/lưu file thật vào Storage
+  const files=allFiles.filter(f=>String(f.order_id)===String(o.id));
+  const isAdmin=currentProfile?.role==='admin';
+  document.getElementById('ov-files').innerHTML=
+    (files.length?files.map(f=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:var(--rsm);padding:8px 12px;">
+        <a href="${f.file_url}" target="_blank" rel="noopener" style="color:var(--blue);font-size:13px;font-weight:500;text-decoration:none;display:flex;align-items:center;gap:6px;">
+          📄 ${f.file_name||'Xem tài liệu'}
+        </a>
+        ${isAdmin?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;color:var(--red);" onclick="deleteOrderFile('${f.id}','${o.id}')">✕</button>`:''}
+      </div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Chưa có tài liệu</div>')
+    +(isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:8px;align-self:flex-start;" onclick="addOrderFile('${o.id}')">+ Thêm link tài liệu</button>`:'');
   // Photos
   const prog=photos.filter(p=>!p.caption?.startsWith('payment:'));
   const pay=photos.filter(p=>p.caption?.startsWith('payment:'));
@@ -881,6 +905,33 @@ async function reloadOVPhotos(orderId){
   await loadPhotos();
   const o=allOrders.find(x=>String(x.id)===String(orderId));
   if(o)_renderOrderView(o);
+}
+
+// ── Design Files: chỉ lưu URL (text), không upload file thật lên Storage ──
+async function addOrderFile(orderId){
+  const url=(prompt('Dán link file thiết kế (Google Drive/Dropbox/link công khai):')||'').trim();
+  if(!url)return;
+  if(!/^https?:\/\//i.test(url)){toast('Link phải bắt đầu bằng http:// hoặc https://','var(--amber)');return;}
+  const name=(prompt('Tên hiển thị cho file (vd: Bản vẽ kích thước):','Tài liệu thiết kế')||'Tài liệu thiết kế').trim();
+  try{
+    const{error}=await sb.from('order_files').insert({order_id:orderId,file_url:url,file_name:name,added_by:currentUser.id});
+    if(error)throw error;
+    await loadFiles();
+    const o=allOrders.find(x=>String(x.id)===String(orderId));
+    if(o)_renderOrderView(o);
+    toast('✅ Đã thêm link tài liệu','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+async function deleteOrderFile(fileId,orderId){
+  if(!confirm('Xoá link tài liệu này?'))return;
+  try{
+    const{error}=await sb.from('order_files').delete().eq('id',fileId);
+    if(error)throw error;
+    await loadFiles();
+    const o=allOrders.find(x=>String(x.id)===String(orderId));
+    if(o)_renderOrderView(o);
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
 }
 
 function navOrderView(dir){
@@ -1319,6 +1370,10 @@ async function printInvoicePDF(){
     const total=subtotal+tax+chargeFee-extraDisc;
     const balance=total-deposit;
     const cuAddr=[o.address,o.state].filter(Boolean).join(' ');
+    // Đồng bộ số tháng bảo hành trực tiếp từ CRM (invoices.warranty_months) —
+    // mỗi đơn có thể khác nhau (12 hay 24 tháng), không hard-code.
+    const warrantyMonths=parseInt(inv.warranty_months)||12;
+    const noteVal=(inv.note||'').trim();
     const fmt=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     // Không hiển thị vendor_cost/chenh_lech — vendor chỉ xem giá bán, giống hoá đơn khách hàng
     const rowsHtml=items.length?items.map(i=>{
@@ -1356,13 +1411,16 @@ body{font-family:Arial,sans-serif;background:#eee;padding:24px;}
 table.inv-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
 table.inv-table th{background:#C0392B;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:left;}
 table.inv-table td{border-bottom:1px solid #eee;vertical-align:middle;}
-.inv-totals{width:260px;margin-left:auto;}
+.inv-totals{width:260px;flex-shrink:0;}
 .inv-total-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;}
 .inv-total-label{color:#777;}
 .inv-grand-total{font-size:22px;font-weight:800;color:#C0392B;text-align:right;padding:4px 0;margin:4px 0;}
 .inv-balance-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;font-weight:700;}
 .inv-balance-val{color:#C0392B;}
 .inv-thank{text-align:center;font-style:italic;font-size:12px;color:#C0392B;font-weight:600;padding:10px 0;border-top:1px solid #eee;margin-top:10px;}
+.inv-notes-totals{display:flex;justify-content:space-between;gap:20px;margin-bottom:10px;}
+.inv-notes{flex:1;min-width:0;}
+.inv-notes p{font-size:10.5px;color:#666;line-height:1.6;margin-bottom:4px;}
 @media print{
   body{background:#fff;padding:0;}
   #pdf-toolbar{display:none;}
@@ -1395,7 +1453,16 @@ table.inv-table td{border-bottom:1px solid #eee;vertical-align:middle;}
     <thead><tr><th style="width:60px">IMAGE</th><th>DESCRIPTION</th><th style="width:40px;text-align:center">QTY</th><th style="width:80px;text-align:right">UNIT PRICE</th><th style="width:80px;text-align:right">DISCOUNT</th><th style="width:80px;text-align:right">AMOUNT</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <div class="inv-totals">
+  <div class="inv-notes-totals">
+    <div class="inv-notes">
+      <p>* Includes a ${warrantyMonths}-month warranty and lifetime technical support. Products are sourced directly from the manufacturer, ensuring quality, authenticity, and reliable after-sales service. Meets U.S quality and safety standards.</p>
+      <p>* Order must be in full before delivery or ship.</p>
+      <p>* All custom made items are non-refundable or cancel.</p>
+      <p>* Returned item will be refunded less original shipping and 30% restocking fee.</p>
+      <p>* If any balance (payment) has not been received, we have the right to pick up all the unpaid merchandise.</p>
+      ${noteVal?`<p style="margin-top:6px;color:#555;font-style:italic;">Note: ${noteVal}</p>`:''}
+    </div>
+    <div class="inv-totals">
     <div class="inv-total-row"><span class="inv-total-label">Subtotal</span><span>${fmt(subtotal)}</span></div>
     ${tax>0?`<div class="inv-total-row"><span class="inv-total-label">Tax</span><span>${fmt(tax)}</span></div>`:''}
     ${chargeFee>0?`<div class="inv-total-row"><span class="inv-total-label">Charge Fee</span><span>${fmt(chargeFee)}</span></div>`:''}
@@ -1403,6 +1470,7 @@ table.inv-table td{border-bottom:1px solid #eee;vertical-align:middle;}
     <div class="inv-grand-total">${fmt(total)}</div>
     <div class="inv-total-row"><span class="inv-total-label">Deposit</span><span>${fmt(deposit)}</span></div>
     <div class="inv-balance-row"><span>Balance Due</span><span class="inv-balance-val">${fmt(balance)}</span></div>
+    </div>
   </div>
   <div class="inv-thank">"Thank You for Your Business"</div>
 </div>
