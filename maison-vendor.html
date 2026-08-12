@@ -557,8 +557,8 @@ th.num{text-align:right;}
     <input type="hidden" id="cost-order-id">
     <div id="cost-name" style="font-size:13px;color:var(--gold);margin-bottom:16px;font-weight:600;"></div>
     <div class="fgrid2">
-      <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0"></div>
-      <div class="fg"><label class="fl">Price Gap ($)</label><input type="number" id="cost-gap" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0" oninput="recalcCostGap()"></div>
+      <div class="fg"><label class="fl">Price Gap ($) <span style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-gap" step="0.01" min="0" readonly style="opacity:.75;cursor:not-allowed;"></div>
       <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
       <div class="fg"><label class="fl">Commission ($)</label><input type="number" id="cost-comm" step="0.01" min="0"></div>
       <div class="fg"><label class="fl">Payment Method</label>
@@ -1150,12 +1150,23 @@ async function saveStatus(){
 }
 
 // ══ COST PRICE ══
+let _costTotalAmount=0;
+
+function recalcCostGap(){
+  const cost=parseFloat(document.getElementById('cost-price').value)||0;
+  const gap=_costTotalAmount-cost;
+  document.getElementById('cost-gap').value=gap.toFixed(2);
+}
+
 function openCostModal(id){
   const o=allOrders.find(x=>x.id==id);
+  _costTotalAmount=parseFloat(o?.total_amount)||0;
   document.getElementById('cost-order-id').value=id;
   document.getElementById('cost-name').textContent=`${o?.invoice_no} — ${o?.business_name}`;
   document.getElementById('cost-price').value=o?.cost_price||'';
-  document.getElementById('cost-gap').value=o?.price_gap||'';
+  // Gap luôn tự tính lại từ Total Amount hiện tại − Cost Price, không đọc price_gap cũ
+  // trực tiếp (tránh hiện giá trị stale nếu total đã đổi kể từ lần sync trước).
+  recalcCostGap();
   document.getElementById('cost-selling').value=o?.selling_expenses||'';
   document.getElementById('cost-comm').value=o?.commission||'';
   document.getElementById('cost-note').value=o?.note||'';
@@ -1327,10 +1338,16 @@ async function syncFromCRM(){
       // Vendor: lấy từ item đầu tiên không phải shipping
       const mainItem=invItems.find(i=>!i.is_shipping);
       const vendor=(mainItem?.vendor||'BOLSA').toUpperCase();
-      // Chenh lech tổng
+      // Chenh lech tổng (baseline gap CRM tự tính, dùng khi admin CHƯA từng nhập cost tay)
       const totalChenh=invItems.reduce((s,i)=>s+parseFloat(i.chenh_lech||0),0);
       const statusMap={'Đang sản xuất':'production','Đã nhận hàng':'delivered','Đã ship':'shipped','Hoàn thành':'completed'};
       const mappedStatus=statusMap[inv.order_status]||(inv.payment_status==='paid'?'completed':'pending');
+      const totalAmount=parseFloat(inv.total)||0;
+      // Nếu đơn này đã có cost_price nhập tay (admin điều chỉnh giá hỗ trợ) → gap
+      // tự tính lại theo total mới nhất, KHÔNG dùng totalChenh của CRM nữa.
+      const existing=allOrders.find(x=>x.invoice_no===inv.invoice_no);
+      const hasManualCost=existing&&parseFloat(existing.cost_price)>0;
+      const priceGap=hasManualCost?(totalAmount-parseFloat(existing.cost_price)):totalChenh;
       return{
         invoice_no:inv.invoice_no,
         order_date:inv.date,
@@ -1343,7 +1360,7 @@ async function syncFromCRM(){
         phone_cell:cust?.cellphone||'',
         order_type:inv.type||'Standard',
         product:products,
-        total_amount:parseFloat(inv.total)||0,
+        total_amount:totalAmount,
         deposit1:parseFloat(inv.deposit)||0,
         deposit2:0,
         balance_due:parseFloat(inv.balance_due)||0,
@@ -1353,8 +1370,9 @@ async function syncFromCRM(){
         vendor,
         status:mappedStatus,
         crm_order_id:String(inv.id),
-        commission:0,price_gap:totalChenh,cost_price:0,selling_expenses:0,
-        commission_received:false
+        price_gap:priceGap,
+        // cost_price/commission/selling_expenses/commission_received: KHÔNG ghi
+        // ở đây nữa — đây là field admin tự quản lý (giữ nguyên qua mỗi lần sync).
       };
     });
     const{error}=await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
