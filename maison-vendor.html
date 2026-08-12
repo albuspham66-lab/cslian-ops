@@ -451,6 +451,7 @@ th.num{text-align:right;}
         <div class="modal-title" id="inv-title" style="margin-bottom:4px;">Invoice</div>
         <div id="inv-meta" style="font-size:12px;color:var(--text3);"></div>
       </div>
+      <button class="btn btn-ghost btn-sm" onclick="printInvoicePDF()" title="Mở bản in đầy đủ (có hình sản phẩm)">🖨️ Xem/In PDF</button>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('m-invoice')">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
@@ -467,6 +468,7 @@ th.num{text-align:right;}
       <div class="section-title" style="margin-bottom:10px;">Sản phẩm</div>
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr>
+          <th style="width:44px;padding:8px;border-bottom:1px solid var(--border2);"></th>
           <th style="text-align:left;padding:8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border2);">Sản phẩm</th>
           <th style="text-align:center;padding:8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border2);">SL</th>
           <th style="text-align:right;padding:8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border2);">Đơn giá</th>
@@ -1261,21 +1263,25 @@ async function viewInvoice(orderId){
       <div><span style="font-size:10px;color:var(--text3);text-transform:uppercase;">Tracking</span><div style="font-size:13px;color:var(--blue);font-family:'JetBrains Mono';">${o.tracking_number||'Chưa có'}</div></div>
       ${o.note?`<div><span style="font-size:10px;color:var(--text3);text-transform:uppercase;">Note</span><div style="font-size:12px;color:var(--text2);">${o.note}</div></div>`:''}
     </div>`;
-  // Load invoice items từ Finance vendor_orders (items stored locally from sync)
-  // Fetch từ CRM nếu có crm_order_id
+  // Load invoice items từ CRM (có ảnh sản phẩm)
   const hdrs={'apikey':CRM_KEY,'Authorization':`Bearer ${CRM_KEY}`,'Accept':'application/json'};
+  let _invItemsCache=[];
   try{
     const r=await fetch(`${CRM_URL}/rest/v1/invoice_items?invoice_id=eq.${o.crm_order_id}&select=*`,{headers:hdrs});
     const items=r.ok?await r.json():[];
-    document.getElementById('inv-items').innerHTML=Array.isArray(items)&&items.length
-      ?items.filter(i=>!i.is_gift).map(i=>`<tr>
+    _invItemsCache=Array.isArray(items)?items:[];
+    document.getElementById('inv-items').innerHTML=_invItemsCache.length
+      ?_invItemsCache.filter(i=>!i.is_gift).map(i=>`<tr>
+        <td style="padding:8px;">${i.image_url?`<img src="${i.image_url}" onerror="this.style.display='none'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;background:var(--card2);display:block;">`:''}</td>
         <td style="padding:8px;font-size:12px;color:var(--text);">${i.product_name||'—'}${i.is_shipping?'<span style="font-size:10px;color:var(--text3);margin-left:6px;">[Ship]</span>':''}</td>
         <td style="padding:8px;text-align:center;font-size:12px;color:var(--text2);">${i.qty||1}</td>
         <td style="padding:8px;text-align:right;font-size:12px;font-family:'JetBrains Mono';color:var(--text2);">${fmtUSD(i.unit_price)}</td>
         <td style="padding:8px;text-align:right;font-size:12px;font-family:'JetBrains Mono';color:var(--gold);">${fmtUSD(i.amount)}</td>
       </tr>`).join('')
-      :'<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text3);">Không có sản phẩm</td></tr>';
-  }catch{document.getElementById('inv-items').innerHTML='<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text3);">Không thể tải sản phẩm</td></tr>';}
+      :'<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3);">Không có sản phẩm</td></tr>';
+  }catch{document.getElementById('inv-items').innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3);">Không thể tải sản phẩm</td></tr>';}
+  // Cache cho nút "Xem/In PDF" — tránh fetch lại
+  window._invPdfData={o,items:_invItemsCache};
   document.getElementById('inv-totals').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
       <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Tổng</span><span style="font-family:'JetBrains Mono';color:var(--text);">${fmtUSD(o.total_amount)}</span></div>
@@ -1284,6 +1290,130 @@ async function viewInvoice(orderId){
     </div>`;
   openModal('m-invoice');
 }
+
+// ══ INVOICE PDF (bản in đầy đủ, có logo công ty + hình sản phẩm, không lộ giá vốn/chênh lệch) ══
+async function printInvoicePDF(){
+  const cache=window._invPdfData;
+  if(!cache||!cache.o){toast('Chưa có dữ liệu invoice','var(--amber)');return;}
+  const o=cache.o;
+  toast('Đang tạo bản in…','var(--text2)');
+  try{
+    const hdrs={'apikey':CRM_KEY,'Authorization':`Bearer ${CRM_KEY}`,'Accept':'application/json'};
+    const [invRes]=await Promise.all([
+      fetch(`${CRM_URL}/rest/v1/invoices?id=eq.${o.crm_order_id}&select=*`,{headers:hdrs})
+    ]);
+    const invArr=invRes.ok?await invRes.json():[];
+    const inv=invArr[0]||{};
+    let company={name:'Maison De KCT',address:'',phone:'',logo_url:''};
+    if(inv.company_id){
+      const cRes=await fetch(`${CRM_URL}/rest/v1/companies?id=eq.${inv.company_id}&select=*`,{headers:hdrs});
+      const cArr=cRes.ok?await cRes.json():[];
+      if(cArr[0])company=cArr[0];
+    }
+    const items=(cache.items||[]).filter(i=>!i.is_gift);
+    const subtotal=items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+    const tax=parseFloat(inv.tax_pct)||0;
+    const chargeFee=parseFloat(inv.charge_fee)||0;
+    const extraDisc=parseFloat(inv.extra_discount)||0;
+    const deposit=parseFloat(o.deposit1)||0;
+    const total=subtotal+tax+chargeFee-extraDisc;
+    const balance=total-deposit;
+    const cuAddr=[o.address,o.state].filter(Boolean).join(' ');
+    const fmt=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    // Không hiển thị vendor_cost/chenh_lech — vendor chỉ xem giá bán, giống hoá đơn khách hàng
+    const rowsHtml=items.length?items.map(i=>{
+      const img=i.image_url?`<img src="${i.image_url}" onerror="this.style.display='none'" style="width:50px;height:50px;object-fit:cover;border-radius:4px;background:#f5f0eb;display:block;">`:'<div style="width:50px;height:50px;border-radius:4px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;font-size:20px;">📦</div>';
+      return `<tr>
+        <td style="padding:10px;">${img}</td>
+        <td style="padding:10px;font-size:12px;">${i.product_name||'—'}${i.is_shipping?' <span style="color:#999;font-size:10px;">[Shipping]</span>':''}</td>
+        <td style="padding:10px;text-align:center;font-size:12px;">${i.qty||1}</td>
+        <td style="padding:10px;text-align:right;font-size:12px;">${fmt(i.unit_price)}</td>
+        <td style="padding:10px;text-align:right;font-size:12px;">${fmt(i.discount)}</td>
+        <td style="padding:10px;text-align:right;font-size:12px;font-weight:600;">${fmt(i.amount)}</td>
+      </tr>`;
+    }).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Chưa có sản phẩm</td></tr>';
+
+    const html=`<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8">
+<title>Invoice ${o.invoice_no}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,sans-serif;background:#eee;padding:24px;}
+#pdf-toolbar{max-width:760px;margin:0 auto 14px;display:flex;justify-content:flex-end;gap:8px;}
+#pdf-toolbar button{padding:8px 16px;border-radius:7px;border:1px solid #C0392B;background:#C0392B;color:#fff;font-size:13px;cursor:pointer;}
+#invoice-preview{width:760px;max-width:100%;background:#fff;padding:30px 36px;box-shadow:0 2px 20px rgba(0,0,0,.1);margin:0 auto;}
+.inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.inv-company-name{font-size:20px;font-weight:800;color:#C0392B;margin-bottom:4px;}
+.inv-company-info{font-size:11px;color:#777;line-height:1.6;}
+.inv-logo{height:60px;object-fit:contain;}
+.inv-title{font-size:24px;font-weight:700;color:#C0392B;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;}
+.inv-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+.inv-meta-item{font-size:11px;}
+.inv-meta-label{color:#C0392B;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.inv-divider{height:2px;background:#C0392B;margin-bottom:14px;}
+.inv-bill-to{background:#C0392B;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;border-radius:2px;}
+.inv-customer{margin-bottom:16px;font-size:12px;line-height:1.8;}
+.inv-customer-name{font-size:14px;font-weight:700;color:#C0392B;}
+table.inv-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+table.inv-table th{background:#C0392B;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:left;}
+table.inv-table td{border-bottom:1px solid #eee;vertical-align:middle;}
+.inv-totals{width:260px;margin-left:auto;}
+.inv-total-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;}
+.inv-total-label{color:#777;}
+.inv-grand-total{font-size:22px;font-weight:800;color:#C0392B;text-align:right;padding:4px 0;margin:4px 0;}
+.inv-balance-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;font-weight:700;}
+.inv-balance-val{color:#C0392B;}
+.inv-thank{text-align:center;font-style:italic;font-size:12px;color:#C0392B;font-weight:600;padding:10px 0;border-top:1px solid #eee;margin-top:10px;}
+@media print{
+  body{background:#fff;padding:0;}
+  #pdf-toolbar{display:none;}
+  #invoice-preview{box-shadow:none;margin:0;padding:16px;}
+  @page{size:A4;margin:8mm 6mm;}
+}
+</style></head><body>
+<div id="pdf-toolbar"><button onclick="window.print()">🖨️ In / Lưu PDF</button></div>
+<div id="invoice-preview">
+  <div class="inv-header">
+    <div><div class="inv-company-name">${company.name||'Maison De KCT'}</div><div class="inv-company-info">${company.address||''}${company.address&&company.phone?'<br>':''}${company.phone||''}</div></div>
+    ${company.logo_url?`<img class="inv-logo" src="${company.logo_url}" onerror="this.style.display='none'">`:''}
+  </div>
+  <div class="inv-divider"></div>
+  <div class="inv-title">INVOICE</div>
+  <div class="inv-meta">
+    <div class="inv-meta-item"><div class="inv-meta-label">Date</div><div>${o.order_date||'—'}</div></div>
+    <div class="inv-meta-item"><div class="inv-meta-label">Invoice No</div><div>${o.invoice_no||'—'}</div></div>
+    <div class="inv-meta-item"><div class="inv-meta-label">Tracking</div><div>${o.tracking_number||'—'}</div></div>
+  </div>
+  <div class="inv-bill-to">Bill To</div>
+  <div class="inv-customer">
+    <div class="inv-customer-name">${o.business_name||o.customer_name||''}</div>
+    <div>Customer Name: ${o.customer_name||''}</div>
+    ${o.phone_bus?`<div>Business Phone: ${o.phone_bus}</div>`:''}
+    ${o.phone_cell?`<div>Cellphone: ${o.phone_cell}</div>`:''}
+    ${cuAddr?`<div>Address: ${cuAddr}</div>`:''}
+  </div>
+  <table class="inv-table">
+    <thead><tr><th style="width:60px">IMAGE</th><th>DESCRIPTION</th><th style="width:40px;text-align:center">QTY</th><th style="width:80px;text-align:right">UNIT PRICE</th><th style="width:80px;text-align:right">DISCOUNT</th><th style="width:80px;text-align:right">AMOUNT</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="inv-totals">
+    <div class="inv-total-row"><span class="inv-total-label">Subtotal</span><span>${fmt(subtotal)}</span></div>
+    ${tax>0?`<div class="inv-total-row"><span class="inv-total-label">Tax</span><span>${fmt(tax)}</span></div>`:''}
+    ${chargeFee>0?`<div class="inv-total-row"><span class="inv-total-label">Charge Fee</span><span>${fmt(chargeFee)}</span></div>`:''}
+    ${extraDisc>0?`<div class="inv-total-row" style="color:#27AE60"><span class="inv-total-label">Extra Discount</span><span>-${fmt(extraDisc)}</span></div>`:''}
+    <div class="inv-grand-total">${fmt(total)}</div>
+    <div class="inv-total-row"><span class="inv-total-label">Deposit</span><span>${fmt(deposit)}</span></div>
+    <div class="inv-balance-row"><span>Balance Due</span><span class="inv-balance-val">${fmt(balance)}</span></div>
+  </div>
+  <div class="inv-thank">"Thank You for Your Business"</div>
+</div>
+</body></html>`;
+
+    const win=window.open('','_blank');
+    if(!win){toast('Trình duyệt chặn popup — vui lòng cho phép popup','var(--red)');return;}
+    win.document.open();win.document.write(html);win.document.close();
+  }catch(e){toast('Lỗi tạo bản in: '+e.message,'var(--red)');console.error(e);}
+}
+
 let rptData=[];
 async function runReport(){
   const fromM=document.getElementById('rpt-from-m').value;
