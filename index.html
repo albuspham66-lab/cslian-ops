@@ -3816,9 +3816,22 @@ async function exportPhieuLuong(empId,thang){
   empId=empId||curProfile?.id;
   thang=thang||monthStr(salYear,salMonth);
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)||curProfile;
-  // Luôn đọc thẳng từ DB để đảm bảo lấy đúng dữ liệu đã chốt (is_locked)
-  const {data}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
-  const sal=data;
+  const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  let sal=existing;
+  if(!existing?.is_locked){
+    // Chưa chốt → PHẢI tính lại fresh giống hệt renderSalary()/viewSalaryDetail(),
+    // không được tin thẳng vào DB (trước đây không tính lại ở đây → phiếu lương
+    // xuất ra có thể lệch số với danh sách "Bảng lương" nếu DB đang giữ 1 bản
+    // tính từ trước đó, VD trước khi có đơn hàng/chấm công mới hoặc trước khi
+    // deploy fix công thức mới nhất).
+    const [ty,tm]=thang.split('-').map(Number);
+    const fresh=await calcSalaryForEmp(empId,thang,ty,tm-1);
+    if(fresh){
+      const mergedData={...fresh,is_locked:existing?.is_locked||false};
+      const {data:saved}=await sb.from('salary_monthly').upsert(mergedData,{onConflict:'user_id,thang'}).select().maybeSingle();
+      sal=saved||mergedData;
+    }
+  }
   if(!sal){toast('Chưa có bảng lương tháng này — thử bấm lại sau vài giây','error');return;}
 
   const html=buildPhieuLuongHTML(emp,sal,thang);
@@ -3846,7 +3859,19 @@ async function exportAllPhieuLuong(){
   toast('Đang chuẩn bị '+emps.length+' phiếu lương...');
 
   const results=await Promise.all(emps.map(async(emp)=>{
-    const {data:sal}=await sb.from('salary_monthly').select('*').eq('user_id',emp.id).eq('thang',thang).maybeSingle();
+    const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',emp.id).eq('thang',thang).maybeSingle();
+    let sal=existing;
+    if(!existing?.is_locked){
+      // Giống exportPhieuLuong: tính lại fresh cho các bảng lương chưa chốt,
+      // tránh xuất số liệu cũ/lệch so với danh sách Bảng lương.
+      const [ty,tm]=thang.split('-').map(Number);
+      const fresh=await calcSalaryForEmp(emp.id,thang,ty,tm-1);
+      if(fresh){
+        const mergedData={...fresh,is_locked:existing?.is_locked||false};
+        const {data:saved}=await sb.from('salary_monthly').upsert(mergedData,{onConflict:'user_id,thang'}).select().maybeSingle();
+        sal=saved||mergedData;
+      }
+    }
     if(!sal)return null;
     return buildPhieuLuongHTML(emp,sal,thang);
   }));
