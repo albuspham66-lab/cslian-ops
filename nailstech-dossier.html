@@ -420,6 +420,7 @@ html,body{margin:0;padding:0;background:#EFE9DC;color:var(--ink);font-family:'Se
 #topbar .brand{font-weight:700; letter-spacing:.5px; font-size:15px; white-space:nowrap;}
 #topbar .brand span{color:var(--gold);}
 #topbar .spacer{flex:1;}
+.spacer{flex:1;}
 .btn{
   border:1px solid rgba(255,255,255,.18); background:#2a251c; color:var(--cream);
   padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; white-space:nowrap;
@@ -484,6 +485,12 @@ textarea{resize:vertical; min-height:64px; line-height:1.45;}
   position:absolute; top:6px; right:6px; background:#c0392b; color:#fff; border:none; border-radius:50%;
   width:22px; height:22px; cursor:pointer; font-size:13px; line-height:1;
 }
+.extra-grid{display:flex; flex-wrap:wrap; gap:12px;}
+.extra-cell{width:140px;}
+.extra-imgdrop{width:140px; height:110px; padding:6px; min-height:0;}
+.extra-imgdrop img{max-height:96px;}
+.extra-add .empty{font-size:11.5px; text-align:center; line-height:1.5;}
+.extra-note-input{width:140px; margin-top:6px; font-size:11.5px; padding:6px 8px;}
 .section-title{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--gold-dark); margin:22px 0 10px; padding-top:14px; border-top:1px solid var(--cream-line);}
 .section-title:first-child{margin-top:0; border-top:none; padding-top:0;}
 
@@ -499,6 +506,11 @@ textarea{resize:vertical; min-height:64px; line-height:1.45;}
 
 #docset-modal, #drive-modal, .modal-backdrop{position:fixed; inset:0; background:rgba(20,17,10,.55); z-index:100; display:none; align-items:center; justify-content:center;}
 #docset-modal.show, #drive-modal.show, .modal-backdrop.show{display:flex;}
+#preview-modal{position:fixed; inset:0; z-index:110; display:none; align-items:center; justify-content:center; padding:22px;}
+#preview-modal.show{display:flex;}
+.preview-box{background:#2a251c; border-radius:10px; width:100%; height:100%; max-width:1400px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.preview-header{display:flex; align-items:center; gap:10px; padding:10px 14px; color:#F6F1E7; border-bottom:1px solid #443c2c;}
+#preview-iframe{flex:1; width:100%; border:none; background:#57503e;}
 .modal-box{background:#fff; border-radius:12px; padding:24px 28px; width:520px; max-width:92vw; max-height:86vh; overflow-y:auto;}
 .modal-box h3{margin-top:0;}
 .modal-close-row{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
@@ -523,6 +535,7 @@ textarea{resize:vertical; min-height:64px; line-height:1.45;}
   <button class="btn ghost" id="btn-docset">⚙ Cài đặt hồ sơ</button>
   <button class="btn ghost" id="btn-drive">☁ Google Drive<span id="drive-dot" style="display:none; width:7px; height:7px; border-radius:50%; background:#3ddc84; margin-left:2px;"></span></button>
   <button class="btn ghost" id="btn-export-json">⭳ Xuất JSON</button>
+  <button class="btn ghost" id="btn-preview-pdf">👁 Xem trước</button>
   <button class="btn ghost" id="btn-import-json">⭱ Nhập JSON</button>
   <input type="file" id="file-import-json" accept="application/json">
   <button class="btn gold" id="btn-export-pdf">📄 Xuất PDF</button>
@@ -582,6 +595,20 @@ textarea{resize:vertical; min-height:64px; line-height:1.45;}
 <div id="progress-overlay"><div class="spinner"></div><div id="progress-text">Đang xuất PDF…</div></div>
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<div class="modal-backdrop" id="preview-backdrop"></div>
+<div id="preview-modal">
+  <div class="preview-box">
+    <div class="preview-header">
+      <div style="font-weight:700;">👁 Xem trước PDF</div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="preview-download">⭳ Tải xuống</button>
+      <button class="btn ghost" id="preview-drive" style="display:none;">☁ Lưu lên Drive</button>
+      <button class="btn gold" id="preview-close">Đóng</button>
+    </div>
+    <iframe id="preview-iframe"></iframe>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="drive-backdrop"></div>
 <div id="drive-modal">
   <div class="modal-box">
@@ -601,7 +628,11 @@ textarea{resize:vertical; min-height:64px; line-height:1.45;}
       <div class="hint">Lấy từ URL thư mục Drive: drive.google.com/drive/folders/<b>ID_Ở_ĐÂY</b></div>
     </div>
     <div id="gd-status" style="font-size:12.5px; font-weight:600; margin:10px 0 4px; color:#8a7b5c;">Chưa kết nối</div>
+    <div class="hint" style="margin-bottom:10px;">⚠ Nhớ đã bật <b>"Google Drive API"</b> trong Google Cloud Console → APIs &amp; Services → Library. Nếu chưa bật, mọi lần lưu sẽ báo lỗi dù kết nối OAuth vẫn thành công.</div>
+    <div id="gd-test-result" style="display:none; font-size:11.5px; font-family:monospace; background:#f5f0e2; border:1px solid #d9d0b8; border-radius:6px; padding:8px 10px; margin-bottom:10px; white-space:pre-wrap; word-break:break-all; max-height:140px; overflow-y:auto;"></div>
     <div class="modal-close-row">
+      <button class="btn ghost" id="gd-test">🧪 Kiểm tra kết nối (tải thử 1 file)</button>
+      <div class="spacer"></div>
       <button class="btn ghost" id="gd-disconnect">Ngắt kết nối</button>
       <button class="btn ghost" id="gd-close">Đóng</button>
       <button class="btn gold" id="gd-connect">🔗 Kết nối</button>
@@ -755,8 +786,7 @@ const DEFAULT_PRODUCT = () => ({
   name_en: '',
   hero: null,          // {data,w,h}
   hero_note: '',
-  second_img: null,    // {data,w,h}
-  second_note: '',
+  extra_images: [],     // [{img:{data,w,h}, note:''}, ...] up to MAX_EXTRA_IMAGES
   wide_hero: false,
   dims_text: '',        // multiline "L: 40.5\""
   dims_note: '',
@@ -764,6 +794,20 @@ const DEFAULT_PRODUCT = () => ({
   bullets_text: '',     // multiline, one bullet per line
   materials: '',
 });
+const MAX_EXTRA_IMAGES = 5;
+
+// Migrate old single second_img/second_note shape -> extra_images array
+function migrateProduct(p){
+  if (!p.extra_images){
+    p.extra_images = [];
+    if (p.second_img){
+      p.extra_images.push({ img: p.second_img, note: p.second_note || '' });
+    }
+  }
+  delete p.second_img;
+  delete p.second_note;
+  return p;
+}
 
 let state = {
   docset: JSON.parse(JSON.stringify(DEFAULT_DOCSET)),
@@ -785,6 +829,7 @@ async function loadState(){
     state = saved;
     if (!state.docset) state.docset = JSON.parse(JSON.stringify(DEFAULT_DOCSET));
     if (!state.products) state.products = [];
+    state.products.forEach(migrateProduct);
   }
 }
 
@@ -915,30 +960,22 @@ function renderMain(){
       </div>
 
       <div class="section-title">Hình ảnh</div>
-      <div class="grid2">
-        <div class="field">
-          <label>Ảnh chính (hero)</label>
-          <div class="imgdrop" id="drop-hero">
-            ${p.hero ? `<img src="${p.hero.data}"><button class="rm" data-rm="hero">✕</button>` : `<div class="empty">Bấm để chọn ảnh</div>`}
-          </div>
-          <input type="file" id="file-hero" accept="image/*">
-          <div class="field" style="margin-top:8px;">
-            <label>Chú thích ảnh chính</label>
-            <input type="text" id="f-hero-note" value="${escapeHtml(p.hero_note)}" placeholder="VD: Phối cảnh 3/4 kèm kích thước tổng thể">
-          </div>
-          <label class="checkline"><input type="checkbox" id="f-wide" ${p.wide_hero?'checked':''}> Ảnh dạng ngang / infographic (banner rộng)</label>
+      <div class="field">
+        <label>Ảnh chính (hero)</label>
+        <div class="imgdrop" id="drop-hero" style="max-width:320px;">
+          ${p.hero ? `<img src="${p.hero.data}"><button class="rm" data-rm="hero">✕</button>` : `<div class="empty">Bấm để chọn ảnh</div>`}
         </div>
-        <div class="field">
-          <label>Ảnh phụ (tuỳ chọn — VD: mặt trước, chi tiết)</label>
-          <div class="imgdrop" id="drop-second">
-            ${p.second_img ? `<img src="${p.second_img.data}"><button class="rm" data-rm="second">✕</button>` : `<div class="empty">Bấm để chọn ảnh</div>`}
-          </div>
-          <input type="file" id="file-second" accept="image/*">
-          <div class="field" style="margin-top:8px;">
-            <label>Chú thích ảnh phụ</label>
-            <input type="text" id="f-second-note" value="${escapeHtml(p.second_note)}" placeholder="VD: Mặt trước / Front elevation">
-          </div>
+        <input type="file" id="file-hero" accept="image/*">
+        <div class="field" style="margin-top:8px; max-width:320px;">
+          <label>Chú thích ảnh chính</label>
+          <input type="text" id="f-hero-note" value="${escapeHtml(p.hero_note)}" placeholder="VD: Phối cảnh 3/4 kèm kích thước tổng thể">
         </div>
+        <label class="checkline"><input type="checkbox" id="f-wide" ${p.wide_hero?'checked':''}> Ảnh dạng ngang / infographic (banner rộng)</label>
+      </div>
+
+      <div class="field">
+        <label>Ảnh phụ (tối đa ${MAX_EXTRA_IMAGES} ảnh — VD: mặt trước, chi tiết, mặt cắt...)</label>
+        <div id="extra-images-grid" class="extra-grid"></div>
       </div>
 
       <div class="section-title">Kích thước</div>
@@ -979,7 +1016,7 @@ function renderMain(){
   };
   bind('f-code','code'); bind('f-category','category');
   bind('f-name','name'); bind('f-name-en','name_en');
-  bind('f-hero-note','hero_note'); bind('f-second-note','second_note');
+  bind('f-hero-note','hero_note');
   bind('f-wide','wide_hero','change');
   bind('f-dims','dims_text'); bind('f-dims-note','dims_note');
   bind('f-desc','desc'); bind('f-bullets','bullets_text'); bind('f-materials','materials');
@@ -1000,10 +1037,77 @@ function renderMain(){
     p.hero = img; renderMain(); renderSidebar(); scheduleSave();
   }, () => { p.hero = null; renderMain(); renderSidebar(); scheduleSave(); });
 
-  wireImageDrop('drop-second', 'file-second', async (file) => {
-    const img = await loadImageFile(file);
-    p.second_img = img; renderMain(); scheduleSave();
-  }, () => { p.second_img = null; renderMain(); scheduleSave(); });
+  renderExtraImages(p);
+}
+
+function renderExtraImages(p){
+  const grid = document.getElementById('extra-images-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  p.extra_images.forEach((entry, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'extra-cell';
+    cell.innerHTML = `
+      <div class="imgdrop extra-imgdrop">
+        <img src="${entry.img.data}"><button class="rm" data-idx="${idx}">✕</button>
+      </div>
+      <input type="text" class="extra-note-input" data-idx="${idx}" placeholder="Chú thích ảnh (VD: Mặt trước)" value="${escapeHtml(entry.note||'')}">
+    `;
+    grid.appendChild(cell);
+
+    cell.querySelector('.rm').addEventListener('click', (e) => {
+      e.stopPropagation();
+      p.extra_images.splice(idx, 1);
+      renderExtraImages(p);
+      scheduleSave();
+    });
+    cell.querySelector('.extra-note-input').addEventListener('input', (e) => {
+      p.extra_images[idx].note = e.target.value;
+      scheduleSave();
+    });
+  });
+
+  if (p.extra_images.length < MAX_EXTRA_IMAGES){
+    const addCell = document.createElement('div');
+    addCell.className = 'extra-cell';
+    addCell.innerHTML = `
+      <div class="imgdrop extra-imgdrop extra-add">
+        <div class="empty">+ Thêm ảnh<br><span style="font-size:10px;">(${p.extra_images.length}/${MAX_EXTRA_IMAGES})</span></div>
+      </div>
+      <input type="file" accept="image/*" style="display:none;">
+    `;
+    grid.appendChild(addCell);
+    const drop = addCell.querySelector('.imgdrop');
+    const fileInput = addCell.querySelector('input[type=file]');
+    drop.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files[0];
+      if (!f) return;
+      try{
+        const img = await loadImageFile(f);
+        p.extra_images.push({ img, note: '' });
+        renderExtraImages(p);
+        scheduleSave();
+        toast('Đã thêm ảnh phụ', 'ok');
+      }catch(e){ toast('Lỗi tải ảnh: ' + e.message, 'err'); }
+      fileInput.value = '';
+    });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.borderColor = '#B4892B'; });
+    drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+    drop.addEventListener('drop', async (e) => {
+      e.preventDefault(); drop.style.borderColor = '';
+      const f = e.dataTransfer.files[0];
+      if (!f || !/^image\//.test(f.type)) return;
+      try{
+        const img = await loadImageFile(f);
+        p.extra_images.push({ img, note: '' });
+        renderExtraImages(p);
+        scheduleSave();
+        toast('Đã thêm ảnh phụ', 'ok');
+      }catch(err){ toast('Lỗi tải ảnh: ' + err.message, 'err'); }
+    });
+  }
 }
 
 function parseDims(text){
@@ -1115,6 +1219,7 @@ function importJSON(file){
       if (!data || !Array.isArray(data.products)) throw new Error('File JSON không đúng định dạng');
       state = data;
       if (!state.docset) state.docset = JSON.parse(JSON.stringify(DEFAULT_DOCSET));
+      state.products.forEach(migrateProduct);
       state.activeId = state.products.length ? state.products[0].id : null;
       renderSidebar(); renderMain(); updateTopbarBrand(); scheduleSave();
       toast('Đã nhập dữ liệu thành công', 'ok');
@@ -1231,6 +1336,7 @@ async function uploadToDrive(filename, mimeType, blob){
 function openDriveModal(){
   document.getElementById('gd-client-id').value = state.driveClientId || '';
   document.getElementById('gd-folder-id').value = state.driveFolderId || '';
+  document.getElementById('gd-test-result').style.display = 'none';
   updateDriveUI();
   document.getElementById('drive-modal').classList.add('show');
   document.getElementById('drive-backdrop').classList.add('show');
@@ -1238,6 +1344,24 @@ function openDriveModal(){
 function closeDriveModal(){
   document.getElementById('drive-modal').classList.remove('show');
   document.getElementById('drive-backdrop').classList.remove('show');
+}
+
+async function testDriveConnection(){
+  const resultEl = document.getElementById('gd-test-result');
+  resultEl.style.display = 'block';
+  resultEl.textContent = 'Đang gửi file thử nghiệm lên Drive...';
+  if (!driveConnected()){
+    resultEl.textContent = '❌ Chưa kết nối (bấm "Kết nối" trước khi kiểm tra).';
+    return;
+  }
+  try{
+    const testBlob = new Blob([JSON.stringify({ ping: true, time: new Date().toISOString() })], {type:'application/json'});
+    const res = await uploadToDrive('nailstech-test-' + Date.now() + '.json', 'application/json', testBlob);
+    resultEl.textContent = '✅ THÀNH CÔNG\nFile ID: ' + res.id + '\nTên: ' + (res.name||'') + '\nLink: ' + (res.webViewLink || '(không có, nhưng đã lưu)') +
+      '\n\nBạn có thể vào Google Drive → tìm file tên trên để xác nhận. Nếu tìm không thấy trong thư mục đã chỉ định, kiểm tra lại thư mục gốc "My Drive" (app có thể đã tự lưu vào đó do giới hạn quyền).';
+  }catch(e){
+    resultEl.textContent = '❌ LỖI: ' + e.message + '\n\nCác nguyên nhân thường gặp:\n1. Chưa bật "Google Drive API" trong Google Cloud Console\n2. Client ID sai hoặc origin chưa được thêm vào Authorized JavaScript origins\n3. Trình duyệt chặn popup lúc kết nối';
+  }
 }
 
 // ---------- Init ----------
@@ -1274,12 +1398,17 @@ async function init(){
     e.target.value = '';
   });
   document.getElementById('btn-export-pdf').addEventListener('click', handleExportPdf);
+  document.getElementById('btn-preview-pdf').addEventListener('click', handlePreviewPdf);
+  document.getElementById('preview-close').addEventListener('click', closePreview);
+  document.getElementById('preview-download').addEventListener('click', handlePreviewDownload);
+  document.getElementById('preview-drive').addEventListener('click', handlePreviewDrive);
 
   document.getElementById('btn-drive').addEventListener('click', openDriveModal);
   document.getElementById('gd-close').addEventListener('click', closeDriveModal);
   document.getElementById('drive-backdrop').addEventListener('click', closeDriveModal);
   document.getElementById('gd-connect').addEventListener('click', connectDrive);
   document.getElementById('gd-disconnect').addEventListener('click', disconnectDrive);
+  document.getElementById('gd-test').addEventListener('click', testDriveConnection);
   updateDriveUI();
 }
 
@@ -1309,6 +1438,58 @@ async function handleExportPdf(){
     toast('Lỗi khi xuất PDF: ' + e.message, 'err');
   }finally{
     overlay.classList.remove('show');
+  }
+}
+
+// ---------- PDF Preview ----------
+let previewState = null; // { blob, filename, blobUrl }
+
+async function handlePreviewPdf(){
+  if (!state.products.length){
+    toast('Chưa có sản phẩm nào để xem trước', 'err');
+    return;
+  }
+  const overlay = document.getElementById('progress-overlay');
+  document.getElementById('progress-text').textContent = 'Đang tạo bản xem trước…';
+  overlay.classList.add('show');
+  await new Promise(r => setTimeout(r, 30));
+  try{
+    const { doc, filename } = buildPdfDoc(state);
+    const blob = doc.output('blob');
+    if (previewState && previewState.blobUrl) URL.revokeObjectURL(previewState.blobUrl);
+    const blobUrl = URL.createObjectURL(blob);
+    previewState = { blob, filename, blobUrl };
+    document.getElementById('preview-iframe').src = blobUrl;
+    document.getElementById('preview-drive').style.display = driveConnected() ? 'inline-flex' : 'none';
+    document.getElementById('preview-modal').classList.add('show');
+  }catch(e){
+    console.error(e);
+    toast('Lỗi khi tạo bản xem trước: ' + e.message, 'err');
+  }finally{
+    overlay.classList.remove('show');
+    document.getElementById('progress-text').textContent = 'Đang xuất PDF…';
+  }
+}
+
+function closePreview(){
+  document.getElementById('preview-modal').classList.remove('show');
+  document.getElementById('preview-iframe').src = 'about:blank';
+}
+
+async function handlePreviewDownload(){
+  if (!previewState) return;
+  triggerBlobDownload(previewState.blob, previewState.filename);
+  toast('Đã tải file PDF về máy', 'ok');
+}
+
+async function handlePreviewDrive(){
+  if (!previewState) return;
+  if (!driveConnected()){ toast('Chưa kết nối Google Drive', 'err'); return; }
+  try{
+    await uploadToDrive(previewState.filename, 'application/pdf', previewState.blob);
+    toast('Đã lưu PDF lên Google Drive', 'ok');
+  }catch(e){
+    toast('Lỗi lưu Drive: ' + e.message, 'err');
   }
 }
 
@@ -1583,11 +1764,13 @@ function drawProductPage(doc, docset, p){
   doc.text(p.code || '', vx0 + tagPad, vy + 4.8);
   vy += 7 + 5;
 
-  const hasSecond = !!p.second_img;
+  const extraImgs = Array.isArray(p.extra_images) ? p.extra_images.filter(e => e && e.img) : [];
+  const hasExtra = extraImgs.length > 0;
   const noteH = p.hero_note ? 6 : 2;
-  const secondH = hasSecond ? (34 + 6) : 0;
+  const THUMB = 30, THUMB_GAP = 4, CAPTION_H = 7;
+  const stripH = hasExtra ? (THUMB + CAPTION_H + 4) : 0;
   const imgBoxY = vy;
-  const imgBoxBottom = PAGE_H - 14 - noteH - secondH;
+  const imgBoxBottom = PAGE_H - 14 - noteH - stripH;
   const imgBoxH = imgBoxBottom - imgBoxY;
   const imgBoxW = vx1 - vx0;
 
@@ -1619,18 +1802,23 @@ function drawProductPage(doc, docset, p){
   }
   vy = imgBoxBottom + noteH + 3;
 
-  if (hasSecond){
-    const boxSize = 34;
-    doc.setDrawColor(...COL.border); doc.setLineWidth(0.2);
-    doc.setFillColor(...COL.white);
-    doc.rect(vx0, vy, boxSize, boxSize, 'FD');
-    const fit = fitContain(p.second_img.w, p.second_img.h, boxSize-4, boxSize-4);
-    doc.addImage(p.second_img.data, imgFormat(p.second_img.data), vx0+2+fit.x, vy+2+fit.y, fit.w, fit.h);
-    if (p.second_note){
-      setFont(doc, 'normal', 7.6, COL.mutedOnLight);
-      const capLines = doc.splitTextToSize(p.second_note, imgBoxW - boxSize - 6);
-      doc.text(capLines, vx0 + boxSize + 6, vy + boxSize/2 - (capLines.length-1)*1.8);
-    }
+  if (hasExtra){
+    const n = extraImgs.length;
+    const thumb = Math.min(THUMB, (imgBoxW - THUMB_GAP*(n-1)) / n);
+    let tx = vx0;
+    extraImgs.forEach(entry => {
+      doc.setDrawColor(...COL.border); doc.setLineWidth(0.2);
+      doc.setFillColor(...COL.white);
+      doc.rect(tx, vy, thumb, thumb, 'FD');
+      const fit = fitContain(entry.img.w, entry.img.h, thumb-4, thumb-4);
+      doc.addImage(entry.img.data, imgFormat(entry.img.data), tx+2+fit.x, vy+2+fit.y, fit.w, fit.h);
+      if (entry.note){
+        setFont(doc, 'normal', 6.6, COL.mutedOnLight);
+        const capLines = doc.splitTextToSize(entry.note, thumb);
+        doc.text(capLines[0] || '', tx, vy + thumb + 3.2);
+      }
+      tx += thumb + THUMB_GAP;
+    });
   }
 
   // ---- RIGHT: dark text panel ----
@@ -1770,7 +1958,7 @@ function drawFooterStripProduct(doc, docset, p){
 }
 
 // ---------------- Main export ----------------
-async function exportPdf(state){
+function buildPdfDoc(state){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   loadFonts(doc);
@@ -1781,14 +1969,21 @@ async function exportPdf(state){
   state.products.forEach(p => drawProductPage(doc, state.docset, p));
 
   const filename = ((state.docset.brand||'nailstech').replace(/[^a-zA-Z0-9]+/g,'_')) + '_Ho_So_Thiet_Ke.pdf';
-  const blob = doc.output('blob');
+  return { doc, filename };
+}
 
+function triggerBlobDownload(blob, filename){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
 
+async function exportPdf(state){
+  const { doc, filename } = buildPdfDoc(state);
+  const blob = doc.output('blob');
+  triggerBlobDownload(blob, filename);
   return { blob, filename };
 }
 
