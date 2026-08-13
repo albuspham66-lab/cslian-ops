@@ -1254,7 +1254,7 @@ async function saveAccount(){
     if(!pass){toast('Nhập mật khẩu cho tài khoản mới','var(--amber)');return;}
     // Lưu session admin trước khi signUp (signUp sẽ đổi session)
     const{data:{session:adminSess}}=await sb.auth.getSession();
-    const{data:au,error:ae}=await sb.auth.signUp({email,password:pass,options:{data:{full_name}}});
+    const{data:au,error:ae}=await sb.auth.signUp({email,password:pass,options:{data:{full_name,account_type:'vendor'}}});
     // Restore session admin ngay
     if(adminSess)await sb.auth.setSession({access_token:adminSess.access_token,refresh_token:adminSess.refresh_token});
     if(ae){toast('Lỗi tạo tài khoản: '+ae.message,'var(--red)');return;}
