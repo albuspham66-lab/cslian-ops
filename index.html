@@ -2575,8 +2575,9 @@ function renderTaxDetailModal(){
     <table class="def-table" style="margin-bottom:16px">
       <tr><td>Thưởng chuyên cần</td><td style="text-align:right">${vnd(r.p3b_chuyen_can)}</td></tr>
       <tr><td>Thưởng KPI (≥70 điểm)</td><td style="text-align:right">${vnd(r.p3c_kpi)}</td></tr>
-      <tr><td>Bonus Headspa Bed</td><td style="text-align:right">${vnd((r.p3a_bolsa_headspa_usd||0)*tyGia)}</td></tr>
-      <tr><td>Bonus doanh số 1% + Chênh lệch</td><td style="text-align:right">${vnd(((r.p3a_base_usd||0)+(r.p3a_chenh_lech_usd||0))*tyGia)}</td></tr>
+      <tr><td>Bonus giường (hoãn, gồm Extra)</td><td style="text-align:right">${vnd((r.p3a_bolsa_headspa_usd||0)*tyGia)}</td></tr>
+      <tr><td>Bonus doanh số 1%</td><td style="text-align:right">${vnd((r.p3a_base_usd||0)*(r.p3a_ty_le_dat||1)*tyGia)}</td></tr>
+      <tr><td>Bonus chênh lệch giá (hoãn, đơn tất toán)</td><td style="text-align:right">${vnd((r.p3a_chenh_lech_usd||0)*tyGia)}</td></tr>
       <tr><td>Thưởng vượt target</td><td style="text-align:right">${vnd((r.p3a_vuot_target_usd||0)*tyGia)}</td></tr>
       <tr><td>Backup Bonus</td><td style="text-align:right">${vnd((r.backup_bonus_usd||0)*tyGia)}</td></tr>
       <tr style="background:var(--bg3)"><td style="font-weight:700">TỔNG THU NHẬP (GROSS)</td><td style="text-align:right;font-weight:700">${vnd(r.tong_luong_vnd)}</td></tr>
@@ -3368,17 +3369,26 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   if(!emp)return null;
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
 
-  const [attRes, kpiRes, ordersRes, allOrdsRes] = await Promise.all([
+  const [attRes, kpiRes, billingOrdsRes, settledOrdsRes] = await Promise.all([
     sb.from('attendance').select('*').eq('user_id',empId).gte('date',from).lte('date',to),
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
-    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).eq('is_settled',true),
-    sb.from('orders').select('total_amount').eq('user_id',empId).eq('billing_month',thang)  // tất cả đơn để xét target
+    // TẤT CẢ đơn có billing_month = tháng này (kể cả đang deposit) — dùng cho
+    // doanh số/target, Bonus DS 1%, và xác định bậc rate/extra giường của tháng.
+    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang),
+    // Đơn TẤT TOÁN trong tháng này (bất kể billing_month gốc là tháng nào) —
+    // dùng để trả Bonus giường + Bonus chênh lệch giá (khoản "hoãn lại" đến
+    // khi khách trả hết tiền).
+    sb.from('orders').select('*').eq('user_id',empId).eq('thang_tat_toan',thang).eq('is_settled',true)
   ]);
-  const ords0=ordersRes.data||[];
-  const settledOrderIds=ords0.map(o=>o.id);
-  // order_items chỉ fetch khi có order đã settled — tránh query rỗng/IN() vô nghĩa
-  const itemsRes=settledOrderIds.length
-    ? await sb.from('order_items').select('*').in('order_id',settledOrderIds).eq('vendor','BOLSA')
+  const billingOrds=billingOrdsRes.data||[];
+  const settledThisMonth=settledOrdsRes.data||[];
+  const billingOrderIds=billingOrds.map(o=>o.id);
+  const settledOrderIds=settledThisMonth.map(o=>o.id);
+  const itemsRes=billingOrderIds.length
+    ? await sb.from('order_items').select('*').in('order_id',billingOrderIds).eq('vendor','BOLSA')
+    : {data:[]};
+  const settledItemsRes=settledOrderIds.length
+    ? await sb.from('order_items').select('order_id,so_luong').in('order_id',settledOrderIds).eq('vendor','BOLSA').eq('la_bolsa',true)
     : {data:[]};
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
@@ -3420,71 +3430,90 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const p3cNguong=kpiSet?.nguong_dat||80;
   const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
 
-  const ords=ords0;
-  const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
-  const bonusChenh=ords.reduce((s,o)=>s+((o.bonus_sale_usd??o.bonus_chenh_lech)??0),0);
-  // Ưu tiên bonus_sale_usd (tách biệt theo sale_price, MỚI từ Edge Function v6).
-  // Fallback bonus_chenh_lech cho đơn cũ chưa có bonus_sale_usd để không mất dữ liệu.
-  // Target xét trên TẤT CẢ đơn trong tháng (kể cả chưa settled), bonus chỉ tính đơn settled
-  const dtTotalForTarget=(allOrdsRes.data||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+  const dtTotalForTarget=billingOrds.reduce((s,o)=>s+(o.total_amount||0),0);
   const datTarget=dtTotalForTarget>=TARGET_USD;
   const tyLeDat=datTarget?1.0:0.5;
 
-  // ── P3A theo đúng công thức tab Đơn hàng ───────────────────────────
-  // Công thức mỗi đơn: (DS - CL - GiáGốcGiường) × 1% + BonusCL
-  // P3A tổng = [Σ(tất cả đơn settled) + BonusGiường] × tỷ lệ + VượtTarget
+  // ── P3A — 2 luồng tách biệt theo thống nhất với Calvin ─────────────
+  // (A) IMMEDIATE — thuộc billing_month=tháng này, trả ngay không chờ tất
+  //     toán: Bonus doanh số 1% (netRev, TRỪ giường ra khỏi doanh số) +
+  //     Extra bậc giường (dựa trên TỔNG giường của billing_month, kể cả
+  //     đơn đang deposit) — cả 2 nhân theo tỷ lệ đạt CỦA THÁNG NÀY.
+  // (B) DEFERRED — Bonus giường (số lượng×rate) + Bonus chênh lệch giá của
+  //     TỪNG ĐƠN chỉ được cộng vào tháng đơn đó THẬT SỰ tất toán
+  //     (thang_tat_toan=tháng này), dùng đúng rate/tỷ lệ đạt của THÁNG GỐC
+  //     (billing_month) của đơn đó — không phải tháng tất toán.
 
   const items=(itemsRes.data||[]).filter(i=>!i.is_gift);
   const headspaItems=items.filter(i=>i.la_bolsa);
-  // Map số giường per order để tính override per-order
-  const soGiuongMap_emp={};
-  headspaItems.forEach(i=>{soGiuongMap_emp[i.order_id]=(soGiuongMap_emp[i.order_id]||0)+(i.so_luong||0);});
 
-  // Số giường tổng tháng để xác định rate và extra
+  // Số giường tổng billing_month này (kể cả đơn deposit) → bậc rate/extra
   const soGiuong=headspaItems.reduce((s,i)=>s+(i.so_luong||0),0);
-  // Rate và extra theo mốc tổng giường tháng
-  let rateGiuong=15,extraGiuong=0;
-  if(soGiuong>=40){rateGiuong=25;extraGiuong=250;}
-  else if(soGiuong>=30){rateGiuong=20;extraGiuong=200;}
-  else if(soGiuong>=20){rateGiuong=17;extraGiuong=150;}
-  else if(soGiuong>=10){rateGiuong=15;extraGiuong=100;}
+  function rateExtraForGiuong(sg){
+    if(sg>=40)return{rate:25,extra:250};
+    if(sg>=30)return{rate:20,extra:200};
+    if(sg>=20)return{rate:17,extra:150};
+    if(sg>=10)return{rate:15,extra:100};
+    return{rate:15,extra:0};
+  }
+  const {rate:rateGiuong,extra:extraGiuong}=rateExtraForGiuong(soGiuong);
 
-  // Bonus giường = Σ(mỗi đơn: soGiuong_đơn × rate × pct_bonus_giuong/100) + extra
-  // Extra KHÔNG nhân pct — luôn nhận full
-  const bolsaHeadspaBonus=ords.reduce((s,o)=>{
-    const soG=soGiuongMap_emp[o.id]||0;
-    if(!soG)return s;
-    const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
-    return s+soG*rateGiuong*pct/100;
-  },0)+extraGiuong;
-
-  // bonusBase: Σ mỗi đơn settled ((DS - CL - GiáGốcGiường) × 1% + BonusCL)
-  // Ưu tiên bonus_sale_usd_override nếu Manager đã điều chỉnh
-  const bonusBase=ords.reduce((s,o)=>{
-    // Giá gốc giường trong đơn này
+  // (A) Bonus doanh số 1% — netRev = DS - chênh lệch sale - giá gốc giường
+  // (giường bị loại khỏi doanh số vì đã có bonus riêng ở luồng B, tránh double-count)
+  const netRevSum=billingOrds.reduce((s,o)=>{
     const gbgDon=headspaItems.filter(i=>i.order_id===o.id)
       .reduce((ss,i)=>ss+(i.gia_ban_goc||0)*(i.so_luong||1),0);
-    // Chênh lệch sale trong đơn này (từ order_items.chenh_sale) — TẤT CẢ item
-    // (kể cả giường). Không được loại giường ở đây: gbgDon chỉ trừ phần
-    // gia_ban_goc của giường, nếu không trừ luôn chenh_sale của giường thì
-    // phần markup (gia_ban_thuc - gia_ban_goc) của giường vẫn sót lại trong
-    // netRev, trong khi Bonus Giường đã được cộng riêng ở bolsaHeadspaBonus
-    // → double-count doanh số giường.
     const clDon=items.filter(i=>i.order_id===o.id)
       .reduce((ss,i)=>ss+(i.chenh_sale!=null?i.chenh_sale*(i.so_luong||1):0),0);
-    const netRev=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
-    // Ưu tiên override, fallback về auto
-    const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
-    return s+netRev*0.01+bChenh;
+    return s+Math.max(0,(o.total_amount||0)-clDon-gbgDon);
   },0);
+  const bonusImmediate=(netRevSum*0.01+extraGiuong)*tyLeDat;
 
-  // Vượt target (tính trên tổng doanh số toàn tháng tất cả đơn)
+  // (B) Bonus giường + chênh lệch của các đơn TẤT TOÁN trong tháng này —
+  // cần biết rate & tỷ lệ đạt của ĐÚNG billing_month gốc từng đơn (có thể
+  // là tháng khác tháng đang tính). Gom theo billing_month để tránh query lặp.
+  const soGiuongSettledMap={};
+  (settledItemsRes.data||[]).forEach(i=>{soGiuongSettledMap[i.order_id]=(soGiuongSettledMap[i.order_id]||0)+(i.so_luong||0);});
+
+  const billingMonthsNeeded=[...new Set(settledThisMonth.map(o=>o.billing_month).filter(Boolean))];
+  const bracketCache={};
+  await Promise.all(billingMonthsNeeded.map(async bm=>{
+    if(bm===thang){bracketCache[bm]={rate:rateGiuong,tyLeDat};return;}
+    const {data:bmOrds}=await sb.from('orders').select('id,total_amount').eq('user_id',empId).eq('billing_month',bm);
+    const bmOrdIds=(bmOrds||[]).map(o=>o.id);
+    const bmTotal=(bmOrds||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+    let bmGiuong=0;
+    if(bmOrdIds.length){
+      const {data:bmItems}=await sb.from('order_items').select('so_luong').in('order_id',bmOrdIds).eq('vendor','BOLSA').eq('la_bolsa',true);
+      bmGiuong=(bmItems||[]).reduce((s,i)=>s+(i.so_luong||0),0);
+    }
+    const bmTarget=isProbation?TARGET_USD*0.85:TARGET_USD; // xấp xỉ — bậc thử việc có thể đổi theo thời điểm đó
+    bracketCache[bm]={rate:rateExtraForGiuong(bmGiuong).rate,tyLeDat:bmTotal>=bmTarget?1.0:0.5};
+  }));
+
+  let deferredGiuong=0,deferredChenh=0;
+  settledThisMonth.forEach(o=>{
+    const bracket=bracketCache[o.billing_month]||{rate:15,tyLeDat:1.0};
+    const soG=soGiuongSettledMap[o.id]||0;
+    const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+    const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
+    deferredGiuong+=soG*bracket.rate*pct/100*bracket.tyLeDat;
+    deferredChenh+=bChenh*bracket.tyLeDat;
+  });
+  const deferredBonus=deferredGiuong+deferredChenh;
+
+  // Giữ lại tên biến cũ để tương thích các chỗ dùng bên dưới (payslip/báo cáo)
+  const bonusBase=netRevSum*0.01; // hiển thị tham khảo, KHÔNG nhân tyLeDat ở đây (đã nhân trong bonusImmediate)
+  const bonusChenh=deferredChenh; // "Bonus DS + Chênh lệch" trên payslip — chỉ phần chênh lệch (DS 1% đã gộp vào bonusImmediate)
+  const bolsaHeadspaBonus=deferredGiuong+extraGiuong*tyLeDat; // "Bonus Headspa Bed" trên payslip — giường (hoãn) + Extra (ngay)
+
+  // Vượt target (tính trên tổng doanh số toàn tháng, KHÔNG nhân tỷ lệ đạt)
   let vuotBonus=0;
   if(dtTotalForTarget>=TARGET_USD*2)vuotBonus=200;
   else if(dtTotalForTarget>=TARGET_USD*1.4)vuotBonus=100;
 
-  // P3A = (bonusBase + bonusGiường) × tỷ lệ + vượtTarget
-  const p3aTotalUsd=(bonusBase+bolsaHeadspaBonus)*tyLeDat+vuotBonus;
+  // P3A = Immediate (DS 1% + Extra, đã nhân tỷ lệ đạt) + Deferred (giường+chênh lệch, đã nhân tỷ lệ đạt CỦA THÁNG GỐC từng đơn) + Vượt target
+  const p3aTotalUsd=bonusImmediate+deferredBonus+vuotBonus;
   const p3aVnd=Math.round(p3aTotalUsd*TY_GIA);
 
   // ── Backup Bonus (tháng T+1 bù GAP tháng T) ─────────────────────────
@@ -3712,8 +3741,9 @@ async function viewSalaryDetail(empId,thang){
       <div class="salary-row"><span class="salary-label">P2C — Năng lực Level ${emp.lever||1}</span><span class="salary-val">${vnd(sal.p2c)}</span></div>
       <div class="salary-row"><span class="salary-label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)<0.5?'<50% công, không xét':sal.so_lan_tre+' lần trễ'})</span><span class="salary-val">${vnd(sal.p3b_chuyen_can)}</span></div>
       <div class="salary-row"><span class="salary-label">P3C — KPI tháng</span><span class="salary-val">${vnd(sal.p3c_kpi)}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Bonus Headspa Bed (${usd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
-      <div class="salary-row"><span class="salary-label">P3A — Bonus doanh số 1% + Chênh lệch (${usd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Bonus giường (hoãn, gồm Extra) (${usd(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Bonus doanh số 1% (${usd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||TY_GIA))}</span></div>
+      <div class="salary-row"><span class="salary-label">P3A — Bonus chênh lệch giá (hoãn, đơn tất toán) (${usd(sal.p3a_chenh_lech_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_chenh_lech_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
       <div class="salary-row"><span class="salary-label">P3A — Thưởng vượt target (${usd(sal.p3a_vuot_target_usd||0)})</span><span class="salary-val" style="color:var(--warn)">${vnd((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>
       ${(sal.backup_bonus_usd>0)?`<div class="salary-row" style="background:rgba(16,185,129,0.08);border-radius:8px;padding:4px 8px"><span class="salary-label" style="color:#10b981">🔄 Backup Bonus tháng trước (${usd(sal.backup_bonus_usd)})</span><span class="salary-val" style="color:#10b981">${vnd((sal.backup_bonus_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
@@ -3778,8 +3808,9 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <table class="pl-table">
         <tr><td class="label">P3B — Chuyên cần (${sal.ngay_cong_thuc_te/(sal.cong_chuan_thang||22)<0.5?'<50% công, không xét':sal.so_lan_tre===0?'0 lần trễ':sal.so_lan_tre===1?'1 lần trễ':'≥2 lần trễ'})</td><td class="formula">P3B</td><td class="amount">${vndFmt(sal.p3b_chuyen_can)}</td></tr>
         <tr><td class="label">P3C — KPI tháng (${sal.p3c_kpi>0?'≥70 điểm':'<70 điểm'})</td><td class="formula">P3C</td><td class="amount">${vndFmt(sal.p3c_kpi)}</td></tr>
-        <tr><td class="label">P3A — Bonus Headspa Bed (${usdFmt((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.p3a_ty_le_dat||1))})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||25000))}</td></tr>
-        <tr><td class="label">P3A — Bonus doanh số 1% + Chênh lệch (${usdFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Bonus giường (hoãn, gồm Extra) (${usdFmt(sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_bolsa_headspa_usd||sal.p3a_bolsa_usd||0)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Bonus doanh số 1% (${usdFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1))})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_base_usd||0)*(sal.p3a_ty_le_dat||1)*(sal.ty_gia||25000))}</td></tr>
+        <tr><td class="label">P3A — Bonus chênh lệch giá (hoãn, đơn tất toán) (${usdFmt(sal.p3a_chenh_lech_usd||0)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_chenh_lech_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label">P3A — Thưởng vượt target (${usdFmt(sal.p3a_vuot_target_usd||0)})</td><td class="formula">P3A</td><td class="amount">${vndFmt((sal.p3a_vuot_target_usd||0)*(sal.ty_gia||25000))}</td></tr>
         <tr><td class="label" style="color:#888;font-size:10px">Tỷ lệ đạt target: ${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'} · Tỷ giá: ${(sal.ty_gia||25000).toLocaleString('vi-VN')} VNĐ/$</td><td class="formula"></td><td class="amount"></td></tr>
         <tr class="subtotal"><td class="label">Tổng Bonus P3A</td><td class="formula">ΣP3A</td><td class="amount">${vndFmt(p3aVnd)}</td></tr>
