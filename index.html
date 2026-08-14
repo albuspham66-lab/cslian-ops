@@ -919,6 +919,11 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             ⚠️ Override sẽ ghi đè giá trị tính tự động. Để trống = dùng giá trị tự động.
           </div>
           <div>
+            <label class="form-label">Giá min ($) <span style="color:var(--text3);font-weight:400">— để trống nếu điền tay</span></label>
+            <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-gia-min" placeholder="Giá bán tối thiểu của đơn" oninput="calcBonusFromGiaMin()">
+            <div style="font-size:11px;color:var(--text3);margin-top:4px" id="bonus-modal-gia-min-note"></div>
+          </div>
+          <div>
             <label class="form-label">Bonus Chênh lệch ($) <span style="color:var(--text3);font-weight:400">— tự động: <span id="bonus-modal-chenh-auto">$0</span></span></label>
             <input class="form-input" type="number" step="0.01" min="0" id="bonus-modal-chenh" placeholder="Để trống = tự động">
           </div>
@@ -2993,6 +2998,8 @@ function openBonusEditModal(orderId, invoiceNo){
 
   // Fill current overrides
   document.getElementById('bonus-modal-chenh').value=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:'';
+  document.getElementById('bonus-modal-gia-min').value=''; // không lưu DB — luôn để trống khi mở lại
+  document.getElementById('bonus-modal-gia-min-note').textContent='';
   document.getElementById('bonus-modal-pct-giuong').value=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:'';
   document.getElementById('bonus-modal-lydo').value=o.bonus_giuong_ly_do||'';
   document.getElementById('bonus-modal-ghichu').value=o.bonus_giuong_ghi_chu||'';
@@ -3003,6 +3010,24 @@ function openBonusEditModal(orderId, invoiceNo){
 function closeBonusEditModal(){
   document.getElementById('bonus-edit-modal').style.display='none';
   _bonusModalOrder=null;
+}
+// Giá min → tự tính Chênh lệch (Doanh số - Giá min) → Bonus = Chênh lệch × 30%.
+// Đây là chênh lệch để tính bonus Sale — KHÔNG liên quan chenh_lech/gia_ban_goc
+// bên Finance (field khác, dùng cho mục đích khác, không đụng vào ở đây).
+// Giá min KHÔNG lưu DB, chỉ là công cụ tính nhanh trong modal.
+function calcBonusFromGiaMin(){
+  const o=_bonusModalOrder;
+  if(!o)return;
+  const giaMinStr=document.getElementById('bonus-modal-gia-min').value.trim();
+  const noteEl=document.getElementById('bonus-modal-gia-min-note');
+  if(giaMinStr===''){noteEl.textContent='';return;}
+  const giaMin=parseFloat(giaMinStr);
+  if(isNaN(giaMin)){noteEl.textContent='';return;}
+  const doanhSo=o.total_amount||0;
+  const chenhLech=doanhSo-giaMin;
+  const bonus=Math.max(0,chenhLech*0.3);
+  document.getElementById('bonus-modal-chenh').value=bonus.toFixed(2);
+  noteEl.textContent=`Doanh số $${doanhSo.toFixed(2)} − Giá min $${giaMin.toFixed(2)} = Chênh lệch $${chenhLech.toFixed(2)} → Bonus 30% = $${bonus.toFixed(2)}`;
 }
 
 async function saveBonusOverride(){
