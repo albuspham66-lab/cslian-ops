@@ -366,7 +366,8 @@ th.num{text-align:right;}
         <div class="card"><div class="card-header"><span class="card-title">Chi tiết đơn hàng</span></div>
           <div class="tw"><table><thead><tr>
             <th>Invoice</th><th>Tháng</th><th>Business</th><th>Product</th><th>Vendor</th>
-            <th class="num">Total ($)</th><th class="num">Commission ($)</th><th class="num">HH đã thu ($)</th>
+            <th class="num">Total ($)</th><th class="num">Commission ($)</th><th class="num">Price Gap ($)</th>
+            <th class="num">Tổng Commission ($)</th><th class="num">HH đã thu ($)</th>
             <th>Trạng thái</th>
           </tr></thead><tbody id="rpt-body"></tbody></table></div>
         </div>
@@ -560,7 +561,28 @@ th.num{text-align:right;}
       <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0" oninput="recalcCostGap()"></div>
       <div class="fg"><label class="fl">Price Gap ($) <span style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-gap" step="0.01" min="0" readonly style="opacity:.75;cursor:not-allowed;"></div>
       <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
-      <div class="fg"><label class="fl">Commission ($)</label><input type="number" id="cost-comm" step="0.01" min="0"></div>
+      <div class="fg">
+        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap)</span></label>
+        <select id="cost-comm-pct" onchange="onCommPctChange()">
+          <option value="3">3%</option><option value="5">5%</option><option value="7">7%</option>
+          <option value="__custom__">Tuỳ chỉnh %</option>
+          <option value="__manual__">Nhập tay số tiền</option>
+        </select>
+        <input type="number" id="cost-comm-pct-custom" step="0.01" min="0" placeholder="Nhập % tuỳ chỉnh" style="margin-top:6px;display:none;" oninput="recalcCommission()">
+      </div>
+      <div class="fg"><label class="fl">Commission ($) <span id="cost-comm-auto-tag" style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-comm" step="0.01" min="0" oninput="recalcTotalComm()"></div>
+      <div class="fg">
+        <label class="fl">% Price Gap → Tổng Commission</label>
+        <select id="cost-gap-pct" onchange="onGapPctChange()">
+          <option value="100">100%</option><option value="70">70%</option>
+          <option value="__custom__">Tuỳ chỉnh %</option>
+        </select>
+        <input type="number" id="cost-gap-pct-custom" step="0.01" min="0" placeholder="Nhập % tuỳ chỉnh" style="margin-top:6px;display:none;" oninput="recalcTotalComm()">
+      </div>
+      <div class="fg span2" style="background:var(--card2);border-radius:var(--rsm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--text3);">Tổng Commission = Commission + (%Gap × Price Gap)</span>
+        <span id="cost-total-comm-preview" style="font-family:'JetBrains Mono';font-weight:700;color:var(--gold);font-size:15px;"></span>
+      </div>
       <div class="fg"><label class="fl">Payment Method</label>
         <select id="cost-payment">
           <option value="">-- Chọn --</option>
@@ -773,8 +795,8 @@ function renderDashboard(){
   const shipped=allOrders.filter(o=>o.status==='shipped'||o.status==='delivered').length;
   const done=allOrders.filter(o=>o.status==='completed').length;
   const totalAmt=allOrders.reduce((s,o)=>s+(o.total_amount||0),0);
-  const commRecv=allOrders.filter(o=>o.commission_received).reduce((s,o)=>s+(o.commission||0),0);
-  const commPend=allOrders.reduce((s,o)=>s+(o.commission||0),0)-commRecv;
+  const commRecv=allOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
+  const commPend=allOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
   document.getElementById('dash-kpis').innerHTML=`
     <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
     <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
@@ -1156,6 +1178,56 @@ function recalcCostGap(){
   const cost=parseFloat(document.getElementById('cost-price').value)||0;
   const gap=_costTotalAmount-cost;
   document.getElementById('cost-gap').value=gap.toFixed(2);
+  const sel=document.getElementById('cost-comm-pct').value;
+  if(sel!=='__manual__')recalcCommission();else recalcTotalComm();
+}
+
+function onCommPctChange(){
+  const sel=document.getElementById('cost-comm-pct').value;
+  const customEl=document.getElementById('cost-comm-pct-custom');
+  const commEl=document.getElementById('cost-comm');
+  const tagEl=document.getElementById('cost-comm-auto-tag');
+  customEl.style.display=sel==='__custom__'?'block':'none';
+  if(sel==='__manual__'){
+    commEl.readOnly=false;commEl.style.opacity='';commEl.style.cursor='';
+    tagEl.textContent='— nhập tay';
+    recalcTotalComm();
+  }else{
+    commEl.readOnly=true;commEl.style.opacity='.75';commEl.style.cursor='not-allowed';
+    tagEl.textContent='— tự tính';
+    recalcCommission();
+  }
+}
+
+// Commission ($) = (Total Amount − Price Gap) × Commission %
+function recalcCommission(){
+  const sel=document.getElementById('cost-comm-pct').value;
+  if(sel==='__manual__')return; // đang ở chế độ nhập tay, không ghi đè giá trị đã gõ
+  let pct;
+  if(sel==='__custom__')pct=parseFloat(document.getElementById('cost-comm-pct-custom').value)||0;
+  else pct=parseFloat(sel)||0;
+  const gap=parseFloat(document.getElementById('cost-gap').value)||0;
+  const comm=(_costTotalAmount-gap)*(pct/100);
+  document.getElementById('cost-comm').value=comm.toFixed(2);
+  recalcTotalComm();
+}
+
+function onGapPctChange(){
+  const sel=document.getElementById('cost-gap-pct').value;
+  document.getElementById('cost-gap-pct-custom').style.display=sel==='__custom__'?'block':'none';
+  recalcTotalComm();
+}
+
+// Tổng Commission = Commission ($) + (%Gap × Price Gap)
+function recalcTotalComm(){
+  const gapSel=document.getElementById('cost-gap-pct').value;
+  let gapPct;
+  if(gapSel==='__custom__')gapPct=parseFloat(document.getElementById('cost-gap-pct-custom').value)||0;
+  else gapPct=parseFloat(gapSel)||0;
+  const gap=parseFloat(document.getElementById('cost-gap').value)||0;
+  const comm=parseFloat(document.getElementById('cost-comm').value)||0;
+  const total=comm+(gap*gapPct/100);
+  document.getElementById('cost-total-comm-preview').textContent=fmtUSD(total);
 }
 
 function openCostModal(id){
@@ -1164,11 +1236,47 @@ function openCostModal(id){
   document.getElementById('cost-order-id').value=id;
   document.getElementById('cost-name').textContent=`${o?.invoice_no} — ${o?.business_name}`;
   document.getElementById('cost-price').value=o?.cost_price||'';
-  // Gap luôn tự tính lại từ Total Amount hiện tại − Cost Price, không đọc price_gap cũ
-  // trực tiếp (tránh hiện giá trị stale nếu total đã đổi kể từ lần sync trước).
-  recalcCostGap();
+  // Gap = Total − Cost, tính trực tiếp (không qua recalcCostGap để tránh đụng
+  // dropdown % trước khi được set đúng giá trị đã lưu bên dưới)
+  const gap=_costTotalAmount-(parseFloat(o?.cost_price)||0);
+  document.getElementById('cost-gap').value=gap.toFixed(2);
   document.getElementById('cost-selling').value=o?.selling_expenses||'';
-  document.getElementById('cost-comm').value=o?.commission||'';
+
+  // Commission % — khôi phục đúng lựa chọn đã lưu (3/5/7/tuỳ chỉnh/nhập tay)
+  const commPctEl=document.getElementById('cost-comm-pct');
+  const commPctCustomEl=document.getElementById('cost-comm-pct-custom');
+  const knownPcts=['3','5','7'];
+  if(o?.commission_pct===null||o?.commission_pct===undefined){
+    commPctEl.value='__manual__';commPctCustomEl.style.display='none';
+  }else if(knownPcts.includes(String(o.commission_pct))){
+    commPctEl.value=String(o.commission_pct);commPctCustomEl.style.display='none';
+  }else{
+    commPctEl.value='__custom__';commPctCustomEl.style.display='block';commPctCustomEl.value=o.commission_pct;
+  }
+  if(commPctEl.value==='__manual__'){
+    const commEl=document.getElementById('cost-comm');
+    commEl.readOnly=false;commEl.style.opacity='';commEl.style.cursor='';
+    document.getElementById('cost-comm-auto-tag').textContent='— nhập tay';
+    commEl.value=o?.commission||'';
+  }else{
+    const commEl=document.getElementById('cost-comm');
+    commEl.readOnly=true;commEl.style.opacity='.75';commEl.style.cursor='not-allowed';
+    document.getElementById('cost-comm-auto-tag').textContent='— tự tính';
+    recalcCommission();
+  }
+
+  // % Price Gap → Tổng Commission
+  const gapPctEl=document.getElementById('cost-gap-pct');
+  const gapPctCustomEl=document.getElementById('cost-gap-pct-custom');
+  const gapPctVal=(o?.gap_pct===null||o?.gap_pct===undefined)?100:o.gap_pct;
+  const knownGapPcts=['100','70'];
+  if(knownGapPcts.includes(String(gapPctVal))){
+    gapPctEl.value=String(gapPctVal);gapPctCustomEl.style.display='none';
+  }else{
+    gapPctEl.value='__custom__';gapPctCustomEl.style.display='block';gapPctCustomEl.value=gapPctVal;
+  }
+  recalcTotalComm();
+
   document.getElementById('cost-note').value=o?.note||'';
   document.getElementById('cost-order-type').value=o?.order_type||'';
   // Payment method
@@ -1188,11 +1296,20 @@ async function saveCost(){
   const payment_method=payEl.value==='__other__'
     ?document.getElementById('cost-payment-other').value.trim()
     :payEl.value;
+  const commPctSel=document.getElementById('cost-comm-pct').value;
+  const commission_pct=commPctSel==='__manual__'?null
+    :commPctSel==='__custom__'?(parseFloat(document.getElementById('cost-comm-pct-custom').value)||0)
+    :parseFloat(commPctSel);
+  const gapPctSel=document.getElementById('cost-gap-pct').value;
+  const gap_pct=gapPctSel==='__custom__'?(parseFloat(document.getElementById('cost-gap-pct-custom').value)||0)
+    :parseFloat(gapPctSel);
   const data={
     cost_price:parseFloat(document.getElementById('cost-price').value)||0,
     price_gap:parseFloat(document.getElementById('cost-gap').value)||0,
     selling_expenses:parseFloat(document.getElementById('cost-selling').value)||0,
     commission:parseFloat(document.getElementById('cost-comm').value)||0,
+    commission_pct,
+    gap_pct,
     note:document.getElementById('cost-note').value,
     order_type:document.getElementById('cost-order-type').value,
     payment_method,
@@ -1611,12 +1728,14 @@ async function runReport(){
   rptData=list;
   const totalAmt=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalComm=list.reduce((s,o)=>s+(o.commission||0),0);
-  const commRecv=list.filter(o=>o.commission_received).reduce((s,o)=>s+(o.commission||0),0);
+  const totalGap=list.reduce((s,o)=>s+(o.price_gap||0),0);
+  const totalCommAll=list.reduce((s,o)=>s+totalCommOf(o),0);
+  const commRecv=list.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   document.getElementById('rpt-kpis').innerHTML=`
     <div class="kpi"><div class="kpi-label">Số đơn</div><div class="kpi-val">${list.length}</div></div>
     <div class="kpi gold"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div></div>
-    <div class="kpi"><div class="kpi-label">Tổng hoa hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalComm)}</div></div>
-    <div class="kpi"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);">⏳ Chưa: ${fmtUSD(totalComm-commRecv)}</div></div>`;
+    <div class="kpi"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}</div></div>
+    <div class="kpi"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);">⏳ Chưa: ${fmtUSD(totalCommAll-commRecv)}</div></div>`;
   document.getElementById('rpt-body').innerHTML=list.map(o=>`<tr>
     <td class="bold">${o.invoice_no||'—'}</td>
     <td style="color:var(--text3);">${o.billing_month||'—'}</td>
@@ -1625,7 +1744,9 @@ async function runReport(){
     <td>${vendorTag(o.vendor)}</td>
     <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
     <td class="num" style="color:var(--blue);">${fmtUSD(o.commission)}</td>
-    <td class="num" style="color:${o.commission_received?'var(--green)':'var(--amber)'};">${o.commission_received?fmtUSD(o.commission):'—'}</td>
+    <td class="num" style="color:var(--text2);">${fmtUSD(o.price_gap)}</td>
+    <td class="num" style="color:var(--gold);font-weight:600;">${fmtUSD(totalCommOf(o))}</td>
+    <td class="num" style="color:${o.commission_received?'var(--green)':'var(--amber)'};">${o.commission_received?fmtUSD(totalCommOf(o)):'—'}</td>
     <td>${statusBadge(o.status)}</td>
   </tr>`).join('');
   document.getElementById('report-summary').style.display='block';
@@ -1639,7 +1760,7 @@ async function exportReport(){
     wb.creator='Maison De KCT Vendor Portal';
     wb.created=new Date();
     const ws=wb.addWorksheet('Báo cáo',{views:[{state:'frozen',ySplit:1}]});
-    const moneyCols=new Set(['costPrice','total','deposit1','deposit2','balance','commission','priceGap','sellingExp']);
+    const moneyCols=new Set(['costPrice','total','deposit1','deposit2','balance','commission','priceGap','totalComm','sellingExp']);
     ws.columns=[
       {header:'No.',key:'no',width:6},
       {header:'Date',key:'date',width:12},
@@ -1662,6 +1783,7 @@ async function exportReport(){
       {header:'Invoice',key:'invoice',width:16},
       {header:'Comission',key:'commission',width:12},
       {header:'Price gap',key:'priceGap',width:12},
+      {header:'Tổng Commission',key:'totalComm',width:16},
       {header:'Selling expenses',key:'sellingExp',width:14},
       {header:'Status',key:'status',width:14},
       {header:'Tracking Nuber',key:'tracking',width:16},
@@ -1678,7 +1800,7 @@ async function exportReport(){
         costPrice:o.cost_price||0,total:o.total_amount||0,
         deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
         note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
-        commission:o.commission||0,priceGap:o.price_gap||0,sellingExp:o.selling_expenses||0,
+        commission:o.commission||0,priceGap:o.price_gap||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
         status:statusLbl[o.status]||o.status||'',tracking:o.tracking_number||'',
         picture:photo?'Xem ảnh':''
       });
@@ -1716,6 +1838,11 @@ async function exportReport(){
 
 // ══ HELPERS ══
 function fmtUSD(v){return'$'+(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+// Tổng Commission = Commission ($) + (%Gap × Price Gap). gap_pct mặc định 100% nếu chưa từng set.
+function totalCommOf(o){
+  const gapPct=(o?.gap_pct===null||o?.gap_pct===undefined)?100:parseFloat(o.gap_pct);
+  return (parseFloat(o?.commission)||0)+(parseFloat(o?.price_gap)||0)*(gapPct/100);
+}
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 function statusBadge(s){
   const m={
