@@ -366,7 +366,7 @@ th.num{text-align:right;}
         <div class="card"><div class="card-header"><span class="card-title">Chi tiết đơn hàng</span></div>
           <div class="tw"><table><thead><tr>
             <th>Invoice</th><th>Tháng</th><th>Business</th><th>Product</th><th>Vendor</th>
-            <th class="num">Total ($)</th><th class="num">Commission ($)</th><th class="num">Price Gap ($)</th>
+            <th class="num">Total ($)</th><th class="num">Shipping ($)</th><th class="num">Commission ($)</th><th class="num">Price Gap ($)</th>
             <th class="num">Tổng Commission ($)</th><th class="num">HH đã thu ($)</th>
             <th>Trạng thái</th>
           </tr></thead><tbody id="rpt-body"></tbody></table></div>
@@ -558,11 +558,21 @@ th.num{text-align:right;}
     <input type="hidden" id="cost-order-id">
     <div id="cost-name" style="font-size:13px;color:var(--gold);margin-bottom:16px;font-weight:600;"></div>
     <div class="fgrid2">
+      <div class="fg">
+        <label class="fl">Vendor</label>
+        <select id="cost-vendor" onchange="onVendorChange()">
+          <option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option>
+        </select>
+      </div>
+      <div class="fg" id="cost-shipping-wrap" style="display:none;">
+        <label class="fl">Shipping ($) <span style="color:var(--text3);font-weight:400;">— chỉ TSPA</span></label>
+        <input type="number" id="cost-shipping" step="0.01" min="0" oninput="recalcCostGap()">
+      </div>
       <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0" oninput="recalcCostGap()"></div>
       <div class="fg"><label class="fl">Price Gap ($) <span style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-gap" step="0.01" min="0" readonly style="opacity:.75;cursor:not-allowed;"></div>
       <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
       <div class="fg">
-        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap)</span></label>
+        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap, trừ Shipping)</span></label>
         <select id="cost-comm-pct" onchange="onCommPctChange()">
           <option value="3">3%</option><option value="5">5%</option><option value="7">7%</option>
           <option value="__custom__">Tuỳ chỉnh %</option>
@@ -1174,9 +1184,28 @@ async function saveStatus(){
 // ══ COST PRICE ══
 let _costTotalAmount=0;
 
+function onVendorChange(){
+  const v=document.getElementById('cost-vendor').value;
+  const wrap=document.getElementById('cost-shipping-wrap');
+  if(v==='TSPA'){
+    wrap.style.display='block';
+    // Gợi ý mặc định 1 lần lúc vừa đổi sang TSPA — admin vẫn sửa lại được sau đó
+    document.getElementById('cost-comm-pct').value='3';
+    onCommPctChange();
+    document.getElementById('cost-gap-pct').value='70';
+    onGapPctChange();
+  }else{
+    wrap.style.display='none';
+  }
+  recalcCostGap();
+}
+
+// Price Gap = Total Amount − Shipping − Cost Price
 function recalcCostGap(){
   const cost=parseFloat(document.getElementById('cost-price').value)||0;
-  const gap=_costTotalAmount-cost;
+  const vendor=document.getElementById('cost-vendor').value;
+  const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
+  const gap=_costTotalAmount-shipping-cost;
   document.getElementById('cost-gap').value=gap.toFixed(2);
   const sel=document.getElementById('cost-comm-pct').value;
   if(sel!=='__manual__')recalcCommission();else recalcTotalComm();
@@ -1199,7 +1228,7 @@ function onCommPctChange(){
   }
 }
 
-// Commission ($) = (Total Amount − Price Gap) × Commission %
+// Commission ($) = (Total Amount − Price Gap) × Commission % − Shipping
 function recalcCommission(){
   const sel=document.getElementById('cost-comm-pct').value;
   if(sel==='__manual__')return; // đang ở chế độ nhập tay, không ghi đè giá trị đã gõ
@@ -1207,7 +1236,9 @@ function recalcCommission(){
   if(sel==='__custom__')pct=parseFloat(document.getElementById('cost-comm-pct-custom').value)||0;
   else pct=parseFloat(sel)||0;
   const gap=parseFloat(document.getElementById('cost-gap').value)||0;
-  const comm=(_costTotalAmount-gap)*(pct/100);
+  const vendor=document.getElementById('cost-vendor').value;
+  const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
+  const comm=(_costTotalAmount-gap)*(pct/100)-shipping;
   document.getElementById('cost-comm').value=comm.toFixed(2);
   recalcTotalComm();
 }
@@ -1235,10 +1266,19 @@ function openCostModal(id){
   _costTotalAmount=parseFloat(o?.total_amount)||0;
   document.getElementById('cost-order-id').value=id;
   document.getElementById('cost-name').textContent=`${o?.invoice_no} — ${o?.business_name}`;
+
+  // Vendor + Shipping (chỉ hiện/áp dụng khi vendor = TSPA)
+  const vendorVal=(o?.vendor||'BOLSA').toUpperCase();
+  document.getElementById('cost-vendor').value=vendorVal;
+  const shipWrap=document.getElementById('cost-shipping-wrap');
+  shipWrap.style.display=vendorVal==='TSPA'?'block':'none';
+  document.getElementById('cost-shipping').value=o?.shipping||'';
+
   document.getElementById('cost-price').value=o?.cost_price||'';
-  // Gap = Total − Cost, tính trực tiếp (không qua recalcCostGap để tránh đụng
-  // dropdown % trước khi được set đúng giá trị đã lưu bên dưới)
-  const gap=_costTotalAmount-(parseFloat(o?.cost_price)||0);
+  // Gap = Total − Shipping − Cost, tính trực tiếp (không qua recalcCostGap để tránh
+  // đụng dropdown % trước khi được set đúng giá trị đã lưu bên dưới)
+  const shipping=vendorVal==='TSPA'?(parseFloat(o?.shipping)||0):0;
+  const gap=_costTotalAmount-shipping-(parseFloat(o?.cost_price)||0);
   document.getElementById('cost-gap').value=gap.toFixed(2);
   document.getElementById('cost-selling').value=o?.selling_expenses||'';
 
@@ -1303,7 +1343,10 @@ async function saveCost(){
   const gapPctSel=document.getElementById('cost-gap-pct').value;
   const gap_pct=gapPctSel==='__custom__'?(parseFloat(document.getElementById('cost-gap-pct-custom').value)||0)
     :parseFloat(gapPctSel);
+  const vendor=document.getElementById('cost-vendor').value;
+  const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
   const data={
+    vendor,vendor_manual:true,shipping,
     cost_price:parseFloat(document.getElementById('cost-price').value)||0,
     price_gap:parseFloat(document.getElementById('cost-gap').value)||0,
     selling_expenses:parseFloat(document.getElementById('cost-selling').value)||0,
@@ -1462,9 +1505,14 @@ async function syncFromCRM(){
       const totalAmount=parseFloat(inv.total)||0;
       // Nếu đơn này đã có cost_price nhập tay (admin điều chỉnh giá hỗ trợ) → gap
       // tự tính lại theo total mới nhất, KHÔNG dùng totalChenh của CRM nữa.
+      // Gap = Total − Shipping (nếu có, chỉ TSPA) − Cost.
       const existing=allOrders.find(x=>x.invoice_no===inv.invoice_no);
       const hasManualCost=existing&&parseFloat(existing.cost_price)>0;
-      const priceGap=hasManualCost?(totalAmount-parseFloat(existing.cost_price)):totalChenh;
+      const existingShipping=parseFloat(existing?.shipping)||0;
+      const priceGap=hasManualCost?(totalAmount-existingShipping-parseFloat(existing.cost_price)):totalChenh;
+      // Vendor: nếu admin đã từng đổi tay (vendor_manual) → giữ nguyên, không
+      // để CRM ghi đè lại theo invoice_items.vendor nữa.
+      const finalVendor=(existing&&existing.vendor_manual)?existing.vendor:vendor;
       return{
         invoice_no:inv.invoice_no,
         order_date:inv.date,
@@ -1484,12 +1532,13 @@ async function syncFromCRM(){
         note:inv.note||'',
         payment_method:inv.payment_method||'',
         tracking_number:inv.tracking_number||'',
-        vendor,
+        vendor:finalVendor,
         status:mappedStatus,
         crm_order_id:String(inv.id),
         price_gap:priceGap,
-        // cost_price/commission/selling_expenses/commission_received: KHÔNG ghi
-        // ở đây nữa — đây là field admin tự quản lý (giữ nguyên qua mỗi lần sync).
+        // cost_price/commission/selling_expenses/commission_received/shipping/
+        // vendor_manual: KHÔNG ghi ở đây — field admin tự quản lý (giữ nguyên
+        // qua mỗi lần sync).
       };
     });
     const{error}=await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
@@ -1743,6 +1792,7 @@ async function runReport(){
     <td style="font-size:11px;color:var(--text3);">${o.product||'—'}</td>
     <td>${vendorTag(o.vendor)}</td>
     <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
+    <td class="num" style="color:var(--text2);">${fmtUSD(o.shipping)}</td>
     <td class="num" style="color:var(--blue);">${fmtUSD(o.commission)}</td>
     <td class="num" style="color:var(--text2);">${fmtUSD(o.price_gap)}</td>
     <td class="num" style="color:var(--gold);font-weight:600;">${fmtUSD(totalCommOf(o))}</td>
@@ -1760,7 +1810,7 @@ async function exportReport(){
     wb.creator='Maison De KCT Vendor Portal';
     wb.created=new Date();
     const ws=wb.addWorksheet('Báo cáo',{views:[{state:'frozen',ySplit:1}]});
-    const moneyCols=new Set(['costPrice','total','deposit1','deposit2','balance','commission','priceGap','totalComm','sellingExp']);
+    const moneyCols=new Set(['costPrice','total','shipping','deposit1','deposit2','balance','commission','priceGap','totalComm','sellingExp']);
     ws.columns=[
       {header:'No.',key:'no',width:6},
       {header:'Date',key:'date',width:12},
@@ -1772,9 +1822,11 @@ async function exportReport(){
       {header:'Cell Phone',key:'cellPhone',width:14},
       {header:'State',key:'state',width:8},
       {header:'Order Type',key:'orderType',width:12},
+      {header:'Vendor',key:'vendor',width:10},
       {header:'Product',key:'product',width:24},
       {header:'Cost Price',key:'costPrice',width:12},
       {header:'Total Amount',key:'total',width:14},
+      {header:'Shipping',key:'shipping',width:12},
       {header:'Deposit 1',key:'deposit1',width:12},
       {header:'Deposit 2',key:'deposit2',width:12},
       {header:'Balance Duo',key:'balance',width:12},
@@ -1796,8 +1848,8 @@ async function exportReport(){
         no:i+1,date:o.order_date||'',month:o.billing_month||'',
         business:o.business_name||'',customer:o.customer_name||'',address:o.address||'',
         busPhone:o.phone_bus||'',cellPhone:o.phone_cell||'',state:o.state||'',
-        orderType:o.order_type||'',product:o.product||'',
-        costPrice:o.cost_price||0,total:o.total_amount||0,
+        orderType:o.order_type||'',vendor:o.vendor||'',product:o.product||'',
+        costPrice:o.cost_price||0,total:o.total_amount||0,shipping:o.shipping||0,
         deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
         note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
         commission:o.commission||0,priceGap:o.price_gap||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
