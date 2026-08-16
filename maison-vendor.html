@@ -1356,6 +1356,7 @@ async function saveCost(){
     note:document.getElementById('cost-note').value,
     order_type:document.getElementById('cost-order-type').value,
     payment_method,
+    note_manual:true,order_type_manual:true,payment_method_manual:true,
   };
   const{error}=await sb.from('vendor_orders').update(data).eq('id',id);
   if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
@@ -1513,6 +1514,11 @@ async function syncFromCRM(){
       // Vendor: nếu admin đã từng đổi tay (vendor_manual) → giữ nguyên, không
       // để CRM ghi đè lại theo invoice_items.vendor nữa.
       const finalVendor=(existing&&existing.vendor_manual)?existing.vendor:vendor;
+      // Note/Order Type/Payment Method: tương tự — giữ nguyên nếu admin đã
+      // từng chỉnh tay field đó (đánh dấu qua *_manual), không cho CRM ghi đè.
+      const finalOrderType=(existing&&existing.order_type_manual)?existing.order_type:(inv.type||'Standard');
+      const finalNote=(existing&&existing.note_manual)?existing.note:(inv.note||'');
+      const finalPaymentMethod=(existing&&existing.payment_method_manual)?existing.payment_method:(inv.payment_method||'');
       return{
         invoice_no:inv.invoice_no,
         order_date:inv.date,
@@ -1523,22 +1529,22 @@ async function syncFromCRM(){
         state:cust?.state||'',
         phone_bus:cust?.business_phone||'',
         phone_cell:cust?.cellphone||'',
-        order_type:inv.type||'Standard',
+        order_type:finalOrderType,
         product:products,
         total_amount:totalAmount,
         deposit1:parseFloat(inv.deposit)||0,
         deposit2:parseFloat(inv.deposit2)||0,
         balance_due:parseFloat(inv.balance_due)||0,
-        note:inv.note||'',
-        payment_method:inv.payment_method||'',
+        note:finalNote,
+        payment_method:finalPaymentMethod,
         tracking_number:inv.tracking_number||'',
         vendor:finalVendor,
         status:mappedStatus,
         crm_order_id:String(inv.id),
         price_gap:priceGap,
         // cost_price/commission/selling_expenses/commission_received/shipping/
-        // vendor_manual: KHÔNG ghi ở đây — field admin tự quản lý (giữ nguyên
-        // qua mỗi lần sync).
+        // vendor_manual/note_manual/order_type_manual/payment_method_manual:
+        // KHÔNG ghi ở đây — field admin tự quản lý (giữ nguyên qua mỗi lần sync).
       };
     });
     const{error}=await sb.from('vendor_orders').upsert(rows,{onConflict:'invoice_no'});
