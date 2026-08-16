@@ -411,7 +411,7 @@ th.num{text-align:right;}
 
 <!-- Reconciliation Preview Modal (admin: chọn đơn trước khi tạo batch) -->
 <div class="mbg" id="m-recon-preview">
-  <div class="modal modal-xl">
+  <div class="modal modal-xl" style="max-width:1400px;width:96vw;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div class="modal-title">Xem trước — Chọn đơn cho đợt đối soát</div>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-preview')">✕</button>
@@ -427,7 +427,7 @@ th.num{text-align:right;}
       <input type="text" id="recon-filter-customer" placeholder="Tìm Customer..." style="width:160px;" oninput="renderReconPreviewList()">
     </div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát. Lựa chọn được giữ nguyên khi chuyển qua lại giữa 2 chế độ/lọc.</div>
-    <div class="tw" style="max-height:45vh;overflow-y:auto;"><table>
+    <div class="tw" style="max-height:55vh;overflow-y:auto;"><table>
       <thead><tr>
         <th style="width:30px;"><input type="checkbox" id="recon-check-all" checked onchange="reconToggleAll(this.checked)"></th>
         <th>Invoice</th><th>Month</th><th>Business</th><th>Customer</th><th>Vendor</th>
@@ -447,13 +447,13 @@ th.num{text-align:right;}
 
 <!-- Reconciliation Batch Detail Modal (admin xem + vendor duyệt/flag) -->
 <div class="mbg" id="m-recon-detail">
-  <div class="modal modal-xl">
+  <div class="modal modal-xl" style="max-width:1200px;width:96vw;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
       <div class="modal-title" id="recon-detail-title">Đợt đối soát</div>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-detail')">✕</button>
     </div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:14px;" id="recon-detail-meta"></div>
-    <div class="tw" style="max-height:45vh;overflow-y:auto;"><table>
+    <div class="tw" style="max-height:55vh;overflow-y:auto;"><table>
       <thead><tr>
         <th>Invoice</th><th>Business</th><th class="num">Thành tiền</th><th>Trạng thái</th><th></th>
       </tr></thead>
