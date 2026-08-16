@@ -2020,6 +2020,43 @@ async function exportReport(){
 
 // ══ HELPERS ══
 function fmtUSD(v){return'$'+(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+// Đọc số tiền VNĐ bằng chữ tiếng Việt (cho dòng "Số tiền bằng chữ" trên bảng kê)
+function soTienBangChu(number){
+  number=Math.round(Math.abs(parseFloat(number)||0));
+  if(number===0)return'Không đồng';
+  const chuSo=['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'];
+  const donVi=['','nghìn','triệu','tỷ'];
+  function docBaChuSo(baso,dayDu){
+    const tram=Math.floor(baso/100),chuc=Math.floor((baso%100)/10),donvi=baso%10;
+    let s='';
+    if(tram>0||dayDu){
+      s+=chuSo[tram]+' trăm ';
+      if(chuc===0&&donvi>0)s+='linh ';
+    }
+    if(chuc>1){
+      s+=chuSo[chuc]+' mươi ';
+      if(donvi===1)s+='mốt ';else if(donvi===5)s+='lăm ';else if(donvi>0)s+=chuSo[donvi]+' ';
+    }else if(chuc===1){
+      s+='mười ';
+      if(donvi===1)s+='một ';else if(donvi===5)s+='lăm ';else if(donvi>0)s+=chuSo[donvi]+' ';
+    }else if(chuc===0&&donvi>0){
+      s+=chuSo[donvi]+' ';
+    }
+    return s.trim();
+  }
+  let so=number,groups=[];
+  while(so>0){groups.push(so%1000);so=Math.floor(so/1000);}
+  let result='';
+  for(let i=groups.length-1;i>=0;i--){
+    if(groups[i]===0)continue;
+    const text=docBaChuSo(groups[i],i<groups.length-1);
+    result+=text+' '+donVi[i]+' ';
+  }
+  result=result.replace(/\s+/g,' ').trim();
+  result=result.charAt(0).toUpperCase()+result.slice(1);
+  return result+' đồng'+(number%1000===0?' chẵn':'');
+}
 // Tổng Commission = Commission ($) + (%Gap × Price Gap). gap_pct mặc định 100% nếu chưa từng set.
 function totalCommOf(o){
   const gapPct=(o?.gap_pct===null||o?.gap_pct===undefined)?100:parseFloat(o.gap_pct);
@@ -2359,17 +2396,24 @@ async function exportReconBatch(batchId){
     });
     const lastDataRow=r-1;
     const totalRow=r+1;
+    // Tính sẵn giá trị thật (không chỉ để công thức) để hiện ngay không cần Excel
+    // tính lại, và để có số dùng cho "Số tiền bằng chữ".
+    const totalVnd=items.reduce((s,it)=>s+it.thanh_tien*rate,0);
+    const vatVnd=totalVnd*0.08;
+    const grandTotalVnd=totalVnd+vatVnd;
+
     ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${lastDataRow})`};
+    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${lastDataRow})`,result:totalVnd};
     ws1.getCell(totalRow,10).font={...TNR,size:14};ws1.getCell(totalRow,10).numFmt=VND;
     ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';ws1.getCell(totalRow+1,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow}*8%`};
+    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow}*8%`,result:vatVnd};
     ws1.getCell(totalRow+1,10).font={...TNR,size:14};ws1.getCell(totalRow+1,10).numFmt=VND;
     ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`};
+    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`,result:grandTotalVnd};
     ws1.getCell(totalRow+2,10).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+2,10).numFmt=VND;
-    ws1.getCell(totalRow+3,2).value='SỐ TIỀN BẰNG CHỮ: ................................................................';
-    ws1.getCell(totalRow+3,2).font={...TNR,size:14,bold:true};
+    ws1.mergeCells(totalRow+3,2,totalRow+3,9);
+    ws1.getCell(totalRow+3,2).value='SỐ TIỀN BẰNG CHỮ: '+soTienBangChu(grandTotalVnd);
+    ws1.getCell(totalRow+3,2).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+3,2).alignment={wrapText:true};
 
     ws1.mergeCells(totalRow+5,2,totalRow+5,9);
     ws1.getCell(totalRow+5,2).value=`Bảng kê này là căn cứ để ${KCT_INFO.name} xuất hoá đơn điện tử ký hiệu ...............\nsố ...... xuất ngày .../.../${new Date().getFullYear()} cho ${BLT_INFO.name}`;
@@ -2416,7 +2460,12 @@ async function exportReconBatch(batchId){
     ws2.getCell(t2,3).value='TỔNG CỘNG';ws2.getCell(t2,3).font={bold:true};
     [4,5,6,7,8].forEach(col=>{
       const colLetter=String.fromCharCode(64+col);
-      ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`};
+      const colSum=items.reduce((s,it)=>{
+        const T=it.thanh_tien*rate;
+        const vals={4:T,5:T*0.04,6:T*1.04,7:T*0.08,8:T*0.96};
+        return s+vals[col];
+      },0);
+      ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
       ws2.getCell(t2,col).font={bold:true};
     });
     for(let rr=4;rr<t2;rr++){[4,5,6,7,8].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
