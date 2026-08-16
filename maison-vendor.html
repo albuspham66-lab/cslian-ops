@@ -222,6 +222,7 @@ th.num{text-align:right;}
       <div class="nav-item" data-view="notifications"><span class="nav-icon">🔔</span>Thông báo <span class="notif-badge" id="notif-badge" style="display:none;">0</span></div>
       <div class="nav-item admin-only" data-view="accounts"><span class="nav-icon">👥</span>Tài khoản</div>
       <div class="nav-item" data-view="reports"><span class="nav-icon">📈</span>Báo cáo</div>
+      <div class="nav-item" data-view="reconciliation"><span class="nav-icon">🧾</span>Đối soát <span class="notif-badge" id="recon-badge" style="display:none;">0</span></div>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="doLogout()">⟵ Đăng xuất</button>
@@ -374,8 +375,96 @@ th.num{text-align:right;}
       </div>
     </div>
 
-  </div><!-- /main -->
+    <!-- ══ RECONCILIATION VIEW ══ -->
+    <div class="view" id="view-reconciliation">
+      <div class="page-title">Đối soát hoa hồng</div>
+      <div class="page-sub" id="recon-sub">Bách Lâm Thịnh — đại diện Bolsa &amp; Tspa</div>
+
+      <div class="card admin-only" style="padding:24px;margin-bottom:20px;">
+        <div class="section-title" style="margin-bottom:10px;">Tạo đợt đối soát mới</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="fg" style="margin:0;">
+            <label class="fl">Nhãn đợt (chỉ để đặt tên, không lọc theo ngày)</label>
+            <input type="text" id="recon-new-label" placeholder="VD: Tháng 8/2026" style="width:220px;">
+          </div>
+          <button class="btn btn-gold btn-sm" onclick="openReconPreview()">Xem trước đơn đủ điều kiện</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+          Điều kiện: Balance Due = $0 (khách đã trả đủ) VÀ chưa đánh dấu "HH đã thu" — vendor Bolsa + Tspa.
+        </div>
+      </div>
+
+      <div class="card"><div class="card-header"><span class="card-title">Các đợt đối soát</span></div>
+        <div class="tw"><table><thead><tr>
+          <th>Nhãn</th><th>Trạng thái</th><th class="num">Số đơn</th><th class="num">Tổng Thành tiền</th>
+          <th class="num">BLT trả (104%)</th><th>Ngày tạo</th><th></th>
+        </tr></thead><tbody id="recon-batch-list"></tbody></table></div>
+      </div>
+    </div>
+
+    </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- Reconciliation Preview Modal (admin: chọn đơn trước khi tạo batch) -->
+<div class="mbg" id="m-recon-preview">
+  <div class="modal modal-xl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title">Xem trước — Đơn đủ điều kiện đối soát</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-preview')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát.</div>
+    <div class="tw" style="max-height:50vh;overflow-y:auto;"><table>
+      <thead><tr>
+        <th style="width:30px;"><input type="checkbox" id="recon-check-all" checked onchange="reconToggleAll(this.checked)"></th>
+        <th>Invoice</th><th>Business</th><th>Vendor</th>
+        <th class="num">Total</th><th class="num">Thành tiền (T)</th><th class="num">BLT trả (104%)</th>
+      </tr></thead>
+      <tbody id="recon-preview-body"></tbody>
+    </table></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border2);">
+      <div style="font-size:13px;">Đã chọn: <b id="recon-preview-count">0</b> đơn — Tổng Thành tiền: <b id="recon-preview-total" style="color:var(--gold);"></b></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-preview')">Huỷ</button>
+        <button class="btn btn-gold btn-sm" onclick="createReconBatch()">Tạo &amp; Gửi đợt đối soát</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reconciliation Batch Detail Modal (admin xem + vendor duyệt/flag) -->
+<div class="mbg" id="m-recon-detail">
+  <div class="modal modal-xl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div class="modal-title" id="recon-detail-title">Đợt đối soát</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-detail')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;" id="recon-detail-meta"></div>
+    <div class="tw" style="max-height:45vh;overflow-y:auto;"><table>
+      <thead><tr>
+        <th>Invoice</th><th>Business</th><th class="num">Thành tiền</th><th>Trạng thái</th><th></th>
+      </tr></thead>
+      <tbody id="recon-detail-body"></tbody>
+    </table></div>
+    <div id="recon-detail-totals" style="margin-top:14px;padding:14px;background:var(--card2);border-radius:var(--rsm);font-size:13px;line-height:2;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;" id="recon-detail-actions"></div>
+  </div>
+</div>
+
+<!-- Flag item modal (vendor) -->
+<div class="mbg" id="m-recon-flag">
+  <div class="modal" style="max-width:400px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="modal-title">⚠️ Báo sai thông tin</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-flag')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;" id="recon-flag-order-label"></div>
+    <textarea id="recon-flag-note" rows="4" placeholder="Mô tả chỗ sai..." style="width:100%;"></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-flag')">Huỷ</button>
+      <button class="btn btn-gold btn-sm" onclick="submitReconFlag()">Gửi báo cáo</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ MODALS ══ -->
 <!-- Order View Modal -->
@@ -683,7 +772,7 @@ const sb=window.supabase.createClient(FIN_URL,FIN_KEY);
 
 // ══ STATE ══
 let currentUser=null,currentProfile=null;
-let allOrders=[],allPhotos=[],allNotifs=[],allAccounts=[],allFiles=[];
+let allOrders=[],allPhotos=[],allNotifs=[],allAccounts=[],allFiles=[],allBatches=[];
 let realtimeSub=null;
 
 // ══ AUTH ══
@@ -722,7 +811,7 @@ async function doLogout(){
 
 // ══ LOAD ══
 async function loadAll(){
-  await Promise.all([loadOrders(),loadPhotos(),loadFiles(),loadNotifs(),
+  await Promise.all([loadOrders(),loadPhotos(),loadFiles(),loadNotifs(),loadBatches(),
     currentProfile?.role==='admin'?loadAccounts():Promise.resolve()]);
   renderDashboard();renderOrders();renderNotifs();
   if(currentProfile?.role==='admin')renderAccounts();
@@ -751,6 +840,14 @@ async function loadFiles(){
   const{data,error}=await sb.from('order_files').select('*').in('order_id',ids).order('created_at',{ascending:false});
   if(error){console.error('loadFiles:',error);allFiles=[];return;}
   allFiles=data||[];
+}
+
+async function loadBatches(){
+  const{data,error}=await sb.from('reconciliation_batches').select('*,reconciliation_items(*)').order('created_at',{ascending:false});
+  if(error){console.error('loadBatches:',error);allBatches=[];return;}
+  allBatches=data||[];
+  renderBatchList();
+  updateReconBadge();
 }
 
 async function loadNotifs(){
@@ -1373,13 +1470,32 @@ function renderNotifs(){
   updateNotifBadge();
   const list=document.getElementById('notif-list');
   if(!allNotifs.length){list.innerHTML='<div class="empty-state"><div class="ei">🔔</div><p>Chưa có thông báo</p></div>';return;}
+  const iconOf=t=>({tracking:'🚚',new_order:'📦',recon_sent:'🧾',recon_flagged:'⚠️',recon_approved:'✅'}[t]||'📸');
   list.innerHTML=allNotifs.map(n=>`
-    <div class="notif-item${n.is_read?'':' unread'}">
-      <div class="notif-icon">${n.type==='tracking'?'🚚':'📸'}</div>
+    <div class="notif-item${n.is_read?'':' unread'}" style="cursor:pointer;" onclick="openNotif(${n.id})">
+      <div class="notif-icon">${iconOf(n.type)}</div>
       <div><div class="notif-msg">${n.message}</div>
         <div class="notif-time">${fmtTime(n.created_at)}</div>
       </div>
     </div>`).join('');
+}
+
+// Bấm vào thông báo → mở thẳng nội dung liên quan, không cần thao tác thêm
+async function openNotif(notifId){
+  const n=allNotifs.find(x=>x.id===notifId);
+  if(!n)return;
+  if(!n.is_read){
+    await sb.from('notifications').update({is_read:true}).eq('id',notifId);
+    n.is_read=true;updateNotifBadge();renderNotifs();
+  }
+  if(n.batch_id){
+    nav('reconciliation');
+    if(!allBatches.some(b=>b.id===n.batch_id))await loadBatches();
+    openReconDetail(n.batch_id);
+  }else if(n.order_id){
+    const o=allOrders.find(x=>x.id===n.order_id);
+    if(o){nav('orders');openOrderView(o.id);}
+  }
 }
 
 async function markAllRead(){
@@ -1902,6 +2018,350 @@ function totalCommOf(o){
   return (parseFloat(o?.commission)||0)+(parseFloat(o?.price_gap)||0)*(gapPct/100);
 }
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ĐỐI SOÁT HOA HỒNG — Bách Lâm Thịnh (đại diện Bolsa + Tspa)
+// Công thức: T=Tổng Commission gốc | BLT trả=T×1.04 | VAT khai thuế=T×0.08 | KCT thực nhận=T×0.96
+// ══════════════════════════════════════════════════════════════════════════
+const RECON_STATUS_LABEL={draft:'Nháp',sent:'Đã gửi vendor',flagged:'Vendor báo sai',approved:'Đã duyệt'};
+const RECON_STATUS_COLOR={draft:'var(--text3)',sent:'var(--blue)',flagged:'var(--red)',approved:'var(--green)'};
+
+function reconEligibleOrders(){
+  return allOrders.filter(o=>
+    ['BOLSA','TSPA'].includes((o.vendor||'').toUpperCase())
+    && (parseFloat(o.balance_due)||0)===0
+    && !o.commission_received
+  );
+}
+
+function openReconPreview(){
+  const list=reconEligibleOrders();
+  if(!list.length){toast('Không có đơn nào đủ điều kiện (Balance=0 & chưa thu HH)','var(--amber)');return;}
+  document.getElementById('recon-preview-body').innerHTML=list.map(o=>`
+    <tr data-oid="${o.id}">
+      <td><input type="checkbox" class="recon-check" checked onchange="reconRecalcPreview()"></td>
+      <td class="bold">${o.invoice_no||'—'}</td>
+      <td>${o.business_name||'—'}</td>
+      <td>${vendorTag(o.vendor)}</td>
+      <td class="num">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(totalCommOf(o))}</td>
+      <td class="num">${fmtUSD(totalCommOf(o)*1.04)}</td>
+    </tr>`).join('');
+  document.getElementById('recon-check-all').checked=true;
+  reconRecalcPreview();
+  openModal('m-recon-preview');
+}
+
+function reconToggleAll(checked){
+  document.querySelectorAll('.recon-check').forEach(c=>c.checked=checked);
+  reconRecalcPreview();
+}
+
+function reconRecalcPreview(){
+  const rows=[...document.querySelectorAll('#recon-preview-body tr')];
+  let count=0,total=0;
+  rows.forEach(r=>{
+    if(r.querySelector('.recon-check').checked){
+      count++;
+      const o=allOrders.find(x=>String(x.id)===r.dataset.oid);
+      total+=totalCommOf(o);
+    }
+  });
+  document.getElementById('recon-preview-count').textContent=count;
+  document.getElementById('recon-preview-total').textContent=fmtUSD(total);
+}
+
+async function createReconBatch(){
+  const label=(document.getElementById('recon-new-label').value||'').trim();
+  if(!label){toast('Nhập nhãn đợt đối soát trước','var(--amber)');return;}
+  const rows=[...document.querySelectorAll('#recon-preview-body tr')].filter(r=>r.querySelector('.recon-check').checked);
+  if(!rows.length){toast('Chưa chọn đơn nào','var(--amber)');return;}
+  try{
+    const items=rows.map(r=>{
+      const o=allOrders.find(x=>String(x.id)===r.dataset.oid);
+      return{order:o,thanh_tien:totalCommOf(o)};
+    });
+    const T=items.reduce((s,i)=>s+i.thanh_tien,0);
+    const{data:batch,error:be}=await sb.from('reconciliation_batches').insert({
+      period_label:label,status:'sent',created_by:currentUser.id,sent_at:new Date().toISOString(),
+      total_thanh_tien:T,total_blt_pay:T*1.04,total_vat:T*0.08,total_kct_net:T*0.96
+    }).select().single();
+    if(be)throw be;
+    const itemRows=items.map(i=>({batch_id:batch.id,order_id:i.order.id,thanh_tien:i.thanh_tien}));
+    const{error:ie}=await sb.from('reconciliation_items').insert(itemRows);
+    if(ie)throw ie;
+    // Thông báo cho vendor — bấm vào mở thẳng batch này
+    await sb.from('notifications').insert({
+      type:'recon_sent',batch_id:batch.id,is_read:false,
+      message:`📋 Đợt đối soát "${label}" đã gửi — ${items.length} đơn, tổng BLT trả ${fmtUSD(T*1.04)}`
+    });
+    closeModal('m-recon-preview');
+    document.getElementById('recon-new-label').value='';
+    await loadBatches();
+    toast('✅ Đã tạo & gửi đợt đối soát','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+function renderBatchList(){
+  const el=document.getElementById('recon-batch-list');
+  if(!el)return;
+  if(!allBatches.length){el.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3);">Chưa có đợt đối soát nào</td></tr>';return;}
+  el.innerHTML=allBatches.map(b=>`
+    <tr style="cursor:pointer;" onclick="openReconDetail(${b.id})">
+      <td class="bold">${b.period_label}</td>
+      <td><span style="color:${RECON_STATUS_COLOR[b.status]};">${RECON_STATUS_LABEL[b.status]||b.status}</span></td>
+      <td class="num">${(b.reconciliation_items||[]).length}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(b.total_thanh_tien)}</td>
+      <td class="num">${fmtUSD(b.total_blt_pay)}</td>
+      <td style="color:var(--text3);">${fmtTime(b.created_at)}</td>
+      <td>${b.status==='approved'?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportReconBatch(${b.id})">⬇ Excel</button>`:''}</td>
+    </tr>`).join('');
+}
+
+function updateReconBadge(){
+  const isAdmin=currentProfile?.role==='admin';
+  const badge=document.getElementById('recon-badge');
+  const count=isAdmin
+    ?allBatches.filter(b=>b.status==='flagged').length
+    :allBatches.filter(b=>b.status==='sent').length;
+  if(badge){badge.style.display=count>0?'inline-block':'none';badge.textContent=count;}
+}
+
+let _reconCurrentBatchId=null;
+
+function openReconDetail(batchId){
+  const b=allBatches.find(x=>x.id===batchId);
+  if(!b)return;
+  _reconCurrentBatchId=batchId;
+  const isAdmin=currentProfile?.role==='admin';
+  document.getElementById('recon-detail-title').textContent=`Đợt đối soát — ${b.period_label}`;
+  document.getElementById('recon-detail-meta').innerHTML=
+    `Trạng thái: <span style="color:${RECON_STATUS_COLOR[b.status]};">${RECON_STATUS_LABEL[b.status]||b.status}</span> · Tạo lúc ${fmtTime(b.created_at)}`
+    +(b.approved_at?` · Duyệt lúc ${fmtTime(b.approved_at)}`:'');
+  const items=b.reconciliation_items||[];
+  document.getElementById('recon-detail-body').innerHTML=items.map(it=>{
+    const o=allOrders.find(x=>x.id===it.order_id);
+    const stLabel={active:'Bình thường',flagged:'⚠️ Vendor báo sai',pending_next:'⏳ Dời đợt sau'}[it.status]||it.status;
+    const stColor={active:'var(--text2)',flagged:'var(--red)',pending_next:'var(--amber)'}[it.status]||'var(--text2)';
+    let actionHtml='';
+    if(!isAdmin&&b.status!=='approved'&&it.status==='active'){
+      actionHtml=`<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="openReconFlag(${it.id},'${(o?.invoice_no||'').replace(/'/g,"\\'")}')">Báo sai</button>`;
+    }else if(isAdmin&&it.status==='flagged'){
+      actionHtml=`<button class="btn btn-ghost btn-sm" onclick="resolveReconItem(${it.id},'active')">Đã sửa xong</button>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--amber);" onclick="resolveReconItem(${it.id},'pending_next')">Dời đợt sau</button>`;
+    }
+    return`<tr>
+      <td class="bold">${o?.invoice_no||'—'}</td>
+      <td>${o?.business_name||'—'}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(it.thanh_tien)}</td>
+      <td><span style="color:${stColor};font-size:12px;">${stLabel}</span>${it.flag_note?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">"${it.flag_note}"</div>`:''}</td>
+      <td>${actionHtml}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('recon-detail-totals').innerHTML=`
+    Tổng Thành tiền (T): <b style="color:var(--gold);">${fmtUSD(b.total_thanh_tien)}</b><br>
+    BLT chịu thêm 4%: <b>${fmtUSD(b.total_thanh_tien*0.04)}</b> → <b>BLT thực trả (104%): ${fmtUSD(b.total_blt_pay)}</b><br>
+    VAT 8% khai thuế: <b>${fmtUSD(b.total_vat)}</b> · KCT thực nhận (96%): <b style="color:var(--green);">${fmtUSD(b.total_kct_net)}</b>`;
+  const actionsEl=document.getElementById('recon-detail-actions');
+  if(!isAdmin&&b.status==='sent'){
+    actionsEl.innerHTML=`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Duyệt đợt đối soát</button>`;
+  }else if(isAdmin&&b.status==='flagged'){
+    actionsEl.innerHTML=`<span style="font-size:12px;color:var(--text3);">Xử lý xong các đơn bị flag ở trên rồi gửi lại cho vendor.</span>
+      <button class="btn btn-gold btn-sm" onclick="resendReconBatch(${b.id})">Gửi lại cho Vendor</button>`;
+  }else{
+    actionsEl.innerHTML='';
+  }
+  openModal('m-recon-detail');
+}
+
+let _reconFlagItemId=null;
+function openReconFlag(itemId,invoiceNo){
+  _reconFlagItemId=itemId;
+  document.getElementById('recon-flag-order-label').textContent=`Đơn: ${invoiceNo}`;
+  document.getElementById('recon-flag-note').value='';
+  openModal('m-recon-flag');
+}
+
+async function submitReconFlag(){
+  const note=(document.getElementById('recon-flag-note').value||'').trim();
+  if(!note){toast('Mô tả chỗ sai trước đã','var(--amber)');return;}
+  try{
+    const{error}=await sb.from('reconciliation_items').update({
+      status:'flagged',flag_note:note,flagged_by:currentUser.id,flagged_at:new Date().toISOString()
+    }).eq('id',_reconFlagItemId);
+    if(error)throw error;
+    await sb.from('reconciliation_batches').update({status:'flagged'}).eq('id',_reconCurrentBatchId);
+    const b=allBatches.find(x=>x.id===_reconCurrentBatchId);
+    await sb.from('notifications').insert({
+      type:'recon_flagged',batch_id:_reconCurrentBatchId,is_read:false,
+      message:`⚠️ Vendor báo sai 1 đơn trong đợt "${b?.period_label||''}": ${note}`
+    });
+    closeModal('m-recon-flag');
+    await loadBatches();
+    openReconDetail(_reconCurrentBatchId);
+    toast('✅ Đã gửi báo cáo tới admin','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+async function resolveReconItem(itemId,newStatus){
+  try{
+    const{error}=await sb.from('reconciliation_items').update({status:newStatus,flag_note:null}).eq('id',itemId);
+    if(error)throw error;
+    await loadBatches();
+    openReconDetail(_reconCurrentBatchId);
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+async function resendReconBatch(batchId){
+  try{
+    // Nếu còn item đang flagged mà admin chưa xử lý thì chặn gửi lại
+    const b=allBatches.find(x=>x.id===batchId);
+    const stillFlagged=(b?.reconciliation_items||[]).some(it=>it.status==='flagged');
+    if(stillFlagged){toast('Còn đơn đang bị báo sai chưa xử lý xong','var(--amber)');return;}
+    await sb.from('reconciliation_batches').update({status:'sent'}).eq('id',batchId);
+    await sb.from('notifications').insert({
+      type:'recon_sent',batch_id:batchId,is_read:false,
+      message:`📋 Đợt đối soát "${b?.period_label||''}" đã được cập nhật, gửi lại để duyệt`
+    });
+    await loadBatches();
+    closeModal('m-recon-detail');
+    toast('✅ Đã gửi lại cho vendor','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+async function approveReconBatch(batchId){
+  if(!confirm('Duyệt đợt đối soát này? Các đơn (trừ đơn bị dời) sẽ tự đánh dấu "HH đã thu".'))return;
+  try{
+    const b=allBatches.find(x=>x.id===batchId);
+    const activeItems=(b?.reconciliation_items||[]).filter(it=>it.status==='active');
+    const orderIds=activeItems.map(it=>it.order_id);
+    if(orderIds.length){
+      const{error:ue}=await sb.from('vendor_orders').update({commission_received:true}).in('id',orderIds);
+      if(ue)throw ue;
+    }
+    const{error:be}=await sb.from('reconciliation_batches').update({
+      status:'approved',approved_by:currentUser.id,approved_at:new Date().toISOString()
+    }).eq('id',batchId);
+    if(be)throw be;
+    await sb.from('notifications').insert({
+      type:'recon_approved',batch_id:batchId,is_read:false,
+      message:`✅ Vendor đã duyệt đợt đối soát "${b?.period_label||''}" — ${orderIds.length} đơn đã đánh dấu HH đã thu`
+    });
+    await loadOrders();await loadBatches();
+    closeModal('m-recon-detail');
+    renderDashboard();renderOrders();
+    toast('✅ Đã duyệt đợt đối soát','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+// ── Xuất Excel 2 sheet: Hoá đơn thuế + Đối soát nội bộ KCT-BLT ──
+const BLT_INFO={
+  name:'CÔNG TY TNHH BÁCH LÂM THỊNH',
+  address:'818/52 Xô Viết Nghệ Tĩnh, Phường Thạnh Mỹ Tây, Thành phố Hồ Chí Minh, Việt Nam',
+  mst:'0319586195'
+};
+const KCT_INFO={
+  name:'CÔNG TY TNHH MAISON DE KCT',
+  address:'276/29/10 Đường Mã Lò, Phường Bình Trị Đông, Thành phố Hồ Chí Minh, Việt Nam',
+  bank:'190319594911 — Ngân hàng TMCP Kỹ Thương Việt Nam (Techcombank)',
+  phone:'0919044074',mst:'0319594911'
+};
+
+async function exportReconBatch(batchId){
+  const b=allBatches.find(x=>x.id===batchId);
+  if(!b){toast('Không tìm thấy đợt đối soát','var(--red)');return;}
+  toast('Đang tạo file Excel…','var(--text2)');
+  try{
+    const items=(b.reconciliation_items||[]).filter(it=>it.status!=='pending_next');
+    const wb=new ExcelJS.Workbook();
+    wb.creator='Maison De KCT Vendor Portal';
+
+    // ═ Sheet 1: Hoá đơn thuế (giữ nguyên format mẫu cũ) ═
+    const ws1=wb.addWorksheet('Hoá đơn thuế');
+    ws1.mergeCells('B1:J1');ws1.getCell('B1').value=KCT_INFO.name;ws1.getCell('B1').font={bold:true,size:13};
+    ws1.getCell('B2').value='Địa chỉ: '+KCT_INFO.address;
+    ws1.getCell('B3').value='Số tài khoản: '+KCT_INFO.bank;
+    ws1.getCell('B4').value='Điện thoại (Tel): '+KCT_INFO.phone;
+    ws1.getCell('B5').value='MST: '+KCT_INFO.mst;
+    ws1.getCell('G7').value='Thành phố Hồ Chí Minh, ngày ... tháng ... năm 2026';
+    ws1.mergeCells('B9:J9');ws1.getCell('B9').value='BẢNG KÊ ĐỐI SOÁT';ws1.getCell('B9').font={bold:true,size:16};ws1.getCell('B9').alignment={horizontal:'center'};
+    ws1.getCell('B12').value='Tên đơn vị sử dụng dịch vụ: '+BLT_INFO.name;
+    ws1.getCell('B13').value='Địa chỉ: '+BLT_INFO.address;
+    ws1.getCell('B14').value='MST: '+BLT_INFO.mst;
+    const hdr1=['STT','Mã KH','Ngày thực hiện','Nội dung dịch vụ','Kết quả dịch vụ','Mã đơn hàng','Phí dịch vụ/hoa hồng','Khoản chênh lệch','Thành tiền'];
+    hdr1.forEach((h,i)=>{const c=ws1.getCell(16,2+i);c.value=h;c.font={bold:true};c.border={bottom:{style:'thin'}};});
+    const statusLbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
+    let r=17;
+    items.forEach((it,i)=>{
+      const o=allOrders.find(x=>x.id===it.order_id);
+      ws1.getCell(r,2).value=i+1;
+      ws1.getCell(r,3).value=o?.customer_name||'';
+      ws1.getCell(r,4).value=o?.order_date||'';
+      ws1.getCell(r,5).value=`Dịch vụ đại lý (${o?.business_name||''})`;
+      ws1.getCell(r,6).value=statusLbl[o?.status]||o?.status||'';
+      ws1.getCell(r,7).value=o?.invoice_no||'';
+      ws1.getCell(r,8).value=parseFloat(o?.commission)||0;
+      ws1.getCell(r,9).value=parseFloat(o?.price_gap)||0;
+      ws1.getCell(r,10).value=it.thanh_tien;
+      r++;
+    });
+    const totalRow=r+1;
+    ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={bold:true};
+    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${r-1})`};ws1.getCell(totalRow,10).font={bold:true};
+    ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';
+    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow}*8%`};
+    ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={bold:true};
+    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`};ws1.getCell(totalRow+2,10).font={bold:true};
+    ws1.getCell(totalRow+4,2).value=`Bảng kê này là căn cứ để ${KCT_INFO.name} xuất hoá đơn điện tử cho ${BLT_INFO.name}`;
+    ws1.getCell(totalRow+7,2).value=BLT_INFO.name;ws1.getCell(totalRow+7,2).font={bold:true};
+    ws1.getCell(totalRow+7,8).value=KCT_INFO.name;ws1.getCell(totalRow+7,8).font={bold:true};
+    ws1.getCell(totalRow+8,2).value='(Ký tên đóng dấu)';
+    ws1.getCell(totalRow+8,8).value='(Ký tên đóng dấu)';
+    ws1.columns=[{width:3},{width:6},{width:14},{width:13},{width:26},{width:14},{width:16},{width:14},{width:14},{width:14}];
+
+    // ═ Sheet 2: Đối soát nội bộ KCT-BLT (breakdown 4%/4%) ═
+    const ws2=wb.addWorksheet('Đối soát nội bộ');
+    ws2.mergeCells('A1:H1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
+    ws2.getCell('A2').value='BLT chịu 4%, KCT chịu 4% trên VAT 8% — hoá đơn điện tử vẫn khai đủ 8% VAT theo luật.';
+    ws2.getCell('A2').font={italic:true,size:10,color:{argb:'FF888888'}};
+    const hdr2=['STT','Mã đơn hàng','Business','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)','VAT 8% khai thuế','KCT thực nhận (96%)'];
+    hdr2.forEach((h,i)=>{
+      const c=ws2.getCell(4,1+i);c.value=h;
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC9A84C'}};
+      c.font={bold:true,color:{argb:'FF0A0B12'}};c.alignment={horizontal:'center',wrapText:true};
+    });
+    let r2=5;
+    items.forEach((it,i)=>{
+      const o=allOrders.find(x=>x.id===it.order_id);
+      const T=it.thanh_tien;
+      ws2.getCell(r2,1).value=i+1;
+      ws2.getCell(r2,2).value=o?.invoice_no||'';
+      ws2.getCell(r2,3).value=o?.business_name||'';
+      ws2.getCell(r2,4).value=T;
+      ws2.getCell(r2,5).value=T*0.04;
+      ws2.getCell(r2,6).value=T*1.04;
+      ws2.getCell(r2,7).value=T*0.08;
+      ws2.getCell(r2,8).value=T*0.96;
+      r2++;
+    });
+    const t2=r2+1;
+    ws2.getCell(t2,3).value='TỔNG CỘNG';ws2.getCell(t2,3).font={bold:true};
+    [4,5,6,7,8].forEach(col=>{
+      const colLetter=String.fromCharCode(64+col);
+      ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`};
+      ws2.getCell(t2,col).font={bold:true};
+    });
+    for(let rr=4;rr<t2;rr++){[4,5,6,7,8].forEach(col=>ws2.getCell(rr,col).numFmt='$#,##0.00');}
+    ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:12},{width:16},{width:14},{width:16}];
+
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`doi-soat-BLT-${b.period_label.replace(/[^\w]/g,'_')}.xlsx`;a.click();
+    toast('✅ Đã xuất file đối soát','var(--green)');
+  }catch(e){toast('Lỗi xuất Excel: '+e.message,'var(--red)');console.error(e);}
+}
+
 function statusBadge(s){
   const m={
     pending:{cls:'s-pending',lbl:'Pending'},
