@@ -1499,7 +1499,7 @@ async function openNotif(notifId){
   if(n.batch_id){
     nav('reconciliation');
     if(!allBatches.some(b=>b.id===n.batch_id))await loadBatches();
-    openReconDetail(n.batch_id);
+    await openReconDetail(n.batch_id);
   }else if(n.order_id){
     const o=allOrders.find(x=>x.id===n.order_id);
     if(o){nav('orders');openOrderView(o.id);}
@@ -2145,10 +2145,21 @@ function openOrderFromRecon(orderId){
   openOrderView(orderId);
 }
 
-function openReconDetail(batchId){
+// Fetch đơn theo ID, KHÔNG lọc theo vendor_access — dùng cho Đối soát vì BLT
+// đại diện cả Bolsa+Tspa, vendor cần xem đủ đơn dù account chỉ gán 1 vendor.
+async function ensureOrdersLoaded(orderIds){
+  const missing=orderIds.filter(id=>!allOrders.some(o=>o.id===id));
+  if(!missing.length)return;
+  const{data,error}=await sb.from('vendor_orders').select('*').in('id',missing);
+  if(error){console.error('ensureOrdersLoaded:',error);return;}
+  (data||[]).forEach(o=>allOrders.push(o));
+}
+
+async function openReconDetail(batchId){
   const b=allBatches.find(x=>x.id===batchId);
   if(!b)return;
   _reconCurrentBatchId=batchId;
+  await ensureOrdersLoaded((b.reconciliation_items||[]).map(it=>it.order_id));
   const isAdmin=currentProfile?.role==='admin';
   document.getElementById('recon-detail-title').textContent=`Đợt đối soát — ${b.period_label}`;
   document.getElementById('recon-detail-meta').innerHTML=
@@ -2302,7 +2313,7 @@ async function exportReconBatch(batchId){
     const ws1=wb.addWorksheet('BANGKE');
     ws1.properties.defaultRowHeight=18;
     ws1.getColumn(1).width=3;
-    const colW1={B:5.57,C:11.14,D:10.14,E:19.36,F:16.14,G:16.29,H:14.14,I:15.14,J:15.14};
+    const colW1={B:6,C:16,D:13,E:32,F:18,G:18,H:20,I:20,J:22};
     Object.entries(colW1).forEach(([col,w])=>{ws1.getColumn(col).width=w;});
 
     ws1.mergeCells('B1:F1');ws1.getCell('B1').value=KCT_INFO.name;ws1.getCell('B1').font={...TNR,size:14,bold:true};
@@ -2326,7 +2337,7 @@ async function exportReconBatch(batchId){
       c.font={...TNR,size:14,bold:true};c.alignment={horizontal:'center',vertical:'center',wrapText:true};
       c.border={top:thin,bottom:thin,left:thin,right:thin};
     });
-    ws1.getRow(16).height=35;
+    ws1.getRow(16).height=50;
 
     const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
     let r=17;
