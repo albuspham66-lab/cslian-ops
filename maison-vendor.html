@@ -420,13 +420,13 @@ th.num{text-align:right;}
       <button class="btn btn-sm" id="recon-mode-eligible" onclick="reconSwitchMode('eligible')">Đủ điều kiện</button>
       <button class="btn btn-ghost btn-sm" id="recon-mode-all" onclick="reconSwitchMode('all')">Tất cả đơn hàng (recheck)</button>
     </div>
-    <div id="recon-filters-bar" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-      <input type="text" id="recon-filter-invoice" placeholder="Tìm mã đơn..." style="width:160px;" oninput="renderReconPreviewList()">
-      <select id="recon-filter-month" class="filter-select" onchange="renderReconPreviewList()"><option value="">Tất cả tháng</option></select>
-      <input type="text" id="recon-filter-business" placeholder="Tìm Business..." style="width:160px;" oninput="renderReconPreviewList()">
-      <input type="text" id="recon-filter-customer" placeholder="Tìm Customer..." style="width:160px;" oninput="renderReconPreviewList()">
+    <div id="recon-filters-bar" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:nowrap;">
+      <input type="text" id="recon-filter-invoice" placeholder="Tìm mã đơn..." style="flex:1;min-width:0;" oninput="reconResetPageAndRender()">
+      <select id="recon-filter-month" class="filter-select" style="flex:1;min-width:0;" onchange="reconResetPageAndRender()"><option value="">Tất cả tháng</option></select>
+      <input type="text" id="recon-filter-business" placeholder="Tìm Business..." style="flex:1;min-width:0;" oninput="reconResetPageAndRender()">
+      <input type="text" id="recon-filter-customer" placeholder="Tìm Customer..." style="flex:1;min-width:0;" oninput="reconResetPageAndRender()">
     </div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát. Lựa chọn được giữ nguyên khi chuyển qua lại giữa 2 chế độ/lọc.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát. Lựa chọn được giữ nguyên khi chuyển qua lại giữa 2 chế độ/lọc/trang.</div>
     <div class="tw" style="max-height:55vh;overflow-y:auto;"><table>
       <thead><tr>
         <th style="width:30px;"><input type="checkbox" id="recon-check-all" checked onchange="reconToggleAll(this.checked)"></th>
@@ -435,6 +435,11 @@ th.num{text-align:right;}
       </tr></thead>
       <tbody id="recon-preview-body"></tbody>
     </table></div>
+    <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" id="recon-page-prev" onclick="reconChangePage(-1)">← Previous</button>
+      <span style="font-size:12px;color:var(--text3);" id="recon-page-label"></span>
+      <button class="btn btn-ghost btn-sm" id="recon-page-next" onclick="reconChangePage(1)">Next →</button>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border2);">
       <div style="font-size:13px;">Đã chọn: <b id="recon-preview-count">0</b> đơn — Tổng Thành tiền: <b id="recon-preview-total" style="color:var(--gold);"></b></div>
       <div style="display:flex;gap:8px;">
@@ -1184,6 +1189,10 @@ function closeOrderView(){
   if(_returnToReconAfterOrderView){
     _returnToReconAfterOrderView=false;
     openModal('m-recon-detail');
+  }
+  if(_returnToReconPreviewAfterOrderView){
+    _returnToReconPreviewAfterOrderView=false;
+    openModal('m-recon-preview');
   }
 }
 
@@ -2089,7 +2098,8 @@ function reconEligibleOrders(){
   );
 }
 
-let _reconMode='eligible',_reconSelectedIds=new Set();
+let _reconMode='eligible',_reconSelectedIds=new Set(),_reconPage=1;
+const RECON_PAGE_SIZE=20;
 
 function openReconPreview(){
   _reconSelectedIds=new Set(reconEligibleOrders().map(o=>o.id));
@@ -2099,19 +2109,31 @@ function openReconPreview(){
   document.getElementById('recon-filter-invoice').value='';
   document.getElementById('recon-filter-business').value='';
   document.getElementById('recon-filter-customer').value='';
+  _reconPage=1;
   reconSwitchMode('eligible');
   openModal('m-recon-preview');
 }
 
+function reconResetPageAndRender(){
+  _reconPage=1;
+  renderReconPreviewList();
+}
+
+function reconChangePage(dir){
+  _reconPage+=dir;
+  renderReconPreviewList();
+}
+
 function reconSwitchMode(mode){
   _reconMode=mode;
+  _reconPage=1;
   document.getElementById('recon-mode-eligible').className=mode==='eligible'?'btn btn-sm':'btn btn-ghost btn-sm';
   document.getElementById('recon-mode-all').className=mode==='all'?'btn btn-sm':'btn btn-ghost btn-sm';
   document.getElementById('recon-filters-bar').style.display=mode==='all'?'flex':'none';
   renderReconPreviewList();
 }
 
-function renderReconPreviewList(){
+function reconGetFilteredList(){
   let list=_reconMode==='eligible'
     ?reconEligibleOrders()
     :allOrders.filter(o=>['BOLSA','TSPA'].includes((o.vendor||'').toUpperCase()));
@@ -2127,12 +2149,22 @@ function renderReconPreviewList(){
       &&(!cust||(o.customer_name||'').toLowerCase().includes(cust))
     );
   }
+  return list;
+}
+
+function renderReconPreviewList(){
+  const fullList=reconGetFilteredList();
+  const totalPages=Math.max(1,Math.ceil(fullList.length/RECON_PAGE_SIZE));
+  if(_reconPage>totalPages)_reconPage=totalPages;
+  if(_reconPage<1)_reconPage=1;
+  const start=(_reconPage-1)*RECON_PAGE_SIZE;
+  const list=fullList.slice(start,start+RECON_PAGE_SIZE);
   if(!list.length){
     document.getElementById('recon-preview-body').innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--text3);">Không có đơn nào khớp</td></tr>';
   }else{
     document.getElementById('recon-preview-body').innerHTML=list.map(o=>`
-      <tr data-oid="${o.id}">
-        <td><input type="checkbox" class="recon-check" ${_reconSelectedIds.has(o.id)?'checked':''} onchange="reconToggleOne(${o.id},this.checked)"></td>
+      <tr data-oid="${o.id}" style="cursor:pointer;" onclick="openOrderFromReconPreview(${o.id})" title="Bấm để xem chi tiết đơn hàng">
+        <td onclick="event.stopPropagation();"><input type="checkbox" class="recon-check" ${_reconSelectedIds.has(o.id)?'checked':''} onchange="reconToggleOne(${o.id},this.checked)"></td>
         <td class="bold">${o.invoice_no||'—'}</td>
         <td style="color:var(--text3);">${o.billing_month||'—'}</td>
         <td>${o.business_name||'—'}</td>
@@ -2143,8 +2175,19 @@ function renderReconPreviewList(){
         <td class="num">${fmtUSD(totalCommOf(o)*1.04)}</td>
       </tr>`).join('');
   }
-  document.getElementById('recon-check-all').checked=list.length>0&&list.every(o=>_reconSelectedIds.has(o.id));
+  document.getElementById('recon-page-label').textContent=`Page ${_reconPage} of ${totalPages} (${fullList.length} orders)`;
+  document.getElementById('recon-page-prev').disabled=_reconPage<=1;
+  document.getElementById('recon-page-next').disabled=_reconPage>=totalPages;
+  const allOnPageSelected=list.length>0&&list.every(o=>_reconSelectedIds.has(o.id));
+  document.getElementById('recon-check-all').checked=allOnPageSelected;
   reconRecalcPreview();
+}
+
+let _returnToReconPreviewAfterOrderView=false;
+function openOrderFromReconPreview(orderId){
+  closeModal('m-recon-preview');
+  _returnToReconPreviewAfterOrderView=true;
+  openOrderView(orderId);
 }
 
 function reconToggleOne(id,checked){
