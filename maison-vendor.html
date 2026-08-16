@@ -387,10 +387,14 @@ th.num{text-align:right;}
             <label class="fl">Nhãn đợt (chỉ để đặt tên, không lọc theo ngày)</label>
             <input type="text" id="recon-new-label" placeholder="VD: Tháng 8/2026" style="width:220px;">
           </div>
+          <div class="fg" style="margin:0;">
+            <label class="fl">Tỷ giá quy đổi (USD→VND)</label>
+            <input type="number" id="recon-exchange-rate" value="25000" step="1" min="1" style="width:140px;">
+          </div>
           <button class="btn btn-gold btn-sm" onclick="openReconPreview()">Xem trước đơn đủ điều kiện</button>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:8px;">
-          Điều kiện: Balance Due = $0 (khách đã trả đủ) VÀ chưa đánh dấu "HH đã thu" — vendor Bolsa + Tspa.
+          Điều kiện: Balance Due = $0 (khách đã trả đủ) VÀ chưa đánh dấu "HH đã thu" — vendor Bolsa + Tspa. Tỷ giá được lưu cố định theo từng đợt, đổi số ở đây chỉ áp dụng cho đợt tạo mới.
         </div>
       </div>
 
@@ -1167,6 +1171,10 @@ function closeOrderView(){
   if(_ovDirty&&!confirm('Bạn chưa lưu ghi chú. Vẫn muốn đóng?'))return;
   closeModal('m-order-view');
   _ovDirty=false;
+  if(_returnToReconAfterOrderView){
+    _returnToReconAfterOrderView=false;
+    openModal('m-recon-detail');
+  }
 }
 
 async function saveVendorNotesOV(){
@@ -2082,9 +2090,11 @@ async function createReconBatch(){
       return{order:o,thanh_tien:totalCommOf(o)};
     });
     const T=items.reduce((s,i)=>s+i.thanh_tien,0);
+    const exchangeRate=parseFloat(document.getElementById('recon-exchange-rate').value)||25000;
     const{data:batch,error:be}=await sb.from('reconciliation_batches').insert({
       period_label:label,status:'sent',created_by:currentUser.id,sent_at:new Date().toISOString(),
-      total_thanh_tien:T,total_blt_pay:T*1.04,total_vat:T*0.08,total_kct_net:T*0.96
+      total_thanh_tien:T,total_blt_pay:T*1.04,total_vat:T*0.08,total_kct_net:T*0.96,
+      exchange_rate:exchangeRate
     }).select().single();
     if(be)throw be;
     const itemRows=items.map(i=>({batch_id:batch.id,order_id:i.order.id,thanh_tien:i.thanh_tien}));
@@ -2114,7 +2124,7 @@ function renderBatchList(){
       <td class="num" style="color:var(--gold);">${fmtUSD(b.total_thanh_tien)}</td>
       <td class="num">${fmtUSD(b.total_blt_pay)}</td>
       <td style="color:var(--text3);">${fmtTime(b.created_at)}</td>
-      <td>${b.status==='approved'?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportReconBatch(${b.id})">⬇ Excel</button>`:''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportReconBatch(${b.id})">⬇ Excel</button></td>
     </tr>`).join('');
 }
 
@@ -2127,7 +2137,13 @@ function updateReconBadge(){
   if(badge){badge.style.display=count>0?'inline-block':'none';badge.textContent=count;}
 }
 
-let _reconCurrentBatchId=null;
+let _reconCurrentBatchId=null,_returnToReconAfterOrderView=false;
+
+function openOrderFromRecon(orderId){
+  closeModal('m-recon-detail');
+  _returnToReconAfterOrderView=true;
+  openOrderView(orderId);
+}
 
 function openReconDetail(batchId){
   const b=allBatches.find(x=>x.id===batchId);
@@ -2150,12 +2166,12 @@ function openReconDetail(batchId){
       actionHtml=`<button class="btn btn-ghost btn-sm" onclick="resolveReconItem(${it.id},'active')">Đã sửa xong</button>
                   <button class="btn btn-ghost btn-sm" style="color:var(--amber);" onclick="resolveReconItem(${it.id},'pending_next')">Dời đợt sau</button>`;
     }
-    return`<tr>
+    return`<tr style="cursor:pointer;" onclick="openOrderFromRecon(${it.order_id})" title="Bấm để xem chi tiết đơn hàng">
       <td class="bold">${o?.invoice_no||'—'}</td>
       <td>${o?.business_name||'—'}</td>
       <td class="num" style="color:var(--gold);">${fmtUSD(it.thanh_tien)}</td>
       <td><span style="color:${stColor};font-size:12px;">${stLabel}</span>${it.flag_note?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">"${it.flag_note}"</div>`:''}</td>
-      <td>${actionHtml}</td>
+      <td onclick="event.stopPropagation();">${actionHtml}</td>
     </tr>`;
   }).join('');
   document.getElementById('recon-detail-totals').innerHTML=`
@@ -2163,13 +2179,14 @@ function openReconDetail(batchId){
     BLT chịu thêm 4%: <b>${fmtUSD(b.total_thanh_tien*0.04)}</b> → <b>BLT thực trả (104%): ${fmtUSD(b.total_blt_pay)}</b><br>
     VAT 8% khai thuế: <b>${fmtUSD(b.total_vat)}</b> · KCT thực nhận (96%): <b style="color:var(--green);">${fmtUSD(b.total_kct_net)}</b>`;
   const actionsEl=document.getElementById('recon-detail-actions');
+  let extraActions=isAdmin?`<button class="btn btn-ghost btn-sm" onclick="exportReconBatch(${b.id})">⬇ Xuất Excel</button>`:'';
   if(!isAdmin&&b.status==='sent'){
-    actionsEl.innerHTML=`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Duyệt đợt đối soát</button>`;
+    actionsEl.innerHTML=extraActions+`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Duyệt đợt đối soát</button>`;
   }else if(isAdmin&&b.status==='flagged'){
-    actionsEl.innerHTML=`<span style="font-size:12px;color:var(--text3);">Xử lý xong các đơn bị flag ở trên rồi gửi lại cho vendor.</span>
-      <button class="btn btn-gold btn-sm" onclick="resendReconBatch(${b.id})">Gửi lại cho Vendor</button>`;
+    actionsEl.innerHTML=`<span style="font-size:12px;color:var(--text3);flex:1;">Xử lý xong các đơn bị flag ở trên rồi gửi lại cho vendor.</span>`+extraActions+
+      `<button class="btn btn-gold btn-sm" onclick="resendReconBatch(${b.id})">Gửi lại cho Vendor</button>`;
   }else{
-    actionsEl.innerHTML='';
+    actionsEl.innerHTML=extraActions;
   }
   openModal('m-recon-detail');
 }
@@ -2273,56 +2290,96 @@ async function exportReconBatch(batchId){
   toast('Đang tạo file Excel…','var(--text2)');
   try{
     const items=(b.reconciliation_items||[]).filter(it=>it.status!=='pending_next');
+    if(!items.length){toast('Đợt này không có đơn nào để xuất','var(--amber)');return;}
+    const rate=parseFloat(b.exchange_rate)||25000;
+    const VND='_-* #,##0\\ "₫"_-;\\-* #,##0\\ "₫"_-;_-* "-"??\\ "₫"_-;_-@_-';
+    const TNR={name:'Times New Roman'};
+    const thin={style:'thin'};
     const wb=new ExcelJS.Workbook();
     wb.creator='Maison De KCT Vendor Portal';
 
-    // ═ Sheet 1: Hoá đơn thuế (giữ nguyên format mẫu cũ) ═
-    const ws1=wb.addWorksheet('Hoá đơn thuế');
-    ws1.mergeCells('B1:J1');ws1.getCell('B1').value=KCT_INFO.name;ws1.getCell('B1').font={bold:true,size:13};
-    ws1.getCell('B2').value='Địa chỉ: '+KCT_INFO.address;
-    ws1.getCell('B3').value='Số tài khoản: '+KCT_INFO.bank;
-    ws1.getCell('B4').value='Điện thoại (Tel): '+KCT_INFO.phone;
-    ws1.getCell('B5').value='MST: '+KCT_INFO.mst;
-    ws1.getCell('G7').value='Thành phố Hồ Chí Minh, ngày ... tháng ... năm 2026';
-    ws1.mergeCells('B9:J9');ws1.getCell('B9').value='BẢNG KÊ ĐỐI SOÁT';ws1.getCell('B9').font={bold:true,size:16};ws1.getCell('B9').alignment={horizontal:'center'};
-    ws1.getCell('B12').value='Tên đơn vị sử dụng dịch vụ: '+BLT_INFO.name;
-    ws1.getCell('B13').value='Địa chỉ: '+BLT_INFO.address;
-    ws1.getCell('B14').value='MST: '+BLT_INFO.mst;
+    // ═════════════ Sheet 1: Hoá đơn thuế — giống hệt file mẫu, quy đổi VND ═════════════
+    const ws1=wb.addWorksheet('BANGKE');
+    ws1.properties.defaultRowHeight=18;
+    ws1.getColumn(1).width=3;
+    const colW1={B:5.57,C:11.14,D:10.14,E:19.36,F:16.14,G:16.29,H:14.14,I:15.14,J:15.14};
+    Object.entries(colW1).forEach(([col,w])=>{ws1.getColumn(col).width=w;});
+
+    ws1.mergeCells('B1:F1');ws1.getCell('B1').value=KCT_INFO.name;ws1.getCell('B1').font={...TNR,size:14,bold:true};
+    ws1.getCell('B2').value='Địa chỉ: '+KCT_INFO.address;ws1.getCell('B2').font={...TNR,size:14};
+    ws1.getCell('B3').value='Số tài khoản: '+KCT_INFO.bank;ws1.getCell('B3').font={...TNR,size:14};
+    ws1.getCell('B4').value='Điện thoại (Tel): '+KCT_INFO.phone;ws1.getCell('B4').font={...TNR,size:14};
+    ws1.getCell('B5').value='MST: '+KCT_INFO.mst;ws1.getCell('B5').font={...TNR,size:14};
+    ws1.getCell('G7').value='Thành phố Hồ Chí Minh, ngày ... Tháng ... năm '+new Date().getFullYear();
+    ws1.getCell('G7').font={...TNR,size:14,italic:true};
+    ws1.mergeCells('B9:J9');ws1.getCell('B9').value='BẢNG KÊ ĐỐI SOÁT';
+    ws1.getCell('B9').font={...TNR,size:22,bold:true};ws1.getCell('B9').alignment={horizontal:'center'};
+    ws1.getRow(9).height=25.5;
+
+    ws1.mergeCells('B12:J12');ws1.getCell('B12').value='Tên đơn vị sử dụng dịch vụ: '+BLT_INFO.name;ws1.getCell('B12').font={...TNR,size:13};
+    ws1.mergeCells('B13:H13');ws1.getCell('B13').value='Địa chỉ: '+BLT_INFO.address;ws1.getCell('B13').font={...TNR,size:13};
+    ws1.getCell('B14').value='MST: '+BLT_INFO.mst;ws1.getCell('B14').font={...TNR,size:13};
+
     const hdr1=['STT','Mã KH','Ngày thực hiện','Nội dung dịch vụ','Kết quả dịch vụ','Mã đơn hàng','Phí dịch vụ/hoa hồng','Khoản chênh lệch','Thành tiền'];
-    hdr1.forEach((h,i)=>{const c=ws1.getCell(16,2+i);c.value=h;c.font={bold:true};c.border={bottom:{style:'thin'}};});
-    const statusLbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
+    hdr1.forEach((h,i)=>{
+      const c=ws1.getCell(16,2+i);c.value=h;
+      c.font={...TNR,size:14,bold:true};c.alignment={horizontal:'center',vertical:'center',wrapText:true};
+      c.border={top:thin,bottom:thin,left:thin,right:thin};
+    });
+    ws1.getRow(16).height=35;
+
+    const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
     let r=17;
     items.forEach((it,i)=>{
       const o=allOrders.find(x=>x.id===it.order_id);
-      ws1.getCell(r,2).value=i+1;
-      ws1.getCell(r,3).value=o?.customer_name||'';
-      ws1.getCell(r,4).value=o?.order_date||'';
-      ws1.getCell(r,5).value=`Dịch vụ đại lý (${o?.business_name||''})`;
-      ws1.getCell(r,6).value=statusLbl[o?.status]||o?.status||'';
-      ws1.getCell(r,7).value=o?.invoice_no||'';
-      ws1.getCell(r,8).value=parseFloat(o?.commission)||0;
-      ws1.getCell(r,9).value=parseFloat(o?.price_gap)||0;
-      ws1.getCell(r,10).value=it.thanh_tien;
+      const commVnd=(parseFloat(o?.commission)||0)*rate;
+      const gapVnd=(parseFloat(o?.price_gap)||0)*rate;
+      const thanhTienVnd=it.thanh_tien*rate;
+      const rowVals=[i+1,o?.customer_name||'',o?.order_date||'',`Dịch vụ đại lý (${o?.business_name||''})`,statusLbl[o?.status]||o?.status||'',o?.invoice_no||'',commVnd,gapVnd,thanhTienVnd];
+      rowVals.forEach((v,ci)=>{
+        const c=ws1.getCell(r,2+ci);c.value=v;
+        c.font={...TNR,size:14};
+        c.alignment=ci===0?{horizontal:'center',vertical:'center'}:{vertical:'center'};
+        c.border={top:thin,bottom:thin,left:thin,right:thin};
+        if(ci>=6)c.numFmt=VND;
+      });
+      ws1.getRow(r).height=18.5;
       r++;
     });
+    const lastDataRow=r-1;
     const totalRow=r+1;
-    ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={bold:true};
-    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${r-1})`};ws1.getCell(totalRow,10).font={bold:true};
-    ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';
+    ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={...TNR,size:14,bold:true};
+    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${lastDataRow})`};
+    ws1.getCell(totalRow,10).font={...TNR,size:14};ws1.getCell(totalRow,10).numFmt=VND;
+    ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';ws1.getCell(totalRow+1,2).font={...TNR,size:14,bold:true};
     ws1.getCell(totalRow+1,10).value={formula:`J${totalRow}*8%`};
-    ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={bold:true};
-    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`};ws1.getCell(totalRow+2,10).font={bold:true};
-    ws1.getCell(totalRow+4,2).value=`Bảng kê này là căn cứ để ${KCT_INFO.name} xuất hoá đơn điện tử cho ${BLT_INFO.name}`;
-    ws1.getCell(totalRow+7,2).value=BLT_INFO.name;ws1.getCell(totalRow+7,2).font={bold:true};
-    ws1.getCell(totalRow+7,8).value=KCT_INFO.name;ws1.getCell(totalRow+7,8).font={bold:true};
-    ws1.getCell(totalRow+8,2).value='(Ký tên đóng dấu)';
-    ws1.getCell(totalRow+8,8).value='(Ký tên đóng dấu)';
-    ws1.columns=[{width:3},{width:6},{width:14},{width:13},{width:26},{width:14},{width:16},{width:14},{width:14},{width:14}];
+    ws1.getCell(totalRow+1,10).font={...TNR,size:14};ws1.getCell(totalRow+1,10).numFmt=VND;
+    ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={...TNR,size:14,bold:true};
+    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`};
+    ws1.getCell(totalRow+2,10).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+2,10).numFmt=VND;
+    ws1.getCell(totalRow+3,2).value='SỐ TIỀN BẰNG CHỮ: ................................................................';
+    ws1.getCell(totalRow+3,2).font={...TNR,size:14,bold:true};
 
-    // ═ Sheet 2: Đối soát nội bộ KCT-BLT (breakdown 4%/4%) ═
+    ws1.mergeCells(totalRow+5,2,totalRow+5,9);
+    ws1.getCell(totalRow+5,2).value=`Bảng kê này là căn cứ để ${KCT_INFO.name} xuất hoá đơn điện tử ký hiệu ...............\nsố ...... xuất ngày .../.../${new Date().getFullYear()} cho ${BLT_INFO.name}`;
+    ws1.getCell(totalRow+5,2).font={...TNR,size:14};ws1.getCell(totalRow+5,2).alignment={wrapText:true};
+    ws1.getCell(totalRow+6,2).value='Lưu ý:';ws1.getCell(totalRow+6,2).font={...TNR,size:14,bold:true};
+    ws1.getCell(totalRow+7,2).value='Bảng kê này là căn cứ để đối chiếu công nợ giữa hai bên.';ws1.getCell(totalRow+7,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+8,2).value='*Quý Khách có thể thanh toán cho Chúng tôi bằng tiền mặt hoặc chuyển khoản theo Thông tin sau';ws1.getCell(totalRow+8,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+9,2).value='-Chủ tài khoản: '+KCT_INFO.name;ws1.getCell(totalRow+9,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+10,2).value='-Số TK: '+KCT_INFO.bank.split(' — ')[0];ws1.getCell(totalRow+10,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+11,2).value='-Ngân hàng: '+(KCT_INFO.bank.split(' — ')[1]||'');ws1.getCell(totalRow+11,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+13,2).value=`${KCT_INFO.name} chân thành cảm ơn sự ủng hộ & hợp tác của Quý khách hàng!`;
+    ws1.getCell(totalRow+13,2).font={...TNR,size:14};
+    ws1.getCell(totalRow+16,2).value=BLT_INFO.name;ws1.getCell(totalRow+16,2).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+16,2).alignment={horizontal:'center'};
+    ws1.getCell(totalRow+16,8).value=KCT_INFO.name;ws1.getCell(totalRow+16,8).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+16,8).alignment={horizontal:'center'};
+    ws1.getCell(totalRow+17,2).value='(Ký tên đóng dấu)';ws1.getCell(totalRow+17,2).font={...TNR,size:14,italic:true};ws1.getCell(totalRow+17,2).alignment={horizontal:'center'};
+    ws1.getCell(totalRow+17,8).value='(Ký tên đóng dấu)';ws1.getCell(totalRow+17,8).font={...TNR,size:14,italic:true};ws1.getCell(totalRow+17,8).alignment={horizontal:'center'};
+
+    // ═════════════ Sheet 2: Đối soát nội bộ KCT-BLT (breakdown 4%/4%, VND) ═════════════
     const ws2=wb.addWorksheet('Đối soát nội bộ');
     ws2.mergeCells('A1:H1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
-    ws2.getCell('A2').value='BLT chịu 4%, KCT chịu 4% trên VAT 8% — hoá đơn điện tử vẫn khai đủ 8% VAT theo luật.';
+    ws2.getCell('A2').value=`BLT chịu 4%, KCT chịu 4% trên VAT 8% (hoá đơn điện tử vẫn khai đủ 8% theo luật). Tỷ giá áp dụng: 1 USD = ${rate.toLocaleString('en-US')} VND.`;
     ws2.getCell('A2').font={italic:true,size:10,color:{argb:'FF888888'}};
     const hdr2=['STT','Mã đơn hàng','Business','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)','VAT 8% khai thuế','KCT thực nhận (96%)'];
     hdr2.forEach((h,i)=>{
@@ -2333,7 +2390,7 @@ async function exportReconBatch(batchId){
     let r2=5;
     items.forEach((it,i)=>{
       const o=allOrders.find(x=>x.id===it.order_id);
-      const T=it.thanh_tien;
+      const T=it.thanh_tien*rate;
       ws2.getCell(r2,1).value=i+1;
       ws2.getCell(r2,2).value=o?.invoice_no||'';
       ws2.getCell(r2,3).value=o?.business_name||'';
@@ -2351,8 +2408,8 @@ async function exportReconBatch(batchId){
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`};
       ws2.getCell(t2,col).font={bold:true};
     });
-    for(let rr=4;rr<t2;rr++){[4,5,6,7,8].forEach(col=>ws2.getCell(rr,col).numFmt='$#,##0.00');}
-    ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:12},{width:16},{width:14},{width:16}];
+    for(let rr=4;rr<t2;rr++){[4,5,6,7,8].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
+    ws2.columns=[{width:5},{width:18},{width:24},{width:16},{width:14},{width:18},{width:16},{width:18}];
 
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
