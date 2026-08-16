@@ -412,15 +412,25 @@ th.num{text-align:right;}
 <!-- Reconciliation Preview Modal (admin: chọn đơn trước khi tạo batch) -->
 <div class="mbg" id="m-recon-preview">
   <div class="modal modal-xl">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div class="modal-title">Xem trước — Đơn đủ điều kiện đối soát</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="modal-title">Xem trước — Chọn đơn cho đợt đối soát</div>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('m-recon-preview')">✕</button>
     </div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát.</div>
-    <div class="tw" style="max-height:50vh;overflow-y:auto;"><table>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button class="btn btn-sm" id="recon-mode-eligible" onclick="reconSwitchMode('eligible')">Đủ điều kiện</button>
+      <button class="btn btn-ghost btn-sm" id="recon-mode-all" onclick="reconSwitchMode('all')">Tất cả đơn hàng (recheck)</button>
+    </div>
+    <div id="recon-filters-bar" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <input type="text" id="recon-filter-invoice" placeholder="Tìm mã đơn..." style="width:160px;" oninput="renderReconPreviewList()">
+      <select id="recon-filter-month" class="filter-select" onchange="renderReconPreviewList()"><option value="">Tất cả tháng</option></select>
+      <input type="text" id="recon-filter-business" placeholder="Tìm Business..." style="width:160px;" oninput="renderReconPreviewList()">
+      <input type="text" id="recon-filter-customer" placeholder="Tìm Customer..." style="width:160px;" oninput="renderReconPreviewList()">
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Bỏ chọn đơn nào muốn để lại đợt sau. Chỉ đơn còn tick mới được đưa vào đợt đối soát. Lựa chọn được giữ nguyên khi chuyển qua lại giữa 2 chế độ/lọc.</div>
+    <div class="tw" style="max-height:45vh;overflow-y:auto;"><table>
       <thead><tr>
         <th style="width:30px;"><input type="checkbox" id="recon-check-all" checked onchange="reconToggleAll(this.checked)"></th>
-        <th>Invoice</th><th>Business</th><th>Vendor</th>
+        <th>Invoice</th><th>Month</th><th>Business</th><th>Customer</th><th>Vendor</th>
         <th class="num">Total</th><th class="num">Thành tiền (T)</th><th class="num">BLT trả (104%)</th>
       </tr></thead>
       <tbody id="recon-preview-body"></tbody>
@@ -2079,38 +2089,85 @@ function reconEligibleOrders(){
   );
 }
 
+let _reconMode='eligible',_reconSelectedIds=new Set();
+
 function openReconPreview(){
-  const list=reconEligibleOrders();
-  if(!list.length){toast('Không có đơn nào đủ điều kiện (Balance=0 & chưa thu HH)','var(--amber)');return;}
-  document.getElementById('recon-preview-body').innerHTML=list.map(o=>`
-    <tr data-oid="${o.id}">
-      <td><input type="checkbox" class="recon-check" checked onchange="reconRecalcPreview()"></td>
-      <td class="bold">${o.invoice_no||'—'}</td>
-      <td>${o.business_name||'—'}</td>
-      <td>${vendorTag(o.vendor)}</td>
-      <td class="num">${fmtUSD(o.total_amount)}</td>
-      <td class="num" style="color:var(--gold);">${fmtUSD(totalCommOf(o))}</td>
-      <td class="num">${fmtUSD(totalCommOf(o)*1.04)}</td>
-    </tr>`).join('');
-  document.getElementById('recon-check-all').checked=true;
-  reconRecalcPreview();
+  _reconSelectedIds=new Set(reconEligibleOrders().map(o=>o.id));
+  // Populate dropdown tháng từ toàn bộ đơn Bolsa+Tspa
+  const months=[...new Set(allOrders.filter(o=>['BOLSA','TSPA'].includes((o.vendor||'').toUpperCase())).map(o=>o.billing_month).filter(Boolean))].sort().reverse();
+  document.getElementById('recon-filter-month').innerHTML='<option value="">Tất cả tháng</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  document.getElementById('recon-filter-invoice').value='';
+  document.getElementById('recon-filter-business').value='';
+  document.getElementById('recon-filter-customer').value='';
+  reconSwitchMode('eligible');
   openModal('m-recon-preview');
 }
 
-function reconToggleAll(checked){
-  document.querySelectorAll('.recon-check').forEach(c=>c.checked=checked);
+function reconSwitchMode(mode){
+  _reconMode=mode;
+  document.getElementById('recon-mode-eligible').className=mode==='eligible'?'btn btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('recon-mode-all').className=mode==='all'?'btn btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('recon-filters-bar').style.display=mode==='all'?'flex':'none';
+  renderReconPreviewList();
+}
+
+function renderReconPreviewList(){
+  let list=_reconMode==='eligible'
+    ?reconEligibleOrders()
+    :allOrders.filter(o=>['BOLSA','TSPA'].includes((o.vendor||'').toUpperCase()));
+  if(_reconMode==='all'){
+    const inv=(document.getElementById('recon-filter-invoice').value||'').toLowerCase();
+    const month=document.getElementById('recon-filter-month').value;
+    const biz=(document.getElementById('recon-filter-business').value||'').toLowerCase();
+    const cust=(document.getElementById('recon-filter-customer').value||'').toLowerCase();
+    list=list.filter(o=>
+      (!inv||(o.invoice_no||'').toLowerCase().includes(inv))
+      &&(!month||o.billing_month===month)
+      &&(!biz||(o.business_name||'').toLowerCase().includes(biz))
+      &&(!cust||(o.customer_name||'').toLowerCase().includes(cust))
+    );
+  }
+  if(!list.length){
+    document.getElementById('recon-preview-body').innerHTML='<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--text3);">Không có đơn nào khớp</td></tr>';
+  }else{
+    document.getElementById('recon-preview-body').innerHTML=list.map(o=>`
+      <tr data-oid="${o.id}">
+        <td><input type="checkbox" class="recon-check" ${_reconSelectedIds.has(o.id)?'checked':''} onchange="reconToggleOne(${o.id},this.checked)"></td>
+        <td class="bold">${o.invoice_no||'—'}</td>
+        <td style="color:var(--text3);">${o.billing_month||'—'}</td>
+        <td>${o.business_name||'—'}</td>
+        <td>${o.customer_name||'—'}</td>
+        <td>${vendorTag(o.vendor)}</td>
+        <td class="num">${fmtUSD(o.total_amount)}</td>
+        <td class="num" style="color:var(--gold);">${fmtUSD(totalCommOf(o))}</td>
+        <td class="num">${fmtUSD(totalCommOf(o)*1.04)}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('recon-check-all').checked=list.length>0&&list.every(o=>_reconSelectedIds.has(o.id));
   reconRecalcPreview();
 }
 
-function reconRecalcPreview(){
-  const rows=[...document.querySelectorAll('#recon-preview-body tr')];
-  let count=0,total=0;
+function reconToggleOne(id,checked){
+  if(checked)_reconSelectedIds.add(id);else _reconSelectedIds.delete(id);
+  const rows=[...document.querySelectorAll('#recon-preview-body tr[data-oid]')];
+  document.getElementById('recon-check-all').checked=rows.length>0&&rows.every(r=>_reconSelectedIds.has(parseInt(r.dataset.oid)));
+  reconRecalcPreview();
+}
+
+function reconToggleAll(checked){
+  const rows=[...document.querySelectorAll('#recon-preview-body tr[data-oid]')];
   rows.forEach(r=>{
-    if(r.querySelector('.recon-check').checked){
-      count++;
-      const o=allOrders.find(x=>String(x.id)===r.dataset.oid);
-      total+=totalCommOf(o);
-    }
+    const id=parseInt(r.dataset.oid);
+    if(checked)_reconSelectedIds.add(id);else _reconSelectedIds.delete(id);
+  });
+  renderReconPreviewList();
+}
+
+function reconRecalcPreview(){
+  let count=0,total=0;
+  _reconSelectedIds.forEach(id=>{
+    const o=allOrders.find(x=>x.id===id);
+    if(o){count++;total+=totalCommOf(o);}
   });
   document.getElementById('recon-preview-count').textContent=count;
   document.getElementById('recon-preview-total').textContent=fmtUSD(total);
@@ -2119,13 +2176,12 @@ function reconRecalcPreview(){
 async function createReconBatch(){
   const label=(document.getElementById('recon-new-label').value||'').trim();
   if(!label){toast('Nhập nhãn đợt đối soát trước','var(--amber)');return;}
-  const rows=[...document.querySelectorAll('#recon-preview-body tr')].filter(r=>r.querySelector('.recon-check').checked);
-  if(!rows.length){toast('Chưa chọn đơn nào','var(--amber)');return;}
+  if(!_reconSelectedIds.size){toast('Chưa chọn đơn nào','var(--amber)');return;}
   try{
-    const items=rows.map(r=>{
-      const o=allOrders.find(x=>String(x.id)===r.dataset.oid);
-      return{order:o,thanh_tien:totalCommOf(o)};
-    });
+    const items=[..._reconSelectedIds].map(id=>{
+      const o=allOrders.find(x=>x.id===id);
+      return o?{order:o,thanh_tien:totalCommOf(o)}:null;
+    }).filter(Boolean);
     const T=items.reduce((s,i)=>s+i.thanh_tien,0);
     const exchangeRate=parseFloat(document.getElementById('recon-exchange-rate').value)||25000;
     const{data:batch,error:be}=await sb.from('reconciliation_batches').insert({
@@ -2153,6 +2209,7 @@ function renderBatchList(){
   const el=document.getElementById('recon-batch-list');
   if(!el)return;
   if(!allBatches.length){el.innerHTML='<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3);">Chưa có đợt đối soát nào</td></tr>';return;}
+  const isAdmin=currentProfile?.role==='admin';
   el.innerHTML=allBatches.map(b=>`
     <tr style="cursor:pointer;" onclick="openReconDetail(${b.id})">
       <td class="bold">${b.period_label}</td>
@@ -2161,7 +2218,10 @@ function renderBatchList(){
       <td class="num" style="color:var(--gold);">${fmtUSD(b.total_thanh_tien)}</td>
       <td class="num">${fmtUSD(b.total_blt_pay)}</td>
       <td style="color:var(--text3);">${fmtTime(b.created_at)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportReconBatch(${b.id})">⬇ Excel</button></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportReconBatch(${b.id})">⬇ Excel</button>
+        ${isAdmin?`<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteReconBatch(${b.id},event)">🗑 Xoá</button>`:''}
+      </td>
     </tr>`).join('');
 }
 
@@ -2227,7 +2287,8 @@ async function openReconDetail(batchId){
     BLT chịu thêm 4%: <b>${fmtUSD(b.total_thanh_tien*0.04)}</b> → <b>BLT thực trả (104%): ${fmtUSD(b.total_blt_pay)}</b><br>
     VAT 8% khai thuế: <b>${fmtUSD(b.total_vat)}</b> · KCT thực nhận (96%): <b style="color:var(--green);">${fmtUSD(b.total_kct_net)}</b>`;
   const actionsEl=document.getElementById('recon-detail-actions');
-  let extraActions=isAdmin?`<button class="btn btn-ghost btn-sm" onclick="exportReconBatch(${b.id})">⬇ Xuất Excel</button>`:'';
+  let extraActions=isAdmin?`<button class="btn btn-ghost btn-sm" onclick="exportReconBatch(${b.id})">⬇ Xuất Excel</button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteReconBatch(${b.id})">🗑 Xoá đợt này</button>`:'';
   if(!isAdmin&&b.status==='sent'){
     actionsEl.innerHTML=extraActions+`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Duyệt đợt đối soát</button>`;
   }else if(isAdmin&&b.status==='flagged'){
@@ -2274,6 +2335,31 @@ async function resolveReconItem(itemId,newStatus){
     if(error)throw error;
     await loadBatches();
     openReconDetail(_reconCurrentBatchId);
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
+async function deleteReconBatch(batchId,event){
+  if(event)event.stopPropagation();
+  const b=allBatches.find(x=>x.id===batchId);
+  if(!b)return;
+  const msg=b.status==='approved'
+    ?`Đợt "${b.period_label}" đã DUYỆT — xoá sẽ tự động trả các đơn trong đó về "chưa thu HH" để chúng đủ điều kiện đối soát lại ở đợt sau. Chắc chắn xoá?`
+    :`Xoá đợt đối soát "${b.period_label}"? Không thể hoàn tác.`;
+  if(!confirm(msg))return;
+  try{
+    if(b.status==='approved'){
+      const orderIds=(b.reconciliation_items||[]).filter(it=>it.status!=='pending_next').map(it=>it.order_id);
+      if(orderIds.length){
+        const{error:ue}=await sb.from('vendor_orders').update({commission_received:false}).in('id',orderIds);
+        if(ue)throw ue;
+      }
+    }
+    const{error}=await sb.from('reconciliation_batches').delete().eq('id',batchId);
+    if(error)throw error;
+    closeModal('m-recon-detail');
+    await loadOrders();await loadBatches();
+    renderDashboard();renderOrders();
+    toast('✅ Đã xoá đợt đối soát','var(--green)');
   }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
 }
 
