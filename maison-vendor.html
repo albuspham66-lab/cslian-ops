@@ -572,7 +572,7 @@ th.num{text-align:right;}
       <div class="fg"><label class="fl">Price Gap ($) <span style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-gap" step="0.01" min="0" readonly style="opacity:.75;cursor:not-allowed;"></div>
       <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
       <div class="fg">
-        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap, trừ Shipping)</span></label>
+        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap − Shipping)</span></label>
         <select id="cost-comm-pct" onchange="onCommPctChange()">
           <option value="3">3%</option><option value="5">5%</option><option value="7">7%</option>
           <option value="__custom__">Tuỳ chỉnh %</option>
@@ -1238,7 +1238,7 @@ function recalcCommission(){
   const gap=parseFloat(document.getElementById('cost-gap').value)||0;
   const vendor=document.getElementById('cost-vendor').value;
   const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
-  const comm=(_costTotalAmount-gap)*(pct/100)-shipping;
+  const comm=(_costTotalAmount-gap-shipping)*(pct/100);
   document.getElementById('cost-comm').value=comm.toFixed(2);
   recalcTotalComm();
 }
