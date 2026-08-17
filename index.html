@@ -788,6 +788,49 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <tbody id="tr-tbody"></tbody>
         </table>
       </div>
+
+      <!-- CHI PHÍ KHÁC — thuê văn phòng, khấu hao, dịch vụ ngoài (kế toán...) -->
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="font-size:15px">📋 Chi phí khác — phục vụ quyết toán cuối năm</h3>
+          <button class="btn-sm btn-primary" onclick="openAddChiPhiModal()">+ Thêm chi phí</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="def-table" style="width:100%;min-width:600px">
+            <thead><tr>
+              <th>Tháng</th><th>Loại chi phí</th><th>Số tiền</th><th>Ghi chú</th><th></th>
+            </tr></thead>
+            <tbody id="cpk-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Thêm chi phí khác -->
+    <div class="modal-bg" id="cpk-modal">
+      <div class="modal-box" style="max-width:420px">
+        <div class="modal-title">📋 Thêm chi phí khác</div>
+        <div class="form-grid">
+          <div class="form-f"><label>Tháng</label><input type="month" id="cpk-thang"></div>
+          <div class="form-f"><label>Loại chi phí</label>
+            <select id="cpk-loai">
+              <option value="Thuê văn phòng">Thuê văn phòng</option>
+              <option value="Khấu hao TSCĐ">Khấu hao TSCĐ</option>
+              <option value="Dịch vụ kế toán">Dịch vụ kế toán (thuê ngoài)</option>
+              <option value="Dịch vụ khác">Dịch vụ khác</option>
+              <option value="Văn phòng phẩm">Văn phòng phẩm</option>
+              <option value="Marketing/Quảng cáo">Marketing/Quảng cáo</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div class="form-f" style="grid-column:1/-1"><label>Số tiền (VNĐ)</label><input type="number" id="cpk-so-tien" min="0" step="1000"></div>
+          <div class="form-f" style="grid-column:1/-1"><label>Ghi chú</label><input type="text" id="cpk-ghi-chu" placeholder="VD: Hóa đơn dịch vụ kế toán tháng 8"></div>
+        </div>
+        <div class="mactions">
+          <button class="mbtn" onclick="closeModal('cpk-modal')">Huỷ</button>
+          <button class="mbtn mbtn-p" onclick="saveChiPhiKhac()">💾 Lưu</button>
+        </div>
+      </div>
     </div>
 
     <!-- MODAL: Chi tiết lương (Báo cáo thuế) -->
@@ -1229,6 +1272,8 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="form-f" style="grid-column:1/-1"><label>Họ và tên *</label><input type="text" id="ae-name" placeholder="Nguyễn Văn A"/></div>
       <div class="form-f"><label>Biệt danh (App)</label><input type="text" id="ae-biet-danh" placeholder="Calvin"/></div>
       <div class="form-f"><label>Mã nhân viên *</label><input type="text" id="ae-ma-nv" placeholder="C08"/></div>
+      <div class="form-f"><label>Email đăng nhập <span style="color:var(--text3);font-weight:400">— để trống nếu chưa cần tài khoản</span></label><input type="email" id="ae-email" placeholder="account@maisondekct.com"/></div>
+      <div class="form-f"><label>Mật khẩu <span style="color:var(--text3);font-weight:400">— tối thiểu 6 ký tự</span></label><input type="text" id="ae-password" placeholder="Maison@2026"/></div>
       <div class="form-f"><label>Chức vụ / Role</label>
         <select id="ae-role">
           <option value="sale">Sale</option>
@@ -1256,6 +1301,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </select>
       </div>
       <div class="form-f"><label>Ngày bắt đầu</label><input type="date" id="ae-start-date"/></div>
+      <div class="form-f"><label>Ngày bắt đầu tính lương <span style="color:var(--text3);font-weight:400">— để trống nếu chưa</span></label><input type="date" id="ae-ngay-bat-dau-tinh-luong"/></div>
       <div class="form-f"><label>Ngày sinh</label><input type="date" id="ae-birthday"/></div>
       <div class="form-f"><label>Loại hợp đồng</label>
         <select id="ae-contract">
@@ -1322,6 +1368,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         </select>
       </div>
       <div class="form-f"><label>Ngày bắt đầu làm việc</label><input type="date" id="ep-start-date"/></div>
+      <div class="form-f"><label>Ngày bắt đầu tính lương <span style="color:var(--text3);font-weight:400">— để trống = chưa tính lương/không vào Báo cáo thuế</span></label><input type="date" id="ep-ngay-bat-dau-tinh-luong"/></div>
       <div class="form-f"><label>Ngày sinh</label><input type="date" id="ep-birthday"/></div>
       <div class="form-f"><label>Loại hợp đồng</label>
         <select id="ep-contract">
@@ -2380,31 +2427,44 @@ async function renderTaxReport(){
   const search=(document.getElementById('tr-search').value||'').toLowerCase().trim();
   const rows=await _fetchTaxReportData();
   const filtered=rows.filter(r=>{
-    if(!search)return true;
     const emp=allProfilesMap[r.user_id]||{};
+    // Chỉ tính vào Báo cáo thuế nếu đã có "Ngày bắt đầu tính lương" VÀ
+    // tháng của bản ghi này >= tháng bắt đầu đó (không xóa dữ liệu, chỉ ẩn
+    // khỏi báo cáo — vẫn xem được ở Tab Lương & KPI như thường).
+    if(!emp.ngay_bat_dau_tinh_luong)return false;
+    if(r.thang<emp.ngay_bat_dau_tinh_luong.slice(0,7))return false;
+    if(!search)return true;
     return (emp.full_name||'').toLowerCase().includes(search)||(emp.employee_code||'').toLowerCase().includes(search);
   });
   _trFilteredRows=filtered; // dùng cho Next/Prev trong modal chi tiết
 
   // Tổng hợp toàn công ty
-  let totGross=0,totBH=0,totMienThue=0,totThue=0,totNet=0;
+  let totGross=0,totBH=0,totMienThue=0,totThue=0,totNet=0,totBHDoanhNghiep=0;
   filtered.forEach(r=>{
     totGross+=r.tong_luong_vnd||0;
     totBH+=r.bhxh_vnd||0;
     totMienThue+=r.mien_thue_vnd||0;
     totThue+=r.thue_tncn_vnd||0;
     totNet+=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
+    // BHXH doanh nghiệp đóng (21.5% trên P1) — chỉ chính thức, thông tin cho quyết toán
+    if(r.p1_he_so!==0.85)totBHDoanhNghiep+=Math.round((r.p1_thuc_te||0)*0.215);
   });
   const totKhauTru=totBH+totThue;
+  const totChiPhiKhac=(await _fetchChiPhiKhac()).reduce((s,e)=>s+(e.so_tien||0),0);
+  const totChiPhiCongTy=totGross+totBHDoanhNghiep+totChiPhiKhac; // tổng chi phí thực tế công ty bỏ ra, phục vụ quyết toán
   const cardsEl=document.getElementById('tr-summary-cards');
   const card=(label,val,color)=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-val" style="color:${color};font-size:18px">${vnd(val)}</div></div>`;
   cardsEl.innerHTML=
     card('💰 Tổng quỹ lương (Gross)',totGross,'var(--text)')+
-    card('🏥 Tổng BHXH/BHYT/BHTN',totBH,'var(--accent)')+
+    card('🏥 Tổng BHXH/BHYT/BHTN (NLĐ)',totBH,'var(--accent)')+
+    card('🏢 BHXH doanh nghiệp đóng (21.5%)',totBHDoanhNghiep,'var(--accent)')+
     card('🛡️ Tổng thu nhập miễn thuế',totMienThue,'var(--success)')+
     card('🧾 Tổng thuế TNCN',totThue,'#c0392b')+
     card('➖ Tổng khấu trừ (BH+Thuế)',totKhauTru,'#c0392b')+
-    card('✅ Tổng thực lĩnh (Net)',totNet,'var(--success)');
+    card('📋 Chi phí khác (thuê VP, khấu hao...)',totChiPhiKhac,'var(--warn)')+
+    card('📊 TỔNG CHI PHÍ CÔNG TY',totChiPhiCongTy,'#9b1c1c')+
+    card('✅ Tổng thực lĩnh NLĐ (Net)',totNet,'var(--success)');
+  renderChiPhiKhacSection();
 
   const tbody=document.getElementById('tr-tbody');
   if(filtered.length===0){
@@ -2427,6 +2487,63 @@ async function renderTaxReport(){
     </tr>`;
   }).join('');
 }
+// ── Chi phí khác (thuê VP, khấu hao, dịch vụ ngoài...) ──────────────
+var _cpkCache=null;
+async function _fetchChiPhiKhac(){
+  const year=document.getElementById('tr-year')?document.getElementById('tr-year').value:new Date().getFullYear();
+  const mFrom=document.getElementById('tr-month-from')?parseInt(document.getElementById('tr-month-from').value):1;
+  const mTo=document.getElementById('tr-month-to')?parseInt(document.getElementById('tr-month-to').value):12;
+  const thangFrom=`${year}-${pad2(mFrom)}`,thangTo=`${year}-${pad2(mTo)}`;
+  try{
+    const {data,error}=await sb.from('company_expenses').select('*')
+      .gte('thang',thangFrom).lte('thang',thangTo).order('thang',{ascending:false});
+    if(error){console.warn('company_expenses:',error.message);return[];}
+    return data||[];
+  }catch(e){console.warn('company_expenses fetch error:',e.message);return[];}
+}
+async function renderChiPhiKhacSection(){
+  const list=await _fetchChiPhiKhac();
+  const tbody=document.getElementById('cpk-tbody');
+  if(!tbody)return;
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3)">Chưa có chi phí nào được ghi nhận</td></tr>';
+    return;
+  }
+  tbody.innerHTML=list.map(e=>`<tr>
+    <td>${e.thang}</td><td>${e.loai_chi_phi}</td>
+    <td style="text-align:right">${vnd(e.so_tien)}</td>
+    <td style="color:var(--text3)">${e.ghi_chu||''}</td>
+    <td><button class="btn-sm" onclick="deleteChiPhiKhac(${e.id})" style="font-size:11px;padding:3px 8px;border-color:var(--danger);color:var(--danger)">🗑️</button></td>
+  </tr>`).join('');
+}
+function openAddChiPhiModal(){
+  document.getElementById('cpk-thang').value=monthStr(salYear,salMonth);
+  document.getElementById('cpk-loai').value='Thuê văn phòng';
+  document.getElementById('cpk-so-tien').value='';
+  document.getElementById('cpk-ghi-chu').value='';
+  document.getElementById('cpk-modal').classList.add('open');
+}
+async function saveChiPhiKhac(){
+  const thang=document.getElementById('cpk-thang').value;
+  const loai=document.getElementById('cpk-loai').value;
+  const soTien=parseFloat(document.getElementById('cpk-so-tien').value)||0;
+  const ghiChu=document.getElementById('cpk-ghi-chu').value.trim()||null;
+  if(!thang){toast('Chọn tháng','error');return;}
+  if(soTien<=0){toast('Nhập số tiền hợp lệ','error');return;}
+  const {error}=await sb.from('company_expenses').insert({thang,loai_chi_phi:loai,so_tien:soTien,ghi_chu:ghiChu});
+  if(error){toast('Lỗi lưu: '+error.message,'error');return;}
+  toast('Đã thêm chi phí');
+  closeModal('cpk-modal');
+  renderTaxReport();
+}
+async function deleteChiPhiKhac(id){
+  if(!confirm('Xóa khoản chi phí này?'))return;
+  const {error}=await sb.from('company_expenses').delete().eq('id',id);
+  if(error){toast('Lỗi xóa: '+error.message,'error');return;}
+  toast('Đã xóa');
+  renderTaxReport();
+}
+
 async function exportTaxReportExcel(){
   const rows=await _fetchTaxReportData();
   const search=(document.getElementById('tr-search').value||'').toLowerCase().trim();
@@ -4186,6 +4303,7 @@ async function openEditProfile(id){
   document.getElementById('ep-phong-ban').value=p.phong_ban||'Kinh doanh';
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
+  document.getElementById('ep-ngay-bat-dau-tinh-luong').value=p.ngay_bat_dau_tinh_luong||'';
   const ctMap={'official':'chinh-thuc','probation':'thu-viec'};
   document.getElementById('ep-contract').value=ctMap[p.contract_type]||p.contract_type||'chinh-thuc';
   document.getElementById('ep-so-nguoi-phu-thuoc').value=p.so_nguoi_phu_thuoc||0;
@@ -4220,6 +4338,7 @@ async function saveEmpProfile(){
   const phongBan=document.getElementById('ep-phong-ban').value;
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
+  const ngayBatDauTinhLuong=document.getElementById('ep-ngay-bat-dau-tinh-luong').value;
   const contractTypeRaw=document.getElementById('ep-contract').value;
   const contractType=contractTypeRaw==='chinh-thuc'?'official':contractTypeRaw==='thu-viec'?'probation':contractTypeRaw;
   const soNguoiPhuThuoc=parseInt(document.getElementById('ep-so-nguoi-phu-thuoc').value)||0;
@@ -4251,7 +4370,7 @@ async function saveEmpProfile(){
 
   var updatePayload={
     full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,phong_ban:phongBan,
-    start_date:startDate||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
+    start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
     phone,cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
     mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
     address,birthday:birthday||null
@@ -4363,7 +4482,10 @@ async function saveNewEmp(){
   var maNV=document.getElementById('ae-ma-nv').value.trim().toUpperCase();
   var role=document.getElementById('ae-role').value;
   var lever=parseInt(document.getElementById('ae-lever').value)||1;
+  var email=document.getElementById('ae-email').value.trim()||null;
+  var password=document.getElementById('ae-password').value||null;
   var startDate=document.getElementById('ae-start-date').value||null;
+  var ngayBatDauTinhLuong=document.getElementById('ae-ngay-bat-dau-tinh-luong').value||null;
   var birthday=document.getElementById('ae-birthday').value||null;
   var contractType=document.getElementById('ae-contract').value;
   var soNguoiPhuThuoc=parseInt(document.getElementById('ae-so-nguoi-phu-thuoc').value)||0;
@@ -4394,15 +4516,40 @@ async function saveNewEmp(){
       catch(e){toast('⚠️ Lỗi upload ảnh: '+e.message,'error');}
     }
 
+    // Nếu có nhập email — tạo tài khoản đăng nhập THẬT qua Supabase Auth
+    // (dùng anon key, signUp() — an toàn, không cần service_role key).
+    // profiles.id sẽ khớp đúng với auth.users.id của tài khoản vừa tạo,
+    // khác với trước đây (insert profiles với id tự sinh ngẫu nhiên,
+    // không khớp với bất kỳ tài khoản đăng nhập nào).
+    var newUserId=null;
+    if(email){
+      if(!password||password.length<6){
+        toast('Mật khẩu cần tối thiểu 6 ký tự để tạo tài khoản đăng nhập','error');
+        saveBtn.disabled=false;saveBtn.textContent='💾 Lưu';return;
+      }
+      var {data:authData,error:authError}=await sb.auth.signUp({email:email,password:password});
+      if(authError){
+        toast('Lỗi tạo tài khoản: '+authError.message,'error');
+        saveBtn.disabled=false;saveBtn.textContent='💾 Lưu';return;
+      }
+      newUserId=authData.user?authData.user.id:null;
+      if(!newUserId){
+        toast('Không lấy được ID tài khoản vừa tạo — kiểm tra lại Supabase Auth settings (Confirm email)','error');
+        saveBtn.disabled=false;saveBtn.textContent='💾 Lưu';return;
+      }
+    }
+
     var payload={
       full_name:hoTen,nickname:bietDanh||null,employee_code:maNV,
-      role,lever,start_date:startDate||null,birthday:birthday||null,
+      role,lever,start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong,birthday:birthday||null,
       contract_type:contractType,is_active:true,status:'active',so_nguoi_phu_thuoc:soNguoiPhuThuoc,
       phone:phone,cccd:cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
       mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
       address:address,
       avatar_url:avatarUrl
     };
+    if(newUserId)payload.id=newUserId;
+    if(email)payload.email=email;
     var {data,error}=await sb.from('profiles').insert(payload).select().single();
     if(error)throw error;
 
