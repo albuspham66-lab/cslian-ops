@@ -3668,7 +3668,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
       // Doanh số tháng này (tất cả đơn) để xét điều kiện backup
       const curTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
-      const curDT=(allOrdsRes.data||[]).reduce((s,o)=>s+(o.total_amount||0),0);
+      const curDT=dtTotalForTarget;
 
       if(gap>0&&curDT>=curTarget+gap){
         // Đủ điều kiện — tính bonus đã mất tháng trước
