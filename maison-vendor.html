@@ -422,8 +422,8 @@ th.num{text-align:right;}
         <div class="tw"><table><thead><tr>
           <th>Phương án</th>
           <th class="num">Cost Price</th><th class="num">Total Amount</th><th class="num">Price Gap</th>
-          <th class="num">Base Commission</th><th class="num">Extra Commission</th>
-          <th class="num">Total Commission</th><th class="num">Effective Rate</th><th class="num">Margin %</th>
+          <th class="num">Total Commission</th><th class="num">Total Sale Commission</th>
+          <th class="num">Company Net Commission</th><th class="num">Effective Rate</th>
           <th class="num">Δ vs Best</th>
         </tr></thead><tbody id="sim-compare-body"></tbody></table></div>
       </div>
@@ -2110,7 +2110,12 @@ function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDa
 // ƯỚC TÍNH HOA HỒNG — công cụ mô phỏng, không lưu DB, chỉ tính trong phiên
 // Base Commission = Cost Price × Commission Rate%  (vì Total−Gap = Cost Price)
 // Extra Commission = Price Gap × Extra Rate%
-// Total Commission = Base Commission + Extra Commission
+// Total Commission = Base Commission + Extra Commission  (tổng quỹ hoa hồng công ty có)
+// Sale Gap = Total Amount − Min Price
+// A. Sale Base Commission = 1% × (Total Amount − Sale Gap) = 1% × Min Price
+// B. Sale Extra Commission = Sale Gap × Sale Extra Rate%
+// Total Sale Commission = A + B
+// Company Net Commission = Total Commission − Total Sale Commission
 // ══════════════════════════════════════════════════════════════════════════
 let _simScenarios=[],_simNextId=1;
 
@@ -2119,7 +2124,8 @@ function newSimScenario(){
     id:_simNextId++,label:'Phương án '+_simNextId,
     costPrice:0,minPrice:0,totalAmount:0,
     commMode:'5',commCustom:5,
-    extraMode:'70',extraCustom:70
+    extraMode:'70',extraCustom:70,
+    saleExtraMode:'30',saleExtraCustom:30
   };
 }
 
@@ -2133,16 +2139,36 @@ function removeSimScenario(id){
   renderSimulator();
 }
 
-function updateSimScenario(id,field,value){
+// Đổi dropdown (Mode) hoặc tên phương án → có thể đổi cấu trúc thẻ (hiện/ẩn ô
+// Custom) nên render lại toàn bộ. Không dùng cho ô số đang gõ liên tục.
+function updateSimSelect(id,field,value){
   const s=_simScenarios.find(x=>x.id===id);
   if(!s)return;
-  s[field]=field.includes('Mode')?value:(field==='label'?value:(parseFloat(value)||0));
+  s[field]=value;
   renderSimulator();
+}
+
+function updateSimLabel(id,value){
+  const s=_simScenarios.find(x=>x.id===id);
+  if(!s)return;
+  s.label=value;
+  refreshSimCompareTable(); // không render lại card — tránh mất focus ô đang gõ
+}
+
+// Gõ số (Cost/Min/Total/Custom%) → CHỈ cập nhật kết quả tính trong thẻ đó +
+// bảng so sánh, KHÔNG render lại input → không bị mất focus giữa chừng.
+function updateSimNumber(id,field,value){
+  const s=_simScenarios.find(x=>x.id===id);
+  if(!s)return;
+  s[field]=parseFloat(value)||0;
+  refreshSimCardOutputs(id);
+  refreshSimCompareTable();
 }
 
 function computeSim(s){
   const commPct=s.commMode==='custom'?(parseFloat(s.commCustom)||0):parseFloat(s.commMode);
   const extraPct=s.extraMode==='custom'?(parseFloat(s.extraCustom)||0):parseFloat(s.extraMode);
+  const saleExtraPct=s.saleExtraMode==='custom'?(parseFloat(s.saleExtraCustom)||0):parseFloat(s.saleExtraMode);
   const priceGap=s.totalAmount-s.costPrice;
   const baseComm=s.costPrice*(commPct/100);
   const extraComm=priceGap*(extraPct/100);
@@ -2150,7 +2176,34 @@ function computeSim(s){
   const effRate=s.totalAmount>0?(totalComm/s.totalAmount*100):0;
   const marginPct=s.costPrice>0?(priceGap/s.costPrice*100):0;
   const belowMin=s.minPrice>0&&s.totalAmount>0&&s.totalAmount<s.minPrice;
-  return{commPct,extraPct,priceGap,baseComm,extraComm,totalComm,effRate,marginPct,belowMin};
+  const saleGap=s.totalAmount-s.minPrice;
+  const saleBaseComm=0.01*s.minPrice; // A = 1% × (Total − SaleGap) = 1% × Min Price
+  const saleExtraComm=saleGap*(saleExtraPct/100); // B
+  const totalSaleComm=saleBaseComm+saleExtraComm;
+  const companyNetComm=totalComm-totalSaleComm;
+  return{commPct,extraPct,saleExtraPct,priceGap,baseComm,extraComm,totalComm,effRate,marginPct,belowMin,
+    saleGap,saleBaseComm,saleExtraComm,totalSaleComm,companyNetComm};
+}
+
+// Cập nhật riêng phần kết quả (không đụng input) của 1 thẻ phương án
+function refreshSimCardOutputs(id){
+  const s=_simScenarios.find(x=>x.id===id);
+  if(!s)return;
+  const r=computeSim(s);
+  const set=(key,val)=>{const el=document.getElementById(`sim-${key}-${id}`);if(el)el.textContent=val;};
+  set('gap',fmtUSD(r.priceGap));
+  set('base',fmtUSD(r.baseComm));
+  set('extra',fmtUSD(r.extraComm));
+  set('total',fmtUSD(r.totalComm));
+  set('eff',r.effRate.toFixed(2)+'%');
+  set('margin',r.marginPct.toFixed(2)+'%');
+  set('salegap',fmtUSD(r.saleGap));
+  set('salebase',fmtUSD(r.saleBaseComm));
+  set('saleextra',fmtUSD(r.saleExtraComm));
+  set('saletotal',fmtUSD(r.totalSaleComm));
+  set('companynet',fmtUSD(r.companyNetComm));
+  const warnEl=document.getElementById('sim-warn-'+id);
+  if(warnEl)warnEl.style.display=r.belowMin?'block':'none';
 }
 
 function renderSimulator(){
@@ -2163,68 +2216,89 @@ function renderSimulator(){
   wrap.innerHTML=_simScenarios.map(s=>{
     const r=computeSim(s);
     return`
-    <div class="card" style="padding:18px;width:300px;flex-shrink:0;">
+    <div class="card" style="padding:18px;width:320px;flex-shrink:0;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <input type="text" value="${s.label}" oninput="updateSimScenario(${s.id},'label',this.value)"
+        <input type="text" value="${s.label}" oninput="updateSimLabel(${s.id},this.value)"
           style="background:transparent;border:none;font-family:'Cormorant Garant',serif;font-size:17px;color:var(--gold);padding:0;width:70%;">
         <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:2px 8px;" onclick="removeSimScenario(${s.id})">✕</button>
       </div>
       <div class="fg"><label class="fl">Cost Price ($)</label>
-        <input type="number" value="${s.costPrice}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'costPrice',this.value)"></div>
+        <input type="number" value="${s.costPrice}" step="0.01" min="0" oninput="updateSimNumber(${s.id},'costPrice',this.value)"></div>
       <div class="fg"><label class="fl">Min Price ($)</label>
-        <input type="number" value="${s.minPrice}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'minPrice',this.value)"></div>
+        <input type="number" value="${s.minPrice}" step="0.01" min="0" oninput="updateSimNumber(${s.id},'minPrice',this.value)"></div>
       <div class="fg"><label class="fl">Total Amount ($)</label>
-        <input type="number" value="${s.totalAmount}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'totalAmount',this.value)">
-        ${r.belowMin?'<div style="font-size:11px;color:var(--red);margin-top:4px;">⚠️ Dưới Min Price</div>':''}
+        <input type="number" value="${s.totalAmount}" step="0.01" min="0" oninput="updateSimNumber(${s.id},'totalAmount',this.value)">
+        <div id="sim-warn-${s.id}" style="font-size:11px;color:var(--red);margin-top:4px;display:${r.belowMin?'block':'none'};">⚠️ Dưới Min Price</div>
       </div>
       <div class="fg">
         <label class="fl">Commission Rate</label>
-        <select onchange="updateSimScenario(${s.id},'commMode',this.value)">
+        <select onchange="updateSimSelect(${s.id},'commMode',this.value)">
           <option value="3" ${s.commMode==='3'?'selected':''}>3%</option>
           <option value="5" ${s.commMode==='5'?'selected':''}>5%</option>
           <option value="7" ${s.commMode==='7'?'selected':''}>7%</option>
           <option value="custom" ${s.commMode==='custom'?'selected':''}>Custom</option>
         </select>
-        ${s.commMode==='custom'?`<input type="number" value="${s.commCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimScenario(${s.id},'commCustom',this.value)">`:''}
+        ${s.commMode==='custom'?`<input type="number" value="${s.commCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimNumber(${s.id},'commCustom',this.value)">`:''}
       </div>
       <div class="fg">
         <label class="fl">Extra Rate (trên Price Gap)</label>
-        <select onchange="updateSimScenario(${s.id},'extraMode',this.value)">
+        <select onchange="updateSimSelect(${s.id},'extraMode',this.value)">
           <option value="50" ${s.extraMode==='50'?'selected':''}>50%</option>
           <option value="70" ${s.extraMode==='70'?'selected':''}>70%</option>
           <option value="100" ${s.extraMode==='100'?'selected':''}>100%</option>
           <option value="custom" ${s.extraMode==='custom'?'selected':''}>Custom</option>
         </select>
-        ${s.extraMode==='custom'?`<input type="number" value="${s.extraCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimScenario(${s.id},'extraCustom',this.value)">`:''}
+        ${s.extraMode==='custom'?`<input type="number" value="${s.extraCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimNumber(${s.id},'extraCustom',this.value)">`:''}
       </div>
       <div class="divider"></div>
       <div style="font-size:12px;line-height:2;">
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Price Gap</span><span>${fmtUSD(r.priceGap)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Base Commission</span><span>${fmtUSD(r.baseComm)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Extra Commission</span><span>${fmtUSD(r.extraComm)}</span></div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Total Commission</span><span style="color:var(--gold);">${fmtUSD(r.totalComm)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Effective Rate</span><span>${r.effRate.toFixed(2)}%</span></div>
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Margin %</span><span>${r.marginPct.toFixed(2)}%</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Price Gap</span><span id="sim-gap-${s.id}">${fmtUSD(r.priceGap)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Base Commission</span><span id="sim-base-${s.id}">${fmtUSD(r.baseComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Extra Commission</span><span id="sim-extra-${s.id}">${fmtUSD(r.extraComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Total Commission</span><span id="sim-total-${s.id}" style="color:var(--gold);">${fmtUSD(r.totalComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Effective Rate</span><span id="sim-eff-${s.id}">${r.effRate.toFixed(2)}%</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Margin %</span><span id="sim-margin-${s.id}">${r.marginPct.toFixed(2)}%</span></div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Hoa hồng Sale</div>
+      <div class="fg">
+        <label class="fl">Sale Extra Rate (trên Sale Gap)</label>
+        <select onchange="updateSimSelect(${s.id},'saleExtraMode',this.value)">
+          <option value="30" ${s.saleExtraMode==='30'?'selected':''}>30%</option>
+          <option value="20" ${s.saleExtraMode==='20'?'selected':''}>20%</option>
+          <option value="10" ${s.saleExtraMode==='10'?'selected':''}>10%</option>
+          <option value="custom" ${s.saleExtraMode==='custom'?'selected':''}>Custom</option>
+        </select>
+        ${s.saleExtraMode==='custom'?`<input type="number" value="${s.saleExtraCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimNumber(${s.id},'saleExtraCustom',this.value)">`:''}
+      </div>
+      <div style="font-size:12px;line-height:2;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Sale Gap</span><span id="sim-salegap-${s.id}">${fmtUSD(r.saleGap)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">A · Sale Base Commission</span><span id="sim-salebase-${s.id}">${fmtUSD(r.saleBaseComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">B · Sale Extra Commission</span><span id="sim-saleextra-${s.id}">${fmtUSD(r.saleExtraComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Total Sale Commission</span><span id="sim-saletotal-${s.id}" style="color:var(--blue);">${fmtUSD(r.totalSaleComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Company Net Commission</span><span id="sim-companynet-${s.id}" style="color:var(--green);">${fmtUSD(r.companyNetComm)}</span></div>
       </div>
     </div>`;
   }).join('');
+  refreshSimCompareTable();
+}
 
-  // Bảng so sánh — highlight phương án có Total Commission cao nhất
+function refreshSimCompareTable(){
+  if(!_simScenarios.length){document.getElementById('sim-compare-body').innerHTML='';return;}
   const results=_simScenarios.map(s=>({s,r:computeSim(s)}));
-  const maxComm=Math.max(...results.map(x=>x.r.totalComm),0);
+  const maxNet=Math.max(...results.map(x=>x.r.companyNetComm),0);
   document.getElementById('sim-compare-body').innerHTML=results.map(({s,r})=>{
-    const isBest=results.length>1&&r.totalComm===maxComm&&maxComm>0;
-    const delta=maxComm>0?((r.totalComm-maxComm)/maxComm*100):0;
+    const isBest=results.length>1&&r.companyNetComm===maxNet&&maxNet>0;
+    const delta=maxNet>0?((r.companyNetComm-maxNet)/maxNet*100):0;
     return`<tr style="${isBest?'background:rgba(82,212,154,.06);':''}">
       <td class="bold">${s.label}${isBest?' <span style="color:var(--green);font-size:11px;">★ Tốt nhất</span>':''}</td>
       <td class="num">${fmtUSD(s.costPrice)}</td>
       <td class="num">${fmtUSD(s.totalAmount)}</td>
       <td class="num">${fmtUSD(r.priceGap)}</td>
-      <td class="num">${fmtUSD(r.baseComm)}</td>
-      <td class="num">${fmtUSD(r.extraComm)}</td>
-      <td class="num" style="color:${isBest?'var(--green)':'var(--gold)'};font-weight:600;">${fmtUSD(r.totalComm)}</td>
+      <td class="num">${fmtUSD(r.totalComm)}</td>
+      <td class="num">${fmtUSD(r.totalSaleComm)}</td>
+      <td class="num" style="color:${isBest?'var(--green)':'var(--gold)'};font-weight:600;">${fmtUSD(r.companyNetComm)}</td>
       <td class="num">${r.effRate.toFixed(2)}%</td>
-      <td class="num">${r.marginPct.toFixed(2)}%</td>
       <td class="num" style="color:${delta<0?'var(--red)':'var(--text3)'};">${results.length>1?(delta===0?'—':delta.toFixed(1)+'%'):'—'}</td>
     </tr>`;
   }).join('');
