@@ -223,6 +223,7 @@ th.num{text-align:right;}
       <div class="nav-item admin-only" data-view="accounts"><span class="nav-icon">👥</span>Tài khoản</div>
       <div class="nav-item" data-view="reports"><span class="nav-icon">📈</span>Báo cáo</div>
       <div class="nav-item" data-view="reconciliation"><span class="nav-icon">🧾</span>Đối soát <span class="notif-badge" id="recon-badge" style="display:none;">0</span></div>
+      <div class="nav-item admin-only" data-view="simulator"><span class="nav-icon">🧮</span>Ước tính hoa hồng</div>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="doLogout()">⟵ Đăng xuất</button>
@@ -403,6 +404,28 @@ th.num{text-align:right;}
           <th>Nhãn</th><th>Trạng thái</th><th class="num">Số đơn</th><th class="num">Tổng Thành tiền</th>
           <th class="num">BLT trả (104%)</th><th>Ngày tạo</th><th></th>
         </tr></thead><tbody id="recon-batch-list"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ SIMULATOR VIEW (admin only) ══ -->
+    <div class="view" id="view-simulator">
+      <div class="page-title">Ước tính hoa hồng</div>
+      <div class="page-sub">Mô phỏng — không lưu lại, chỉ tính trong phiên làm việc. So sánh nhiều phương án Cost/Price/Rate cùng lúc.</div>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="btn btn-gold btn-sm" onclick="addSimScenario()">+ Thêm phương án</button>
+      </div>
+
+      <div id="sim-scenarios" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;"></div>
+
+      <div class="card"><div class="card-header"><span class="card-title">So sánh</span></div>
+        <div class="tw"><table><thead><tr>
+          <th>Phương án</th>
+          <th class="num">Cost Price</th><th class="num">Total Amount</th><th class="num">Price Gap</th>
+          <th class="num">Base Commission</th><th class="num">Extra Commission</th>
+          <th class="num">Total Commission</th><th class="num">Effective Rate</th><th class="num">Margin %</th>
+          <th class="num">Δ vs Best</th>
+        </tr></thead><tbody id="sim-compare-body"></tbody></table></div>
       </div>
     </div>
 
@@ -2084,6 +2107,130 @@ function totalCommOf(o){
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 
 // ══════════════════════════════════════════════════════════════════════════
+// ƯỚC TÍNH HOA HỒNG — công cụ mô phỏng, không lưu DB, chỉ tính trong phiên
+// Base Commission = Cost Price × Commission Rate%  (vì Total−Gap = Cost Price)
+// Extra Commission = Price Gap × Extra Rate%
+// Total Commission = Base Commission + Extra Commission
+// ══════════════════════════════════════════════════════════════════════════
+let _simScenarios=[],_simNextId=1;
+
+function newSimScenario(){
+  return{
+    id:_simNextId++,label:'Phương án '+_simNextId,
+    costPrice:0,minPrice:0,totalAmount:0,
+    commMode:'5',commCustom:5,
+    extraMode:'70',extraCustom:70
+  };
+}
+
+function addSimScenario(){
+  _simScenarios.push(newSimScenario());
+  renderSimulator();
+}
+
+function removeSimScenario(id){
+  _simScenarios=_simScenarios.filter(s=>s.id!==id);
+  renderSimulator();
+}
+
+function updateSimScenario(id,field,value){
+  const s=_simScenarios.find(x=>x.id===id);
+  if(!s)return;
+  s[field]=field.includes('Mode')?value:(field==='label'?value:(parseFloat(value)||0));
+  renderSimulator();
+}
+
+function computeSim(s){
+  const commPct=s.commMode==='custom'?(parseFloat(s.commCustom)||0):parseFloat(s.commMode);
+  const extraPct=s.extraMode==='custom'?(parseFloat(s.extraCustom)||0):parseFloat(s.extraMode);
+  const priceGap=s.totalAmount-s.costPrice;
+  const baseComm=s.costPrice*(commPct/100);
+  const extraComm=priceGap*(extraPct/100);
+  const totalComm=baseComm+extraComm;
+  const effRate=s.totalAmount>0?(totalComm/s.totalAmount*100):0;
+  const marginPct=s.costPrice>0?(priceGap/s.costPrice*100):0;
+  const belowMin=s.minPrice>0&&s.totalAmount>0&&s.totalAmount<s.minPrice;
+  return{commPct,extraPct,priceGap,baseComm,extraComm,totalComm,effRate,marginPct,belowMin};
+}
+
+function renderSimulator(){
+  const wrap=document.getElementById('sim-scenarios');
+  if(!_simScenarios.length){
+    wrap.innerHTML='<div style="color:var(--text3);font-size:13px;">Chưa có phương án nào — bấm "+ Thêm phương án" để bắt đầu.</div>';
+    document.getElementById('sim-compare-body').innerHTML='';
+    return;
+  }
+  wrap.innerHTML=_simScenarios.map(s=>{
+    const r=computeSim(s);
+    return`
+    <div class="card" style="padding:18px;width:300px;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <input type="text" value="${s.label}" oninput="updateSimScenario(${s.id},'label',this.value)"
+          style="background:transparent;border:none;font-family:'Cormorant Garant',serif;font-size:17px;color:var(--gold);padding:0;width:70%;">
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:2px 8px;" onclick="removeSimScenario(${s.id})">✕</button>
+      </div>
+      <div class="fg"><label class="fl">Cost Price ($)</label>
+        <input type="number" value="${s.costPrice}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'costPrice',this.value)"></div>
+      <div class="fg"><label class="fl">Min Price ($)</label>
+        <input type="number" value="${s.minPrice}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'minPrice',this.value)"></div>
+      <div class="fg"><label class="fl">Total Amount ($)</label>
+        <input type="number" value="${s.totalAmount}" step="0.01" min="0" oninput="updateSimScenario(${s.id},'totalAmount',this.value)">
+        ${r.belowMin?'<div style="font-size:11px;color:var(--red);margin-top:4px;">⚠️ Dưới Min Price</div>':''}
+      </div>
+      <div class="fg">
+        <label class="fl">Commission Rate</label>
+        <select onchange="updateSimScenario(${s.id},'commMode',this.value)">
+          <option value="3" ${s.commMode==='3'?'selected':''}>3%</option>
+          <option value="5" ${s.commMode==='5'?'selected':''}>5%</option>
+          <option value="7" ${s.commMode==='7'?'selected':''}>7%</option>
+          <option value="custom" ${s.commMode==='custom'?'selected':''}>Custom</option>
+        </select>
+        ${s.commMode==='custom'?`<input type="number" value="${s.commCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimScenario(${s.id},'commCustom',this.value)">`:''}
+      </div>
+      <div class="fg">
+        <label class="fl">Extra Rate (trên Price Gap)</label>
+        <select onchange="updateSimScenario(${s.id},'extraMode',this.value)">
+          <option value="50" ${s.extraMode==='50'?'selected':''}>50%</option>
+          <option value="70" ${s.extraMode==='70'?'selected':''}>70%</option>
+          <option value="100" ${s.extraMode==='100'?'selected':''}>100%</option>
+          <option value="custom" ${s.extraMode==='custom'?'selected':''}>Custom</option>
+        </select>
+        ${s.extraMode==='custom'?`<input type="number" value="${s.extraCustom}" step="0.01" style="margin-top:6px;" oninput="updateSimScenario(${s.id},'extraCustom',this.value)">`:''}
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:12px;line-height:2;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Price Gap</span><span>${fmtUSD(r.priceGap)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Base Commission</span><span>${fmtUSD(r.baseComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Extra Commission</span><span>${fmtUSD(r.extraComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Total Commission</span><span style="color:var(--gold);">${fmtUSD(r.totalComm)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Effective Rate</span><span>${r.effRate.toFixed(2)}%</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Margin %</span><span>${r.marginPct.toFixed(2)}%</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bảng so sánh — highlight phương án có Total Commission cao nhất
+  const results=_simScenarios.map(s=>({s,r:computeSim(s)}));
+  const maxComm=Math.max(...results.map(x=>x.r.totalComm),0);
+  document.getElementById('sim-compare-body').innerHTML=results.map(({s,r})=>{
+    const isBest=results.length>1&&r.totalComm===maxComm&&maxComm>0;
+    const delta=maxComm>0?((r.totalComm-maxComm)/maxComm*100):0;
+    return`<tr style="${isBest?'background:rgba(82,212,154,.06);':''}">
+      <td class="bold">${s.label}${isBest?' <span style="color:var(--green);font-size:11px;">★ Tốt nhất</span>':''}</td>
+      <td class="num">${fmtUSD(s.costPrice)}</td>
+      <td class="num">${fmtUSD(s.totalAmount)}</td>
+      <td class="num">${fmtUSD(r.priceGap)}</td>
+      <td class="num">${fmtUSD(r.baseComm)}</td>
+      <td class="num">${fmtUSD(r.extraComm)}</td>
+      <td class="num" style="color:${isBest?'var(--green)':'var(--gold)'};font-weight:600;">${fmtUSD(r.totalComm)}</td>
+      <td class="num">${r.effRate.toFixed(2)}%</td>
+      <td class="num">${r.marginPct.toFixed(2)}%</td>
+      <td class="num" style="color:${delta<0?'var(--red)':'var(--text3)'};">${results.length>1?(delta===0?'—':delta.toFixed(1)+'%'):'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // ĐỐI SOÁT HOA HỒNG — Bách Lâm Thịnh (đại diện Bolsa + Tspa)
 // Công thức: T=Tổng Commission gốc | BLT trả=T×1.04 | VAT khai thuế=T×0.08 | KCT thực nhận=T×0.96
 // ══════════════════════════════════════════════════════════════════════════
@@ -2636,6 +2783,7 @@ function nav(view){
   document.getElementById('view-'+view)?.classList.add('active');
   document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
   if(view==='notifications'&&allNotifs.some(n=>!n.is_read))markAllRead();
+  if(view==='simulator'&&!_simScenarios.length){addSimScenario();addSimScenario();}
 }
 
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>nav(n.dataset.view)));
