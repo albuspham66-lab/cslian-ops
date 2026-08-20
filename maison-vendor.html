@@ -264,9 +264,15 @@ th.num{text-align:right;}
           <option value="shipped">Đã ship</option>
           <option value="delivered">Đã nhận</option>
           <option value="completed">Hoàn thành</option>
+          <option value="shipped_delivered" style="display:none;">Đã ship (dashboard)</option>
         </select>
         <select class="filter-select" id="ord-month" onchange="renderOrders()">
           <option value="">Tất cả tháng</option>
+        </select>
+        <select class="filter-select" id="ord-comm" onchange="renderOrders()">
+          <option value="">Tất cả HH</option>
+          <option value="received">HH đã thu</option>
+          <option value="pending">HH chưa thu</option>
         </select>
         <div style="flex:1;"></div>
         <button class="btn btn-ghost btn-sm admin-only" onclick="openSyncModal()">🔄 Sync CRM</button>
@@ -367,7 +373,12 @@ th.num{text-align:right;}
       </div>
       <div id="report-summary" style="display:none;">
         <div class="kpi-grid" id="rpt-kpis"></div>
-        <div class="card"><div class="card-header"><span class="card-title">Chi tiết đơn hàng</span></div>
+        <div class="card"><div class="card-header">
+          <span class="card-title">Chi tiết đơn hàng</span>
+          <span id="rpt-filter-tag" class="tag" style="display:none;margin-left:10px;cursor:pointer;" onclick="setRptCommFilter('')">
+            <span></span> ✕
+          </span>
+        </div>
           <div class="tw"><table><thead><tr>
             <th>Invoice</th><th>Tháng</th><th>Business</th><th>Product</th><th>Vendor</th>
             <th class="num">Total ($)</th><th class="num">Shipping ($)</th><th class="num">Commission ($)</th><th class="num">Price Gap ($)</th>
@@ -964,12 +975,12 @@ function renderDashboard(){
   const commRecv=allOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   const commPend=allOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
   document.getElementById('dash-kpis').innerHTML=`
-    <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
-    <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
-    <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Đã ship</div><div class="kpi-val" style="color:var(--amber)">${shipped}</div><div class="kpi-sub">đơn</div></div>
-    <div class="kpi" onclick="nav('orders')"><div class="kpi-label">Hoàn thành</div><div class="kpi-val" style="color:var(--green)">${done}</div><div class="kpi-sub">đơn</div></div>
-    <div class="kpi gold"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
-    <div class="kpi"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
+    <div class="kpi" onclick="goToOrdersFiltered()"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({status:'production'})"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({status:'shipped_delivered'})"><div class="kpi-label">Đã ship</div><div class="kpi-val" style="color:var(--amber)">${shipped}</div><div class="kpi-sub">đơn</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({status:'completed'})"><div class="kpi-label">Hoàn thành</div><div class="kpi-val" style="color:var(--green)">${done}</div><div class="kpi-sub">đơn</div></div>
+    <div class="kpi gold" onclick="goToOrdersFiltered()"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({comm:'received'})"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);" onclick="event.stopPropagation();goToOrdersFiltered({comm:'pending'})">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
   const recent=allOrders.slice(0,8);
   document.getElementById('dash-orders').innerHTML=recent.length
     ?recent.map(o=>`<tr onclick="nav('orders')" style="cursor:pointer;">
@@ -992,15 +1003,34 @@ function populateMonthFilter(){
   sel.innerHTML='<option value="">Tất cả tháng</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join('');
 }
 
+// Bấm statcard (Dashboard/Báo cáo) → mở tab Đơn hàng với filter tương ứng đã set sẵn
+function goToOrdersFiltered({vendor='',status='',month='',comm='',q=''}={}){
+  nav('orders');
+  const setVal=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+  setVal('ord-vendor',vendor);
+  setVal('ord-status',status);
+  setVal('ord-month',month);
+  setVal('ord-comm',comm);
+  setVal('ord-search',q);
+  renderOrders();
+}
+
 function renderOrders(){
   const q=(document.getElementById('ord-search')?.value||'').toLowerCase();
   const vendor=document.getElementById('ord-vendor')?.value||'';
   const status=document.getElementById('ord-status')?.value||'';
   const month=document.getElementById('ord-month')?.value||'';
+  const comm=document.getElementById('ord-comm')?.value||'';
   let list=allOrders.filter(o=>{
     if(vendor&&o.vendor!==vendor)return false;
-    if(status&&o.status!==status)return false;
+    if(status){
+      if(status==='shipped_delivered'){
+        if(!(o.status==='shipped'||o.status==='delivered'))return false;
+      }else if(o.status!==status)return false;
+    }
     if(month&&o.billing_month!==month)return false;
+    if(comm==='received'&&!o.commission_received)return false;
+    if(comm==='pending'&&o.commission_received)return false;
     if(q&&!(o.invoice_no||'').toLowerCase().includes(q)&&!(o.business_name||'').toLowerCase().includes(q)&&!(o.customer_name||'').toLowerCase().includes(q))return false;
     return true;
   });
@@ -1964,17 +1994,37 @@ async function runReport(){
     return true;
   });
   rptData=list;
+  _rptCommFilter=''; // reset lọc phụ (HH đã/chưa thu) mỗi lần chạy báo cáo mới
   const totalAmt=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalComm=list.reduce((s,o)=>s+(o.commission||0),0);
   const totalGap=list.reduce((s,o)=>s+(o.price_gap||0),0);
   const totalCommAll=list.reduce((s,o)=>s+totalCommOf(o),0);
   const commRecv=list.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   document.getElementById('rpt-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">Số đơn</div><div class="kpi-val">${list.length}</div></div>
-    <div class="kpi gold"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div></div>
-    <div class="kpi"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}</div></div>
-    <div class="kpi"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);">⏳ Chưa: ${fmtUSD(totalCommAll-commRecv)}</div></div>`;
-  document.getElementById('rpt-body').innerHTML=list.map(o=>`<tr>
+    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Số đơn</div><div class="kpi-val">${list.length}</div></div>
+    <div class="kpi gold" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div></div>
+    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}</div></div>
+    <div class="kpi" onclick="setRptCommFilter('received')"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);" onclick="event.stopPropagation();setRptCommFilter('pending')">⏳ Chưa: ${fmtUSD(totalCommAll-commRecv)}</div></div>`;
+  renderReportTable();
+  document.getElementById('report-summary').style.display='block';
+}
+
+let _rptCommFilter='';
+function setRptCommFilter(val){
+  _rptCommFilter=_rptCommFilter===val?'':val; // bấm lại lần nữa = bỏ lọc
+  renderReportTable();
+}
+
+function renderReportTable(){
+  let list=rptData;
+  if(_rptCommFilter==='received')list=list.filter(o=>o.commission_received);
+  else if(_rptCommFilter==='pending')list=list.filter(o=>!o.commission_received);
+  const filterTag=document.getElementById('rpt-filter-tag');
+  if(filterTag){
+    filterTag.style.display=_rptCommFilter?'inline-flex':'none';
+    filterTag.querySelector('span').textContent=_rptCommFilter==='received'?'Đang lọc: HH đã thu':'Đang lọc: HH chưa thu';
+  }
+  document.getElementById('rpt-body').innerHTML=list.length?list.map(o=>`<tr>
     <td class="bold">${o.invoice_no||'—'}</td>
     <td style="color:var(--text3);">${o.billing_month||'—'}</td>
     <td>${o.business_name||'—'}</td>
@@ -1987,8 +2037,7 @@ async function runReport(){
     <td class="num" style="color:var(--gold);font-weight:600;">${fmtUSD(totalCommOf(o))}</td>
     <td class="num" style="color:${o.commission_received?'var(--green)':'var(--amber)'};">${o.commission_received?fmtUSD(totalCommOf(o)):'—'}</td>
     <td>${statusBadge(o.status)}</td>
-  </tr>`).join('');
-  document.getElementById('report-summary').style.display='block';
+  </tr>`).join(''):'<tr><td colspan="12" style="text-align:center;padding:16px;color:var(--text3);">Không có đơn nào khớp bộ lọc</td></tr>';
 }
 
 async function exportReport(){
