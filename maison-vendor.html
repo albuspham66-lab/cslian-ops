@@ -224,6 +224,7 @@ th.num{text-align:right;}
       <div class="nav-item" data-view="reports"><span class="nav-icon">📈</span>Báo cáo</div>
       <div class="nav-item" data-view="reconciliation"><span class="nav-icon">🧾</span>Đối soát <span class="notif-badge" id="recon-badge" style="display:none;">0</span></div>
       <div class="nav-item admin-only" data-view="simulator"><span class="nav-icon">🧮</span>Ước tính hoa hồng</div>
+      <div class="nav-item admin-only" data-view="diagram"><span class="nav-icon">🗺️</span>Sơ đồ hệ thống</div>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="doLogout()">⟵ Đăng xuất</button>
@@ -427,6 +428,21 @@ th.num{text-align:right;}
           <th class="num">Δ vs Best</th>
         </tr></thead><tbody id="sim-compare-body"></tbody></table></div>
       </div>
+    </div>
+
+    <!-- ══ DIAGRAM VIEW (admin only) ══ -->
+    <div class="view" id="view-diagram">
+      <div class="page-title">Sơ đồ hệ thống</div>
+      <div class="page-sub">Vẽ bằng draw.io — chỉ 1 sơ đồ duy nhất, mỗi lần Lưu sẽ ghi đè bản trước.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span id="diagram-status" style="font-size:12px;color:var(--text3);"></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-gold btn-sm" onclick="saveDiagram()">💾 Lưu</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportDiagramPng()">⬇ PNG</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportDiagramPdf()">⬇ PDF</button>
+        </div>
+      </div>
+      <div id="diagram-frame-wrap" style="border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;"></div>
     </div>
 
     </div><!-- /main -->
@@ -2305,6 +2321,84 @@ function refreshSimCompareTable(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// SƠ ĐỒ HỆ THỐNG — nhúng draw.io (embed.diagrams.net), 1 sơ đồ duy nhất,
+// lưu đè vào bảng system_diagram (id=1) mỗi lần bấm Lưu.
+// ══════════════════════════════════════════════════════════════════════════
+let _diagramFrame=null,_diagramXml='',_diagramPendingExport=null,_diagramMsgHandlerBound=false;
+
+function emptyDiagramXml(){
+  return '<mxfile><diagram name="Page-1"><mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
+}
+
+async function loadDiagramFromDB(){
+  const{data,error}=await sb.from('system_diagram').select('xml_content,updated_at').eq('id',1).maybeSingle();
+  if(error){console.error('loadDiagramFromDB:',error);_diagramXml='';return;}
+  _diagramXml=(data&&data.xml_content)||'';
+  document.getElementById('diagram-status').textContent=data&&data.updated_at?('Lần lưu gần nhất: '+fmtTime(data.updated_at)):'Chưa có sơ đồ nào được lưu';
+}
+
+async function initDiagramView(){
+  await loadDiagramFromDB();
+  const wrap=document.getElementById('diagram-frame-wrap');
+  wrap.innerHTML='<iframe id="diagram-frame" style="width:100%;height:75vh;border:none;display:block;background:#fff;" src="https://embed.diagrams.net/?embed=1&ui=atlas&spin=1&proto=json&saveAndExit=0&noExitBtn=1"></iframe>';
+  _diagramFrame=document.getElementById('diagram-frame');
+  if(!_diagramMsgHandlerBound){
+    window.addEventListener('message',onDiagramMessage);
+    _diagramMsgHandlerBound=true;
+  }
+}
+
+function onDiagramMessage(evt){
+  if(evt.origin!=='https://embed.diagrams.net')return;
+  let msg;
+  try{msg=JSON.parse(evt.data);}catch(e){return;}
+  if(msg.event==='init'){
+    _diagramFrame.contentWindow.postMessage(JSON.stringify({action:'load',xml:_diagramXml||emptyDiagramXml(),autosave:0}),'*');
+  }else if(msg.event==='save'){
+    persistDiagram(msg.xml);
+  }else if(msg.event==='export'){
+    if(_diagramPendingExport==='xml'){
+      persistDiagram(msg.xml);
+    }else if(_diagramPendingExport==='png'){
+      downloadDataUri(msg.data,'so-do-he-thong.png');
+    }else if(_diagramPendingExport==='pdf'){
+      downloadDataUri(msg.data,'so-do-he-thong.pdf');
+    }
+    _diagramPendingExport=null;
+  }
+}
+
+function saveDiagram(){
+  if(!_diagramFrame)return;
+  _diagramPendingExport='xml';
+  _diagramFrame.contentWindow.postMessage(JSON.stringify({action:'export',format:'xml'}),'*');
+}
+
+function exportDiagramPng(){
+  if(!_diagramFrame)return;
+  _diagramPendingExport='png';
+  _diagramFrame.contentWindow.postMessage(JSON.stringify({action:'export',format:'png',background:'#ffffff'}),'*');
+}
+
+function exportDiagramPdf(){
+  if(!_diagramFrame)return;
+  _diagramPendingExport='pdf';
+  _diagramFrame.contentWindow.postMessage(JSON.stringify({action:'export',format:'pdf'}),'*');
+}
+
+async function persistDiagram(xml){
+  _diagramXml=xml;
+  const{error}=await sb.from('system_diagram').upsert({id:1,xml_content:xml,updated_by:currentUser.id,updated_at:new Date().toISOString()});
+  if(error){toast('Lỗi lưu sơ đồ: '+error.message,'var(--red)');return;}
+  document.getElementById('diagram-status').textContent='Lần lưu gần nhất: '+fmtTime(new Date().toISOString());
+  toast('✅ Đã lưu sơ đồ','var(--green)');
+}
+
+function downloadDataUri(dataUri,filename){
+  const a=document.createElement('a');a.href=dataUri;a.download=filename;a.click();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // ĐỐI SOÁT HOA HỒNG — Bách Lâm Thịnh (đại diện Bolsa + Tspa)
 // Công thức: T=Tổng Commission gốc | BLT trả=T×1.04 | VAT khai thuế=T×0.08 | KCT thực nhận=T×0.96
 // ══════════════════════════════════════════════════════════════════════════
@@ -2858,6 +2952,7 @@ function nav(view){
   document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
   if(view==='notifications'&&allNotifs.some(n=>!n.is_read))markAllRead();
   if(view==='simulator'&&!_simScenarios.length){addSimScenario();addSimScenario();}
+  if(view==='diagram'&&!_diagramFrame)initDiagramView();
 }
 
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>nav(n.dataset.view)));
