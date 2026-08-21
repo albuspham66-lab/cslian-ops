@@ -382,6 +382,7 @@ th.num{text-align:right;}
           <div class="tw"><table><thead><tr>
             <th>Invoice</th><th>Tháng</th><th>Business</th><th>Product</th><th>Vendor</th>
             <th class="num">Total ($)</th><th class="num">Shipping ($)</th><th class="num">Commission ($)</th><th class="num">Price Gap ($)</th>
+            <th class="num">Headspa Bonus ($)</th>
             <th class="num">Tổng Commission ($)</th><th class="num">HH đã thu ($)</th>
             <th>Trạng thái</th>
           </tr></thead><tbody id="rpt-body"></tbody></table></div>
@@ -748,8 +749,13 @@ th.num{text-align:right;}
         </select>
         <input type="number" id="cost-gap-pct-custom" step="0.01" min="0" placeholder="Nhập % tuỳ chỉnh" style="margin-top:6px;display:none;" oninput="recalcTotalComm()">
       </div>
-      <div class="fg span2" style="background:var(--card2);border-radius:var(--rsm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:12px;color:var(--text3);">Tổng Commission = Commission + (%Gap × Price Gap)</span>
+      <div class="fg">
+        <label class="fl">Headspa Amount ($) <span style="color:var(--text3);font-weight:400;">— phần Total Amount thuộc headspa bed</span></label>
+        <input type="number" id="cost-headspa" step="0.01" min="0" oninput="recalcTotalComm()">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Headspa Bonus = số tiền này × 7%, cộng thêm vào Tổng Commission bên dưới</div>
+      </div>
+      <div class="fg span2" style="background:var(--card2);border-radius:var(--rsm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+        <span style="font-size:12px;color:var(--text3);">Tổng Commission = Commission + (%Gap × Price Gap) + Headspa Bonus (7%)</span>
         <span id="cost-total-comm-preview" style="font-family:'JetBrains Mono';font-weight:700;color:var(--gold);font-size:15px;"></span>
       </div>
       <div class="fg"><label class="fl">Payment Method</label>
@@ -1106,6 +1112,8 @@ function _renderOrderView(o){
     dl('Balance Due',fmtUSD(o.balance_due),'',o.balance_due>0?'var(--red)':'var(--text3)')+
     dl('Commission',fmtUSD(o.commission),'','var(--blue)')+
     dl('Price Gap',fmtUSD(o.price_gap))+
+    (parseFloat(o.headspa_amount)>0?dl('Headspa Amount',fmtUSD(o.headspa_amount)+' (Bonus 7%: '+fmtUSD(headspaBonusOf(o))+')','','var(--gold)'):'')+
+    dl('Tổng Commission',fmtUSD(totalCommOf(o)),'','var(--gold)')+
     dl('Selling Exp',fmtUSD(o.selling_expenses),'','var(--red)');
   // Tracking
   const trkEl=document.getElementById('ov-tracking-val');
@@ -1492,8 +1500,11 @@ function recalcTotalComm(){
   else gapPct=parseFloat(gapSel)||0;
   const gap=parseFloat(document.getElementById('cost-gap').value)||0;
   const comm=parseFloat(document.getElementById('cost-comm').value)||0;
-  const total=comm+(gap*gapPct/100);
-  document.getElementById('cost-total-comm-preview').textContent=fmtUSD(total);
+  const headspaAmt=parseFloat(document.getElementById('cost-headspa').value)||0;
+  const headspaBonus=headspaAmt*HEADSPA_BONUS_RATE;
+  const total=comm+(gap*gapPct/100)+headspaBonus;
+  document.getElementById('cost-total-comm-preview').textContent=fmtUSD(total)
+    +(headspaAmt>0?` (gồm Headspa Bonus ${fmtUSD(headspaBonus)})`:'');
 }
 
 function openCostModal(id){
@@ -1516,6 +1527,7 @@ function openCostModal(id){
   const gap=_costTotalAmount-shipping-(parseFloat(o?.cost_price)||0);
   document.getElementById('cost-gap').value=gap.toFixed(2);
   document.getElementById('cost-selling').value=o?.selling_expenses||'';
+  document.getElementById('cost-headspa').value=o?.headspa_amount||'';
 
   // Commission % — khôi phục đúng lựa chọn đã lưu (3/5/7/tuỳ chỉnh/nhập tay)
   const commPctEl=document.getElementById('cost-comm-pct');
@@ -1585,6 +1597,7 @@ async function saveCost(){
     cost_price:parseFloat(document.getElementById('cost-price').value)||0,
     price_gap:parseFloat(document.getElementById('cost-gap').value)||0,
     selling_expenses:parseFloat(document.getElementById('cost-selling').value)||0,
+    headspa_amount:parseFloat(document.getElementById('cost-headspa').value)||0,
     commission:parseFloat(document.getElementById('cost-comm').value)||0,
     commission_pct,
     gap_pct,
@@ -2039,12 +2052,13 @@ async function runReport(){
   const totalAmt=list.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalComm=list.reduce((s,o)=>s+(o.commission||0),0);
   const totalGap=list.reduce((s,o)=>s+(o.price_gap||0),0);
+  const totalHeadspa=list.reduce((s,o)=>s+headspaBonusOf(o),0);
   const totalCommAll=list.reduce((s,o)=>s+totalCommOf(o),0);
   const commRecv=list.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   document.getElementById('rpt-kpis').innerHTML=`
     <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Số đơn</div><div class="kpi-val">${list.length}</div></div>
     <div class="kpi gold" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div></div>
-    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}</div></div>
+    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}${totalHeadspa>0?' · Headspa Bonus: '+fmtUSD(totalHeadspa):''}</div></div>
     <div class="kpi" onclick="setRptCommFilter('received')"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);" onclick="event.stopPropagation();setRptCommFilter('pending')">⏳ Chưa: ${fmtUSD(totalCommAll-commRecv)}</div></div>`;
   renderReportTable();
   document.getElementById('report-summary').style.display='block';
@@ -2075,10 +2089,11 @@ function renderReportTable(){
     <td class="num" style="color:var(--text2);">${fmtUSD(o.shipping)}</td>
     <td class="num" style="color:var(--blue);">${fmtUSD(o.commission)}</td>
     <td class="num" style="color:var(--text2);">${fmtUSD(o.price_gap)}</td>
+    <td class="num" style="color:var(--gold);">${headspaBonusOf(o)>0?fmtUSD(headspaBonusOf(o)):'—'}</td>
     <td class="num" style="color:var(--gold);font-weight:600;">${fmtUSD(totalCommOf(o))}</td>
     <td class="num" style="color:${o.commission_received?'var(--green)':'var(--amber)'};">${o.commission_received?fmtUSD(totalCommOf(o)):'—'}</td>
     <td>${statusBadge(o.status)}</td>
-  </tr>`).join(''):'<tr><td colspan="12" style="text-align:center;padding:16px;color:var(--text3);">Không có đơn nào khớp bộ lọc</td></tr>';
+  </tr>`).join(''):'<tr><td colspan="13" style="text-align:center;padding:16px;color:var(--text3);">Không có đơn nào khớp bộ lọc</td></tr>';
 }
 
 async function exportReport(){
@@ -2089,7 +2104,7 @@ async function exportReport(){
     wb.creator='Maison De KCT Vendor Portal';
     wb.created=new Date();
     const ws=wb.addWorksheet('Báo cáo',{views:[{state:'frozen',ySplit:1}]});
-    const moneyCols=new Set(['costPrice','total','shipping','deposit1','deposit2','balance','commission','priceGap','totalComm','sellingExp']);
+    const moneyCols=new Set(['costPrice','total','shipping','deposit1','deposit2','balance','commission','priceGap','headspaAmt','headspaBonus','totalComm','sellingExp']);
     ws.columns=[
       {header:'No.',key:'no',width:6},
       {header:'Date',key:'date',width:12},
@@ -2114,6 +2129,8 @@ async function exportReport(){
       {header:'Invoice',key:'invoice',width:16},
       {header:'Comission',key:'commission',width:12},
       {header:'Price gap',key:'priceGap',width:12},
+      {header:'Headspa Amount',key:'headspaAmt',width:14},
+      {header:'Headspa Bonus',key:'headspaBonus',width:14},
       {header:'Tổng Commission',key:'totalComm',width:16},
       {header:'Selling expenses',key:'sellingExp',width:14},
       {header:'Status',key:'status',width:14},
@@ -2131,7 +2148,7 @@ async function exportReport(){
         costPrice:o.cost_price||0,total:o.total_amount||0,shipping:o.shipping||0,
         deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
         note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
-        commission:o.commission||0,priceGap:o.price_gap||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
+        commission:o.commission||0,priceGap:o.price_gap||0,headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
         status:statusLbl[o.status]||o.status||'',tracking:o.tracking_number||'',
         picture:photo?'Xem ảnh':''
       });
@@ -2207,9 +2224,11 @@ function soTienBangChu(number){
   return result+' đồng'+(number%1000===0?' chẵn':'');
 }
 // Tổng Commission = Commission ($) + (%Gap × Price Gap). gap_pct mặc định 100% nếu chưa từng set.
+const HEADSPA_BONUS_RATE=0.07; // cố định 7%, cộng thêm vào Total Commission
+function headspaBonusOf(o){return(parseFloat(o?.headspa_amount)||0)*HEADSPA_BONUS_RATE;}
 function totalCommOf(o){
   const gapPct=(o?.gap_pct===null||o?.gap_pct===undefined)?100:parseFloat(o.gap_pct);
-  return (parseFloat(o?.commission)||0)+(parseFloat(o?.price_gap)||0)*(gapPct/100);
+  return (parseFloat(o?.commission)||0)+(parseFloat(o?.price_gap)||0)*(gapPct/100)+headspaBonusOf(o);
 }
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 
