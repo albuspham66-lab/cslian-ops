@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Admin — C-Silan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+body{background:#0f0a24;color:#e8e6f5;padding:24px}
+h1{font-size:22px;margin-bottom:4px}
+h2{font-size:16px;margin:24px 0 10px;color:#a29bfe}
+.card{background:#1a1240;border:1px solid #2d2560;border-radius:10px;padding:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px;border-bottom:1px solid #2d2560;text-align:left}
+th{color:#a29bfe;font-weight:600}
+input,select,textarea{background:#0f0a24;border:1px solid #2d2560;color:#e8e6f5;padding:6px 10px;border-radius:6px;font-size:13px;margin:2px}
+button{background:#6c5ce7;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
+button:hover{background:#4834d4}
+button.danger{background:#ff7675}
+button.danger:hover{background:#e84118}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:8px;cursor:pointer;background:#1a1240;border:1px solid #2d2560}
+.tab.active{background:#6c5ce7}
+.hidden{display:none}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.muted{color:#8a86b8;font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#2d2560}
+.badge.open{background:#00b894}
+.badge.closed{background:#636e72}
+</style>
+</head>
+<body>
+<h1>🎮 Game Admin</h1>
+<div class="muted">Cấu hình 5 mini-game — chỉ dùng trong Hub, không public cho sale</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="race" onclick="switchTab('race')">🏎️ Đua xe</div>
+  <div class="tab" data-tab="ticket" onclick="switchTab('ticket')">🎫 Vé vàng</div>
+  <div class="tab" data-tab="wheel" onclick="switchTab('wheel')">🎡 Vòng quay</div>
+  <div class="tab" data-tab="box" onclick="switchTab('box')">🎁 Hộp bí mật</div>
+  <div class="tab" data-tab="auction" onclick="switchTab('auction')">🔨 Đấu giá</div>
+</div>
+
+<div id="tab-race" class="tabcontent"></div>
+<div id="tab-ticket" class="tabcontent hidden"></div>
+<div id="tab-wheel" class="tabcontent hidden"></div>
+<div id="tab-box" class="tabcontent hidden"></div>
+<div id="tab-auction" class="tabcontent hidden"></div>
+
+<script>
+const FIN_URL='https://jggfmpihfisbusnbzyoi.supabase.co';
+const FIN_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M';
+const CRM_URL='https://ajsakaddylbpppxlidfe.supabase.co';
+const CRM_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2FrYWRkeWxicHBweGxpZGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA1MDUsImV4cCI6MjA5NDI2NjUwNX0.B_8YwhOD4MXMKFOc3T0lpuujAnhUnpSLGjo12hWsLdc';
+const GAME_ACTION_URL=CRM_URL+'/functions/v1/game-action';
+
+async function fRead(pathAndQuery){
+  const res=await fetch(FIN_URL+'/rest/v1/'+pathAndQuery,{headers:{apikey:FIN_ANON,Authorization:'Bearer '+FIN_ANON}});
+  return res.ok?await res.json():[];
+}
+async function fWrite(path,method,body){
+  const res=await fetch(FIN_URL+'/rest/v1/'+path,{method:method,headers:{apikey:FIN_ANON,Authorization:'Bearer '+FIN_ANON,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
+  return res.ok?await res.json():{error:await res.text()};
+}
+async function cRead(pathAndQuery){
+  const res=await fetch(CRM_URL+'/rest/v1/'+pathAndQuery,{headers:{apikey:CRM_ANON,Authorization:'Bearer '+CRM_ANON}});
+  return res.ok?await res.json():[];
+}
+async function cWrite(path,method,body){
+  const res=await fetch(CRM_URL+'/rest/v1/'+path,{method:method,headers:{apikey:CRM_ANON,Authorization:'Bearer '+CRM_ANON,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
+  return res.ok?await res.json():{error:await res.text()};
+}
+async function callAction(action,extra){
+  const res=await fetch(GAME_ACTION_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+CRM_ANON},body:JSON.stringify(Object.assign({action:action},extra||{}))});
+  return await res.json();
+}
+
+let profilesCache=null;
+async function getProfiles(){
+  if(profilesCache)return profilesCache;
+  profilesCache=await cRead('profiles?select=id,full_name,code,role&order=code');
+  return profilesCache;
+}
+function profName(id,profiles){const p=(profiles||[]).find(function(x){return x.id===id;});return p?p.full_name+' ('+p.code+')':id;}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(function(el){el.classList.toggle('active',el.dataset.tab===t);});
+  document.querySelectorAll('.tabcontent').forEach(function(el){el.classList.add('hidden');});
+  document.getElementById('tab-'+t).classList.remove('hidden');
+  if(t==='race')renderRace();
+  if(t==='ticket')renderTicket();
+  if(t==='wheel')renderWheel();
+  if(t==='box')renderBox();
+  if(t==='auction')renderAuction();
+}
+
+// ═══ 1. ĐUA XE ═══
+async function renderRace(){
+  const el=document.getElementById('tab-race');
+  el.innerHTML='Đang tải...';
+  const thisMonth=new Date().toISOString().slice(0,7);
+  const profiles=(await getProfiles()).filter(function(p){return p.role==='sale'||p.role==='leader';});
+  const targets=await fRead('targets?period_key=eq.'+thisMonth+'&select=user_id,target_amount');
+  const invoices=await cRead('invoices?type=eq.invoice&approval_status=eq.approved&billing_month=eq.'+thisMonth+'&select=sale_id,total');
+  const configs=await fRead('game_race_config?period_key=eq.'+thisMonth+'&select=*&order=id.desc&limit=1');
+  const cfg=configs[0];
+
+  const rows=profiles.map(function(p){
+    const target=(targets.find(function(t){return t.user_id===p.id;})||{}).target_amount||0;
+    const revenue=invoices.filter(function(i){return i.sale_id===p.id;}).reduce(function(s,i){return s+parseFloat(i.total||0);},0);
+    const pct=target>0?Math.round((revenue/target)*1000)/10:0;
+    return {name:p.full_name,code:p.code,target:target,revenue:revenue,pct:pct};
+  }).sort(function(a,b){return b.pct-a.pct;});
+
+  el.innerHTML='<div class="card"><h2>Bảng xếp hạng tháng '+thisMonth+'</h2><table><tr><th>#</th><th>Sale</th><th>Target</th><th>Doanh số</th><th>%</th></tr>'
+    +rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+r.name+'</td><td>$'+r.target.toLocaleString()+'</td><td>$'+r.revenue.toLocaleString()+'</td><td><b>'+r.pct+'%</b></td></tr>';}).join('')
+    +'</table></div>'
+    +'<div class="card"><h2>Cấu hình phần thưởng</h2>'
+    +'<div class="row"><label>Hệ số catch-up (N ngày cuối):</label><input id="race-catchup-days" type="number" value="'+(cfg?cfg.catchup_days:7)+'" style="width:60px"></div>'
+    +'<div class="row"><label>Hệ số nhân:</label><input id="race-catchup-mult" type="number" step="0.1" value="'+(cfg?cfg.catchup_multiplier:1.5)+'" style="width:60px"></div>'
+    +'<div class="row"><label>Tên phần thưởng:</label><input id="race-prize-title" value="'+(cfg?cfg.prize_title||'':'')+'" style="width:250px"></div>'
+    +'<div class="row"><label>Ghi chú:</label><textarea id="race-prize-note" style="width:100%;height:60px">'+(cfg?cfg.prize_note||'':'')+'</textarea></div>'
+    +'<button onclick="saveRaceConfig(\''+thisMonth+'\','+(cfg?cfg.id:'null')+')">Lưu cấu hình</button>'
+    +'</div>';
+}
+async function saveRaceConfig(periodKey,cfgId){
+  const body={period_type:'month',period_key:periodKey,
+    catchup_days:parseInt(document.getElementById('race-catchup-days').value)||7,
+    catchup_multiplier:parseFloat(document.getElementById('race-catchup-mult').value)||1.5,
+    prize_title:document.getElementById('race-prize-title').value,
+    prize_note:document.getElementById('race-prize-note').value,
+    is_active:true};
+  if(cfgId)await fWrite('game_race_config?id=eq.'+cfgId,'PATCH',body);
+  else await fWrite('game_race_config','POST',body);
+  alert('Đã lưu');renderRace();
+}
+
+// ═══ 2. VÉ VÀNG ═══
+async function renderTicket(){
+  const el=document.getElementById('tab-ticket');
+  el.innerHTML='Đang tải...';
+  const campaigns=await cRead('customers?select=campaign_name&campaign_name=not.is.null&limit=2000');
+  const uniqueCampaigns=[...new Set(campaigns.map(function(c){return c.campaign_name;}))].filter(Boolean);
+  const pending=await cRead('customers?is_golden_ticket=eq.true&lead_status=neq.Closedeal&select=id,business_name,customer_name,assigned_to,campaign_name');
+  const profiles=await getProfiles();
+
+  el.innerHTML='<div class="card"><h2>Gắn vé vàng ngẫu nhiên cho 1 campaign</h2>'
+    +'<div class="row"><select id="ticket-campaign"><option value="">-- Chọn campaign --</option>'+uniqueCampaigns.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('')+'</select>'
+    +'<label>Tỷ lệ %:</label><input id="ticket-pct" type="number" value="5" style="width:60px">'
+    +'<button onclick="assignGoldenTickets()">Gắn cờ ngẫu nhiên</button></div>'
+    +'<div class="muted">Sẽ random chọn đúng % khách CHƯA có cờ trong campaign này để gắn is_golden_ticket=true</div></div>'
+    +'<div class="card"><h2>Vé vàng đang chờ chốt ('+pending.length+')</h2><table><tr><th>Khách hàng</th><th>Sale</th><th>Campaign</th></tr>'
+    +pending.map(function(c){return '<tr><td>'+(c.business_name||c.customer_name||'#'+c.id)+'</td><td>'+profName(c.assigned_to,profiles)+'</td><td>'+(c.campaign_name||'')+'</td></tr>';}).join('')
+    +'</table></div>';
+}
+async function assignGoldenTickets(){
+  const campaign=document.getElementById('ticket-campaign').value;
+  const pct=parseFloat(document.getElementById('ticket-pct').value)||5;
+  if(!campaign){alert('Chọn campaign trước');return;}
+  const custs=await cRead('customers?campaign_name=eq.'+encodeURIComponent(campaign)+'&is_golden_ticket=eq.false&select=id&limit=2000');
+  if(custs.length===0){alert('Không có khách nào để gắn cờ');return;}
+  const n=Math.max(1,Math.round(custs.length*pct/100));
+  const shuffled=custs.sort(function(){return Math.random()-0.5;}).slice(0,n);
+  for(const c of shuffled){await cWrite('customers?id=eq.'+c.id,'PATCH',{is_golden_ticket:true});}
+  alert('Đã gắn vé vàng cho '+shuffled.length+'/'+custs.length+' khách');
+  renderTicket();
+}
+
+// ═══ 3. VÒNG QUAY ═══
+async function renderWheel(){
+  const el=document.getElementById('tab-wheel');
+  el.innerHTML='Đang tải...';
+  const sessions=await fRead('wheel_sessions?is_sale_game=eq.true&order=id.desc&limit=1');
+  const session=sessions[0];
+  const entries=session?await fRead('wheel_entries?session_id=eq.'+session.id+'&order=sort_order'):[];
+  const configs=await fRead('game_wheel_config?is_active=eq.true&limit=1');
+  const cfg=configs[0];
+
+  el.innerHTML='<div class="card"><h2>Điều kiện nhận lượt quay</h2>'
+    +'<div class="row"><label>Số cuộc "Bắt máy"/lượt:</label><input id="wheel-calls" type="number" value="'+(cfg?cfg.calls_per_credit:10)+'" style="width:60px"></div>'
+    +'<div class="row"><label>Số đơn chốt/lượt:</label><input id="wheel-orders" type="number" value="'+(cfg?cfg.orders_per_credit:1)+'" style="width:60px"></div>'
+    +'<button onclick="saveWheelConfig('+(cfg?cfg.id:'null')+')">Lưu</button></div>'
+    +'<div class="card"><h2>Danh sách phần thưởng vòng quay</h2>'
+    +(session?('<table><tr><th>Tên</th><th>Trọng số</th><th></th></tr>'
+      +entries.map(function(e){return '<tr><td>'+e.label+'</td><td>'+e.weight+'</td><td><button class="danger" onclick="deleteWheelEntry('+e.id+')">Xoá</button></td></tr>';}).join('')
+      +'</table>'):'<div class="muted">Chưa có session — bấm nút bên dưới để tạo</div>')
+    +'<div class="row" style="margin-top:12px"><input id="wheel-entry-label" placeholder="Tên phần thưởng"><input id="wheel-entry-weight" type="number" value="1" style="width:60px" placeholder="Trọng số">'
+    +'<button onclick="addWheelEntry('+(session?session.id:'null')+')">'+(session?'Thêm phần thưởng':'Tạo session + thêm')+'</button></div>'
+    +'</div>';
+}
+async function saveWheelConfig(cfgId){
+  const body={calls_per_credit:parseInt(document.getElementById('wheel-calls').value)||10,orders_per_credit:parseInt(document.getElementById('wheel-orders').value)||1,is_active:true};
+  if(cfgId)await fWrite('game_wheel_config?id=eq.'+cfgId,'PATCH',body);
+  else await fWrite('game_wheel_config','POST',body);
+  alert('Đã lưu');renderWheel();
+}
+async function addWheelEntry(sessionId){
+  const label=document.getElementById('wheel-entry-label').value;
+  const weight=parseFloat(document.getElementById('wheel-entry-weight').value)||1;
+  if(!label){alert('Nhập tên phần thưởng');return;}
+  if(!sessionId){
+    const created=await fWrite('wheel_sessions','POST',{name:'Sale Game Wheel',purpose:'Vòng quay may mắn cho sale',is_sale_game:true,is_active:true});
+    sessionId=created[0].id;
+  }
+  await fWrite('wheel_entries','POST',{session_id:sessionId,label:label,weight:weight,is_active:true});
+  renderWheel();
+}
+async function deleteWheelEntry(id){
+  if(!confirm('Xoá phần thưởng này?'))return;
+  await fWrite('wheel_entries?id=eq.'+id,'DELETE',{});
+  renderWheel();
+}
+
+// ═══ 4. HỘP BÍ MẬT ═══
+async function renderBox(){
+  const el=document.getElementById('tab-box');
+  el.innerHTML='Đang tải...';
+  const thisMonth=new Date().toISOString().slice(0,7);
+  const configs=await fRead('game_box_config?period_key=eq.'+thisMonth+'&order=id.desc&limit=1');
+  const cfg=configs[0];
+  const boxes=cfg?await fRead('game_boxes?config_id=eq.'+cfg.id+'&order=sort_order'):[];
+
+  el.innerHTML='<div class="card"><h2>Đợt hộp bí mật tháng '+thisMonth+'</h2>'
+    +(cfg?'<div class="muted">Đã tạo — config id '+cfg.id+'</div>':'<button onclick="createBoxConfig(\''+thisMonth+'\')">Tạo đợt mới</button>')
+    +'</div>'
+    +(cfg?('<div class="card"><h2>Danh sách hộp ('+boxes.length+')</h2><table><tr><th>Loại</th><th>Tên quà</th><th>Đã bốc?</th><th></th></tr>'
+      +boxes.map(function(b){return '<tr><td>'+(b.box_type==='consolation'?'An ủi':'Thường')+'</td><td>'+b.prize_title+'</td><td>'+(b.is_drawn?'✅':'—')+'</td><td>'+(b.is_drawn?'':'<button class="danger" onclick="deleteBox('+b.id+')">Xoá</button>')+'</td></tr>';}).join('')
+      +'</table>'
+      +'<div class="row" style="margin-top:12px">'
+      +'<select id="box-type"><option value="normal">Thường</option><option value="consolation">An ủi</option></select>'
+      +'<input id="box-title" placeholder="Tên phần thưởng"><input id="box-note" placeholder="Ghi chú">'
+      +'<button onclick="addBox('+cfg.id+')">Thêm hộp</button></div></div>'):'');
+}
+async function createBoxConfig(periodKey){
+  const tiers=[{min_pct:50,draws:1},{min_pct:75,draws:2},{min_pct:100,draws:3}];
+  await fWrite('game_box_config','POST',{period_type:'month',period_key:periodKey,tier_json:tiers,consolation_min_pct:30,consolation_max_pct:49,is_active:true});
+  renderBox();
+}
+async function addBox(configId){
+  const boxType=document.getElementById('box-type').value;
+  const title=document.getElementById('box-title').value;
+  const note=document.getElementById('box-note').value;
+  if(!title){alert('Nhập tên phần thưởng');return;}
+  await fWrite('game_boxes','POST',{config_id:configId,box_type:boxType,prize_title:title,prize_note:note});
+  renderBox();
+}
+async function deleteBox(id){
+  if(!confirm('Xoá hộp này?'))return;
+  await fWrite('game_boxes?id=eq.'+id,'DELETE',{});
+  renderBox();
+}
+
+// ═══ 5. ĐẤU GIÁ ═══
+async function renderAuction(){
+  const el=document.getElementById('tab-auction');
+  el.innerHTML='Đang tải...';
+  const q=Math.ceil((new Date().getMonth()+1)/3);
+  const periodKey=new Date().getFullYear()+'-Q'+q;
+  const items=await fRead('game_auction_items?period_key=eq.'+periodKey+'&order=id.desc');
+  const profiles=await getProfiles();
+
+  const itemsHtml=await Promise.all(items.map(async function(it){
+    const bids=await fRead('game_auction_bids?item_id=eq.'+it.id+'&order=bid_points.desc');
+    const topBid=bids[0];
+    return '<div class="card"><div class="row"><b>'+it.title+'</b><span class="badge '+it.status+'">'+(it.status==='open'?'Đang mở':'Đã đóng')+'</span></div>'
+      +'<div class="muted">'+(it.description||'')+' — Khởi điểm: '+it.starting_points+' điểm</div>'
+      +(topBid?('<div>Giá cao nhất: <b>'+topBid.bid_points+'</b> điểm — '+profName(topBid.user_id,profiles)+'</div>'):'<div class="muted">Chưa có ai đặt giá</div>')
+      +(it.status==='open'?('<button class="danger" onclick="closeAuctionItem('+it.id+')">Đóng phiên & chốt người thắng</button>'):('<div class="muted">Người thắng: '+(it.winner_user_id?profName(it.winner_user_id,profiles):'không có')+' — '+(it.final_points||0)+' điểm</div>'))
+      +'</div>';
+  }));
+
+  el.innerHTML='<div class="card"><h2>Tạo phiên đấu giá mới — '+periodKey+'</h2>'
+    +'<div class="row"><input id="auction-title" placeholder="Tên quà"><input id="auction-desc" placeholder="Mô tả"><input id="auction-start" type="number" placeholder="Điểm khởi điểm" style="width:120px"></div>'
+    +'<button onclick="createAuctionItem(\''+periodKey+'\')">Tạo phiên</button></div>'
+    +itemsHtml.join('');
+}
+async function createAuctionItem(periodKey){
+  const title=document.getElementById('auction-title').value;
+  const desc=document.getElementById('auction-desc').value;
+  const start=parseFloat(document.getElementById('auction-start').value)||0;
+  if(!title||start<=0){alert('Nhập đủ tên + điểm khởi điểm');return;}
+  await fWrite('game_auction_items','POST',{period_key:periodKey,title:title,description:desc,starting_points:start,status:'open'});
+  renderAuction();
+}
+async function closeAuctionItem(itemId){
+  if(!confirm('Đóng phiên này? Không thể mở lại.'))return;
+  // callerUserId cần là 1 manager thật — Calvin tự thay bằng đúng user_id của mình nếu cần thiết
+  const res=await callAction('close_auction',{user_id:CALVIN_USER_ID,item_id:itemId});
+  if(!res.ok){alert(res.error||'Lỗi đóng phiên');return;}
+  alert('Đã đóng — người thắng: '+(res.winner_user_id||'không có'));
+  renderAuction();
+}
+
+// ⚠️ THAY user_id thật của Calvin (profiles.id bên CRM) vào đây trước khi dùng tab Đấu giá
+const CALVIN_USER_ID='c5e92fdc-b546-4674-846b-a994ef0ee71e';
+
+switchTab('race');
+</script>
+</body>
+</html>
