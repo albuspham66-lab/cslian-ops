@@ -100,10 +100,13 @@ async function renderRace(){
   const el=document.getElementById('tab-race');
   el.innerHTML='Đang tải...';
   const thisMonth=new Date().toISOString().slice(0,7);
-  const profiles=(await getProfiles()).filter(function(p){return p.role==='sale'||p.role==='leader';});
-  const targets=await fRead('targets?period_key=eq.'+thisMonth+'&select=user_id,target_amount');
-  const invoices=await cRead('invoices?type=eq.invoice&approval_status=eq.approved&billing_month=eq.'+thisMonth+'&select=sale_id,total');
-  const configs=await fRead('game_race_config?period_key=eq.'+thisMonth+'&select=*&order=id.desc&limit=1');
+  const [allProfiles,targets,invoices,configs]=await Promise.all([
+    getProfiles(),
+    fRead('targets?period_key=eq.'+thisMonth+'&select=user_id,target_amount'),
+    cRead('invoices?type=eq.invoice&approval_status=eq.approved&billing_month=eq.'+thisMonth+'&select=sale_id,total'),
+    fRead('game_race_config?period_key=eq.'+thisMonth+'&select=*&order=id.desc&limit=1'),
+  ]);
+  const profiles=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';});
   const cfg=configs[0];
 
   const rows=profiles.map(function(p){
@@ -140,10 +143,12 @@ async function saveRaceConfig(periodKey,cfgId){
 async function renderTicket(){
   const el=document.getElementById('tab-ticket');
   el.innerHTML='Đang tải...';
-  const campaigns=await cRead('customers?select=campaign_name&campaign_name=not.is.null&limit=2000');
+  const [campaigns,pending,profiles]=await Promise.all([
+    cRead('customers?select=campaign_name&campaign_name=not.is.null&limit=2000'),
+    cRead('customers?is_golden_ticket=eq.true&lead_status=neq.Closedeal&select=id,business_name,customer_name,assigned_to,campaign_name'),
+    getProfiles(),
+  ]);
   const uniqueCampaigns=[...new Set(campaigns.map(function(c){return c.campaign_name;}))].filter(Boolean);
-  const pending=await cRead('customers?is_golden_ticket=eq.true&lead_status=neq.Closedeal&select=id,business_name,customer_name,assigned_to,campaign_name');
-  const profiles=await getProfiles();
 
   el.innerHTML='<div class="card"><h2>Gắn vé vàng ngẫu nhiên cho 1 campaign</h2>'
     +'<div class="row"><select id="ticket-campaign"><option value="">-- Chọn campaign --</option>'+uniqueCampaigns.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('')+'</select>'
@@ -162,7 +167,8 @@ async function assignGoldenTickets(){
   if(custs.length===0){alert('Không có khách nào để gắn cờ');return;}
   const n=Math.max(1,Math.round(custs.length*pct/100));
   const shuffled=custs.sort(function(){return Math.random()-0.5;}).slice(0,n);
-  for(const c of shuffled){await cWrite('customers?id=eq.'+c.id,'PATCH',{is_golden_ticket:true});}
+  // 1 lệnh PATCH duy nhất (id IN (...)) thay vì lặp từng khách — cùng giá trị is_golden_ticket:true cho tất cả
+  await cWrite('customers?id=in.('+shuffled.map(function(c){return c.id;}).join(',')+')','PATCH',{is_golden_ticket:true});
   alert('Đã gắn vé vàng cho '+shuffled.length+'/'+custs.length+' khách');
   renderTicket();
 }
@@ -171,10 +177,12 @@ async function assignGoldenTickets(){
 async function renderWheel(){
   const el=document.getElementById('tab-wheel');
   el.innerHTML='Đang tải...';
-  const sessions=await fRead('wheel_sessions?is_sale_game=eq.true&order=id.desc&limit=1');
+  const [sessions,configs]=await Promise.all([
+    fRead('wheel_sessions?is_sale_game=eq.true&order=id.desc&limit=1'),
+    fRead('game_wheel_config?is_active=eq.true&limit=1'),
+  ]);
   const session=sessions[0];
   const entries=session?await fRead('wheel_entries?session_id=eq.'+session.id+'&order=sort_order'):[];
-  const configs=await fRead('game_wheel_config?is_active=eq.true&limit=1');
   const cfg=configs[0];
 
   el.innerHTML='<div class="card"><h2>Điều kiện nhận lượt quay</h2>'
