@@ -539,7 +539,7 @@ th.num{text-align:right;}
 <!-- ══ MODALS ══ -->
 <!-- Order View Modal -->
 <div class="mbg" id="m-order-view">
-  <div class="modal modal-xl" style="max-width:900px;max-height:92vh;display:flex;flex-direction:column;padding:0;">
+  <div class="modal modal-xl" style="max-width:1400px;width:96vw;max-height:92vh;display:flex;flex-direction:column;padding:0;">
     <!-- Header -->
     <div style="padding:20px 28px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:12px;flex-shrink:0;">
       <div style="flex:1;">
@@ -922,7 +922,7 @@ async function loadBatches(){
 
 async function loadNotifs(){
   let q=sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);
-  if(currentProfile?.role!=='admin')q=q.eq('created_by',currentUser.id);
+  if(currentProfile?.role!=='admin')q=q.eq('audience','vendor');
   const{data}=await q;
   allNotifs=data||[];
   updateNotifBadge();
@@ -1274,6 +1274,13 @@ async function saveVendorNotesOV(){
   if(o)o.vendor_notes=notes;
   _ovDirty=false;
   document.getElementById('ov-dirty-warn').style.display='none';
+  // Vendor sửa ghi chú tiến độ → báo admin
+  if(currentProfile?.role!=='admin'&&notes.trim()){
+    await sb.from('notifications').insert({
+      type:'vendor_note',order_id:parseInt(_ovId),is_read:false,audience:'admin',
+      message:`${currentProfile.full_name} vừa cập nhật ghi chú tiến độ cho đơn ${o?.invoice_no||_ovId}`
+    });
+  }
   toast('✅ Đã lưu ghi chú','var(--green)');
 }
 
@@ -1286,6 +1293,7 @@ async function uploadPhotos(orderId,input,type='progress'){
   const files=Array.from(input.files);
   if(!files.length)return;
   toast('Đang upload…','var(--text2)');
+  let successCount=0;
   for(const file of files){
     const ext=file.name.split('.').pop();
     const folder=type==='payment'?'payment':'progress';
@@ -1296,6 +1304,16 @@ async function uploadPhotos(orderId,input,type='progress'){
     const caption=type==='payment'?'payment:proof':'progress';
     await sb.from('order_photos').insert({order_id:orderId,storage_url:urlData.publicUrl,caption,uploaded_by:currentUser.id});
     allPhotos.push({order_id:orderId,storage_url:urlData.publicUrl,caption,created_at:new Date().toISOString()});
+    successCount++;
+  }
+  // Vendor upload ảnh → báo admin (gộp 1 thông báo/lượt upload, không spam theo từng ảnh)
+  if(successCount&&currentProfile?.role!=='admin'){
+    const o=allOrders.find(x=>x.id==orderId);
+    const label=type==='payment'?'ảnh thanh toán':'ảnh tiến độ';
+    await sb.from('notifications').insert({
+      type:'photo',order_id:parseInt(orderId),is_read:false,audience:'admin',
+      message:`${currentProfile.full_name} đã upload ${successCount} ${label} cho đơn ${o?.invoice_no||orderId}`
+    });
   }
   input.value='';renderOrders();
   toast('✅ Upload thành công','var(--green)');
@@ -1357,9 +1375,9 @@ async function saveTracking(){
       crmSyncOk=false;
     }
   }
-  // Tạo notification
+  // Tạo notification (vendor → admin)
   const msg=`${currentProfile.full_name} đã cập nhật tracking cho đơn ${o?.invoice_no||id}: ${num}`;
-  await sb.from('notifications').insert({type:'tracking',order_id:parseInt(id),message:msg,created_by:currentUser.id,is_read:false});
+  await sb.from('notifications').insert({type:'tracking',order_id:parseInt(id),message:msg,created_by:currentUser.id,is_read:false,audience:'admin'});
   closeModal('m-tracking');
   renderOrders();renderDashboard();
   if(_ovId==id)_renderOrderView(o);
@@ -1381,9 +1399,18 @@ async function saveStatus(){
   const id=document.getElementById('sts-order-id').value;
   const status=document.getElementById('sts-val').value;
   const commRecv=document.getElementById('sts-comm').value==='true';
-  await sb.from('vendor_orders').update({status,commission_received:commRecv}).eq('id',id);
   const o=allOrders.find(x=>x.id==id);
+  const oldStatus=o?.status;
+  await sb.from('vendor_orders').update({status,commission_received:commRecv}).eq('id',id);
   if(o){o.status=status;o.commission_received=commRecv;}
+  // Admin đổi trạng thái đơn → báo vendor (chỉ khi trạng thái thực sự thay đổi)
+  if(currentProfile?.role==='admin'&&oldStatus!==status){
+    const lbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'}[status]||status;
+    await sb.from('notifications').insert({
+      type:'status',order_id:parseInt(id),is_read:false,audience:'vendor',
+      message:`Đơn ${o?.invoice_no||id} vừa chuyển trạng thái sang "${lbl}"`
+    });
+  }
   closeModal('m-status');renderOrders();renderDashboard();
   if(_ovId==id)_renderOrderView(o);
   toast('✅ Đã cập nhật trạng thái','var(--green)');
@@ -1581,7 +1608,7 @@ function renderNotifs(){
   updateNotifBadge();
   const list=document.getElementById('notif-list');
   if(!allNotifs.length){list.innerHTML='<div class="empty-state"><div class="ei">🔔</div><p>Chưa có thông báo</p></div>';return;}
-  const iconOf=t=>({tracking:'🚚',new_order:'📦',recon_sent:'🧾',recon_flagged:'⚠️',recon_approved:'✅'}[t]||'📸');
+  const iconOf=t=>({tracking:'🚚',new_order:'📦',recon_sent:'🧾',recon_flagged:'⚠️',recon_approved:'✅',photo:'📸',vendor_note:'📝',status:'🔄'}[t]||'🔔');
   list.innerHTML=allNotifs.map(n=>`
     <div class="notif-item${n.is_read?'':' unread'}" style="cursor:pointer;" onclick="openNotif(${n.id})">
       <div class="notif-icon">${iconOf(n.type)}</div>
@@ -2650,7 +2677,7 @@ async function createReconBatch(){
     if(ie)throw ie;
     // Thông báo cho vendor — bấm vào mở thẳng batch này
     await sb.from('notifications').insert({
-      type:'recon_sent',batch_id:batch.id,is_read:false,
+      type:'recon_sent',batch_id:batch.id,is_read:false,audience:'vendor',
       message:`📋 Đợt đối soát "${label}" đã gửi — ${items.length} đơn, tổng BLT trả ${fmtUSD(T*1.04)}`
     });
     closeModal('m-recon-preview');
@@ -2774,7 +2801,7 @@ async function submitReconFlag(){
     await sb.from('reconciliation_batches').update({status:'flagged'}).eq('id',_reconCurrentBatchId);
     const b=allBatches.find(x=>x.id===_reconCurrentBatchId);
     await sb.from('notifications').insert({
-      type:'recon_flagged',batch_id:_reconCurrentBatchId,is_read:false,
+      type:'recon_flagged',batch_id:_reconCurrentBatchId,is_read:false,audience:'admin',
       message:`⚠️ Vendor báo sai 1 đơn trong đợt "${b?.period_label||''}": ${note}`
     });
     closeModal('m-recon-flag');
@@ -2826,7 +2853,7 @@ async function resendReconBatch(batchId){
     if(stillFlagged){toast('Còn đơn đang bị báo sai chưa xử lý xong','var(--amber)');return;}
     await sb.from('reconciliation_batches').update({status:'sent'}).eq('id',batchId);
     await sb.from('notifications').insert({
-      type:'recon_sent',batch_id:batchId,is_read:false,
+      type:'recon_sent',batch_id:batchId,is_read:false,audience:'vendor',
       message:`📋 Đợt đối soát "${b?.period_label||''}" đã được cập nhật, gửi lại để duyệt`
     });
     await loadBatches();
@@ -2850,7 +2877,7 @@ async function approveReconBatch(batchId){
     }).eq('id',batchId);
     if(be)throw be;
     await sb.from('notifications').insert({
-      type:'recon_approved',batch_id:batchId,is_read:false,
+      type:'recon_approved',batch_id:batchId,is_read:false,audience:'admin',
       message:`✅ Vendor đã duyệt đợt đối soát "${b?.period_label||''}" — ${orderIds.length} đơn đã đánh dấu HH đã thu`
     });
     await loadOrders();await loadBatches();
