@@ -1345,13 +1345,27 @@ async function saveTracking(){
   if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
   const o=allOrders.find(x=>x.id==id);
   if(o){o.tracking_number=num;o.status=status;}
+  // Đồng bộ ngược tracking sang CRM (không chặn việc lưu chính nếu lỗi)
+  let crmSyncOk=true,crmSyncSkipped=!o?.crm_order_id;
+  if(o?.crm_order_id){
+    try{
+      const hdrs={'apikey':CRM_KEY,'Authorization':`Bearer ${CRM_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'};
+      const r=await fetch(`${CRM_URL}/rest/v1/invoices?id=eq.${o.crm_order_id}`,{method:'PATCH',headers:hdrs,body:JSON.stringify({tracking_number:num})});
+      if(!r.ok)throw new Error('CRM trả về lỗi '+r.status);
+    }catch(e){
+      console.error('Sync tracking sang CRM lỗi:',e);
+      crmSyncOk=false;
+    }
+  }
   // Tạo notification
   const msg=`${currentProfile.full_name} đã cập nhật tracking cho đơn ${o?.invoice_no||id}: ${num}`;
   await sb.from('notifications').insert({type:'tracking',order_id:parseInt(id),message:msg,created_by:currentUser.id,is_read:false});
   closeModal('m-tracking');
   renderOrders();renderDashboard();
   if(_ovId==id)_renderOrderView(o);
-  toast('✅ Đã lưu tracking','var(--green)');
+  if(!crmSyncOk)toast('✅ Đã lưu tracking, nhưng ⚠️ đồng bộ sang CRM thất bại — kiểm tra lại tay','var(--amber)');
+  else if(crmSyncSkipped)toast('✅ Đã lưu tracking (đơn này không liên kết CRM nên không đồng bộ ngược)','var(--green)');
+  else toast('✅ Đã lưu tracking & đồng bộ sang CRM','var(--green)');
 }
 
 // ══ STATUS ══
