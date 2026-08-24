@@ -122,6 +122,9 @@ th.num{text-align:right;}
 /* ── PHOTOS ── */
 .photo-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
 .photo-thumb{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer;transition:var(--tr);}
+.photo-wrap{position:relative;display:inline-block;}
+.photo-del-btn{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;border:2px solid var(--bg);font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.photo-del-btn:hover{background:#ff4d4d;}
 .photo-thumb:hover{border-color:var(--gold);transform:scale(1.05);}
 .upload-btn{width:80px;height:80px;border:1px dashed rgba(201,168,76,.3);border-radius:6px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
@@ -1142,14 +1145,21 @@ function _renderOrderView(o){
   // Photos
   const prog=photos.filter(p=>!p.caption?.startsWith('payment:'));
   const pay=photos.filter(p=>p.caption?.startsWith('payment:'));
+  const photoThumb=(p,extraStyle='')=>{
+    const canDel=isAdmin||p.uploaded_by===currentUser.id;
+    return`<div class="photo-wrap">
+      <img class="photo-thumb" style="${extraStyle}" src="${p.storage_url}" onclick="openLightbox('${p.storage_url}')">
+      ${canDel?`<button class="photo-del-btn" onclick="event.stopPropagation();deletePhoto('${p.id}','${p.storage_url}','${o.id}')" title="Xoá ảnh">✕</button>`:''}
+    </div>`;
+  };
   document.getElementById('ov-photos-progress').innerHTML=
-    prog.map(p=>`<img class="photo-thumb" src="${p.storage_url}" onclick="openLightbox('${p.storage_url}')">`).join('')+
+    prog.map(p=>photoThumb(p)).join('')+
     `<label class="upload-btn" for="ov-upload-prog" style="cursor:pointer;">
       <span style="font-size:20px;">+</span><span>Upload</span>
       <input type="file" id="ov-upload-prog" accept="image/*" multiple style="display:none" onchange="uploadAndReloadPhotos('${o.id}',this,'progress')">
     </label>`;
   document.getElementById('ov-photos-payment').innerHTML=
-    pay.map(p=>`<img class="photo-thumb" src="${p.storage_url}" style="border-color:rgba(82,212,154,.4);" onclick="openLightbox('${p.storage_url}')">`).join('')+
+    pay.map(p=>photoThumb(p,'border-color:rgba(82,212,154,.4);')).join('')+
     `<label class="upload-btn" for="ov-upload-pay" style="cursor:pointer;border-color:rgba(82,212,154,.3);">
       <span style="font-size:20px;">+</span><span style="color:var(--green);">Payment</span>
       <input type="file" id="ov-upload-pay" accept="image/*" multiple style="display:none" onchange="uploadAndReloadPhotos('${o.id}',this,'payment')">
@@ -1299,6 +1309,26 @@ function dl(label,val,cls='',color=''){
 // ══ PHOTOS ══
 // Wrapper: đợi upload xong hẳn (kể cả insert DB) rồi mới reload — tránh
 // tình trạng modal render lại trước khi ảnh mới kịp lưu, khiến ảnh "biến mất".
+async function deletePhoto(photoId,storageUrl,orderId){
+  if(!confirm('Xoá ảnh này?'))return;
+  try{
+    // Xoá file thật khỏi Storage bucket order-photos
+    const marker='/order-photos/';
+    const idx=storageUrl.indexOf(marker);
+    if(idx>=0){
+      const path=decodeURIComponent(storageUrl.slice(idx+marker.length));
+      const{error:se}=await sb.storage.from('order-photos').remove([path]);
+      if(se)console.error('Xoá storage lỗi (bỏ qua, vẫn xoá record):',se);
+    }
+    const{error}=await sb.from('order_photos').delete().eq('id',photoId);
+    if(error)throw error;
+    allPhotos=allPhotos.filter(p=>String(p.id)!==String(photoId));
+    const o=allOrders.find(x=>String(x.id)===String(orderId));
+    if(o)_renderOrderView(o);
+    toast('✅ Đã xoá ảnh','var(--green)');
+  }catch(e){toast('Lỗi: '+e.message,'var(--red)');console.error(e);}
+}
+
 async function uploadAndReloadPhotos(orderId,input,type){
   await uploadPhotos(orderId,input,type);
   await reloadOVPhotos(orderId);
