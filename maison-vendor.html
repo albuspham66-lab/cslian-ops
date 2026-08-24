@@ -1146,13 +1146,13 @@ function _renderOrderView(o){
     prog.map(p=>`<img class="photo-thumb" src="${p.storage_url}" onclick="openLightbox('${p.storage_url}')">`).join('')+
     `<label class="upload-btn" for="ov-upload-prog" style="cursor:pointer;">
       <span style="font-size:20px;">+</span><span>Upload</span>
-      <input type="file" id="ov-upload-prog" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this,'progress');reloadOVPhotos('${o.id}')">
+      <input type="file" id="ov-upload-prog" accept="image/*" multiple style="display:none" onchange="uploadAndReloadPhotos('${o.id}',this,'progress')">
     </label>`;
   document.getElementById('ov-photos-payment').innerHTML=
     pay.map(p=>`<img class="photo-thumb" src="${p.storage_url}" style="border-color:rgba(82,212,154,.4);" onclick="openLightbox('${p.storage_url}')">`).join('')+
     `<label class="upload-btn" for="ov-upload-pay" style="cursor:pointer;border-color:rgba(82,212,154,.3);">
       <span style="font-size:20px;">+</span><span style="color:var(--green);">Payment</span>
-      <input type="file" id="ov-upload-pay" accept="image/*" multiple style="display:none" onchange="uploadPhotos('${o.id}',this,'payment');reloadOVPhotos('${o.id}')">
+      <input type="file" id="ov-upload-pay" accept="image/*" multiple style="display:none" onchange="uploadAndReloadPhotos('${o.id}',this,'payment')">
     </label>`;
   // Nav
   const total=_currentFilteredList.length;
@@ -1297,6 +1297,13 @@ function dl(label,val,cls='',color=''){
 }
 
 // ══ PHOTOS ══
+// Wrapper: đợi upload xong hẳn (kể cả insert DB) rồi mới reload — tránh
+// tình trạng modal render lại trước khi ảnh mới kịp lưu, khiến ảnh "biến mất".
+async function uploadAndReloadPhotos(orderId,input,type){
+  await uploadPhotos(orderId,input,type);
+  await reloadOVPhotos(orderId);
+}
+
 async function uploadPhotos(orderId,input,type='progress'){
   const files=Array.from(input.files);
   if(!files.length)return;
