@@ -890,7 +890,12 @@ async function doLogout(){
 
 // ══ LOAD ══
 async function loadAll(){
-  await Promise.all([loadOrders(),loadPhotos(),loadFiles(),loadNotifs(),loadBatches(),
+  // loadPhotos()/loadFiles() cần allOrders đã có dữ liệu (điều kiện early-return
+  // bên trong) — phải đợi loadOrders() xong hẳn trước, không chạy song song
+  // chung Promise.all (nếu không, allOrders rỗng lúc chúng chạy → bỏ qua fetch,
+  // để allPhotos/allFiles trống suốt phiên đăng nhập).
+  await loadOrders();
+  await Promise.all([loadPhotos(),loadFiles(),loadNotifs(),loadBatches(),
     currentProfile?.role==='admin'?loadAccounts():Promise.resolve()]);
   renderDashboard();renderOrders();renderNotifs();
   if(currentProfile?.role==='admin')renderAccounts();
