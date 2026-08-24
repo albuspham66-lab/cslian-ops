@@ -835,7 +835,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 
     <!-- MODAL: Chi tiết lương (Báo cáo thuế) -->
     <div class="modal-bg" id="tr-detail-modal">
-      <div class="modal-box" style="max-width:760px" id="tr-detail-box">
+      <div class="modal-box" style="width:min(820px,94vw);max-width:820px" id="tr-detail-box">
         <!-- Nội dung sinh động bằng JS -->
       </div>
     </div>
@@ -2655,7 +2655,7 @@ function renderTaxDetailModal(){
   const [y,m]=r.thang.split('-');
   const box=document.getElementById('tr-detail-box');
   box.innerHTML=`
-    <div style="max-height:78vh;overflow-y:auto;padding-right:6px">
+    <div style="max-height:65vh;overflow-y:auto;padding-right:6px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #9B1C1C;margin-bottom:14px">
       <div>
         <div style="font-size:17px;font-weight:800;color:#9B1C1C;letter-spacing:.3px">MAISON DE KCT</div>
