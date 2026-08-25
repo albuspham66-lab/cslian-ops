@@ -581,6 +581,28 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </table>
         </div>
       </div>
+
+      <!-- ĐƠN TẤT TOÁN TỪ THÁNG KHÁC — đơn cũ deposit, khách trả hết trong
+           tháng đang xem. billing_month vẫn giữ nguyên tháng gốc (dùng cho
+           doanh số/target), nhưng bonus giường+chênh lệch của các đơn này
+           được cộng vào lương THÁNG NÀY (thang_tat_toan) — hiện riêng để dễ
+           đối chiếu lúc xuất báo cáo cuối tháng. -->
+      <div style="margin-top:24px" id="ord-settled-other-wrap">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span>📦 Đơn tất toán từ tháng khác</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text3)">— đơn tạo tháng trước, khách trả hết trong tháng này, bonus giường/chênh lệch được cộng vào lương tháng này</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Mã đơn</th><th>Tiệm nail</th><th>Sale</th>
+              <th>Tháng tạo (gốc)</th><th>Ngày tất toán</th>
+              <th>Doanh số</th><th>Bonus chênh lệch</th><th>Bonus giường</th>
+            </tr></thead>
+            <tbody id="ord-settled-other-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- SALE DASHBOARD -->
@@ -2381,6 +2403,70 @@ async function exportOrdersExcel(){
     if(colNum===7||colNum===13||colNum===16){cell.alignment={horizontal:'center'};}
   });
 
+  // ── SHEET 2: Đơn tất toán từ tháng khác ────────────────────────────
+  // Đơn cũ (billing_month≠thang) vừa tất toán TRONG thang này —
+  // bonus giường/chênh lệch của các đơn này đang cộng vào lương thang này.
+  let settledOtherQuery=sb.from('orders').select('*,profiles(full_name,employee_code)')
+    .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang);
+  if(!isMgr)settledOtherQuery=settledOtherQuery.eq('user_id',curProfile.id);
+  else if(empId)settledOtherQuery=settledOtherQuery.eq('user_id',empId);
+  const {data:settledOtherRows}=await settledOtherQuery;
+  const settledOtherList=settledOtherRows||[];
+
+  if(settledOtherList.length){
+    const soIds=settledOtherList.map(o=>o.id);
+    const {data:soItems}=await sb.from('order_items').select('*').in('order_id',soIds).eq('vendor','BOLSA');
+    const soGiuongMap2={};
+    (soItems||[]).filter(i=>!i.is_gift&&i.la_bolsa).forEach(i=>{soGiuongMap2[i.order_id]=(soGiuongMap2[i.order_id]||0)+(i.so_luong||0);});
+
+    const bmNeeded=[...new Set(settledOtherList.map(o=>o.billing_month).filter(Boolean))];
+    const bracketCache2={};
+    await Promise.all(bmNeeded.map(async bm=>{
+      const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm);
+      const byUser={};
+      (bmOrds||[]).forEach(o=>{const u=o.user_id||'_';(byUser[u]=byUser[u]||[]).push(o);});
+      const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
+      const giuongByOrder={};
+      (bmItems||[]).forEach(i=>{giuongByOrder[i.order_id]=(giuongByOrder[i.order_id]||0)+(i.so_luong||0);});
+      Object.keys(byUser).forEach(uid=>{
+        const userOrds=byUser[uid];
+        const total=userOrds.reduce((s,o)=>s+(o.total_amount||0),0);
+        const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
+        let rate=15;
+        if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
+        bracketCache2[bm+'|'+uid]={rate,tyLeDat:total>=TARGET_USD?1.0:0.5};
+      });
+    }));
+
+    const ws2=wb.addWorksheet('Tat toan thang khac',{views:[{state:'frozen',xSplit:1,ySplit:1}]});
+    ws2.columns=[
+      {header:'Mã đơn',key:'invoice_no',width:18},
+      {header:'Tiệm nail',key:'shop_name',width:26},
+      {header:'Sale',key:'sale_name',width:20},
+      {header:'Tháng tạo (gốc)',key:'billing_month',width:15},
+      {header:'Ngày tất toán',key:'thang_tat_toan',width:15},
+      {header:'Doanh số ($)',key:'total_amount',width:14},
+      {header:'Bonus chênh lệch ($)',key:'bonus_chenh',width:18},
+      {header:'Bonus giường ($)',key:'bonus_giuong',width:16},
+    ];
+    const hdr2=ws2.getRow(1);
+    hdr2.eachCell(c=>{c.font={bold:true,color:{argb:WHITE}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED_DARK}};c.alignment={horizontal:'center',vertical:'middle'};});
+    settledOtherList.forEach(o=>{
+      const uid=o.user_id||'_';
+      const bracket=bracketCache2[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+      const soG=soGiuongMap2[o.id]||0;
+      const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+      const bonusGiuong2=soG*bracket.rate*pct/100*bracket.tyLeDat;
+      const bChenh2=(o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0))*bracket.tyLeDat;
+      const row=ws2.addRow({
+        invoice_no:o.invoice_no||'',shop_name:o.shop_name||'',sale_name:o.profiles?.full_name||'',
+        billing_month:o.billing_month||'',thang_tat_toan:o.thang_tat_toan||'',
+        total_amount:o.total_amount||0,bonus_chenh:bChenh2,bonus_giuong:bonusGiuong2,
+      });
+      row.eachCell((cell,colNum)=>{if([6,7,8].includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}});
+    });
+  }
+
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:'application/octet-stream'});
   const url=URL.createObjectURL(blob);
@@ -2871,6 +2957,73 @@ async function renderOrders(){
       </td>
     </tr>
     <tr id="order-detail-${o.id}" style="display:none"><td colspan="12" style="padding:0;background:var(--bg3)"><div id="order-detail-content-${o.id}" style="padding:12px 16px"></div></td></tr>`;}).join('');
+
+  await renderOrdersSettledFromOtherMonth(thang,isMgr,empId);
+}
+
+// Đơn cũ (billing_month ≠ tháng đang xem) nhưng vừa tất toán TRONG tháng
+// đang xem (thang_tat_toan = tháng này) — bonus giường/chênh lệch của các
+// đơn này đang được cộng vào lương tháng này theo luồng Deferred.
+async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
+  const tbody=document.getElementById('ord-settled-other-tbody');
+  if(!tbody)return;
+  let q=sb.from('orders').select('*,profiles(full_name,employee_code)')
+    .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang)
+    .order('billing_month',{ascending:true});
+  if(!isMgr)q=q.eq('user_id',curProfile.id);
+  else if(empId)q=q.eq('user_id',empId);
+  const {data:rows}=await q;
+  const list=rows||[];
+  if(!list.length){
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">Không có đơn nào tất toán từ tháng khác trong tháng này</td></tr>`;
+    return;
+  }
+  // Cần rate/tỷ lệ đạt của ĐÚNG billing_month gốc từng đơn (giống hệt cách
+  // calcSalaryForEmp tính, để số hiển thị ở đây khớp đúng số trên phiếu lương)
+  const orderIds=list.map(o=>o.id);
+  const {data:items}=orderIds.length
+    ? await sb.from('order_items').select('*').in('order_id',orderIds).eq('vendor','BOLSA')
+    : {data:[]};
+  const soGiuongMap={};
+  (items||[]).filter(i=>!i.is_gift&&i.la_bolsa).forEach(i=>{soGiuongMap[i.order_id]=(soGiuongMap[i.order_id]||0)+(i.so_luong||0);});
+
+  const billingMonthsNeeded=[...new Set(list.map(o=>o.billing_month).filter(Boolean))];
+  const bracketCache={};
+  await Promise.all(billingMonthsNeeded.map(async bm=>{
+    const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm);
+    const byUser={};
+    (bmOrds||[]).forEach(o=>{const u=o.user_id||'_';(byUser[u]=byUser[u]||[]).push(o);});
+    const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
+    const giuongByOrder={};
+    (bmItems||[]).forEach(i=>{giuongByOrder[i.order_id]=(giuongByOrder[i.order_id]||0)+(i.so_luong||0);});
+    Object.keys(byUser).forEach(uid=>{
+      const userOrds=byUser[uid];
+      const total=userOrds.reduce((s,o)=>s+(o.total_amount||0),0);
+      const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
+      let rate=15;
+      if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
+      bracketCache[bm+'|'+uid]={rate,tyLeDat:total>=TARGET_USD?1.0:0.5};
+    });
+  }));
+
+  tbody.innerHTML=list.map(o=>{
+    const uid=o.user_id||'_';
+    const bracket=bracketCache[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+    const soG=soGiuongMap[o.id]||0;
+    const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
+    const bonusGiuong=soG*bracket.rate*pct/100*bracket.tyLeDat;
+    const bChenh=(o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0))*bracket.tyLeDat;
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no||'—'}</td>
+      <td style="font-weight:500;font-size:12px">${o.shop_name}</td>
+      <td style="font-size:12px;color:var(--text2)">${o.profiles?.full_name||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${o.billing_month||'—'}</td>
+      <td style="font-size:11px;color:var(--accent)">${o.thang_tat_toan||'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--success);font-weight:600">${usd(o.total_amount)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(bChenh)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:#f0a830">${usd(bonusGiuong)}</td>
+    </tr>`;
+  }).join('');
 }
 
 // Mở/đóng chi tiết order_items của 1 đơn — Manager/Sale tick "Gift" cho sản phẩm
