@@ -2312,10 +2312,11 @@ async function exportOrdersExcel(){
     s.soDon++;s.doanhSo+=dt||0;s.chenhLech+=cl||0;s.dsBonus+=dsBonus||0;
     s.bonusChenh+=bChenh||0;s.bonusGiuong+=bGiuong||0;s.truyThu+=truyThu||0;s.totalBonus+=total||0;
   }
-  function addToPending(uid,name,total){
-    if(!pendingSummary[uid])pendingSummary[uid]={name,soDon:0,pending:0};
-    pendingSummary[uid].soDon++;
-    pendingSummary[uid].pending+=total||0;
+  function addToPending(uid,name,dt,cl,dsBonus,bChenh,bGiuong,truyThu,total){
+    if(!pendingSummary[uid])pendingSummary[uid]={name,soDon:0,doanhSo:0,chenhLech:0,dsBonus:0,bonusChenh:0,bonusGiuong:0,truyThu:0,pending:0};
+    const p=pendingSummary[uid];
+    p.soDon++;p.doanhSo+=dt||0;p.chenhLech+=cl||0;p.dsBonus+=dsBonus||0;
+    p.bonusChenh+=bChenh||0;p.bonusGiuong+=bGiuong||0;p.truyThu+=truyThu||0;p.pending+=total||0;
   }
 
   list.forEach((o,idx)=>{
@@ -2342,7 +2343,7 @@ async function exportOrdersExcel(){
     if(o.thang_tat_toan===thang){
       addToSaleSummary(o.user_id||'_',o.profiles?.full_name||'—',o.total_amount,chenhSale,dsBonus1*tyLeSale,bonusChenh*tyLeSale,bonusGiuong*tyLeSale,truyThu,Math.max(0,totalBonus));
     } else if(!tatToan){
-      addToPending(o.user_id||'_',o.profiles?.full_name||'—',Math.max(0,(dsBonus1+bonusChenh+bonusGiuong)*tyLeSale));
+      addToPending(o.user_id||'_',o.profiles?.full_name||'—',o.total_amount,chenhSale,dsBonus1*tyLeSale,bonusChenh*tyLeSale,bonusGiuong*tyLeSale,truyThu,Math.max(0,(dsBonus1+bonusChenh+bonusGiuong)*tyLeSale));
     }
 
     const row=ws.addRow({
@@ -2548,13 +2549,13 @@ async function exportOrdersExcel(){
     const ws3=wb.addWorksheet('Tong hop Bonus',{views:[{state:'frozen',xSplit:1,ySplit:1}]});
     ws3.columns=[
       {header:'Sale',              key:'name',        width:22},
-      {header:'Số đơn',            key:'soDon',       width:10},
-      {header:'Doanh số ($)',      key:'doanhSo',     width:14},
-      {header:'Chênh lệch ($)',    key:'chenhLech',   width:14},
-      {header:'Bonus DS trừ giường ($)', key:'dsBonus',width:18},
-      {header:'Bonus CL ($)',      key:'bonusChenh',  width:14},
-      {header:'Bonus giường ($)',  key:'bonusGiuong', width:15},
-      {header:'Truy thu ($)',      key:'truyThu',     width:13},
+      {header:'Số đơn (tổng)',     key:'soDon',       width:12},
+      {header:'Doanh số ($) — cả tháng', key:'doanhSo',width:18},
+      {header:'Chênh lệch ($) — cả tháng', key:'chenhLech', width:18},
+      {header:'Bonus DS trừ giường ($) — cả tháng', key:'dsBonus',width:22},
+      {header:'Bonus CL ($) — cả tháng', key:'bonusChenh', width:18},
+      {header:'Bonus giường ($) — cả tháng', key:'bonusGiuong', width:19},
+      {header:'Truy thu ($) — cả tháng', key:'truyThu',  width:17},
       {header:'Total Bonus — Thực nhận ($)', key:'totalBonus', width:20},
       {header:'Pending — Chưa tất toán ($)', key:'pending', width:20},
       {header:'Tổng dự kiến ($)', key:'tongDuKien', width:16},
@@ -2567,13 +2568,20 @@ async function exportOrdersExcel(){
     let gT_soDon=0,gT_doanhSo=0,gT_chenhLech=0,gT_ds=0,gT_bChenh=0,gT_bGiuong=0,gT_truyThu=0,gT_total=0,gT_pending=0;
     saleNames.sort((a,b)=>((saleSummary[b]?.totalBonus||0)+(pendingSummary[b]?.pending||0))-((saleSummary[a]?.totalBonus||0)+(pendingSummary[a]?.pending||0))).forEach((uid,idx)=>{
       const s=saleSummary[uid]||{name:pendingSummary[uid]?.name,soDon:0,doanhSo:0,chenhLech:0,dsBonus:0,bonusChenh:0,bonusGiuong:0,truyThu:0,totalBonus:0};
-      const p=pendingSummary[uid]||{soDon:0,pending:0};
-      gT_soDon+=s.soDon+p.soDon;gT_doanhSo+=s.doanhSo;gT_chenhLech+=s.chenhLech;gT_ds+=s.dsBonus;
-      gT_bChenh+=s.bonusChenh;gT_bGiuong+=s.bonusGiuong;gT_truyThu+=s.truyThu;gT_total+=s.totalBonus;gT_pending+=p.pending;
+      const p=pendingSummary[uid]||{soDon:0,doanhSo:0,chenhLech:0,dsBonus:0,bonusChenh:0,bonusGiuong:0,truyThu:0,pending:0};
+      // Cột chi tiết (Doanh số/Chênh lệch/Bonus DS/CL/Giường/Truy thu) hiện
+      // TỔNG CẢ 2 PHẦN (đã tất toán + đang pending) — để không bị hiện $0
+      // gây hiểu lầm cho Sale có nhiều đơn đang deposit như trong ảnh Calvin
+      // gửi. Cột Total Bonus/Pending vẫn tách riêng để biết đã chắc/còn chờ.
+      const doanhSoTong=s.doanhSo+p.doanhSo, chenhLechTong=s.chenhLech+p.chenhLech;
+      const dsTong=s.dsBonus+p.dsBonus, bChenhTong=s.bonusChenh+p.bonusChenh;
+      const bGiuongTong=s.bonusGiuong+p.bonusGiuong, truyThuTong=s.truyThu+p.truyThu;
+      gT_soDon+=s.soDon+p.soDon;gT_doanhSo+=doanhSoTong;gT_chenhLech+=chenhLechTong;gT_ds+=dsTong;
+      gT_bChenh+=bChenhTong;gT_bGiuong+=bGiuongTong;gT_truyThu+=truyThuTong;gT_total+=s.totalBonus;gT_pending+=p.pending;
       const row=ws3.addRow({
-        name:s.name,soDon:s.soDon+p.soDon,doanhSo:s.doanhSo,chenhLech:s.chenhLech,
-        dsBonus:s.dsBonus,bonusChenh:s.bonusChenh,bonusGiuong:s.bonusGiuong,
-        truyThu:s.truyThu,totalBonus:s.totalBonus,pending:p.pending,tongDuKien:s.totalBonus+p.pending,
+        name:s.name,soDon:s.soDon+p.soDon,doanhSo:doanhSoTong,chenhLech:chenhLechTong,
+        dsBonus:dsTong,bonusChenh:bChenhTong,bonusGiuong:bGiuongTong,
+        truyThu:truyThuTong,totalBonus:s.totalBonus,pending:p.pending,tongDuKien:s.totalBonus+p.pending,
       });
       row.height=20;
       const isEven=idx%2===1;
