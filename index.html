@@ -2305,11 +2305,17 @@ async function exportOrdersExcel(){
 
   // ── Data rows ──
   const saleSummary={}; // gộp Total Bonus thực nhận của Sale — dùng cho Sheet 3
+  const pendingSummary={}; // gộp phần đang Pending (chưa tất toán) — dùng cho Sheet 3
   function addToSaleSummary(uid,name,dt,cl,dsBonus,bChenh,bGiuong,truyThu,total){
     if(!saleSummary[uid])saleSummary[uid]={name,soDon:0,doanhSo:0,chenhLech:0,dsBonus:0,bonusChenh:0,bonusGiuong:0,truyThu:0,totalBonus:0};
     const s=saleSummary[uid];
     s.soDon++;s.doanhSo+=dt||0;s.chenhLech+=cl||0;s.dsBonus+=dsBonus||0;
     s.bonusChenh+=bChenh||0;s.bonusGiuong+=bGiuong||0;s.truyThu+=truyThu||0;s.totalBonus+=total||0;
+  }
+  function addToPending(uid,name,total){
+    if(!pendingSummary[uid])pendingSummary[uid]={name,soDon:0,pending:0};
+    pendingSummary[uid].soDon++;
+    pendingSummary[uid].pending+=total||0;
   }
 
   list.forEach((o,idx)=>{
@@ -2330,11 +2336,13 @@ async function exportOrdersExcel(){
     const netRev=Math.max(0,(o.total_amount||0)-chenhSale-giaBanGocGiuong);
     const dsBonus1=netRev*0.01;
     const totalBonus=(dsBonus1+bonusChenh+bonusGiuong)*tyLeSale-truyThu;
-    // Sheet 3 (tổng hợp) phải khớp đúng số Sale THỰC NHẬN — chỉ cộng khi đơn
-    // tất toán ĐÚNG trong tháng này (giống hệt điều kiện trong calcSalaryForEmp).
-    // Khác với các cột hiển thị ở Sheet 1 (luôn hiện đủ để đối chiếu).
+    // Sheet 3 (tổng hợp): đơn tất toán ĐÚNG tháng này → cộng vào "Thực nhận";
+    // đơn CHƯA tất toán (còn deposit) → cộng vào "Pending" (chờ tất toán ở
+    // tháng sau mới thực nhận, không phải mất — chỉ hoãn thời điểm nhận).
     if(o.thang_tat_toan===thang){
       addToSaleSummary(o.user_id||'_',o.profiles?.full_name||'—',o.total_amount,chenhSale,dsBonus1*tyLeSale,bonusChenh*tyLeSale,bonusGiuong*tyLeSale,truyThu,Math.max(0,totalBonus));
+    } else if(!tatToan){
+      addToPending(o.user_id||'_',o.profiles?.full_name||'—',Math.max(0,(dsBonus1+bonusChenh+bonusGiuong)*tyLeSale));
     }
 
     const row=ws.addRow({
@@ -2533,8 +2541,9 @@ async function exportOrdersExcel(){
   // ── SHEET 3: Tổng hợp Bonus theo Sale ───────────────────────────────
   // Gộp cả Sheet 1 (đơn tất toán ngay trong tháng) + Sheet 2 (đơn cũ vừa
   // tất toán trong tháng này) — ra đúng số Total Bonus Sale THỰC NHẬN
-  // trong lương tháng này, không phải tổng "confirm" ở Sheet 1.
-  const saleNames=Object.keys(saleSummary);
+  // trong lương tháng này. Cột Pending = đơn tạo tháng này nhưng còn
+  // deposit, tiền chưa mất — chỉ hoãn đến khi khách trả hết mới thực nhận.
+  const saleNames=[...new Set([...Object.keys(saleSummary),...Object.keys(pendingSummary)])];
   if(saleNames.length){
     const ws3=wb.addWorksheet('Tong hop Bonus',{views:[{state:'frozen',xSplit:1,ySplit:1}]});
     ws3.columns=[
@@ -2547,21 +2556,24 @@ async function exportOrdersExcel(){
       {header:'Bonus giường ($)',  key:'bonusGiuong', width:15},
       {header:'Truy thu ($)',      key:'truyThu',     width:13},
       {header:'Total Bonus — Thực nhận ($)', key:'totalBonus', width:20},
+      {header:'Pending — Chưa tất toán ($)', key:'pending', width:20},
+      {header:'Tổng dự kiến ($)', key:'tongDuKien', width:16},
     ];
     const hdr3=ws3.getRow(1);
     hdr3.height=28;
     hdr3.eachCell(c=>{c.font={bold:true,color:{argb:WHITE},size:11,name:'Calibri'};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:RED_DARK}};c.alignment={vertical:'middle',horizontal:'center',wrapText:true};c.border=BORDER_FULL;});
-    const moneyCols3=[3,4,5,6,7,8,9];
+    const moneyCols3=[3,4,5,6,7,8,9,10,11];
 
-    let gT_soDon=0,gT_doanhSo=0,gT_chenhLech=0,gT_ds=0,gT_bChenh=0,gT_bGiuong=0,gT_truyThu=0,gT_total=0;
-    saleNames.sort((a,b)=>saleSummary[b].totalBonus-saleSummary[a].totalBonus).forEach((uid,idx)=>{
-      const s=saleSummary[uid];
-      gT_soDon+=s.soDon;gT_doanhSo+=s.doanhSo;gT_chenhLech+=s.chenhLech;gT_ds+=s.dsBonus;
-      gT_bChenh+=s.bonusChenh;gT_bGiuong+=s.bonusGiuong;gT_truyThu+=s.truyThu;gT_total+=s.totalBonus;
+    let gT_soDon=0,gT_doanhSo=0,gT_chenhLech=0,gT_ds=0,gT_bChenh=0,gT_bGiuong=0,gT_truyThu=0,gT_total=0,gT_pending=0;
+    saleNames.sort((a,b)=>((saleSummary[b]?.totalBonus||0)+(pendingSummary[b]?.pending||0))-((saleSummary[a]?.totalBonus||0)+(pendingSummary[a]?.pending||0))).forEach((uid,idx)=>{
+      const s=saleSummary[uid]||{name:pendingSummary[uid]?.name,soDon:0,doanhSo:0,chenhLech:0,dsBonus:0,bonusChenh:0,bonusGiuong:0,truyThu:0,totalBonus:0};
+      const p=pendingSummary[uid]||{soDon:0,pending:0};
+      gT_soDon+=s.soDon+p.soDon;gT_doanhSo+=s.doanhSo;gT_chenhLech+=s.chenhLech;gT_ds+=s.dsBonus;
+      gT_bChenh+=s.bonusChenh;gT_bGiuong+=s.bonusGiuong;gT_truyThu+=s.truyThu;gT_total+=s.totalBonus;gT_pending+=p.pending;
       const row=ws3.addRow({
-        name:s.name,soDon:s.soDon,doanhSo:s.doanhSo,chenhLech:s.chenhLech,
+        name:s.name,soDon:s.soDon+p.soDon,doanhSo:s.doanhSo,chenhLech:s.chenhLech,
         dsBonus:s.dsBonus,bonusChenh:s.bonusChenh,bonusGiuong:s.bonusGiuong,
-        truyThu:s.truyThu,totalBonus:s.totalBonus,
+        truyThu:s.truyThu,totalBonus:s.totalBonus,pending:p.pending,tongDuKien:s.totalBonus+p.pending,
       });
       row.height=20;
       const isEven=idx%2===1;
@@ -2572,11 +2584,14 @@ async function exportOrdersExcel(){
         if(moneyCols3.includes(colNum)){cell.numFmt='$#,##0.00';cell.alignment={horizontal:'right'};}
         if(colNum===2){cell.alignment={horizontal:'center'};}
         if(colNum===9){cell.font={size:10.5,name:'Calibri',bold:true,color:{argb:'FF15803D'}};}
+        if(colNum===10){cell.font={size:10.5,name:'Calibri',bold:true,color:{argb:'FFB45309'}};}
+        if(colNum===11){cell.font={size:10.5,name:'Calibri',bold:true,color:{argb:'FF1D4ED8'}};}
       });
     });
     const totalRow3=ws3.addRow({
       name:'TỔNG CỘNG',soDon:gT_soDon,doanhSo:gT_doanhSo,chenhLech:gT_chenhLech,
       dsBonus:gT_ds,bonusChenh:gT_bChenh,bonusGiuong:gT_bGiuong,truyThu:gT_truyThu,totalBonus:gT_total,
+      pending:gT_pending,tongDuKien:gT_total+gT_pending,
     });
     totalRow3.height=24;
     totalRow3.eachCell((cell,colNum)=>{
