@@ -945,7 +945,7 @@ textarea{resize:vertical;min-height:72px;}
     <div class="tw">
       <table>
         <thead><tr>
-          <th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
+          <th style="width:48px;">Ảnh</th><th>SKU</th><th>Tên sản phẩm</th><th>Vendor</th>
           <th class="num">Giá bán ($)</th><th class="num">Best Price</th><th class="num">Cost ($)</th>
           <th class="num">Commission</th><th>Note</th><th>Headspa</th><th>Trạng thái</th><th></th>
         </tr></thead>
@@ -1171,6 +1171,21 @@ textarea{resize:vertical;min-height:72px;}
   <div class="modal modal-lg">
     <div class="modal-title" id="m-prod-title">Thêm sản phẩm</div>
     <input type="hidden" id="p-id">
+    <!-- Image upload -->
+    <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;padding:14px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);">
+      <div id="p-img-preview" style="width:90px;height:90px;border-radius:8px;border:1px solid var(--border2);overflow:hidden;flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">
+        Chưa có ảnh
+      </div>
+      <div style="flex:1;">
+        <div class="fl" style="margin-bottom:6px;">Hình ảnh sản phẩm</div>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--card2);border:1px solid var(--border2);border-radius:var(--rsm);padding:7px 12px;font-size:12px;color:var(--text2);">
+          📁 Chọn ảnh (JPG/PNG)
+          <input type="file" id="p-img-file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewProductImg(this)">
+        </label>
+        <div id="p-img-url" style="font-size:10px;color:var(--text3);margin-top:6px;word-break:break-all;"></div>
+        <div id="p-img-status" style="font-size:11px;margin-top:4px;"></div>
+      </div>
+    </div>
     <div class="fgrid2">
       <div class="fg"><label class="fl">SKU</label><input type="text" id="p-sku" placeholder="VD: BLS-001"></div>
       <div class="fg"><label class="fl">Vendor</label>
@@ -1330,6 +1345,9 @@ textarea{resize:vertical;min-height:72px;}
 // ─── CONFIG ───
 const SUPA_URL = 'https://jggfmpihfisbusnbzyoi.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZ2ZtcGloZmlzYnVzbmJ6eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTkxMzcsImV4cCI6MjA5NDQzNTEzN30.r4OAbgoMdJXyBpIZJaBstn_a1YRg9cR4SPDVvSrXV6M'; // v5 - schema mới
+// CRM Storage — bucket 'products' (PUBLIC) — chỉ dùng để upload/đọc ảnh sản phẩm
+const CRM_STORAGE_URL = 'https://ajsakaddylbpppxlidfe.supabase.co';
+const CRM_STORAGE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqc2FrYWRkeWxicHBweGxpZGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTA1MDUsImV4cCI6MjA5NDI2NjUwNX0.B_8YwhOD4MXMKFOc3T0lpuujAnhUnpSLGjo12hWsLdc';
 
 let CFG = { url:SUPA_URL, key:SUPA_KEY, rate:25000, target:23500, extraPct:30, p1base:5310000 };
 try { const s=JSON.parse(localStorage.getItem('cslian_cfg_v4')||'{}'); CFG={...CFG,...s}; } catch(e){}
@@ -3057,6 +3075,11 @@ function renderProdTable(){
   const page=prodFiltered2.slice(start,start+PROD_PER_PAGE);
   setTxt('prod-count',`${total} sản phẩm · Trang ${prodPage}/${tp}`);
   document.getElementById('prod-tbl').innerHTML=page.map(p=>`<tr>
+    <td style="width:48px;padding:4px 8px;">
+      ${p.image_url
+        ?`<img src="${p.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--border2);cursor:pointer;" onclick="openImgLightbox('${p.image_url}')" onerror="this.style.display='none'">`
+        :`<div style="width:40px;height:40px;border-radius:4px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;" onclick="editProduct('${p.id}')">📷</div>`}
+    </td>
     <td style="font-size:11px;color:var(--blue2);font-weight:600;">${p.sku||'—'}</td>
     <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
     <td><span class="b ${p.vendor==='BOLSA'?'b-amber':p.vendor==='ONS'?'b-blue':'b-purple'} " style="font-size:10px;">${p.vendor||'—'}</span></td>
@@ -3082,6 +3105,58 @@ function renderProdTable(){
 }
 function goPage(p){prodPage=p;renderProdTable();}
 
+// ─── PRODUCT IMAGE ───
+function previewProductImg(input){
+  const file=input.files[0];
+  if(!file)return;
+  const preview=document.getElementById('p-img-preview');
+  const reader=new FileReader();
+  reader.onload=e=>{
+    preview.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('p-img-status').innerHTML='<span style="color:var(--text2);">Sẵn sàng upload khi lưu</span>';
+  document.getElementById('p-img-url').textContent=file.name;
+}
+
+async function uploadProductImage(file,sku){
+  try{
+    const ext=file.name.split('.').pop().toLowerCase()||'jpg';
+    // Dùng SKU làm tên file để dễ tìm, fallback timestamp
+    const safeSku=(sku||'product').replace(/[^a-zA-Z0-9\-_]/g,'-');
+    const filename=`${safeSku}.${ext}`;
+    const res=await fetch(`${CRM_STORAGE_URL}/storage/v1/object/products/${filename}`,{
+      method:'PUT',
+      headers:{
+        'Authorization':`Bearer ${CRM_STORAGE_KEY}`,
+        'Content-Type':file.type||'image/jpeg',
+        'x-upsert':'true'
+      },
+      body:file
+    });
+    if(!res.ok){
+      const err=await res.text();
+      console.error('Upload error:',err);
+      return null;
+    }
+    const publicUrl=`${CRM_STORAGE_URL}/storage/v1/object/public/products/${filename}`;
+    document.getElementById('p-img-status').innerHTML=`<span style="color:var(--green2);">✅ Upload thành công</span>`;
+    document.getElementById('p-img-url').textContent=publicUrl;
+    return publicUrl;
+  }catch(e){
+    console.error('Upload exception:',e);
+    return null;
+  }
+}
+
+function openImgLightbox(url){
+  const lb=document.createElement('div');
+  lb.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  lb.onclick=()=>lb.remove();
+  lb.innerHTML=`<img src="${url}" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;">`;
+  document.body.appendChild(lb);
+}
+
 function onVendorChange(resetCommission=true){
   const v=document.getElementById('p-vendor').value;
   document.getElementById('p-bolsa-wrap').style.display=v==='BOLSA'?'flex':'none';
@@ -3093,6 +3168,12 @@ function openProductModal(){
   setTxt('m-prod-title','Thêm sản phẩm');setTxt('m-prod-btn','Thêm sản phẩm');
   ['p-id','p-sku','p-name','p-variant','p-note','p-prod-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-best-price').value='';
+  // Reset image
+  document.getElementById('p-img-file').value='';
+  document.getElementById('p-img-url').textContent='';
+  document.getElementById('p-img-status').textContent='';
+  document.getElementById('p-img-preview').innerHTML='<span style="font-size:11px;color:var(--text3);">Chưa có ảnh</span>';
+  document.getElementById('p-img-preview').dataset.url='';
   document.getElementById('p-stock-status').value='in_stock';
   document.getElementById('p-shipping-fee').value='';
   document.getElementById('p-description').value='';
@@ -3119,6 +3200,16 @@ function editProduct(id){
   document.getElementById('p-description').value=p.description||'';
   document.getElementById('p-note-wrap').style.display='block';
   onVendorChange(false);if(p.vendor==='BOLSA')document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;
+  // Image
+  document.getElementById('p-img-file').value='';
+  document.getElementById('p-img-preview').dataset.url=p.image_url||'';
+  document.getElementById('p-img-url').textContent=p.image_url||'';
+  document.getElementById('p-img-status').textContent='';
+  if(p.image_url){
+    document.getElementById('p-img-preview').innerHTML=`<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;">`;
+  }else{
+    document.getElementById('p-img-preview').innerHTML='<span style="font-size:11px;color:var(--text3);">Chưa có ảnh</span>';
+  }
   openModal('m-prod');
 }
 async function saveProduct(){
@@ -3126,6 +3217,18 @@ async function saveProduct(){
   const isEdit=!!id;
   const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value.trim()||null,description:document.getElementById('p-description').value.trim()||null};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
+  // Upload ảnh nếu có file mới
+  const imgFile=document.getElementById('p-img-file').files[0];
+  if(imgFile){
+    document.getElementById('p-img-status').innerHTML='<span style="color:var(--text2);">⏳ Đang upload...</span>';
+    const imgUrl=await uploadProductImage(imgFile,data.sku||'product');
+    if(imgUrl){data.image_url=imgUrl;document.getElementById('p-img-preview').dataset.url=imgUrl;}
+    else{document.getElementById('p-img-status').innerHTML='<span style="color:var(--red2);">❌ Upload thất bại</span>';return;}
+  }else{
+    // Giữ URL cũ nếu không chọn file mới
+    const existingUrl=document.getElementById('p-img-preview').dataset.url;
+    if(existingUrl)data.image_url=existingUrl;
+  }
   try{
     if(isEdit){
       const old=allProducts.find(p=>p.id===id);
