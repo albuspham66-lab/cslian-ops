@@ -3518,10 +3518,22 @@ async function showPriceHistory(id,name){
 }
 
 async function deleteProduct(id,name){
-  if(!confirm(`Xóa sản phẩm "${name}"?\nHành động này không thể hoàn tác.`))return;
+  if(!confirm(`Xóa sản phẩm "${name}"?\nSẽ xóa cả bên CRM. Hành động này không thể hoàn tác.`))return;
   try{
+    const prod=allProducts.find(p=>p.id===id);
     await sbDelete('products',id);
     allProducts=allProducts.filter(p=>p.id!==id);
+    // Xóa luôn bên CRM theo SKU
+    if(prod?.sku){
+      await fetch(`${CRM_STORAGE_URL}/rest/v1/products?sku=eq.${encodeURIComponent(prod.sku)}`,{
+        method:'DELETE',
+        headers:{
+          'apikey':CRM_STORAGE_KEY,
+          'Authorization':`Bearer ${CRM_STORAGE_KEY}`,
+          'Prefer':'return=minimal'
+        }
+      });
+    }
     toast('Đã xóa sản phẩm','green');
     filterProducts();renderProducts();
   }catch(e){toast('Lỗi xóa: '+e.message,'red');}
