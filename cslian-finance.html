@@ -3122,7 +3122,6 @@ function previewProductImg(input){
 async function uploadProductImage(file,sku){
   try{
     const ext=file.name.split('.').pop().toLowerCase()||'jpg';
-    // Dùng SKU làm tên file để dễ tìm, fallback timestamp
     const safeSku=(sku||'product').replace(/[^a-zA-Z0-9\-_]/g,'-');
     const filename=`${safeSku}.${ext}`;
     const res=await fetch(`${CRM_STORAGE_URL}/storage/v1/object/products/${filename}`,{
@@ -3140,6 +3139,19 @@ async function uploadProductImage(file,sku){
       return null;
     }
     const publicUrl=`${CRM_STORAGE_URL}/storage/v1/object/public/products/${filename}`;
+    // Cập nhật image_url trong CRM products table theo SKU
+    if(sku){
+      await fetch(`${CRM_STORAGE_URL}/rest/v1/products?sku=eq.${encodeURIComponent(sku)}`,{
+        method:'PATCH',
+        headers:{
+          'apikey':CRM_STORAGE_KEY,
+          'Authorization':`Bearer ${CRM_STORAGE_KEY}`,
+          'Content-Type':'application/json',
+          'Prefer':'return=minimal'
+        },
+        body:JSON.stringify({image_url:publicUrl})
+      });
+    }
     document.getElementById('p-img-status').innerHTML=`<span style="color:var(--green2);">✅ Upload thành công</span>`;
     document.getElementById('p-img-url').textContent=publicUrl;
     return publicUrl;
