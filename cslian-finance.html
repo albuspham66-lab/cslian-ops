@@ -702,14 +702,15 @@ textarea{resize:vertical;min-height:72px;}
     </div>
 
     <div class="kpi-detail-block" data-key="net">
-      <div class="ctitle">📊 Lợi nhuận ròng — Waterfall</div>
-      <div class="sr"><span class="sl">Hoa hồng C-Slian</span><span class="sv" style="color:var(--teal2);" id="pf-wf-comm">—</span></div>
-      <div class="sr"><span class="sl">(–) Chi phí vận hành + đầu tư</span><span class="sv" style="color:var(--red2);" id="pf-wf-exp">—</span></div>
-      <div class="sr"><span class="sl">(–) Tổng lương Sale</span><span class="sv" style="color:var(--red2);" id="pf-wf-sal">—</span></div>
+      <div class="ctitle">📊 Net Profit — Waterfall</div>
+      <div class="sr"><span class="sl">Total Commission (Maison)</span><span class="sv" style="color:var(--teal2);" id="pf-wf-comm">—</span></div>
+      <div class="sr"><span class="sl">(–) Sale Bonus</span><span class="sv" style="color:var(--amber2);" id="pf-wf-bonus">—</span></div>
+      <div class="sr"><span class="sl">(–) Operating Costs</span><span class="sv" style="color:var(--red2);" id="pf-wf-exp">—</span></div>
+      <div class="sr"><span class="sl">(–) Salary & Incentives</span><span class="sv" style="color:var(--red2);" id="pf-wf-sal">—</span></div>
       <div class="div"></div>
-      <div class="sr st"><span class="sl">Lợi nhuận ròng</span><span class="sv" id="pf-r-net">—</span></div>
-      <div class="sr"><span class="sl">Phần Leader (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-leader">—</span></div>
-      <div class="sr"><span class="sl">Phần Manager (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-manager">—</span></div>
+      <div class="sr st"><span class="sl">Net Profit</span><span class="sv" id="pf-r-net">—</span></div>
+      <div class="sr"><span class="sl">Leader (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-leader">—</span></div>
+      <div class="sr"><span class="sl">Manager (50%)</span><span class="sv" style="color:var(--purple2);" id="pf-r-manager">—</span></div>
     </div>
   </div>
 
@@ -1355,7 +1356,7 @@ try { const s=JSON.parse(localStorage.getItem('cslian_cfg_v4')||'{}'); CFG={...C
 // (Đã chuyển ngân sách sang DB-backed monthly_budget — xem khai báo monthlyBudgets phía trên)
 
 // ─── STATE ───
-let allOrders=[], allExpenses=[], allProfiles=[], allSalary=[], allKpi=[], allProducts=[], allOrderItems=[];
+let allOrders=[], allExpenses=[], allProfiles=[], allSalary=[], allKpi=[], allProducts=[], allOrderItems=[], allVendorOrders=[];
 let prevOrders=[], prevExpenses=[], prevSalary=[];
 // Forecast & cash-flow (không phụ thuộc kỳ báo cáo đang chọn — luôn lấy toàn bộ)
 let allPendingGlobal=[], leadTimeOrders=[], leadTimeItems=[], monthlyBudgets={};
@@ -1473,7 +1474,7 @@ async function loadAll(){
     while(mkKey(py,pm)<=prev.to){prevMonths.push(mkKey(py,pm));pm++;if(pm>12){pm=1;py++;}}
     const prevOrFilter=prevMonths.length?`billing_month=in.(${prevMonths.join(',')})`:'billing_month=eq.__none__';
 
-    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary,pendingGlobal,leadOrders,budgets]=await Promise.all([
+    const[orders,expenses,profiles,salary,kpi,products,pOrders,pExpenses,pSalary,pendingGlobal,leadOrders,budgets,vendorOrders]=await Promise.all([
       sb('orders',`select=*&${orFilter}&order=order_date.desc`),
       sb('expenses',`select=*&thang=gte.${fk}&thang=lte.${tk}&order=ngay.desc`),
       sb('profiles',`select=*&order=full_name.asc`),
@@ -1485,7 +1486,8 @@ async function loadAll(){
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('orders',`select=id,invoice_no,shop_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id&is_settled=eq.false`).catch(()=>[]),
       sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
-      sb('monthly_budget',`select=*`).catch(()=>[])
+      sb('monthly_budget',`select=*`).catch(()=>[]),
+      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month&billing_month=in.(${months.join(',')})`).catch(()=>[])
     ]);
     allPendingGlobal=pendingGlobal||[];
     leadTimeOrders=leadOrders||[];
@@ -1499,6 +1501,7 @@ async function loadAll(){
     }else{leadTimeItems=[];}
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
+    allVendorOrders=vendorOrders||[];
     // Fetch order_items for current period orders
     if(allOrders.length>0){
       const orderIds=allOrders.map(o=>o.id).join(',');
@@ -1556,81 +1559,94 @@ function calcAOV(){const d=ordByMonth();return d.length?calcRevMonth()/d.length:
 function calcExpTotal(){return allExpenses.reduce((s,e)=>s+(e.so_tien||0),0);}
 function calcSalTotal(){return allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0);}
 
+// ─── MAISON COMMISSION (từ vendor_orders, cùng DB) ───
+const HEADSPA_BONUS_RATE = 0.07;
+function maisontotalCommOf(vo){
+  const comm=parseFloat(vo.commission)||0;
+  const gap=parseFloat(vo.price_gap)||0;
+  const gapPct=parseFloat(vo.gap_pct)||100;
+  const headspa=parseFloat(vo.headspa_amount)||0;
+  return comm + gap*(gapPct/100) + headspa*HEADSPA_BONUS_RATE;
+}
+function calcMaisonCommTotal(){
+  // Tổng HH từ Maison vendor_orders (đã filter theo billing_month trong loadAll)
+  return allVendorOrders.reduce((s,vo)=>s+maisontotalCommOf(vo),0);
+}
+
+// ─── SALE BONUS (từ orders.total_bonus_usd) ───
+function calcSaleBonusBreakdown(){
+  // Trả về {confirmed, estimated, byAgent:[{name,confirmed,estimated,orders}]}
+  const orders=ordByMonth(); // đơn trong kỳ
+  let confirmed=0, estimated=0;
+  const agentMap={};
+  orders.forEach(o=>{
+    const bonus=parseFloat(o.total_bonus_usd)||0;
+    if(!bonus)return;
+    const p=allProfiles.find(x=>x.id===o.user_id);
+    const name=p?p.full_name:'Unknown';
+    if(!agentMap[name])agentMap[name]={name,confirmed:0,estimated:0,orders:0};
+    agentMap[name].orders++;
+    if(o.is_settled){
+      confirmed+=bonus;
+      agentMap[name].confirmed+=bonus;
+    }else{
+      estimated+=bonus;
+      agentMap[name].estimated+=bonus;
+    }
+  });
+  return{confirmed,estimated,total:confirmed+estimated,byAgent:Object.values(agentMap)};
+}
 function renderVendorCommissions(){
   const el=document.getElementById('vendor-commissions-list');
   if(!el)return;
-  const comm=calcCommission();
-  const source=comm.source==='order_items'?'📊 Từ chi tiết đơn hàng':'⚠️ Ước tính (chưa có chi tiết)';
-  const fmt2=function(v){return'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  const fmt2=v=>'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const maisonTotal=calcMaisonCommTotal();
+  const bonus=calcSaleBonusBreakdown();
+  const hasVendorOrders=allVendorOrders.length>0;
 
-  // Build per-vendor shipping breakdown if available
-  let shipBreakdown='';
-  if(allOrderItems&&allOrderItems.length>0){
-    const doneIds=new Set(doneOrders().map(function(o){return o.id;}));
-    const shipItems=allOrderItems.filter(function(it){
-      return doneIds.has(it.order_id)&&it.is_shipping;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text)">💼 Total Commission</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${hasVendorOrders?'From Maison Vendor Portal':'No Maison data for this period'}</div>
+    </div>
+    <span style="font-size:15px;font-weight:700;color:var(--teal2)">${fmt2(maisonTotal)}</span>
+  </div>`;
+
+  html+=`<div style="margin-top:14px;">
+    <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">💸 Sale Bonus</div>`;
+
+  if(bonus.byAgent.length>0){
+    html+=`<div style="display:grid;grid-template-columns:1fr repeat(3,auto);gap:6px 12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:0 0 6px;border-bottom:1px solid rgba(255,255,255,.05);margin-bottom:4px;">
+      <span>Sale</span><span style="text-align:right">Orders</span><span style="text-align:right">Confirmed</span><span style="text-align:right">Estimated</span>
+    </div>`;
+    bonus.byAgent.sort((a,b)=>(b.confirmed+b.estimated)-(a.confirmed+a.estimated)).forEach(ag=>{
+      html+=`<div style="display:grid;grid-template-columns:1fr repeat(3,auto);gap:6px 12px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="font-size:12px;font-weight:500;color:var(--text)">${ag.name}</span>
+        <span style="font-size:11px;color:var(--text3);text-align:right">${ag.orders}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--green2);text-align:right">${ag.confirmed?fmt2(ag.confirmed):'—'}</span>
+        <span style="font-size:12px;color:var(--amber2);text-align:right">${ag.estimated?fmt2(ag.estimated):'—'}</span>
+      </div>`;
     });
-    if(shipItems.length>0){
-      const shipByVendor={};
-      shipItems.forEach(function(it){
-        const v=(it.vendor||'Bolsa');
-        if(!shipByVendor[v])shipByVendor[v]={amount:0,chenh:0};
-        shipByVendor[v].amount+=parseFloat(it.amount)||0;
-        shipByVendor[v].chenh+=parseFloat(it.chenh_lech)||0;
-      });
-      shipBreakdown='<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px">'
-        +'<div style="font-size:10px;color:var(--text3);margin-bottom:4px">🚚 Shipping breakdown</div>'
-        +Object.entries(shipByVendor).map(function(e){
-          return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">'
-            +'<span style="color:var(--text2)">Ship '+e[0]+'</span>'
-            +'<span style="color:var(--text)">'+fmt2(e[1].amount)+'</span>'
-          +'</div>';
-        }).join('')
-        +'</div>';
-    }
+    html+=`<div style="display:grid;grid-template-columns:1fr repeat(3,auto);gap:6px 12px;align-items:center;padding:8px 0;margin-top:4px;border-top:1px solid rgba(255,255,255,.1);">
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Total</span><span></span>
+      <span style="font-size:13px;font-weight:700;color:var(--green2);text-align:right">${fmt2(bonus.confirmed)}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--amber2);text-align:right">${fmt2(bonus.estimated)}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);padding:6px 0;">
+      ✅ <span style="color:var(--green2)">Confirmed</span> = settled orders &nbsp;|&nbsp; ⏳ <span style="color:var(--amber2)">Estimated</span> = pending (may change)
+    </div>`;
+  }else{
+    html+=`<div style="color:var(--text3);font-size:12px;padding:8px 0;">No sale bonus in this period</div>`;
   }
+  html+='</div>';
 
-  const rows=[
-    {label:'BOLSA',val:comm.bolsa,color:'var(--amber2)',icon:'🔶'},
-    {label:'ONS',val:comm.ons,color:'var(--blue2)',icon:'🔷'},
-    {label:'TSPA',val:comm.tspa,color:'var(--purple2)',icon:'💜'},
-  ];
-  const projected=calcCommissionProjected();
-  const pending=calcCommissionPending();
+  const netAfterBonus=maisonTotal-bonus.total;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;margin-top:12px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.08)">
+    <div style="font-size:13px;font-weight:600;color:var(--text)">Commission − Sale Bonus</div>
+    <span style="font-size:15px;font-weight:700;color:${netAfterBonus>=0?'var(--teal2)':'var(--red2)'}">${fmt2(netAfterBonus)}</span>
+  </div>`;
 
-  el.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:8px">'+source+'</div>'
-    +rows.map(function(r){
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
-        +'<div style="display:flex;align-items:center;gap:8px">'
-          +'<span>'+r.icon+'</span>'
-          +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+r.label+'</span>'
-        +'</div>'
-        +'<span style="font-size:13px;font-weight:700;color:'+r.color+'">'+fmt2(r.val)+'</span>'
-      +'</div>';
-    }).join('')
-    +shipBreakdown
-    +'<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">'
-      +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng</span>'
-      +'<span style="font-size:14px;font-weight:700;color:var(--green2)">'+fmt2(comm.total)+'</span>'
-    +'</div>'
-    +'<div style="font-size:10px;color:var(--text3);margin:10px 0 6px;">📊 Dự kiến (kể cả Pending)</div>'
-    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
-      +'<span style="color:var(--text2)">🔶 BOLSA dự kiến</span><span style="color:var(--amber2)">'+fmt2(projected.bolsa)+'</span>'
-    +'</div>'
-    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
-      +'<span style="color:var(--text2)">🔷 ONS dự kiến</span><span style="color:var(--blue2)">'+fmt2(projected.ons)+'</span>'
-    +'</div>'
-    +'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;">'
-      +'<span style="color:var(--text2)">💜 TSPA dự kiến</span><span style="color:var(--purple2)">'+fmt2(projected.tspa)+'</span>'
-    +'</div>'
-    +'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;">'
-      +'<span style="font-size:13px;font-weight:700;color:var(--text)">Tổng hoa hồng dự kiến</span>'
-      +'<span style="font-size:14px;font-weight:700;color:var(--teal2)">'+fmt2(projected.total)+'</span>'
-    +'</div>'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;background:var(--amberbg);border-radius:6px;padding:8px 10px;">'
-      +'<span style="font-size:13px;font-weight:600;color:var(--amber2)">⏳ Hoa hồng Pending (còn công nợ)</span>'
-      +'<span style="font-size:14px;font-weight:700;color:var(--amber2)">'+fmt2(pending.total)+'</span>'
-    +'</div>';
+  el.innerHTML=html;
 }
 
 function calcVendorRevenue(){
@@ -2384,8 +2400,13 @@ function renderFinance(){
   const revM=calcRevMonth(),exp=calcExpTotal(),sal=calcSalTotal();
   // BUG FIX: dùng calcCommission() thay vì gross_profit từ orders table
   const comm=calcCommission();
-  const commVND=comm.total*CFG.rate;
-  const net=commVND-exp-sal;
+  const maisonComm=calcMaisonCommTotal();
+  const saleBonus=calcSaleBonusBreakdown();
+  // Use Maison if available, fallback to order_items formula
+  const commUSD=maisonComm>0?maisonComm:comm.total;
+  const commVND=commUSD*CFG.rate;
+  const saleBonusVND=saleBonus.total*CFG.rate;
+  const net=commVND-exp-sal-saleBonusVND;
 
   // Trend so với kỳ trước (tính sẵn từ prevOrders/prevExpenses đã fetch)
   const prevRevM=prevOrders.reduce((s,o)=>s+(o.total_amount||0),0);
@@ -2402,29 +2423,27 @@ function renderFinance(){
       <span style="color:var(--blue2);">🔷 ${fmtUSD(_vr2.ons)}</span>
       <span style="color:var(--purple2);">💜 ${fmtUSD(_vr2.tspa)}</span>
     </div>`);
-  // HH stat card: tổng + đã thu / chưa thu
-  const commReceived=ordByMonth().filter(o=>o.commission_received)
-    .reduce((s,o)=>s+calcOrderCommission(o.id),0);
-  const commPending=commProj.total-commReceived;
-  setTxt('pf-comm',commProj.total>0?fmtUSD(commProj.total):'—');
+  // HH stat card: hiện Maison commission nếu có, fallback về formula
+  const displayComm=maisonComm>0?maisonComm:commProj.total;
+  setTxt('pf-comm',displayComm>0?'$'+displayComm.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
   const _oldCommSub=document.getElementById('comm-recv-sub');
   if(_oldCommSub)_oldCommSub.remove();
+  const fmt2=v=>'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   document.getElementById('pf-comm').insertAdjacentHTML('afterend',
     `<div id="comm-recv-sub" style="font-size:11px;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
-      <span style="color:var(--green2);">✅ ${fmtUSD(commReceived)}</span>
-      <span style="color:var(--amber2);">⏳ ${fmtUSD(commPending)}</span>
+      ${maisonComm>0?'<span style="color:var(--text3);font-size:10px;">From Maison</span>':''}
+      <span style="color:var(--amber2);">💸 Bonus: ${fmt2(saleBonus.total)}</span>
     </div>`);
   setHTML('pf-exp',fmtVND(exp)+trendHTML(exp,prevExp,true));
   setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
-  setTxt('pf-net-sub',net>=0?'Lợi nhuận':'Lỗ');
+  setTxt('pf-net-sub',net>=0?'Net Profit':'Loss');
 
   setTxt('pf-r1',fmtUSD(revM));
   const vr=calcVendorRevenue();
   setTxt('pf-r-bolsa',fmtUSD(vr.bolsa));
   setTxt('pf-r-ons',fmtUSD(vr.ons));
   setTxt('pf-r-tspa',fmtUSD(vr.tspa));
-  // Render commission breakdown from order_items
   renderVendorCommissions();
   const ops=allExpenses.filter(e=>e.loai==='ops').reduce((s,e)=>s+(e.so_tien||0),0);
   const inv=allExpenses.filter(e=>e.loai==='invest').reduce((s,e)=>s+(e.so_tien||0),0);
@@ -2436,6 +2455,7 @@ function renderFinance(){
 
   // Waterfall block (panel "net")
   setTxt('pf-wf-comm',fmtVND(commVND));
+  setTxt('pf-wf-bonus',fmtVND(saleBonusVND));
   setTxt('pf-wf-exp',fmtVND(ops+inv));
   setTxt('pf-wf-sal',fmtVND(sal));
 
