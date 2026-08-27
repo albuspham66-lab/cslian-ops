@@ -1564,7 +1564,7 @@ const HEADSPA_BONUS_RATE = 0.07;
 function maisontotalCommOf(vo){
   const comm=parseFloat(vo.commission)||0;
   const gap=parseFloat(vo.price_gap)||0;
-  const gapPct=parseFloat(vo.gap_pct)||100;
+  const gapPct=vo.gap_pct!=null?parseFloat(vo.gap_pct):100;
   const headspa=parseFloat(vo.headspa_amount)||0;
   return comm + gap*(gapPct/100) + headspa*HEADSPA_BONUS_RATE;
 }
@@ -1573,27 +1573,84 @@ function calcMaisonCommTotal(){
   return allVendorOrders.reduce((s,vo)=>s+maisontotalCommOf(vo),0);
 }
 
-// ─── SALE BONUS (từ orders.total_bonus_usd) ───
+// ─── SALE BONUS — Replicate OPS formula ───
+const TARGET_USD_SALE = 23500;
+
+function calcBedBonusForSale(soGiuong){
+  // Bracket theo tổng giường của sale trong tháng
+  if(soGiuong<=0)return 0;
+  if(soGiuong<10) return soGiuong*15;
+  if(soGiuong<20) return soGiuong*15+100;
+  if(soGiuong<30) return soGiuong*17+150;
+  if(soGiuong<40) return soGiuong*20+200;
+  return soGiuong*25+250;
+}
+
 function calcSaleBonusBreakdown(){
-  // Trả về {confirmed, estimated, byAgent:[{name,confirmed,estimated,orders}]}
-  const orders=ordByMonth(); // đơn trong kỳ
+  const orders=ordByMonth();
+  // Build maps: per (user_id, billing_month) → totalRev, soGiuong
+  const revMap={}, bedMap={};
+  orders.forEach(o=>{
+    const key=`${o.user_id}|${o.billing_month}`;
+    revMap[key]=(revMap[key]||0)+(o.total_amount||0);
+  });
+  // Count beds from order_items (la_bolsa = true items)
+  const periodOrderIds=new Set(orders.map(o=>o.id));
+  (allOrderItems||[]).filter(it=>periodOrderIds.has(it.order_id)&&it.la_bolsa).forEach(it=>{
+    const o=orders.find(x=>x.id===it.order_id);
+    if(!o)return;
+    const key=`${o.user_id}|${o.billing_month}`;
+    bedMap[key]=(bedMap[key]||0)+(parseFloat(it.so_luong)||0);
+  });
+
   let confirmed=0, estimated=0;
   const agentMap={};
+
   orders.forEach(o=>{
-    const bonus=parseFloat(o.total_bonus_usd)||0;
-    if(!bonus)return;
+    const key=`${o.user_id}|${o.billing_month}`;
     const p=allProfiles.find(x=>x.id===o.user_id);
     const name=p?p.full_name:'Unknown';
+
+    // Target check: tổng DS của sale trong billing_month >= $23,500
+    const tongDS=revMap[key]||0;
+    const datTarget=tongDS>=TARGET_USD_SALE;
+    const tyLeSale=datTarget?1.0:0.5;
+
+    // Tính chenh_sale và gia_ban_goc từ order_items
+    const items=(allOrderItems||[]).filter(it=>it.order_id===o.id);
+    const chenhSale=items.reduce((s,it)=>s+((parseFloat(it.chenh_sale)||0)*(parseFloat(it.so_luong)||1)),0);
+    const giaBanGocGiuong=items.filter(it=>it.la_bolsa).reduce((s,it)=>s+((parseFloat(it.gia_ban_goc)||0)*(parseFloat(it.so_luong)||1)),0);
+
+    // dsBonus = 1% net revenue
+    const netRev=Math.max(0,(o.total_amount||0)-chenhSale-giaBanGocGiuong);
+    const dsBonus=netRev*0.01;
+
+    // bonusChenh = override → bonus_sale_usd → bonus_chenh_lech
+    const bonusChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:
+                     (o.bonus_sale_usd!=null?o.bonus_sale_usd:(o.bonus_chenh_lech||0));
+
+    // bonusGiuong = override → bracket tính theo tổng giường của sale trong tháng
+    const soGiuongSale=bedMap[key]||0;
+    const bonusGiuongAuto=calcBedBonusForSale(soGiuongSale);
+    // Phân bổ bonusGiuong cho đơn này theo tỷ lệ giường
+    const soGiuongDon=(allOrderItems||[]).filter(it=>it.order_id===o.id&&it.la_bolsa).reduce((s,it)=>s+(parseFloat(it.so_luong)||0),0);
+    const bonusGiuongDon=o.bonus_giuong_override!=null?o.bonus_giuong_override:
+                         (soGiuongSale>0?(bonusGiuongAuto*soGiuongDon/soGiuongSale):0);
+
+    const truyThu=parseFloat(o.truy_thu_usd)||0;
+    const totalBonus=Math.max(0,(dsBonus+bonusChenh+bonusGiuongDon)*tyLeSale-truyThu);
+
     if(!agentMap[name])agentMap[name]={name,confirmed:0,estimated:0,orders:0};
     agentMap[name].orders++;
     if(o.is_settled){
-      confirmed+=bonus;
-      agentMap[name].confirmed+=bonus;
+      confirmed+=totalBonus;
+      agentMap[name].confirmed+=totalBonus;
     }else{
-      estimated+=bonus;
-      agentMap[name].estimated+=bonus;
+      estimated+=totalBonus;
+      agentMap[name].estimated+=totalBonus;
     }
   });
+
   return{confirmed,estimated,total:confirmed+estimated,byAgent:Object.values(agentMap)};
 }
 function renderVendorCommissions(){
