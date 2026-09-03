@@ -146,6 +146,7 @@ th.num{text-align:right;}
 .s-shipped{background:rgba(82,212,154,.12);color:var(--green);}
 .s-delivered{background:rgba(201,168,76,.15);color:var(--gold);}
 .s-completed{background:rgba(82,212,154,.08);color:var(--green);border:1px solid rgba(82,212,154,.2);}
+.s-cancelled{background:rgba(139,139,150,.12);color:var(--text3);border:1px solid rgba(240,112,112,.25);}
 /* ── PHOTOS ── */
 .photo-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
 .photo-thumb{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer;transition:var(--tr);}
@@ -297,6 +298,7 @@ th.num{text-align:right;}
           <option value="shipped">Đã ship</option>
           <option value="delivered">Đã nhận</option>
           <option value="completed">Hoàn thành</option>
+          <option value="cancelled">Đã huỷ</option>
           <option value="shipped_delivered" style="display:none;">Đã ship (dashboard)</option>
         </select>
         <select class="filter-select" id="ord-month" onchange="renderOrders()">
@@ -1015,6 +1017,7 @@ function renderDashboard(){
   const prod=allOrders.filter(o=>o.status==='production').length;
   const shipped=allOrders.filter(o=>o.status==='shipped'||o.status==='delivered').length;
   const done=allOrders.filter(o=>o.status==='completed').length;
+  const cancelled=allOrders.filter(o=>o.status==='cancelled').length;
   const totalAmt=allOrders.reduce((s,o)=>s+(o.total_amount||0),0);
   const commRecv=allOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   const commPend=allOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
@@ -1023,6 +1026,7 @@ function renderDashboard(){
     <div class="kpi" onclick="goToOrdersFiltered({status:'production'})"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'shipped_delivered'})"><div class="kpi-label">Đã ship</div><div class="kpi-val" style="color:var(--amber)">${shipped}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'completed'})"><div class="kpi-label">Hoàn thành</div><div class="kpi-val" style="color:var(--green)">${done}</div><div class="kpi-sub">đơn</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({status:'cancelled'})"><div class="kpi-label">Đã huỷ</div><div class="kpi-val" style="color:var(--text3)">${cancelled}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi gold" onclick="goToOrdersFiltered()"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({comm:'received'})"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);" onclick="event.stopPropagation();goToOrdersFiltered({comm:'pending'})">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
   const recent=allOrders.slice(0,8);
@@ -1843,7 +1847,7 @@ async function syncFromCRM(){
       const vendor=(mainItem?.vendor||'BOLSA').toUpperCase();
       // Chenh lech tổng (baseline gap CRM tự tính, dùng khi admin CHƯA từng nhập cost tay)
       const totalChenh=invItems.reduce((s,i)=>s+parseFloat(i.chenh_lech||0),0);
-      const statusMap={'Đang sản xuất':'production','Đã nhận hàng':'delivered','Đã ship':'shipped','Hoàn thành':'completed'};
+      const statusMap={'Đang sản xuất':'production','Đã nhận hàng':'delivered','Đã ship':'shipped','Hoàn thành':'completed','Cancelled':'cancelled'};
       const mappedStatus=statusMap[inv.order_status]||(inv.payment_status==='paid'?'completed':'pending');
       const totalAmount=parseFloat(inv.total)||0;
       // Nếu đơn này đã có cost_price nhập tay (admin điều chỉnh giá hỗ trợ) → gap
@@ -2212,7 +2216,7 @@ async function exportReport(){
       {header:'Tracking Nuber',key:'tracking',width:16},
       {header:'Picture',key:'picture',width:22},
     ];
-    const statusLbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
+    const statusLbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
     rptData.forEach((o,i)=>{
       const photo=allPhotos.find(p=>p.order_id===o.id&&!/^payment:/.test(p.caption||''));
       const row=ws.addRow({
@@ -3038,7 +3042,7 @@ async function exportReconBatch(batchId){
     });
     ws1.getRow(16).height=50;
 
-    const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'};
+    const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
     let r=17;
     items.forEach((it,i)=>{
       const o=allOrders.find(x=>x.id===it.order_id);
@@ -3147,7 +3151,8 @@ function statusBadge(s){
     production:{cls:'s-production',lbl:'Đang làm hàng'},
     shipped:{cls:'s-shipped',lbl:'Đã ship'},
     delivered:{cls:'s-delivered',lbl:'Đã nhận hàng'},
-    completed:{cls:'s-completed',lbl:'Hoàn thành'}
+    completed:{cls:'s-completed',lbl:'Hoàn thành'},
+    cancelled:{cls:'s-cancelled',lbl:'Đã huỷ'}
   };
   const{cls,lbl}=m[s]||{cls:'s-pending',lbl:'Pending'};
   return`<span class="status ${cls}">${lbl}</span>`;
