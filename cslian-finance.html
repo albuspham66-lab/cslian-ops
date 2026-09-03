@@ -3218,16 +3218,24 @@ async function uploadProductImage(file,sku){
     const publicUrl=`${CRM_STORAGE_URL}/storage/v1/object/public/products/${filename}`;
     // Cập nhật image_url trong CRM products table theo SKU
     if(sku){
-      await fetch(`${CRM_STORAGE_URL}/rest/v1/products?sku=eq.${encodeURIComponent(sku)}`,{
+      const patchRes=await fetch(`${CRM_STORAGE_URL}/rest/v1/products?sku=eq.${encodeURIComponent(sku)}`,{
         method:'PATCH',
         headers:{
           'apikey':CRM_STORAGE_KEY,
           'Authorization':`Bearer ${CRM_STORAGE_KEY}`,
           'Content-Type':'application/json',
-          'Prefer':'return=minimal'
+          'Prefer':'return=representation'
         },
         body:JSON.stringify({image_url:publicUrl})
       });
+      if(!patchRes.ok){
+        const errTxt=await patchRes.text();
+        console.error('CRM PATCH image_url error:',patchRes.status,errTxt);
+        document.getElementById('p-img-status').innerHTML=`<span style="color:var(--amber2);">⚠️ Upload OK nhưng CRM chưa cập nhật (${patchRes.status})</span>`;
+      }else{
+        const rows=await patchRes.json();
+        if(!rows||rows.length===0)console.warn('CRM PATCH: 0 rows updated — SKU không tồn tại trong CRM?',sku);
+      }
     }
     document.getElementById('p-img-status').innerHTML=`<span style="color:var(--green2);">✅ Upload thành công</span>`;
     document.getElementById('p-img-url').textContent=publicUrl;
