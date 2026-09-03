@@ -605,6 +605,25 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           </table>
         </div>
       </div>
+
+      <!-- ĐƠN ĐÃ HUỶ — hiển thị để đối chiếu/audit, KHÔNG cộng vào bất kỳ
+           tổng nào khác trên trang (doanh số/target/bonus). -->
+      <div style="margin-top:24px" id="ord-cancelled-wrap">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span>🚫 Đơn đã huỷ</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text3)">— không tính vào doanh số/target/bonus, chỉ giữ lại để đối chiếu</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Mã đơn</th><th>Tiệm nail</th><th>Sale</th>
+              <th>Ngày đơn</th><th>Tháng Bonus</th>
+              <th>Doanh số ($)</th><th>Deposit đã thu ($)</th>
+            </tr></thead>
+            <tbody id="ord-cancelled-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- SALE DASHBOARD -->
@@ -2212,7 +2231,7 @@ async function exportOrdersExcel(){
   const empId=isMgr?(document.getElementById('ord-emp-sel')?.value||null):curProfile.id;
   const thang=monthStr(ordYear,ordMonth);
 
-  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).order('order_date',{ascending:false});
+  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled').order('order_date',{ascending:false});
   if(!isMgr)query=query.eq('user_id',curProfile.id);
   else if(empId)query=query.eq('user_id',empId);
   const {data:orders}=await query;
@@ -2251,7 +2270,7 @@ async function exportOrdersExcel(){
   // Target xét theo TỪNG SALE riêng biệt — tổng doanh số của mỗi Sale trong tháng ≥ $23,500
   // Dùng TẤT CẢ đơn trong tháng (kể cả chưa settled) để tính target
   const tongDoanhSoTheoSale={};
-  {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang);
+  {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled');
   (allOrdMonth||[]).forEach(o=>{if(o.user_id)tongDoanhSoTheoSale[o.user_id]=(tongDoanhSoTheoSale[o.user_id]||0)+(o.total_amount||0);});}
   // Helper: kiểm tra 1 đơn có đạt target không (dựa vào user_id của đơn đó)
   function isOrderDatTarget(o){return (tongDoanhSoTheoSale[o.user_id]||0)>=TARGET_USD;}
@@ -2437,7 +2456,8 @@ async function exportOrdersExcel(){
   // bonus DS1%/giường/chênh lệch của các đơn này đang cộng vào lương thang
   // này. Cấu trúc cột giống hệt Sheet 1, thêm 1 cột "Tất toán tháng".
   let settledOtherQuery=sb.from('orders').select('*,profiles(full_name,employee_code)')
-    .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang);
+    .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang)
+    .or('order_status.is.null,order_status.neq.Cancelled');
   if(!isMgr)settledOtherQuery=settledOtherQuery.eq('user_id',curProfile.id);
   else if(empId)settledOtherQuery=settledOtherQuery.eq('user_id',empId);
   const {data:settledOtherRows}=await settledOtherQuery;
@@ -2459,7 +2479,7 @@ async function exportOrdersExcel(){
     const bmNeeded=[...new Set(settledOtherList.map(o=>o.billing_month).filter(Boolean))];
     const bracketCache2={};
     await Promise.all(bmNeeded.map(async bm=>{
-      const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm);
+      const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm).or('order_status.is.null,order_status.neq.Cancelled');
       const byUser={};
       (bmOrds||[]).forEach(o=>{const u=o.user_id||'_';(byUser[u]=byUser[u]||[]).push(o);});
       const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
@@ -3001,7 +3021,7 @@ async function renderOrders(){
   document.getElementById('ord-month-label').textContent=`Tháng ${ordMonth+1}/${ordYear}`;
   const thang=monthStr(ordYear,ordMonth);
 
-  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).order('order_date',{ascending:false});
+  let query=sb.from('orders').select('*,profiles(full_name,employee_code)').eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled').order('order_date',{ascending:false});
   if(!isMgr)query=query.eq('user_id',curProfile.id);
   else if(empId)query=query.eq('user_id',empId);
 
@@ -3103,6 +3123,40 @@ async function renderOrders(){
     <tr id="order-detail-${o.id}" style="display:none"><td colspan="12" style="padding:0;background:var(--bg3)"><div id="order-detail-content-${o.id}" style="padding:12px 16px"></div></td></tr>`;}).join('');
 
   await renderOrdersSettledFromOtherMonth(thang,isMgr,empId);
+  await renderOrdersCancelled(thang,isMgr,empId);
+}
+
+// Đơn đã huỷ (order_status='Cancelled') trong billing_month đang xem —
+// chỉ để đối chiếu/audit, KHÔNG cộng vào bất kỳ tổng nào (doanh số/target/
+// bonus đã loại đơn Cancelled khỏi mọi query tính toán ở nơi khác).
+async function renderOrdersCancelled(thang,isMgr,empId){
+  const tbody=document.getElementById('ord-cancelled-tbody');
+  if(!tbody)return;
+  let q=sb.from('orders').select('*,profiles(full_name,employee_code)')
+    .eq('billing_month',thang).eq('order_status','Cancelled')
+    .order('order_date',{ascending:false});
+  if(!isMgr)q=q.eq('user_id',curProfile.id);
+  else if(empId)q=q.eq('user_id',empId);
+  const {data:rows}=await q;
+  const list=rows||[];
+  const wrap=document.getElementById('ord-cancelled-wrap');
+  if(!list.length){
+    if(wrap)wrap.style.display='none';
+    return;
+  }
+  if(wrap)wrap.style.display='block';
+  tbody.innerHTML=list.map(o=>{
+    const daThu=Math.max(0,(o.total_amount||0)-(o.balance_due||0));
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;text-decoration:line-through;color:var(--text3)">${o.invoice_no||'—'}</td>
+      <td style="font-size:12px;text-decoration:line-through;color:var(--text3)">${o.shop_name}</td>
+      <td style="font-size:12px;color:var(--text3)">${o.profiles?.full_name||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${o.order_date||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${o.billing_month||'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text3)">${usd(o.total_amount)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--warn)">${usd(daThu)}</td>
+    </tr>`;
+  }).join('');
 }
 
 // Đơn cũ (billing_month ≠ tháng đang xem) nhưng vừa tất toán TRONG tháng
@@ -3113,6 +3167,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   if(!tbody)return;
   let q=sb.from('orders').select('*,profiles(full_name,employee_code)')
     .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang)
+    .or('order_status.is.null,order_status.neq.Cancelled')
     .order('billing_month',{ascending:true});
   if(!isMgr)q=q.eq('user_id',curProfile.id);
   else if(empId)q=q.eq('user_id',empId);
@@ -3134,7 +3189,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   const billingMonthsNeeded=[...new Set(list.map(o=>o.billing_month).filter(Boolean))];
   const bracketCache={};
   await Promise.all(billingMonthsNeeded.map(async bm=>{
-    const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm);
+    const {data:bmOrds}=await sb.from('orders').select('id,total_amount,user_id').eq('billing_month',bm).or('order_status.is.null,order_status.neq.Cancelled');
     const byUser={};
     (bmOrds||[]).forEach(o=>{const u=o.user_id||'_';(byUser[u]=byUser[u]||[]).push(o);});
     const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
@@ -3598,7 +3653,7 @@ async function saveKPI(){
   const empId=(kpiSelectedEmp||document.getElementById('kpi-emp-sel').value);
   const thang=monthStr(kpiYear,kpiMonth);
   // Get orders data for this emp/month
-  const {data:orders}=await sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang);
+  const {data:orders}=await sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled');
   const ords=orders||[];
   const dtTotal=ords.reduce((s,o)=>s+(o.total_amount||0),0);
   const soOrders=ords.length;
@@ -3800,11 +3855,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     sb.from('kpi_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle(),
     // TẤT CẢ đơn có billing_month = tháng này (kể cả đang deposit) — dùng cho
     // doanh số/target, Bonus DS 1%, và xác định bậc rate/extra giường của tháng.
-    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang),
+    // Loại trừ đơn Cancelled (huỷ sau khi duyệt) — không tính vào lương.
+    sb.from('orders').select('*').eq('user_id',empId).eq('billing_month',thang)
+      .or('order_status.is.null,order_status.neq.Cancelled'),
     // Đơn TẤT TOÁN trong tháng này (bất kể billing_month gốc là tháng nào) —
     // dùng để trả Bonus giường + Bonus chênh lệch giá (khoản "hoãn lại" đến
-    // khi khách trả hết tiền).
+    // khi khách trả hết tiền). Cũng loại trừ Cancelled.
     sb.from('orders').select('*').eq('user_id',empId).eq('thang_tat_toan',thang).eq('is_settled',true)
+      .or('order_status.is.null,order_status.neq.Cancelled')
   ]);
   const billingOrds=billingOrdsRes.data||[];
   const settledThisMonth=settledOrdsRes.data||[];
@@ -3903,7 +3961,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const bracketCache={};
   await Promise.all(billingMonthsNeeded.map(async bm=>{
     if(bm===thang){bracketCache[bm]={rate:rateGiuong,tyLeDat};return;}
-    const {data:bmOrds}=await sb.from('orders').select('id,total_amount').eq('user_id',empId).eq('billing_month',bm);
+    const {data:bmOrds}=await sb.from('orders').select('id,total_amount').eq('user_id',empId).eq('billing_month',bm).or('order_status.is.null,order_status.neq.Cancelled');
     const bmOrdIds=(bmOrds||[]).map(o=>o.id);
     const bmTotal=(bmOrds||[]).reduce((s,o)=>s+(o.total_amount||0),0);
     let bmGiuong=0;
@@ -5938,7 +5996,7 @@ async function renderDashboard(){
   // ── Fetch ─────────────────────────────────────────────────────────────
   var [tgt,ordersRes,dailyAllRes,dailyTodayRes,profilesRes]=await Promise.all([
     getTarget(fromMonth),
-    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('order_date',fromDate).lte('order_date',toDate),
+    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('order_date',fromDate).lte('order_date',toDate).or('order_status.is.null,order_status.neq.Cancelled'),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
     sb.from('daily_tracking').select('*').eq('ngay',today),
     sb.from('profiles').select('id,employee_code,full_name,nickname,role,contract_type,is_active,ngay_nghi_viec,lever').order('employee_code'),
@@ -6351,8 +6409,8 @@ async function renderSaleDashboard(){
   const [kpiCurRes,kpiPrevRes,ordsCurRes,ordsPrevRes,salCurRes,salPrevRes,dtRes,kpiSetRes]=await Promise.all([
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
-    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang),
-    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang),
+    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled'),
+    sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang).or('order_status.is.null,order_status.neq.Cancelled'),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('daily_tracking').select('total_calls,talktime_phut,potential_calls,so_bao_gia')
