@@ -300,6 +300,7 @@ th.num{text-align:right;}
           <option value="completed">Hoàn thành</option>
           <option value="cancelled">Đã huỷ</option>
           <option value="shipped_delivered" style="display:none;">Đã ship (dashboard)</option>
+          <option value="not_cancelled" style="display:none;">Không tính đã huỷ (dashboard)</option>
         </select>
         <select class="filter-select" id="ord-month" onchange="renderOrders()">
           <option value="">Tất cả tháng</option>
@@ -1013,22 +1014,25 @@ function updateNotifBadge(){
 
 // ══ DASHBOARD ══
 function renderDashboard(){
-  const total=allOrders.length;
-  const prod=allOrders.filter(o=>o.status==='production').length;
-  const shipped=allOrders.filter(o=>o.status==='shipped'||o.status==='delivered').length;
-  const done=allOrders.filter(o=>o.status==='completed').length;
+  // Đơn cancelled loại trừ khỏi TẤT CẢ chỉ số tổng (kể cả Tổng đơn) — chỉ
+  // riêng ô "Đã huỷ" mới đếm trên allOrders gốc.
+  const activeOrders=allOrders.filter(o=>o.status!=='cancelled');
+  const total=activeOrders.length;
+  const prod=activeOrders.filter(o=>o.status==='production').length;
+  const shipped=activeOrders.filter(o=>o.status==='shipped'||o.status==='delivered').length;
+  const done=activeOrders.filter(o=>o.status==='completed').length;
   const cancelled=allOrders.filter(o=>o.status==='cancelled').length;
-  const totalAmt=allOrders.reduce((s,o)=>s+(o.total_amount||0),0);
-  const commRecv=allOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
-  const commPend=allOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
+  const totalAmt=activeOrders.reduce((s,o)=>s+(o.total_amount||0),0);
+  const commRecv=activeOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
+  const commPend=activeOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
   document.getElementById('dash-kpis').innerHTML=`
-    <div class="kpi" onclick="goToOrdersFiltered()"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({status:'not_cancelled'})"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'production'})"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'shipped_delivered'})"><div class="kpi-label">Đã ship</div><div class="kpi-val" style="color:var(--amber)">${shipped}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'completed'})"><div class="kpi-label">Hoàn thành</div><div class="kpi-val" style="color:var(--green)">${done}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'cancelled'})"><div class="kpi-label">Đã huỷ</div><div class="kpi-val" style="color:var(--text3)">${cancelled}</div><div class="kpi-sub">đơn</div></div>
-    <div class="kpi gold" onclick="goToOrdersFiltered()"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
-    <div class="kpi" onclick="goToOrdersFiltered({comm:'received'})"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);" onclick="event.stopPropagation();goToOrdersFiltered({comm:'pending'})">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
+    <div class="kpi gold" onclick="goToOrdersFiltered({status:'not_cancelled'})"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
+    <div class="kpi" onclick="goToOrdersFiltered({comm:'received',status:'not_cancelled'})"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);" onclick="event.stopPropagation();goToOrdersFiltered({comm:'pending',status:'not_cancelled'})">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
   const recent=allOrders.slice(0,8);
   document.getElementById('dash-orders').innerHTML=recent.length
     ?recent.map(o=>`<tr onclick="nav('orders')" style="cursor:pointer;">
@@ -1074,6 +1078,8 @@ function renderOrders(){
     if(status){
       if(status==='shipped_delivered'){
         if(!(o.status==='shipped'||o.status==='delivered'))return false;
+      }else if(status==='not_cancelled'){
+        if(o.status==='cancelled')return false;
       }else if(o.status!==status)return false;
     }
     if(month&&o.billing_month!==month)return false;
@@ -2128,14 +2134,17 @@ async function runReport(){
   });
   rptData=list;
   _rptCommFilter=''; // reset lọc phụ (HH đã/chưa thu) mỗi lần chạy báo cáo mới
-  const totalAmt=list.reduce((s,o)=>s+(o.total_amount||0),0);
-  const totalComm=list.reduce((s,o)=>s+(o.commission||0),0);
-  const totalGap=list.reduce((s,o)=>s+(o.price_gap||0),0);
-  const totalHeadspa=list.reduce((s,o)=>s+headspaBonusOf(o),0);
-  const totalCommAll=list.reduce((s,o)=>s+totalCommOf(o),0);
-  const commRecv=list.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
+  // Đơn cancelled loại trừ khỏi TẤT CẢ statcard (giống Dashboard) — bảng chi
+  // tiết bên dưới vẫn hiện đủ (kể cả cancelled) để đối chiếu khi cần.
+  const activeList=list.filter(o=>o.status!=='cancelled');
+  const totalAmt=activeList.reduce((s,o)=>s+(o.total_amount||0),0);
+  const totalComm=activeList.reduce((s,o)=>s+(o.commission||0),0);
+  const totalGap=activeList.reduce((s,o)=>s+(o.price_gap||0),0);
+  const totalHeadspa=activeList.reduce((s,o)=>s+headspaBonusOf(o),0);
+  const totalCommAll=activeList.reduce((s,o)=>s+totalCommOf(o),0);
+  const commRecv=activeList.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
   document.getElementById('rpt-kpis').innerHTML=`
-    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Số đơn</div><div class="kpi-val">${list.length}</div></div>
+    <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Số đơn</div><div class="kpi-val">${activeList.length}</div></div>
     <div class="kpi gold" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div></div>
     <div class="kpi" onclick="setRptCommFilter('')"><div class="kpi-label">Tổng Hoa Hồng</div><div class="kpi-val" style="color:var(--blue)">${fmtUSD(totalCommAll)}</div><div class="kpi-sub" style="color:var(--text3);">Commission: ${fmtUSD(totalComm)} · Price Gap: ${fmtUSD(totalGap)}${totalHeadspa>0?' · Headspa Bonus: '+fmtUSD(totalHeadspa):''}</div></div>
     <div class="kpi" onclick="setRptCommFilter('received')"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--red);" onclick="event.stopPropagation();setRptCommFilter('pending')">⏳ Chưa: ${fmtUSD(totalCommAll-commRecv)}</div></div>`;
