@@ -3985,7 +3985,12 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     if(isWE(dow))continue;
     const rec=recMap[ds];
     const r=calcDayLogic(rec,emp.role,_luongNgay,_luongGio);
-    if(rec?.status==='NL'||isHL(ds)){nlD++;ngayCong++;}
+    const isHolidayDay=rec?.status==='NL'||isHL(ds);
+    // Ngày lễ chỉ tính công/lương cho người ĐÃ set "Ngày bắt đầu tính lương"
+    // và ngày lễ đó rơi từ mốc đó trở đi — tránh tự động cấp công lễ cho
+    // người chưa/không nằm trong diện tính lương (CEO, Kế toán chưa set...).
+    const eligibleForHolidayPay=emp.ngay_bat_dau_tinh_luong&&ds>=emp.ngay_bat_dau_tinh_luong;
+    if(isHolidayDay&&eligibleForHolidayPay){nlD++;ngayCong++;}
     else if(rec?.status==='NP'){npD++;if(!isProbation)ngayCong++;}
     else if(rec?.status==='NKP'){nkpD++;}
     else if(rec&&r.hours>0){ngayCong+=r.hours/8;if(r.isLate)soLanTre++;}
@@ -4586,6 +4591,11 @@ async function exportSalaryTableExcel(){
   ws.getCell(headerRow1,23).value='Trích theo lương (Công ty đóng)';
   ws.mergeCells(headerRow1,27,headerRow1,30); // BHXH NLĐ group
   ws.getCell(headerRow1,27).value='Các khoản trích trừ vào lương (NLĐ)';
+  // Nhãn con (BHXH/BHYT/BHTN/Cộng) của 2 nhóm gộp ngang phải nằm ở headerRow2
+  // (row 10) — trước đây bị ghi vào headerRow1 rồi bị đè mất bởi tiêu đề nhóm
+  // ở dòng trên, và headerRow2 bị bỏ trống hoàn toàn cho các cột này.
+  const bhxhSubLabels=['BHXH\n(17,5%)','BHYT\n(3%)','BHTN (1%)','Cộng','BHXH\n(8%)','BHYT\n(1,5%)','BHTN (1%)','Cộng'];
+  bhxhSubLabels.forEach((h,i)=>{ws.getCell(headerRow2,23+i).value=h;});
   for(let c=1;c<=headers.length;c++){
     if((c<23||c>30)){ws.mergeCells(headerRow1,c,headerRow2,c);}
   }
