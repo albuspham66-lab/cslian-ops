@@ -2116,10 +2116,14 @@ async function renderAttTable(){
     let trClass=we?'tr-weekend':(isToday?'tr-today':'');
     if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="7" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
     let ciShow='—',coShow='—',hShow='—',sShow='—',statusHtml='',noteHtml='';
-    if(rec){
+    if(hl||rec?.status==='NL'){
+      // Ngày lễ (trong danh sách holidays HOẶC được đánh dấu tay NL) — luôn
+      // tính đủ công 8h dù có/không có check-in thật, không phụ thuộc `rec`.
+      if(rec){ciShow=fmtTime(rec.checkin_time)||'—';coShow=fmtTime(rec.checkout_time)||'—';}
+      statusHtml=`<span class="pill pill-nl">NL</span>`;nl++;totalH+=8;totalS+=_luongNgay;hShow='8h';sShow=vnd(_luongNgay);
+    } else if(rec){
       ciShow=fmtTime(rec.checkin_time)||'—';coShow=fmtTime(rec.checkout_time)||'—';
-      if(rec.status==='NL'||hl){statusHtml=`<span class="pill pill-nl">NL</span>`;nl++;totalH+=8;totalS+=_luongNgay;hShow='8h';sShow=vnd(_luongNgay);}
-      else if(rec.status==='NP'){statusHtml=`<span class="pill pill-np">NP</span>`;np++;totalH+=r.hours;totalS+=r.salary;hShow=r.hours+'h';sShow=vnd(r.salary);}
+      if(rec.status==='NP'){statusHtml=`<span class="pill pill-np">NP</span>`;np++;totalH+=r.hours;totalS+=r.salary;hShow=r.hours+'h';sShow=vnd(r.salary);}
       else if(rec.status==='NKP'){statusHtml=`<span class="pill pill-nkp">NKP</span>`;nkp++;}
       else{wd++;totalH+=r.hours;totalS+=r.salary;if(r.isLate){late++;noteHtml=`<span class="pill pill-late">Trễ ${r.lateMin}p</span>`;}
         if(r.hours>0){hShow=`<span style="color:${r.hours<8?'var(--warn)':'var(--success)'}">${r.hours}h</span>`;sShow=vnd(r.salary);statusHtml=`<span class="pill pill-ok">Đủ công</span>`;}
@@ -4583,7 +4587,7 @@ async function exportSalaryTableExcel(){
   ws.mergeCells(headerRow1,27,headerRow1,30); // BHXH NLĐ group
   ws.getCell(headerRow1,27).value='Các khoản trích trừ vào lương (NLĐ)';
   for(let c=1;c<=headers.length;c++){
-    if(c!==23&&c!==27){ws.mergeCells(headerRow1,c,headerRow2,c);}
+    if((c<23||c>30)){ws.mergeCells(headerRow1,c,headerRow2,c);}
   }
   [headerRow1,headerRow2].forEach(r=>{
     ws.getRow(r).eachCell(cell=>{
