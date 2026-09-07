@@ -3108,10 +3108,10 @@ async function exportReconBatch(batchId){
 
     // ═════════════ Sheet 2: Đối soát nội bộ KCT-BLT (breakdown 4%/4%, VND) ═════════════
     const ws2=wb.addWorksheet('Đối soát nội bộ');
-    ws2.mergeCells('A1:H1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
-    ws2.getCell('A2').value=`BLT chịu 4%, KCT chịu 4% trên VAT 8% (hoá đơn điện tử vẫn khai đủ 8% theo luật). Tỷ giá áp dụng: 1 USD = ${rate.toLocaleString('en-US')} VND.`;
+    ws2.mergeCells('A1:K1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
+    ws2.getCell('A2').value=`BLT chịu 4%, KCT chịu 4% trên VAT 8% (hoá đơn điện tử vẫn khai đủ 8% theo luật). Tỷ giá áp dụng: 1 USD = ${rate.toLocaleString('en-US')} VND. Cột Commission/Price gap/Tổng Commission là số gốc USD (chưa quy đổi), các cột sau đã quy đổi VND.`;
     ws2.getCell('A2').font={italic:true,size:10,color:{argb:'FF888888'}};
-    const hdr2=['STT','Mã đơn hàng','Business','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)','VAT 8% khai thuế','KCT thực nhận (96%)'];
+    const hdr2=['STT','Mã đơn hàng','Business','Comission','Price gap','Tổng Commission','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)','VAT 8% khai thuế','KCT thực nhận (96%)'];
     hdr2.forEach((h,i)=>{
       const c=ws2.getCell(4,1+i);c.value=h;
       c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC9A84C'}};
@@ -3124,27 +3124,116 @@ async function exportReconBatch(batchId){
       ws2.getCell(r2,1).value=i+1;
       ws2.getCell(r2,2).value=o?.invoice_no||'';
       ws2.getCell(r2,3).value=o?.business_name||'';
-      ws2.getCell(r2,4).value=T;
-      ws2.getCell(r2,5).value=T*0.04;
-      ws2.getCell(r2,6).value=T*1.04;
-      ws2.getCell(r2,7).value=T*0.08;
-      ws2.getCell(r2,8).value=T*0.96;
+      ws2.getCell(r2,4).value=parseFloat(o?.commission)||0;
+      ws2.getCell(r2,5).value=parseFloat(o?.price_gap)||0;
+      ws2.getCell(r2,6).value=it.thanh_tien;
+      ws2.getCell(r2,4).numFmt='$#,##0.00';
+      ws2.getCell(r2,5).numFmt='$#,##0.00';
+      ws2.getCell(r2,6).numFmt='$#,##0.00';
+      ws2.getCell(r2,7).value=T;
+      ws2.getCell(r2,8).value=T*0.04;
+      ws2.getCell(r2,9).value=T*1.04;
+      ws2.getCell(r2,10).value=T*0.08;
+      ws2.getCell(r2,11).value=T*0.96;
       r2++;
     });
     const t2=r2+1;
     ws2.getCell(t2,3).value='TỔNG CỘNG';ws2.getCell(t2,3).font={bold:true};
-    [4,5,6,7,8].forEach(col=>{
+    [4,5,6].forEach(col=>{
+      const colLetter=String.fromCharCode(64+col);
+      const colSum=items.reduce((s,it)=>{
+        const o=allOrders.find(x=>x.id===it.order_id);
+        const vals={4:parseFloat(o?.commission)||0,5:parseFloat(o?.price_gap)||0,6:it.thanh_tien};
+        return s+vals[col];
+      },0);
+      ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
+      ws2.getCell(t2,col).font={bold:true};ws2.getCell(t2,col).numFmt='$#,##0.00';
+    });
+    [7,8,9,10,11].forEach(col=>{
       const colLetter=String.fromCharCode(64+col);
       const colSum=items.reduce((s,it)=>{
         const T=it.thanh_tien*rate;
-        const vals={4:T,5:T*0.04,6:T*1.04,7:T*0.08,8:T*0.96};
+        const vals={7:T,8:T*0.04,9:T*1.04,10:T*0.08,11:T*0.96};
         return s+vals[col];
       },0);
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
       ws2.getCell(t2,col).font={bold:true};
     });
-    for(let rr=4;rr<t2;rr++){[4,5,6,7,8].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
-    ws2.columns=[{width:5},{width:18},{width:24},{width:16},{width:14},{width:18},{width:16},{width:18}];
+    for(let rr=4;rr<t2;rr++){[7,8,9,10,11].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
+    ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:14},{width:16},{width:16},{width:14},{width:18},{width:16},{width:18}];
+
+    // ═════════════ Sheet 3: Chi tiết đơn hàng — đúng format Excel xuất từ tab Báo cáo ═════════════
+    const ws3=wb.addWorksheet('Chi tiết đơn hàng',{views:[{state:'frozen',ySplit:1}]});
+    const moneyCols3=new Set(['costPrice','total','shipping','deposit1','deposit2','balance','commission','priceGap','headspaAmt','headspaBonus','totalComm','sellingExp']);
+    ws3.columns=[
+      {header:'No.',key:'no',width:6},
+      {header:'Date',key:'date',width:12},
+      {header:'Month',key:'month',width:10},
+      {header:'Bussiness Name',key:'business',width:24},
+      {header:'Customer Name',key:'customer',width:18},
+      {header:'Address',key:'address',width:26},
+      {header:'Bus Phone',key:'busPhone',width:14},
+      {header:'Cell Phone',key:'cellPhone',width:14},
+      {header:'State',key:'state',width:8},
+      {header:'Order Type',key:'orderType',width:12},
+      {header:'Vendor',key:'vendor',width:10},
+      {header:'Product',key:'product',width:24},
+      {header:'Cost Price',key:'costPrice',width:12},
+      {header:'Total Amount',key:'total',width:14},
+      {header:'Shipping',key:'shipping',width:12},
+      {header:'Deposit 1',key:'deposit1',width:12},
+      {header:'Deposit 2',key:'deposit2',width:12},
+      {header:'Balance Duo',key:'balance',width:12},
+      {header:'Note',key:'note',width:22},
+      {header:'Payment Method',key:'paymentMethod',width:16},
+      {header:'Invoice',key:'invoice',width:16},
+      {header:'Comission',key:'commission',width:12},
+      {header:'Price gap',key:'priceGap',width:12},
+      {header:'Headspa Amount',key:'headspaAmt',width:14},
+      {header:'Headspa Bonus',key:'headspaBonus',width:14},
+      {header:'Tổng Commission',key:'totalComm',width:16},
+      {header:'Selling expenses',key:'sellingExp',width:14},
+      {header:'Status',key:'status',width:14},
+      {header:'Tracking Nuber',key:'tracking',width:16},
+      {header:'Picture',key:'picture',width:22},
+    ];
+    const statusLbl3={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
+    items.forEach((it,i)=>{
+      const o=allOrders.find(x=>x.id===it.order_id)||{};
+      const photo=allPhotos.find(p=>p.order_id===o.id&&!/^payment:/.test(p.caption||''));
+      const row=ws3.addRow({
+        no:i+1,date:o.order_date||'',month:o.billing_month||'',
+        business:o.business_name||'',customer:o.customer_name||'',address:o.address||'',
+        busPhone:o.phone_bus||'',cellPhone:o.phone_cell||'',state:o.state||'',
+        orderType:o.order_type||'',vendor:o.vendor||'',product:o.product||'',
+        costPrice:o.cost_price||0,total:o.total_amount||0,shipping:o.shipping||0,
+        deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
+        note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
+        commission:o.commission||0,priceGap:o.price_gap||0,headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
+        status:statusLbl3[o.status]||o.status||'',tracking:o.tracking_number||'',
+        picture:photo?'Xem ảnh':''
+      });
+      if(photo){
+        row.getCell('picture').value={text:'Xem ảnh',hyperlink:photo.storage_url};
+        row.getCell('picture').font={color:{argb:'FF1155CC'},underline:true};
+      }
+      moneyCols3.forEach(k=>row.getCell(k).numFmt='$#,##0.00');
+      const isHyperlinkCell3=c=>c.value&&typeof c.value==='object'&&c.value.hyperlink;
+      row.eachCell(c=>{
+        if(i%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2EFE6'}};
+        if(!isHyperlinkCell3(c))c.font={color:{argb:'FF1A1A1A'}};
+        c.border={bottom:{style:'thin',color:{argb:'FFDDD5C0'}}};
+      });
+    });
+    const header3=ws3.getRow(1);
+    header3.eachCell(c=>{
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC9A84C'}};
+      c.font={bold:true,color:{argb:'FF0A0B12'},size:11};
+      c.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+      c.border={bottom:{style:'medium',color:{argb:'FF0A0B12'}}};
+    });
+    header3.height=24;
+    ws3.autoFilter={from:{row:1,column:1},to:{row:1,column:ws3.columns.length}};
 
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
