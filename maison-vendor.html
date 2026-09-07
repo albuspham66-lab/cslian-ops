@@ -3159,7 +3159,7 @@ async function exportReconBatch(batchId){
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
       ws2.getCell(t2,col).font={bold:true};
     });
-    for(let rr=4;rr<t2;rr++){[7,8,9,10,11].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
+    for(let rr=4;rr<=t2;rr++){[7,8,9,10,11].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
     ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:14},{width:16},{width:16},{width:14},{width:18},{width:16},{width:18}];
 
     // ═════════════ Sheet 3: Chi tiết đơn hàng — đúng format Excel xuất từ tab Báo cáo ═════════════
