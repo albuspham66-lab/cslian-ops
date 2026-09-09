@@ -3040,7 +3040,7 @@ async function exportReconBatch(batchId){
     const ws1=wb.addWorksheet('BANGKE');
     ws1.properties.defaultRowHeight=18;
     ws1.getColumn(1).width=3;
-    const colW1={B:6,C:16,D:13,E:32,F:18,G:18,H:20,I:20,J:22};
+    const colW1={B:6,C:16,D:13,E:32,F:18,G:18,H:22};
     Object.entries(colW1).forEach(([col,w])=>{ws1.getColumn(col).width=w;});
 
     ws1.mergeCells('B1:F1');ws1.getCell('B1').value=KCT_INFO.name;ws1.getCell('B1').font={...TNR,size:14,bold:true};
@@ -3050,15 +3050,15 @@ async function exportReconBatch(batchId){
     ws1.getCell('B5').value='MST: '+KCT_INFO.mst;ws1.getCell('B5').font={...TNR,size:14};
     ws1.getCell('G7').value='Thành phố Hồ Chí Minh, ngày ... Tháng ... năm '+new Date().getFullYear();
     ws1.getCell('G7').font={...TNR,size:14,italic:true};
-    ws1.mergeCells('B9:J9');ws1.getCell('B9').value='BẢNG KÊ ĐỐI SOÁT';
+    ws1.mergeCells('B9:H9');ws1.getCell('B9').value='BẢNG KÊ ĐỐI SOÁT';
     ws1.getCell('B9').font={...TNR,size:22,bold:true};ws1.getCell('B9').alignment={horizontal:'center'};
     ws1.getRow(9).height=25.5;
 
-    ws1.mergeCells('B12:J12');ws1.getCell('B12').value='Tên đơn vị sử dụng dịch vụ: '+BLT_INFO.name;ws1.getCell('B12').font={...TNR,size:13};
+    ws1.mergeCells('B12:H12');ws1.getCell('B12').value='Tên đơn vị sử dụng dịch vụ: '+BLT_INFO.name;ws1.getCell('B12').font={...TNR,size:13};
     ws1.mergeCells('B13:H13');ws1.getCell('B13').value='Địa chỉ: '+BLT_INFO.address;ws1.getCell('B13').font={...TNR,size:13};
     ws1.getCell('B14').value='MST: '+BLT_INFO.mst;ws1.getCell('B14').font={...TNR,size:13};
 
-    const hdr1=['STT','Mã KH','Ngày thực hiện','Nội dung dịch vụ','Kết quả dịch vụ','Mã đơn hàng','Phí dịch vụ/hoa hồng','Khoản chênh lệch','Thành tiền'];
+    const hdr1=['STT','Mã KH','Ngày thực hiện','Nội dung dịch vụ','Kết quả dịch vụ','Mã đơn hàng','Thành tiền'];
     hdr1.forEach((h,i)=>{
       const c=ws1.getCell(16,2+i);c.value=h;
       c.font={...TNR,size:14,bold:true};c.alignment={horizontal:'center',vertical:'center',wrapText:true};
@@ -3066,20 +3066,23 @@ async function exportReconBatch(batchId){
     });
     ws1.getRow(16).height=50;
 
+    // Hệ số quy đổi Thành tiền (T) sheet Đối soát nội bộ -> Thành tiền hiển thị ở
+    // đây = T × (1.04/1.08) — để khi cộng dồn rồi tính GTGT 8% theo công thức
+    // thuận cũ (Tổng cộng → +8% → Tổng thanh toán) vẫn ra đúng Σ BLT thực trả
+    // (104%) như thực tế BLT phải trả. 1.04/1.08 = 96.2963% (≈96.30%).
+    const BANGKE_HE_SO=1.04/1.08;
     const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
     let r=17;
     items.forEach((it,i)=>{
       const o=allOrders.find(x=>x.id===it.order_id);
-      const commVnd=(parseFloat(o?.commission)||0)*rate;
-      const gapVnd=(parseFloat(o?.price_gap)||0)*rate;
-      const thanhTienVnd=it.thanh_tien*rate;
-      const rowVals=[i+1,o?.customer_name||'',o?.order_date||'',`Dịch vụ đại lý (${o?.business_name||''})`,statusLbl[o?.status]||o?.status||'',o?.invoice_no||'',commVnd,gapVnd,thanhTienVnd];
+      const thanhTienVnd=it.thanh_tien*rate*BANGKE_HE_SO;
+      const rowVals=[i+1,o?.customer_name||'',o?.order_date||'',`Dịch vụ đại lý (${o?.business_name||''})`,statusLbl[o?.status]||o?.status||'',o?.invoice_no||'',thanhTienVnd];
       rowVals.forEach((v,ci)=>{
         const c=ws1.getCell(r,2+ci);c.value=v;
         c.font={...TNR,size:14};
         c.alignment=ci===0?{horizontal:'center',vertical:'center'}:{vertical:'center'};
         c.border={top:thin,bottom:thin,left:thin,right:thin};
-        if(ci>=6)c.numFmt=VND;
+        if(ci===6)c.numFmt=VND;
       });
       ws1.getRow(r).height=18.5;
       r++;
@@ -3088,29 +3091,28 @@ async function exportReconBatch(batchId){
     const totalRow=r+1;
     // Tính sẵn giá trị thật (không chỉ để công thức) để hiện ngay không cần Excel
     // tính lại, và để có số dùng cho "Số tiền bằng chữ".
-    // Đảo hướng tính: Tổng số tiền thanh toán = Σ cột "BLT thực trả (104%)" bên
-    // sheet Đối soát nội bộ (= Thành tiền × 1.04) — TÍNH TRƯỚC, rồi suy ngược
-    // Tổng cộng = Thanh toán / 1.08, Thuế GTGT 8% = Thanh toán − Tổng cộng.
-    const totalVnd=items.reduce((s,it)=>s+it.thanh_tien*rate,0);
-    const paymentVnd=totalVnd*1.04;
-    const netVnd=paymentVnd/1.08;
-    const vatVnd=paymentVnd-netVnd;
-    const grandTotalVnd=paymentVnd;
+    // Công thức thuận (cũ): Tổng cộng = Σ Thành tiền (đã × 96,30%) → Thuế GTGT
+    // 8% = Tổng cộng × 8% → Tổng số tiền thanh toán = Tổng cộng × 1.08.
+    // Nhờ hệ số 96,30% ở cột Thành tiền, kết quả cuối vẫn khớp đúng Σ BLT thực
+    // trả (104%) — tương đương công thức "ngược" trước đó, chỉ khác đường tính.
+    const totalVnd=items.reduce((s,it)=>s+it.thanh_tien*rate*BANGKE_HE_SO,0);
+    const vatVnd=totalVnd*0.08;
+    const grandTotalVnd=totalVnd+vatVnd;
 
     ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow,10).value={formula:`(SUM(J17:J${lastDataRow})*1.04)/1.08`,result:netVnd};
-    ws1.getCell(totalRow,10).font={...TNR,size:14};ws1.getCell(totalRow,10).numFmt=VND;
+    ws1.getCell(totalRow,8).value={formula:`SUM(H17:H${lastDataRow})`,result:totalVnd};
+    ws1.getCell(totalRow,8).font={...TNR,size:14};ws1.getCell(totalRow,8).numFmt=VND;
     ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';ws1.getCell(totalRow+1,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow+2}-J${totalRow}`,result:vatVnd};
-    ws1.getCell(totalRow+1,10).font={...TNR,size:14};ws1.getCell(totalRow+1,10).numFmt=VND;
+    ws1.getCell(totalRow+1,8).value={formula:`H${totalRow}*8%`,result:vatVnd};
+    ws1.getCell(totalRow+1,8).font={...TNR,size:14};ws1.getCell(totalRow+1,8).numFmt=VND;
     ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+2,10).value={formula:`SUM(J17:J${lastDataRow})*1.04`,result:paymentVnd};
-    ws1.getCell(totalRow+2,10).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+2,10).numFmt=VND;
-    ws1.mergeCells(totalRow+3,2,totalRow+3,9);
+    ws1.getCell(totalRow+2,8).value={formula:`SUM(H${totalRow}:H${totalRow+1})`,result:grandTotalVnd};
+    ws1.getCell(totalRow+2,8).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+2,8).numFmt=VND;
+    ws1.mergeCells(totalRow+3,2,totalRow+3,8);
     ws1.getCell(totalRow+3,2).value='SỐ TIỀN BẰNG CHỮ: '+soTienBangChu(grandTotalVnd);
     ws1.getCell(totalRow+3,2).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+3,2).alignment={wrapText:true};
 
-    ws1.mergeCells(totalRow+5,2,totalRow+5,9);
+    ws1.mergeCells(totalRow+5,2,totalRow+5,8);
     ws1.getCell(totalRow+5,2).value=`Bảng kê này là căn cứ để ${KCT_INFO.name} xuất hoá đơn điện tử ký hiệu ...............\nsố ...... xuất ngày .../.../${new Date().getFullYear()} cho ${BLT_INFO.name}`;
     ws1.getCell(totalRow+5,2).font={...TNR,size:14};ws1.getCell(totalRow+5,2).alignment={wrapText:true};
     ws1.getCell(totalRow+6,2).value='Lưu ý:';ws1.getCell(totalRow+6,2).font={...TNR,size:14,bold:true};
@@ -3128,10 +3130,10 @@ async function exportReconBatch(batchId){
 
     // ═════════════ Sheet 2: Đối soát nội bộ KCT-BLT (breakdown 4%/4%, VND) ═════════════
     const ws2=wb.addWorksheet('Đối soát nội bộ');
-    ws2.mergeCells('A1:K1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
-    ws2.getCell('A2').value=`BLT chịu 4%, KCT chịu 4% trên VAT 8% (hoá đơn điện tử vẫn khai đủ 8% theo luật). Tỷ giá áp dụng: 1 USD = ${rate.toLocaleString('en-US')} VND. Cột Commission/Price gap/Tổng Commission là số gốc USD (chưa quy đổi), các cột sau đã quy đổi VND.`;
+    ws2.mergeCells('A1:I1');ws2.getCell('A1').value=`ĐỐI SOÁT NỘI BỘ KCT ↔ BLT — ${b.period_label}`;ws2.getCell('A1').font={bold:true,size:14};
+    ws2.getCell('A2').value=`BLT chịu 4% (hoá đơn điện tử vẫn khai đủ 8% VAT theo luật, xem sheet BANGKE). Tỷ giá áp dụng: 1 USD = ${rate.toLocaleString('en-US')} VND. Cột Commission/Price gap/Tổng Commission là số gốc USD (chưa quy đổi), các cột sau đã quy đổi VND.`;
     ws2.getCell('A2').font={italic:true,size:10,color:{argb:'FF888888'}};
-    const hdr2=['STT','Mã đơn hàng','Business','Comission','Price gap','Tổng Commission','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)','VAT 8% khai thuế','KCT thực nhận (96%)'];
+    const hdr2=['STT','Mã đơn hàng','Business','Comission','Price gap','Tổng Commission','Thành tiền (T)','BLT chịu 4%','BLT thực trả (104%)'];
     hdr2.forEach((h,i)=>{
       const c=ws2.getCell(4,1+i);c.value=h;
       c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC9A84C'}};
@@ -3153,8 +3155,6 @@ async function exportReconBatch(batchId){
       ws2.getCell(r2,7).value=T;
       ws2.getCell(r2,8).value=T*0.04;
       ws2.getCell(r2,9).value=T*1.04;
-      ws2.getCell(r2,10).value=T*0.08;
-      ws2.getCell(r2,11).value=T*0.96;
       r2++;
     });
     const t2=r2+1;
@@ -3169,18 +3169,18 @@ async function exportReconBatch(batchId){
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
       ws2.getCell(t2,col).font={bold:true};ws2.getCell(t2,col).numFmt='$#,##0.00';
     });
-    [7,8,9,10,11].forEach(col=>{
+    [7,8,9].forEach(col=>{
       const colLetter=String.fromCharCode(64+col);
       const colSum=items.reduce((s,it)=>{
         const T=it.thanh_tien*rate;
-        const vals={7:T,8:T*0.04,9:T*1.04,10:T*0.08,11:T*0.96};
+        const vals={7:T,8:T*0.04,9:T*1.04};
         return s+vals[col];
       },0);
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
       ws2.getCell(t2,col).font={bold:true};
     });
-    for(let rr=4;rr<=t2;rr++){[7,8,9,10,11].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
-    ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:14},{width:16},{width:16},{width:14},{width:18},{width:16},{width:18}];
+    for(let rr=4;rr<=t2;rr++){[7,8,9].forEach(col=>ws2.getCell(rr,col).numFmt=VND);}
+    ws2.columns=[{width:5},{width:18},{width:24},{width:14},{width:14},{width:16},{width:16},{width:14},{width:18}];
 
     // ═════════════ Sheet 3: Chi tiết đơn hàng — đúng format Excel xuất từ tab Báo cáo ═════════════
     const ws3=wb.addWorksheet('Chi tiết đơn hàng',{views:[{state:'frozen',ySplit:1}]});
