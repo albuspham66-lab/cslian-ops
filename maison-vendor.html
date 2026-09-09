@@ -528,6 +528,18 @@ th.num{text-align:right;}
       <span style="font-size:12px;color:var(--text3);" id="recon-page-label"></span>
       <button class="btn btn-ghost btn-sm" id="recon-page-next" onclick="reconChangePage(1)">Next →</button>
     </div>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:10px;">Dòng tùy chỉnh <span style="color:var(--text3);font-weight:400;font-size:11px;">— dịch vụ không gắn đơn hàng thật, vd Open Phone</span></div>
+    <div id="recon-custom-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:nowrap;align-items:flex-end;margin-bottom:16px;">
+      <div class="fg" style="margin:0;flex:1;min-width:0;"><label class="fl">Mã</label><input type="text" id="recon-custom-code" placeholder="VD: OPENPHONE0806"></div>
+      <div class="fg" style="margin:0;flex:2;min-width:0;"><label class="fl">Tên / Business</label><input type="text" id="recon-custom-name" placeholder="VD: Open Phone"></div>
+      <div class="fg" style="margin:0;flex:1;min-width:0;"><label class="fl">Commission ($)</label><input type="number" id="recon-custom-comm" step="0.01" min="0"></div>
+      <div class="fg" style="margin:0;flex:1;min-width:0;"><label class="fl">Price gap ($)</label><input type="number" id="recon-custom-gap" step="0.01" min="0"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addReconCustomItem()">+ Thêm</button>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border2);">
       <div style="font-size:13px;">Đã chọn: <b id="recon-preview-count">0</b> đơn — Tổng Thành tiền: <b id="recon-preview-total" style="color:var(--gold);"></b></div>
       <div style="display:flex;gap:8px;">
@@ -2659,20 +2671,58 @@ function reconEligibleOrders(){
   );
 }
 
-let _reconMode='eligible',_reconSelectedIds=new Set(),_reconPage=1;
+let _reconMode='eligible',_reconSelectedIds=new Set(),_reconPage=1,_reconCustomItems=[],_reconCustomNextId=1;
 const RECON_PAGE_SIZE=20;
 
 function openReconPreview(){
   _reconSelectedIds=new Set(reconEligibleOrders().map(o=>o.id));
+  _reconCustomItems=[];
+  renderReconCustomList();
   // Populate dropdown tháng từ toàn bộ đơn Bolsa+Tspa
   const months=[...new Set(allOrders.filter(o=>['BOLSA','TSPA'].includes((o.vendor||'').toUpperCase())).map(o=>o.billing_month).filter(Boolean))].sort().reverse();
   document.getElementById('recon-filter-month').innerHTML='<option value="">Tất cả tháng</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join('');
   document.getElementById('recon-filter-invoice').value='';
   document.getElementById('recon-filter-business').value='';
   document.getElementById('recon-filter-customer').value='';
+  document.getElementById('recon-custom-code').value='';
+  document.getElementById('recon-custom-name').value='';
+  document.getElementById('recon-custom-comm').value='';
+  document.getElementById('recon-custom-gap').value='';
   _reconPage=1;
   reconSwitchMode('eligible');
   openModal('m-recon-preview');
+}
+
+function addReconCustomItem(){
+  const code=(document.getElementById('recon-custom-code').value||'').trim();
+  const name=(document.getElementById('recon-custom-name').value||'').trim();
+  const comm=parseFloat(document.getElementById('recon-custom-comm').value)||0;
+  const gap=parseFloat(document.getElementById('recon-custom-gap').value)||0;
+  if(!name){toast('Nhập tên/Business trước đã','var(--amber)');return;}
+  if(comm===0&&gap===0){toast('Nhập ít nhất 1 số tiền (Commission hoặc Price gap)','var(--amber)');return;}
+  _reconCustomItems.push({id:_reconCustomNextId++,code:code||'—',name,commission:comm,priceGap:gap});
+  document.getElementById('recon-custom-code').value='';
+  document.getElementById('recon-custom-name').value='';
+  document.getElementById('recon-custom-comm').value='';
+  document.getElementById('recon-custom-gap').value='';
+  renderReconCustomList();
+  reconRecalcPreview();
+}
+
+function removeReconCustomItem(id){
+  _reconCustomItems=_reconCustomItems.filter(x=>x.id!==id);
+  renderReconCustomList();
+  reconRecalcPreview();
+}
+
+function renderReconCustomList(){
+  const el=document.getElementById('recon-custom-list');
+  if(!_reconCustomItems.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);">Chưa có dòng tùy chỉnh nào.</div>';return;}
+  el.innerHTML=_reconCustomItems.map(c=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:var(--rsm);padding:8px 12px;">
+      <span style="font-size:13px;"><b>${c.code}</b> — ${c.name} <span style="color:var(--text3);">(Commission ${fmtUSD(c.commission)} · Price gap ${fmtUSD(c.priceGap)} · Tổng ${fmtUSD(c.commission+c.priceGap)})</span></span>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="removeReconCustomItem(${c.id})">✕</button>
+    </div>`).join('');
 }
 
 function reconResetPageAndRender(){
@@ -2773,6 +2823,7 @@ function reconRecalcPreview(){
     const o=allOrders.find(x=>x.id===id);
     if(o){count++;total+=totalCommOf(o);}
   });
+  _reconCustomItems.forEach(c=>{count++;total+=c.commission+c.priceGap;});
   document.getElementById('recon-preview-count').textContent=count;
   document.getElementById('recon-preview-total').textContent=fmtUSD(total);
 }
@@ -2780,13 +2831,13 @@ function reconRecalcPreview(){
 async function createReconBatch(){
   const label=(document.getElementById('recon-new-label').value||'').trim();
   if(!label){toast('Nhập nhãn đợt đối soát trước','var(--amber)');return;}
-  if(!_reconSelectedIds.size){toast('Chưa chọn đơn nào','var(--amber)');return;}
+  if(!_reconSelectedIds.size&&!_reconCustomItems.length){toast('Chưa chọn đơn nào và cũng chưa có dòng tùy chỉnh','var(--amber)');return;}
   try{
     const items=[..._reconSelectedIds].map(id=>{
       const o=allOrders.find(x=>x.id===id);
       return o?{order:o,thanh_tien:totalCommOf(o)}:null;
     }).filter(Boolean);
-    const T=items.reduce((s,i)=>s+i.thanh_tien,0);
+    const T=items.reduce((s,i)=>s+i.thanh_tien,0)+_reconCustomItems.reduce((s,c)=>s+c.commission+c.priceGap,0);
     const exchangeRate=parseFloat(document.getElementById('recon-exchange-rate').value)||25000;
     const{data:batch,error:be}=await sb.from('reconciliation_batches').insert({
       period_label:label,status:'sent',created_by:currentUser.id,sent_at:new Date().toISOString(),
@@ -2794,13 +2845,18 @@ async function createReconBatch(){
       exchange_rate:exchangeRate
     }).select().single();
     if(be)throw be;
-    const itemRows=items.map(i=>({batch_id:batch.id,order_id:i.order.id,thanh_tien:i.thanh_tien}));
-    const{error:ie}=await sb.from('reconciliation_items').insert(itemRows);
+    const orderItemRows=items.map(i=>({batch_id:batch.id,order_id:i.order.id,thanh_tien:i.thanh_tien}));
+    const customItemRows=_reconCustomItems.map(c=>({
+      batch_id:batch.id,order_id:null,custom_label:`${c.code} — ${c.name}`,
+      custom_commission:c.commission,custom_price_gap:c.priceGap,thanh_tien:c.commission+c.priceGap
+    }));
+    const{error:ie}=await sb.from('reconciliation_items').insert([...orderItemRows,...customItemRows]);
     if(ie)throw ie;
     // Thông báo cho vendor — bấm vào mở thẳng batch này
+    const totalCount=items.length+_reconCustomItems.length;
     await sb.from('notifications').insert({
       type:'recon_sent',batch_id:batch.id,is_read:false,audience:'vendor',
-      message:`📋 Đợt đối soát "${label}" đã gửi — ${items.length} đơn, tổng BLT trả ${fmtUSD(T*1.04)}`
+      message:`📋 Đợt đối soát "${label}" đã gửi — ${totalCount} dòng, tổng BLT trả ${fmtUSD(T*1.04)}`
     });
     closeModal('m-recon-preview');
     document.getElementById('recon-new-label').value='';
@@ -2860,7 +2916,7 @@ async function openReconDetail(batchId){
   const b=allBatches.find(x=>x.id===batchId);
   if(!b)return;
   _reconCurrentBatchId=batchId;
-  await ensureOrdersLoaded((b.reconciliation_items||[]).map(it=>it.order_id));
+  await ensureOrdersLoaded((b.reconciliation_items||[]).map(it=>it.order_id).filter(Boolean));
   const isAdmin=currentProfile?.role==='admin';
   document.getElementById('recon-detail-title').textContent=`Đợt đối soát — ${b.period_label}`;
   document.getElementById('recon-detail-meta').innerHTML=
@@ -2868,19 +2924,22 @@ async function openReconDetail(batchId){
     +(b.approved_at?` · Duyệt lúc ${fmtTime(b.approved_at)}`:'');
   const items=b.reconciliation_items||[];
   document.getElementById('recon-detail-body').innerHTML=items.map(it=>{
-    const o=allOrders.find(x=>x.id===it.order_id);
+    const isCustom=it.order_id===null||it.order_id===undefined;
+    const o=isCustom?null:allOrders.find(x=>x.id===it.order_id);
     const stLabel={active:'Bình thường',flagged:'⚠️ Vendor báo sai',pending_next:'⏳ Dời đợt sau'}[it.status]||it.status;
     const stColor={active:'var(--text2)',flagged:'var(--red)',pending_next:'var(--amber)'}[it.status]||'var(--text2)';
     let actionHtml='';
+    const displayCode=isCustom?(it.custom_label||'').split(' — ')[0]:(o?.invoice_no||'');
     if(!isAdmin&&b.status!=='approved'&&it.status==='active'){
-      actionHtml=`<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="openReconFlag(${it.id},'${(o?.invoice_no||'').replace(/'/g,"\\'")}')">Báo sai</button>`;
+      actionHtml=`<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="openReconFlag(${it.id},'${displayCode.replace(/'/g,"\\'")}')">Báo sai</button>`;
     }else if(isAdmin&&it.status==='flagged'){
       actionHtml=`<button class="btn btn-ghost btn-sm" onclick="resolveReconItem(${it.id},'active')">Đã sửa xong</button>
                   <button class="btn btn-ghost btn-sm" style="color:var(--amber);" onclick="resolveReconItem(${it.id},'pending_next')">Dời đợt sau</button>`;
     }
-    return`<tr style="cursor:pointer;" onclick="openOrderFromRecon(${it.order_id})" title="Bấm để xem chi tiết đơn hàng">
-      <td class="bold">${o?.invoice_no||'—'}</td>
-      <td>${o?.business_name||'—'}</td>
+    const rowClickAttr=isCustom?'':`style="cursor:pointer;" onclick="openOrderFromRecon(${it.order_id})" title="Bấm để xem chi tiết đơn hàng"`;
+    return`<tr ${rowClickAttr}>
+      <td class="bold">${isCustom?(it.custom_label||'—')+' <span style="color:var(--text3);font-size:10px;">[Tùy chỉnh]</span>':(o?.invoice_no||'—')}</td>
+      <td>${isCustom?'—':(o?.business_name||'—')}</td>
       <td class="num" style="color:var(--gold);">${fmtUSD(it.thanh_tien)}</td>
       <td><span style="color:${stColor};font-size:12px;">${stLabel}</span>${it.flag_note?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">"${it.flag_note}"</div>`:''}</td>
       <td onclick="event.stopPropagation();">${actionHtml}</td>
@@ -2952,7 +3011,7 @@ async function deleteReconBatch(batchId,event){
   if(!confirm(msg))return;
   try{
     if(b.status==='approved'){
-      const orderIds=(b.reconciliation_items||[]).filter(it=>it.status!=='pending_next').map(it=>it.order_id);
+      const orderIds=(b.reconciliation_items||[]).filter(it=>it.status!=='pending_next').map(it=>it.order_id).filter(Boolean);
       if(orderIds.length){
         const{error:ue}=await sb.from('vendor_orders').update({commission_received:false}).in('id',orderIds);
         if(ue)throw ue;
@@ -2989,7 +3048,7 @@ async function approveReconBatch(batchId){
   try{
     const b=allBatches.find(x=>x.id===batchId);
     const activeItems=(b?.reconciliation_items||[]).filter(it=>it.status==='active');
-    const orderIds=activeItems.map(it=>it.order_id);
+    const orderIds=activeItems.map(it=>it.order_id).filter(Boolean); // bỏ dòng tùy chỉnh (order_id null)
     if(orderIds.length){
       const{error:ue}=await sb.from('vendor_orders').update({commission_received:true}).in('id',orderIds);
       if(ue)throw ue;
@@ -3074,9 +3133,12 @@ async function exportReconBatch(batchId){
     const statusLbl={pending:'Pending',production:'Đang sản xuất',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
     let r=17;
     items.forEach((it,i)=>{
-      const o=allOrders.find(x=>x.id===it.order_id);
+      const isCustom=it.order_id===null||it.order_id===undefined;
+      const o=isCustom?null:allOrders.find(x=>x.id===it.order_id);
       const thanhTienVnd=it.thanh_tien*rate*BANGKE_HE_SO;
-      const rowVals=[i+1,o?.customer_name||'',o?.order_date||'',`Dịch vụ đại lý (${o?.business_name||''})`,statusLbl[o?.status]||o?.status||'',o?.invoice_no||'',thanhTienVnd];
+      const rowVals=isCustom
+        ?[i+1,'','',`Dịch vụ: ${it.custom_label||''}`,'',it.custom_label?.split(' — ')[0]||'',thanhTienVnd]
+        :[i+1,o?.customer_name||'',o?.order_date||'',`Dịch vụ đại lý (${o?.business_name||''})`,statusLbl[o?.status]||o?.status||'',o?.invoice_no||'',thanhTienVnd];
       rowVals.forEach((v,ci)=>{
         const c=ws1.getCell(r,2+ci);c.value=v;
         c.font={...TNR,size:14};
@@ -3141,13 +3203,14 @@ async function exportReconBatch(batchId){
     });
     let r2=5;
     items.forEach((it,i)=>{
-      const o=allOrders.find(x=>x.id===it.order_id);
+      const isCustom=it.order_id===null||it.order_id===undefined;
+      const o=isCustom?null:allOrders.find(x=>x.id===it.order_id);
       const T=it.thanh_tien*rate;
       ws2.getCell(r2,1).value=i+1;
-      ws2.getCell(r2,2).value=o?.invoice_no||'';
-      ws2.getCell(r2,3).value=o?.business_name||'';
-      ws2.getCell(r2,4).value=parseFloat(o?.commission)||0;
-      ws2.getCell(r2,5).value=parseFloat(o?.price_gap)||0;
+      ws2.getCell(r2,2).value=isCustom?(it.custom_label?.split(' — ')[0]||'—'):(o?.invoice_no||'');
+      ws2.getCell(r2,3).value=isCustom?(it.custom_label?.split(' — ')[1]||it.custom_label||'Tùy chỉnh'):(o?.business_name||'');
+      ws2.getCell(r2,4).value=isCustom?(parseFloat(it.custom_commission)||0):(parseFloat(o?.commission)||0);
+      ws2.getCell(r2,5).value=isCustom?(parseFloat(it.custom_price_gap)||0):(parseFloat(o?.price_gap)||0);
       ws2.getCell(r2,6).value=it.thanh_tien;
       ws2.getCell(r2,4).numFmt='$#,##0.00';
       ws2.getCell(r2,5).numFmt='$#,##0.00';
@@ -3162,8 +3225,11 @@ async function exportReconBatch(batchId){
     [4,5,6].forEach(col=>{
       const colLetter=String.fromCharCode(64+col);
       const colSum=items.reduce((s,it)=>{
-        const o=allOrders.find(x=>x.id===it.order_id);
-        const vals={4:parseFloat(o?.commission)||0,5:parseFloat(o?.price_gap)||0,6:it.thanh_tien};
+        const isCustom=it.order_id===null||it.order_id===undefined;
+        const o=isCustom?null:allOrders.find(x=>x.id===it.order_id);
+        const comm=isCustom?(parseFloat(it.custom_commission)||0):(parseFloat(o?.commission)||0);
+        const gap=isCustom?(parseFloat(it.custom_price_gap)||0):(parseFloat(o?.price_gap)||0);
+        const vals={4:comm,5:gap,6:it.thanh_tien};
         return s+vals[col];
       },0);
       ws2.getCell(t2,col).value={formula:`SUM(${colLetter}5:${colLetter}${r2-1})`,result:colSum};
@@ -3219,7 +3285,8 @@ async function exportReconBatch(batchId){
       {header:'Picture',key:'picture',width:22},
     ];
     const statusLbl3={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành',cancelled:'Đã huỷ'};
-    items.forEach((it,i)=>{
+    const orderOnlyItems=items.filter(it=>it.order_id!==null&&it.order_id!==undefined); // bỏ dòng tùy chỉnh, sheet này chỉ dành cho đơn hàng thật
+    orderOnlyItems.forEach((it,i)=>{
       const o=allOrders.find(x=>x.id===it.order_id)||{};
       const photo=allPhotos.find(p=>p.order_id===o.id&&!/^payment:/.test(p.caption||''));
       const row=ws3.addRow({
