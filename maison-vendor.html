@@ -3088,18 +3088,23 @@ async function exportReconBatch(batchId){
     const totalRow=r+1;
     // Tính sẵn giá trị thật (không chỉ để công thức) để hiện ngay không cần Excel
     // tính lại, và để có số dùng cho "Số tiền bằng chữ".
+    // Đảo hướng tính: Tổng số tiền thanh toán = Σ cột "BLT thực trả (104%)" bên
+    // sheet Đối soát nội bộ (= Thành tiền × 1.04) — TÍNH TRƯỚC, rồi suy ngược
+    // Tổng cộng = Thanh toán / 1.08, Thuế GTGT 8% = Thanh toán − Tổng cộng.
     const totalVnd=items.reduce((s,it)=>s+it.thanh_tien*rate,0);
-    const vatVnd=totalVnd*0.08;
-    const grandTotalVnd=totalVnd+vatVnd;
+    const paymentVnd=totalVnd*1.04;
+    const netVnd=paymentVnd/1.08;
+    const vatVnd=paymentVnd-netVnd;
+    const grandTotalVnd=paymentVnd;
 
     ws1.getCell(totalRow,2).value='TỔNG CỘNG';ws1.getCell(totalRow,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow,10).value={formula:`SUM(J17:J${lastDataRow})`,result:totalVnd};
+    ws1.getCell(totalRow,10).value={formula:`(SUM(J17:J${lastDataRow})*1.04)/1.08`,result:netVnd};
     ws1.getCell(totalRow,10).font={...TNR,size:14};ws1.getCell(totalRow,10).numFmt=VND;
     ws1.getCell(totalRow+1,2).value='TIỀN THUẾ GTGT 8%';ws1.getCell(totalRow+1,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow}*8%`,result:vatVnd};
+    ws1.getCell(totalRow+1,10).value={formula:`J${totalRow+2}-J${totalRow}`,result:vatVnd};
     ws1.getCell(totalRow+1,10).font={...TNR,size:14};ws1.getCell(totalRow+1,10).numFmt=VND;
     ws1.getCell(totalRow+2,2).value='TỔNG SỐ TIỀN THANH TOÁN';ws1.getCell(totalRow+2,2).font={...TNR,size:14,bold:true};
-    ws1.getCell(totalRow+2,10).value={formula:`SUM(J${totalRow}:J${totalRow+1})`,result:grandTotalVnd};
+    ws1.getCell(totalRow+2,10).value={formula:`SUM(J17:J${lastDataRow})*1.04`,result:paymentVnd};
     ws1.getCell(totalRow+2,10).font={...TNR,size:14,bold:true};ws1.getCell(totalRow+2,10).numFmt=VND;
     ws1.mergeCells(totalRow+3,2,totalRow+3,9);
     ws1.getCell(totalRow+3,2).value='SỐ TIỀN BẰNG CHỮ: '+soTienBangChu(grandTotalVnd);
