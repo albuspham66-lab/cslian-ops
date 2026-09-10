@@ -2946,9 +2946,15 @@ function computeTaxDetailFigures(r){
   const bhxhCty_bhyt=isProbation?0:Math.round(p1*0.03);
   const bhxhCty_bhtn=isProbation?0:Math.round(p1*0.01);
   const bhxhCty_cong=bhxhCty_bhxh+bhxhCty_bhyt+bhxhCty_bhtn;
-  const tnct=Math.max(0,(r.tong_luong_vnd||0)-(r.mien_thue_vnd||0)-bhxhNld_cong);
+  // TNCT (Thu nhập chịu thuế) = Tổng thu nhập − Các khoản được miễn thuế.
+  // BHXH KHÔNG trừ ở bước này — theo đúng chuẩn kế toán, BHXH được xem là
+  // 1 khoản "giảm trừ" và trừ CÙNG với giảm trừ gia cảnh ở bước TNTT, không
+  // gộp vào bước TNCT. (Trước đây hệ thống trừ BHXH sớm 1 bước, khiến TNCT
+  // hiển thị thấp hơn thực tế — số thuế cuối cùng vẫn đúng vì tổng 3 khoản
+  // trừ ra là như nhau, chỉ khác cách gộp; nay sửa lại đúng nhãn báo cáo.)
+  const tnct=Math.max(0,(r.tong_luong_vnd||0)-(r.mien_thue_vnd||0));
   const giamTru=isProbation?0:(GIAM_TRU_BAN_THAN+(r.so_nguoi_phu_thuoc_snapshot||0)*GIAM_TRU_NGUOI_PHU_THUOC);
-  const tntt=isProbation?null:Math.max(0,tnct-giamTru);
+  const tntt=isProbation?null:Math.max(0,tnct-bhxhNld_cong-giamTru);
   return {isProbation,p1,bhxhNld_bhxh,bhxhNld_bhyt,bhxhNld_bhtn,bhxhNld_cong,
     bhxhCty_bhxh,bhxhCty_bhyt,bhxhCty_bhtn,bhxhCty_cong,tnct,giamTru,tntt};
 }
