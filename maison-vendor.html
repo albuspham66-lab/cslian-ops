@@ -2952,13 +2952,19 @@ async function openReconDetail(batchId){
   const actionsEl=document.getElementById('recon-detail-actions');
   let extraActions=isAdmin?`<button class="btn btn-ghost btn-sm" onclick="exportReconBatch(${b.id})">⬇ Xuất Excel</button>
     <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteReconBatch(${b.id})">🗑 Xoá đợt này</button>`:'';
+  // Admin: được tự duyệt (thay mặt vendor) ở mọi trạng thái chưa approved,
+  // kể cả khi còn flag chưa xử lý xong — dùng chung logic approveReconBatch,
+  // approved_by vẫn ghi đúng admin là người bấm nên lịch sử minh bạch.
+  const adminApproveBtn=(isAdmin&&b.status!=='approved')
+    ?`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Admin duyệt (thay vendor)</button>`:'';
   if(!isAdmin&&b.status==='sent'){
     actionsEl.innerHTML=extraActions+`<button class="btn btn-gold btn-sm" onclick="approveReconBatch(${b.id})">✅ Duyệt đợt đối soát</button>`;
   }else if(isAdmin&&b.status==='flagged'){
     actionsEl.innerHTML=`<span style="font-size:12px;color:var(--text3);flex:1;">Xử lý xong các đơn bị flag ở trên rồi gửi lại cho vendor.</span>`+extraActions+
+      adminApproveBtn+
       `<button class="btn btn-gold btn-sm" onclick="resendReconBatch(${b.id})">Gửi lại cho Vendor</button>`;
   }else{
-    actionsEl.innerHTML=extraActions;
+    actionsEl.innerHTML=extraActions+adminApproveBtn;
   }
   openModal('m-recon-detail');
 }
@@ -3044,7 +3050,12 @@ async function resendReconBatch(batchId){
 }
 
 async function approveReconBatch(batchId){
-  if(!confirm('Duyệt đợt đối soát này? Các đơn (trừ đơn bị dời) sẽ tự đánh dấu "HH đã thu".'))return;
+  const b0=allBatches.find(x=>x.id===batchId);
+  const hasFlagged=(b0?.reconciliation_items||[]).some(it=>it.status==='flagged');
+  const msg=hasFlagged
+    ?'Đợt này còn đơn đang bị báo sai (flagged) chưa xử lý — những đơn đó sẽ KHÔNG được đánh dấu "HH đã thu" tự động, chỉ các đơn bình thường (active) mới được đánh dấu. Vẫn duyệt?'
+    :'Duyệt đợt đối soát này? Các đơn (trừ đơn bị dời) sẽ tự đánh dấu "HH đã thu".';
+  if(!confirm(msg))return;
   try{
     const b=allBatches.find(x=>x.id===batchId);
     const activeItems=(b?.reconciliation_items||[]).filter(it=>it.status==='active');
