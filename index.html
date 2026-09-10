@@ -1847,9 +1847,15 @@ async function loadAllProfiles(){
 function populateSelects(){
   const active=activeProfiles();
   const opts=active.map(p=>`<option value="${p.id}">${p.full_name} (${p.employee_code})</option>`).join('');
-  ['att-emp-sel','kpi-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
+  ['kpi-emp-sel','rev-emp-sel','rm-emp'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
+  // Chấm công gắn liền với "Ngày bắt đầu tính lương" — người chưa set ngày
+  // này thì chưa cần/chưa nên chấm công, nên loại khỏi dropdown chọn NV.
+  const attOpts=active.filter(p=>p.ngay_bat_dau_tinh_luong)
+    .map(p=>`<option value="${p.id}">${p.full_name} (${p.employee_code})</option>`).join('');
+  const attSel=document.getElementById('att-emp-sel');
+  if(attSel)attSel.innerHTML=attOpts;
   // ord-emp-sel: thêm option "Tất cả nhân viên" lên đầu — xem chung mọi đơn trong tháng
   const ordSel=document.getElementById('ord-emp-sel');
   if(ordSel)ordSel.innerHTML=`<option value="">— Tất cả nhân viên —</option>`+opts;
@@ -2842,8 +2848,11 @@ async function applyThuongLeByRole(){
   const rolesToApply=Object.keys(roleAmounts).filter(r=>roleAmounts[r]!=='' && roleAmounts[r]!=null);
   if(!rolesToApply.length){toast('Chưa nhập mức thưởng cho Role nào','error');return;}
 
-  const targetEmps=allProfiles.filter(p=>rolesToApply.includes(p.role));
-  if(!targetEmps.length){toast('Không có nhân viên nào khớp Role đã nhập','error');return;}
+  // Chỉ áp cho nhân viên ĐANG LÀM VIỆC — người đã nghỉ (is_active=false) dù
+  // trước đây từng có "Ngày bắt đầu tính lương" cũng không nên nhận thưởng lễ
+  // của đợt mới (đã gặp case Khuê nghỉ việc nhưng vẫn bị áp thưởng lễ).
+  const targetEmps=allProfiles.filter(p=>rolesToApply.includes(p.role)&&p.is_active);
+  if(!targetEmps.length){toast('Không có nhân viên đang làm việc nào khớp Role đã nhập','error');return;}
 
   toast('Đang áp dụng cho '+targetEmps.length+' người...');
   let okCount=0;
@@ -3939,6 +3948,25 @@ function changeMonthKPI(d){kpiMonth+=d;if(kpiMonth>11){kpiMonth=0;kpiYear++;}if(
 // ============================================================
 var _salCache={};
 async function calcSalaryForEmp(empId,thang,salYear,salMonth){
+  const emp0=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
+  if(!emp0)return null;
+  // Chặn TẬN GỐC: nhân viên chưa set "Ngày bắt đầu tính lương" (hoặc tháng
+  // đang tính còn TRƯỚC mốc đó) → trả về ZERO HOÀN TOÀN, không tính bất kỳ
+  // khoản nào (P1-P3A, Extra, Vượt target, Thưởng lễ...). Trước đây chỉ lọc
+  // ở tầng hiển thị (Báo cáo thuế) nên số vẫn "rò rỉ" sang các nơi khác
+  // (Bảng lương, và từ đó lan sang báo cáo Finance).
+  if(!emp0.ngay_bat_dau_tinh_luong||thang<emp0.ngay_bat_dau_tinh_luong.slice(0,7)){
+    return {user_id:empId,thang,ngay_cong_thuc_te:0,so_lan_tre:0,
+      so_ngay_np:0,so_ngay_nl:0,so_ngay_nkp:0,cong_chuan_thang:congChuanThang(salYear,salMonth+1),
+      p1_he_so:1.0,p1_thuc_te:0,p2a:0,p2b:0,p2c:0,p3b_chuyen_can:0,p3c_kpi:0,p3c_nguong:80,p3d_di_lai:0,
+      dieu_chinh_thu_viec_vnd:0,
+      p3a_bolsa_usd:0,p3a_bolsa_headspa_usd:0,p3a_bolsa_other_usd:0,p3a_ons_tspa_usd:0,
+      p3a_vuot_target_usd:0,p3a_chenh_lech_usd:0,p3a_base_usd:0,
+      p3a_ty_le_dat:0,p3a_total_usd:0,ty_gia:TY_GIA,
+      backup_bonus_usd:0,thuong_le_vnd:0,tong_luong_vnd:0,
+      bhxh_vnd:0,so_nguoi_phu_thuoc_snapshot:0,mien_thue_vnd:0,
+      thue_tncn_vnd:0,luong_thuc_nhan_vnd:0};
+  }
   await loadHolidays(); // đảm bảo isHL() thấy đủ ngày nghỉ bù tùy chỉnh khi tính công/lương
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
   if(!emp)return null;
@@ -4222,7 +4250,11 @@ async function renderSalary(){
   const excelBtn=document.getElementById('sal-export-excel-btn');
   if(excelBtn)excelBtn.style.display=isMgr?'inline-flex':'none';
 
-  const emps=isMgr?allProfiles.filter(p=>p.role!=='manager'||p.id===curProfile.id):[curProfile];
+  // Chỉ hiện người ĐÃ set "Ngày bắt đầu tính lương" — khớp đúng logic Báo cáo
+  // thuế, tránh Manager lỡ tay chốt lương cho người chưa đủ điều kiện (VD Nam/
+  // Tiên/Gấm/Khuê từng bị tính nhầm Extra/Thưởng lễ dù chưa/không nên tính).
+  const emps=(isMgr?allProfiles.filter(p=>p.role!=='manager'||p.id===curProfile.id):[curProfile])
+    .filter(p=>p.ngay_bat_dau_tinh_luong&&thang>=p.ngay_bat_dau_tinh_luong.slice(0,7));
   const tbody=document.getElementById('salary-display');
   if(!emps.length){tbody.innerHTML='<div class="card"><div class="empty">Không có nhân viên</div></div>';return;}
 
