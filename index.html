@@ -4621,17 +4621,17 @@ async function exportSalaryTableExcel(){
     'TNCT','TNTT','TNCN','Tạm ứng','Tổng thu nhập\nsau thuế','Thực\nlĩnh',
   ];
   headers.forEach((h,i)=>{ws.getCell(headerRow1,i+1).value=h;});
-  ws.mergeCells(headerRow1,23,headerRow1,26); // BHXH DN group
-  ws.getCell(headerRow1,23).value='Trích theo lương (Công ty đóng)';
-  ws.mergeCells(headerRow1,27,headerRow1,30); // BHXH NLĐ group
-  ws.getCell(headerRow1,27).value='Các khoản trích trừ vào lương (NLĐ)';
+  ws.mergeCells(headerRow1,24,headerRow1,27); // BHXH DN group
+  ws.getCell(headerRow1,24).value='Trích theo lương (Công ty đóng)';
+  ws.mergeCells(headerRow1,28,headerRow1,31); // BHXH NLĐ group
+  ws.getCell(headerRow1,28).value='Các khoản trích trừ vào lương (NLĐ)';
   // Nhãn con (BHXH/BHYT/BHTN/Cộng) của 2 nhóm gộp ngang phải nằm ở headerRow2
   // (row 10) — trước đây bị ghi vào headerRow1 rồi bị đè mất bởi tiêu đề nhóm
   // ở dòng trên, và headerRow2 bị bỏ trống hoàn toàn cho các cột này.
   const bhxhSubLabels=['BHXH\n(17,5%)','BHYT\n(3%)','BHTN (1%)','Cộng','BHXH\n(8%)','BHYT\n(1,5%)','BHTN (1%)','Cộng'];
-  bhxhSubLabels.forEach((h,i)=>{ws.getCell(headerRow2,23+i).value=h;});
+  bhxhSubLabels.forEach((h,i)=>{ws.getCell(headerRow2,24+i).value=h;});
   for(let c=1;c<=headers.length;c++){
-    if((c<23||c>30)){ws.mergeCells(headerRow1,c,headerRow2,c);}
+    if((c<24||c>31)){ws.mergeCells(headerRow1,c,headerRow2,c);}
   }
   [headerRow1,headerRow2].forEach(r=>{
     ws.getRow(r).eachCell(cell=>{
@@ -4647,7 +4647,7 @@ async function exportSalaryTableExcel(){
   const colWidths=[6,20,16,13,13, 12,13,11,10,10, 12,12,12, 11,11,12,15,11, 11, 10,13, 13,11, 9,9,9,9, 9,9,9,9, 13,13,11,11,14,13];
   colWidths.forEach((w,i)=>{ws.getColumn(i+1).width=w;});
 
-  const moneyCols=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
+  const moneyCols=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37];
   const gT={};moneyCols.forEach(c=>gT[c]=0);
   let gT_ngayCT=0,gT_ngayChuan=0;
 
