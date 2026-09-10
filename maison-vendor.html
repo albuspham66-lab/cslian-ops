@@ -792,7 +792,7 @@ th.num{text-align:right;}
       <div class="fg">
         <label class="fl">% Price Gap → Tổng Commission</label>
         <select id="cost-gap-pct" onchange="onGapPctChange()">
-          <option value="100">100%</option><option value="70">70%</option>
+          <option value="100">100%</option><option value="70">70%</option><option value="60">60%</option>
           <option value="__custom__">Tuỳ chỉnh %</option>
         </select>
         <input type="number" id="cost-gap-pct-custom" step="0.01" min="0" placeholder="Nhập % tuỳ chỉnh" style="margin-top:6px;display:none;" oninput="recalcTotalComm()">
@@ -1666,7 +1666,7 @@ function openCostModal(id){
   const gapPctEl=document.getElementById('cost-gap-pct');
   const gapPctCustomEl=document.getElementById('cost-gap-pct-custom');
   const gapPctVal=(o?.gap_pct===null||o?.gap_pct===undefined)?100:o.gap_pct;
-  const knownGapPcts=['100','70'];
+  const knownGapPcts=['100','70','60'];
   if(knownGapPcts.includes(String(gapPctVal))){
     gapPctEl.value=String(gapPctVal);gapPctCustomEl.style.display='none';
   }else{
