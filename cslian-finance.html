@@ -3312,7 +3312,7 @@ function editProduct(id){
 async function saveProduct(){
   const id=document.getElementById('p-id').value;
   const isEdit=!!id;
-  const data={sku:document.getElementById('p-sku').value.trim(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value.trim()||null,description:document.getElementById('p-description').value.trim()||null};
+  const data={sku:(document.getElementById('p-sku').value.trim()).toUpperCase(),name:document.getElementById('p-name').value.trim(),vendor:document.getElementById('p-vendor').value,sale_price:parseFloat(document.getElementById('p-gia-ban').value)||0,vendor_cost:parseFloat(document.getElementById('p-vendor-cost').value)||0,commission_rate:parseFloat(document.getElementById('p-commission').value)/100||0.03,variant:document.getElementById('p-variant').value.trim()||null,is_active:document.getElementById('p-active').value==='true',is_bolsa:document.getElementById('p-la-bolsa').checked,best_price:document.getElementById('p-best-price').value!==''?parseFloat(document.getElementById('p-best-price').value):null,note:document.getElementById('p-prod-note').value.trim()||null,stock_status:document.getElementById('p-stock-status').value,shipping_fee:document.getElementById('p-shipping-fee').value.trim()||null,description:document.getElementById('p-description').value.trim()||null};
   if(!data.sku||!data.name){toast('Vui lòng nhập SKU và tên','amber');return;}
   // Upload ảnh nếu có file mới
   const imgFile=document.getElementById('p-img-file').files[0];
@@ -4157,16 +4157,36 @@ async function deleteNote(id){
 // ── SYNC PRODUCT TO CRM ──────────────────────────────────────
 async function syncProductToCRM(product){
   try{
-    const FINANCE_EDGE='https://jggfmpihfisbusnbzyoi.supabase.co/functions/v1/sync-product-to-crm';
-    const r=await fetch(FINANCE_EDGE,{
+    // Map Finance fields → CRM fields, upsert theo SKU (tránh duplicate)
+    const payload={
+      sku:(product.sku||'').toUpperCase().trim(),
+      name:product.name,
+      vendor:product.vendor,
+      sale_price:product.sale_price||0,
+      best_price:product.best_price||null,
+      vendor_cost:product.vendor_cost||0,
+      commission_rate:product.commission_rate||0,
+      variant:product.variant||null,
+      is_active:product.is_active!==false,
+      note:product.note||null,
+      description:product.description||null,
+      stock_status:product.stock_status||'In Stock',
+      shipping_fee:product.shipping_fee||null,
+      ...(product.image_url?{image_url:product.image_url}:{})
+    };
+    const r=await fetch(`${CRM_STORAGE_URL}/rest/v1/products?on_conflict=sku`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${CFG.key}`},
-      body:JSON.stringify(product)
+      headers:{
+        'apikey':CRM_STORAGE_KEY,
+        'Authorization':`Bearer ${CRM_STORAGE_KEY}`,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal'
+      },
+      body:JSON.stringify(payload)
     });
-    const d=await r.json();
-    if(!r.ok)console.warn('[sync-product-to-crm] failed',d);
-    else console.log('[sync-product-to-crm] OK',d.sku);
-  }catch(e){console.warn('[sync-product-to-crm] error',e.message);}
+    if(!r.ok){const e=await r.text();console.warn('[syncProductToCRM] failed',r.status,e);}
+    else console.log('[syncProductToCRM] OK',payload.sku);
+  }catch(e){console.warn('[syncProductToCRM] error',e.message);}
 }
 updateRangeLabels();
 loadAll();
