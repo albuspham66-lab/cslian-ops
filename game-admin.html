@@ -35,14 +35,14 @@ button.danger:hover{background:#e84118}
 <div class="muted">Cấu hình 5 mini-game — chỉ dùng trong Hub, không public cho sale</div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="race" onclick="switchTab('race')">🏎️ Đua xe</div>
+  <div class="tab active" data-tab="contest" onclick="switchTab('contest')">🏆 Contest</div>
   <div class="tab" data-tab="ticket" onclick="switchTab('ticket')">🎫 Vé vàng</div>
   <div class="tab" data-tab="wheel" onclick="switchTab('wheel')">🎡 Vòng quay</div>
   <div class="tab" data-tab="box" onclick="switchTab('box')">🎁 Hộp bí mật</div>
   <div class="tab" data-tab="auction" onclick="switchTab('auction')">🔨 Đấu giá</div>
 </div>
 
-<div id="tab-race" class="tabcontent"></div>
+<div id="tab-contest" class="tabcontent"></div>
 <div id="tab-ticket" class="tabcontent hidden"></div>
 <div id="tab-wheel" class="tabcontent hidden"></div>
 <div id="tab-box" class="tabcontent hidden"></div>
@@ -88,7 +88,7 @@ function switchTab(t){
   document.querySelectorAll('.tab').forEach(function(el){el.classList.toggle('active',el.dataset.tab===t);});
   document.querySelectorAll('.tabcontent').forEach(function(el){el.classList.add('hidden');});
   document.getElementById('tab-'+t).classList.remove('hidden');
-  if(t==='race')renderRace();
+  if(t==='contest')renderContest();
   if(t==='ticket')renderTicket();
   if(t==='wheel')renderWheel();
   if(t==='box')renderBox();
@@ -96,47 +96,125 @@ function switchTab(t){
 }
 
 // ═══ 1. ĐUA XE ═══
-async function renderRace(){
-  const el=document.getElementById('tab-race');
+const DEFAULT_TARGET_OFFICIAL=23500, DEFAULT_TARGET_PROBATION=18800;
+const CONTEST_METRIC_LABELS={order_count:'Số đơn hàng',revenue:'Doanh số ($)',sku_qty:'Số lượng SP theo SKU'};
+let contestPrizesDraft=[]; // dùng khi tạo contest mới — cấu hình phần thưởng trước khi tạo
+
+async function renderContest(){
+  const el=document.getElementById('tab-contest');
   el.innerHTML='Đang tải...';
-  const thisMonth=new Date().toISOString().slice(0,7);
-  const [allProfiles,targets,invoices,configs]=await Promise.all([
-    getProfiles(),
-    fRead('targets?period_key=eq.'+thisMonth+'&select=user_id,target_amount'),
-    cRead('invoices?type=eq.invoice&approval_status=eq.approved&billing_month=eq.'+thisMonth+'&select=sale_id,total'),
-    fRead('game_race_config?period_key=eq.'+thisMonth+'&select=*&order=id.desc&limit=1'),
+  // Auto-đóng các contest quá hạn trước khi hiển thị (lazy-check, không có cron thật)
+  await callAction('check_expired_contests',{});
+  const [active,closed]=await Promise.all([
+    fRead('contests?status=eq.active&order=id.desc'),
+    fRead('contests?status=eq.closed&order=closed_at.desc&limit=20'),
   ]);
-  const profiles=allProfiles.filter(function(p){return p.role==='sale'||p.role==='leader';});
-  const cfg=configs[0];
 
-  const rows=profiles.map(function(p){
-    const target=(targets.find(function(t){return t.user_id===p.id;})||{}).target_amount||0;
-    const revenue=invoices.filter(function(i){return i.sale_id===p.id;}).reduce(function(s,i){return s+parseFloat(i.total||0);},0);
-    const pct=target>0?Math.round((revenue/target)*1000)/10:0;
-    return {name:p.full_name,code:p.code,target:target,revenue:revenue,pct:pct};
-  }).sort(function(a,b){return b.pct-a.pct;});
-
-  el.innerHTML='<div class="card"><h2>Bảng xếp hạng tháng '+thisMonth+'</h2><table><tr><th>#</th><th>Sale</th><th>Target</th><th>Doanh số</th><th>%</th></tr>'
-    +rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+r.name+'</td><td>$'+r.target.toLocaleString()+'</td><td>$'+r.revenue.toLocaleString()+'</td><td><b>'+r.pct+'%</b></td></tr>';}).join('')
-    +'</table></div>'
-    +'<div class="card"><h2>Cấu hình phần thưởng</h2>'
-    +'<div class="row"><label>Hệ số catch-up (N ngày cuối):</label><input id="race-catchup-days" type="number" value="'+(cfg?cfg.catchup_days:7)+'" style="width:60px"></div>'
-    +'<div class="row"><label>Hệ số nhân:</label><input id="race-catchup-mult" type="number" step="0.1" value="'+(cfg?cfg.catchup_multiplier:1.5)+'" style="width:60px"></div>'
-    +'<div class="row"><label>Tên phần thưởng:</label><input id="race-prize-title" value="'+(cfg?cfg.prize_title||'':'')+'" style="width:250px"></div>'
-    +'<div class="row"><label>Ghi chú:</label><textarea id="race-prize-note" style="width:100%;height:60px">'+(cfg?cfg.prize_note||'':'')+'</textarea></div>'
-    +'<button onclick="saveRaceConfig(\''+thisMonth+'\','+(cfg?cfg.id:'null')+')">Lưu cấu hình</button>'
+  el.innerHTML='<div class="card"><h2>Tạo Contest mới</h2>'
+    +'<div class="row"><input id="ct-name" placeholder="Tên contest (VD: Đua ghế Pedicure Q3)"></div>'
+    +'<div class="row"><label>Tiêu chí:</label><select id="ct-metric" onchange="onContestMetricChange()">'
+    +Object.keys(CONTEST_METRIC_LABELS).map(function(k){return '<option value="'+k+'">'+CONTEST_METRIC_LABELS[k]+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="row" id="ct-sku-row" style="display:none"><label>Mã SKU bắt đầu bằng (cách nhau dấu phẩy):</label><input id="ct-sku-prefixes" placeholder="VD: PDC,PAC hoặc HEA" style="width:220px"></div>'
+    +'<div class="row"><label>Cách xếp hạng:</label><select id="ct-ranking"><option value="absolute">Giá trị tuyệt đối cao nhất</option><option value="target_pct">% đạt target cá nhân (chỉ hợp lý với Doanh số, giả định theo tháng)</option></select></div>'
+    +'<div class="row"><label>Từ ngày:</label><input id="ct-start" type="date"><label>Đến ngày (deadline):</label><input id="ct-end" type="date"></div>'
+    +'<h3 style="margin-top:14px;font-size:13px;color:var(--text2)">Phần thưởng</h3>'
+    +'<div id="ct-prizes-list"></div>'
+    +'<button onclick="addContestPrizeRow()">+ Thêm mốc thưởng</button><br>'
+    +'<button onclick="createContest()" style="margin-top:12px">Tạo Contest</button>'
+    +'</div>'
+    +'<div class="card"><h2>Đang chạy ('+active.length+')</h2>'
+    +(active.length===0?'<div class="muted">Chưa có contest nào đang chạy</div>':active.map(renderContestActiveRow).join(''))
+    +'</div>'
+    +'<div class="card"><h2>Lịch sử đã đóng</h2>'
+    +(closed.length===0?'<div class="muted">Chưa có contest nào kết thúc</div>':closed.map(renderContestClosedRow).join(''))
     +'</div>';
+  contestPrizesDraft=[{rank_from:1,rank_to:1,prize_title:''}];
+  renderContestPrizesList();
 }
-async function saveRaceConfig(periodKey,cfgId){
-  const body={period_type:'month',period_key:periodKey,
-    catchup_days:parseInt(document.getElementById('race-catchup-days').value)||7,
-    catchup_multiplier:parseFloat(document.getElementById('race-catchup-mult').value)||1.5,
-    prize_title:document.getElementById('race-prize-title').value,
-    prize_note:document.getElementById('race-prize-note').value,
-    is_active:true};
-  if(cfgId)await fWrite('game_race_config?id=eq.'+cfgId,'PATCH',body);
-  else await fWrite('game_race_config','POST',body);
-  alert('Đã lưu');renderRace();
+function onContestMetricChange(){
+  const m=document.getElementById('ct-metric').value;
+  document.getElementById('ct-sku-row').style.display=m==='sku_qty'?'flex':'none';
+}
+function renderContestPrizesList(){
+  const el=document.getElementById('ct-prizes-list');
+  if(!el)return;
+  el.innerHTML=contestPrizesDraft.map(function(p,i){
+    return '<div class="row">'
+      +'<span class="muted">Hạng</span><input type="number" value="'+(p.rank_from||'')+'" style="width:50px" placeholder="từ" onchange="contestPrizesDraft['+i+'].rank_from=parseInt(this.value)||null">'
+      +'<span class="muted">đến</span><input type="number" value="'+(p.rank_to||'')+'" style="width:50px" placeholder="đến" onchange="contestPrizesDraft['+i+'].rank_to=parseInt(this.value)||null">'
+      +'<input placeholder="Tên phần thưởng" value="'+(p.prize_title||'')+'" onchange="contestPrizesDraft['+i+'].prize_title=this.value" style="width:200px">'
+      +'<button class="danger" onclick="removeContestPrizeRow('+i+')">Xoá</button></div>';
+  }).join('');
+}
+function addContestPrizeRow(){contestPrizesDraft.push({rank_from:null,rank_to:null,prize_title:''});renderContestPrizesList();}
+function removeContestPrizeRow(i){contestPrizesDraft.splice(i,1);renderContestPrizesList();}
+
+async function createContest(){
+  const name=document.getElementById('ct-name').value;
+  const metric=document.getElementById('ct-metric').value;
+  const ranking=document.getElementById('ct-ranking').value;
+  const start=document.getElementById('ct-start').value;
+  const end=document.getElementById('ct-end').value;
+  if(!name||!start||!end){alert('Nhập đủ tên + ngày bắt đầu/kết thúc');return;}
+  const skuPrefixes=metric==='sku_qty'?document.getElementById('ct-sku-prefixes').value.split(',').map(function(s){return s.trim();}).filter(Boolean):null;
+  if(metric==='sku_qty'&&(!skuPrefixes||skuPrefixes.length===0)){alert('Nhập ít nhất 1 mã SKU');return;}
+
+  const created=await fWrite('contests','POST',{name:name,metric_type:metric,sku_prefixes:skuPrefixes,ranking_mode:ranking,start_date:start,end_date:end,status:'active'});
+  if(!Array.isArray(created)||!created[0]){alert('Lỗi tạo contest');return;}
+  const contestId=created[0].id;
+
+  const prizeRows=contestPrizesDraft.filter(function(p){return p.prize_title;}).map(function(p){return {contest_id:contestId,rank_from:p.rank_from,rank_to:p.rank_to,prize_title:p.prize_title};});
+  if(prizeRows.length>0)await fWrite('contest_prizes','POST',prizeRows);
+
+  alert('Đã tạo Contest');renderContest();
+}
+
+function renderContestActiveRow(c){
+  return '<div style="border-top:1px solid var(--border);padding:10px 0">'
+    +'<b>'+c.name+'</b> <span class="muted">('+CONTEST_METRIC_LABELS[c.metric_type]+', '+c.start_date+' → '+c.end_date+')</span>'
+    +'<div class="row" style="margin-top:6px">'
+    +'<input type="date" id="ct-extend-'+c.id+'" value="'+c.end_date+'"><button onclick="extendContest('+c.id+')">Gia hạn</button>'
+    +'<button onclick="viewContestLeaderboard('+c.id+')">Xem bảng xếp hạng</button>'
+    +'<button class="danger" onclick="closeContestNow('+c.id+')">Đóng ngay</button>'
+    +'</div><div id="ct-lb-'+c.id+'"></div></div>';
+}
+function renderContestClosedRow(c){
+  return '<div style="border-top:1px solid var(--border);padding:10px 0">'
+    +'<b>'+c.name+'</b> <span class="badge closed">Đã đóng '+(c.closed_at?c.closed_at.slice(0,10):'')+'</span>'
+    +'<div class="row" style="margin-top:6px"><button onclick="viewContestResults('+c.id+')">Xem kết quả</button></div>'
+    +'<div id="ct-res-'+c.id+'"></div></div>';
+}
+async function extendContest(contestId){
+  const newEnd=document.getElementById('ct-extend-'+contestId).value;
+  if(!newEnd){alert('Chọn ngày mới');return;}
+  await fWrite('contests?id=eq.'+contestId,'PATCH',{end_date:newEnd});
+  alert('Đã gia hạn');renderContest();
+}
+async function closeContestNow(contestId){
+  if(!confirm('Đóng contest này ngay? Không thể mở lại.'))return;
+  const res=await callAction('close_contest',{user_id:CALVIN_USER_ID,contest_id:contestId});
+  if(!res.ok){alert(res.error||'Lỗi đóng contest');return;}
+  alert('Đã đóng — '+res.results_count+' kết quả được lưu');
+  renderContest();
+}
+async function viewContestLeaderboard(contestId){
+  const el=document.getElementById('ct-lb-'+contestId);
+  el.innerHTML='Đang tải...';
+  const res=await callAction('get_contest_leaderboard',{contest_id:contestId});
+  if(!res.ok){el.innerHTML='Lỗi tải bảng xếp hạng';return;}
+  const profiles=await getProfiles();
+  el.innerHTML='<table style="margin-top:6px"><tr><th>#</th><th>Sale</th><th>Giá trị</th></tr>'
+    +res.board.map(function(b){return '<tr><td>'+b.rank+'</td><td>'+profName(b.user_id,profiles)+'</td><td>'+(res.contest.metric_type==='revenue'?'$':'')+b.value.toLocaleString()+(res.contest.ranking_mode==='target_pct'?' ('+Math.round(b.pct*10)/10+'%)':'')+'</td></tr>';}).join('')
+    +'</table>';
+}
+async function viewContestResults(contestId){
+  const el=document.getElementById('ct-res-'+contestId);
+  el.innerHTML='Đang tải...';
+  const results=await fRead('contest_results?contest_id=eq.'+contestId+'&order=rank');
+  el.innerHTML='<table style="margin-top:6px"><tr><th>#</th><th>Sale</th><th>Giá trị</th><th>Phần thưởng</th></tr>'
+    +results.map(function(r){return '<tr><td>'+r.rank+'</td><td>'+(r.full_name||r.user_id)+'</td><td>'+r.value_achieved.toLocaleString()+'</td><td>'+(r.prize_title||'—')+'</td></tr>';}).join('')
+    +'</table>';
 }
 
 // ═══ 2. VÉ VÀNG ═══
@@ -174,6 +252,13 @@ async function assignGoldenTickets(){
 }
 
 // ═══ 3. VÒNG QUAY ═══
+const METRIC_OPTIONS=[
+  {value:'calls_answered',label:'Số cuộc "Bắt máy" thành công'},
+  {value:'orders_closed',label:'Số đơn chốt'},
+  {value:'revenue_amount',label:'Doanh số ($)'},
+];
+let wheelRulesDraft=[]; // state tạm khi đang chỉnh sửa rule trong tab này
+
 async function renderWheel(){
   const el=document.getElementById('tab-wheel');
   el.innerHTML='Đang tải...';
@@ -184,11 +269,13 @@ async function renderWheel(){
   const session=sessions[0];
   const entries=session?await fRead('wheel_entries?session_id=eq.'+session.id+'&order=sort_order'):[];
   const cfg=configs[0];
+  wheelRulesDraft=(cfg&&cfg.metric_rules&&cfg.metric_rules.length)?cfg.metric_rules.slice():[{metric:'calls_answered',per_unit:10,credits:1}];
 
-  el.innerHTML='<div class="card"><h2>Điều kiện nhận lượt quay</h2>'
-    +'<div class="row"><label>Số cuộc "Bắt máy"/lượt:</label><input id="wheel-calls" type="number" value="'+(cfg?cfg.calls_per_credit:10)+'" style="width:60px"></div>'
-    +'<div class="row"><label>Số đơn chốt/lượt:</label><input id="wheel-orders" type="number" value="'+(cfg?cfg.orders_per_credit:1)+'" style="width:60px"></div>'
-    +'<button onclick="saveWheelConfig('+(cfg?cfg.id:'null')+')">Lưu</button></div>'
+  el.innerHTML='<div class="card"><h2>Điều kiện nhận lượt quay — tuỳ chỉnh</h2>'
+    +'<div class="muted" style="margin-bottom:10px">Cứ đạt <b>[ngưỡng]</b> của <b>[chỉ số]</b> trong ngày → cộng <b>[số lượt]</b>. Có thể kết hợp nhiều điều kiện cùng lúc (cộng dồn).</div>'
+    +'<div id="wheel-rules-list"></div>'
+    +'<button onclick="addWheelRuleRow()" style="margin-top:6px">+ Thêm điều kiện</button><br>'
+    +'<button onclick="saveWheelConfig('+(cfg?cfg.id:'null')+')" style="margin-top:10px">Lưu cấu hình</button></div>'
     +'<div class="card"><h2>Danh sách phần thưởng vòng quay</h2>'
     +(session?('<table><tr><th>Tên</th><th>Trọng số</th><th></th></tr>'
       +entries.map(function(e){return '<tr><td>'+e.label+'</td><td>'+e.weight+'</td><td><button class="danger" onclick="deleteWheelEntry('+e.id+')">Xoá</button></td></tr>';}).join('')
@@ -196,9 +283,35 @@ async function renderWheel(){
     +'<div class="row" style="margin-top:12px"><input id="wheel-entry-label" placeholder="Tên phần thưởng"><input id="wheel-entry-weight" type="number" value="1" style="width:60px" placeholder="Trọng số">'
     +'<button onclick="addWheelEntry('+(session?session.id:'null')+')">'+(session?'Thêm phần thưởng':'Tạo session + thêm')+'</button></div>'
     +'</div>';
+  renderWheelRulesList();
+}
+function renderWheelRulesList(){
+  const el=document.getElementById('wheel-rules-list');
+  if(!el)return;
+  el.innerHTML=wheelRulesDraft.map(function(r,i){
+    return '<div class="row" style="align-items:center">'
+      +'<select onchange="wheelRulesDraft['+i+'].metric=this.value">'
+      +METRIC_OPTIONS.map(function(m){return '<option value="'+m.value+'"'+(r.metric===m.value?' selected':'')+'>'+m.label+'</option>';}).join('')
+      +'</select>'
+      +'<span class="muted">cứ mỗi</span>'
+      +'<input type="number" value="'+r.per_unit+'" style="width:70px" onchange="wheelRulesDraft['+i+'].per_unit=parseFloat(this.value)||1">'
+      +'<span class="muted">→ +</span>'
+      +'<input type="number" value="'+(r.credits||1)+'" style="width:60px" onchange="wheelRulesDraft['+i+'].credits=parseFloat(this.value)||1">'
+      +'<span class="muted">lượt</span>'
+      +'<button class="danger" onclick="removeWheelRuleRow('+i+')">Xoá</button>'
+      +'</div>';
+  }).join('')||'<div class="muted">Chưa có điều kiện nào — thêm ít nhất 1 để sale nhận được lượt quay</div>';
+}
+function addWheelRuleRow(){
+  wheelRulesDraft.push({metric:'calls_answered',per_unit:10,credits:1});
+  renderWheelRulesList();
+}
+function removeWheelRuleRow(i){
+  wheelRulesDraft.splice(i,1);
+  renderWheelRulesList();
 }
 async function saveWheelConfig(cfgId){
-  const body={calls_per_credit:parseInt(document.getElementById('wheel-calls').value)||10,orders_per_credit:parseInt(document.getElementById('wheel-orders').value)||1,is_active:true};
+  const body={metric_rules:wheelRulesDraft,is_active:true};
   if(cfgId)await fWrite('game_wheel_config?id=eq.'+cfgId,'PATCH',body);
   else await fWrite('game_wheel_config','POST',body);
   alert('Đã lưu');renderWheel();
@@ -209,9 +322,17 @@ async function addWheelEntry(sessionId){
   if(!label){alert('Nhập tên phần thưởng');return;}
   if(!sessionId){
     const created=await fWrite('wheel_sessions','POST',{name:'Sale Game Wheel',purpose:'Vòng quay may mắn cho sale',is_sale_game:true,is_active:true});
+    if(!Array.isArray(created)||!created[0]){
+      alert('Lỗi tạo session vòng quay: '+(created&&created.error?created.error:'không rõ nguyên nhân — mở Console (F12) xem chi tiết'));
+      return;
+    }
     sessionId=created[0].id;
   }
-  await fWrite('wheel_entries','POST',{session_id:sessionId,label:label,weight:weight,is_active:true});
+  const entryRes=await fWrite('wheel_entries','POST',{session_id:sessionId,label:label,weight:weight,is_active:true});
+  if(!Array.isArray(entryRes)){
+    alert('Lỗi thêm phần thưởng: '+(entryRes&&entryRes.error?entryRes.error:'không rõ nguyên nhân — mở Console (F12) xem chi tiết'));
+    return;
+  }
   renderWheel();
 }
 async function deleteWheelEntry(id){
@@ -221,6 +342,7 @@ async function deleteWheelEntry(id){
 }
 
 // ═══ 4. HỘP BÍ MẬT ═══
+let boxTiersDraft=[];
 async function renderBox(){
   const el=document.getElementById('tab-box');
   el.innerHTML='Đang tải...';
@@ -228,10 +350,22 @@ async function renderBox(){
   const configs=await fRead('game_box_config?period_key=eq.'+thisMonth+'&order=id.desc&limit=1');
   const cfg=configs[0];
   const boxes=cfg?await fRead('game_boxes?config_id=eq.'+cfg.id+'&order=sort_order'):[];
+  boxTiersDraft=cfg&&cfg.tier_json&&cfg.tier_json.length?cfg.tier_json.map(function(t){return {min_value:t.min_value??t.min_pct,draws:t.draws};}):[{min_value:50,draws:1},{min_value:75,draws:2},{min_value:100,draws:3}];
 
   el.innerHTML='<div class="card"><h2>Đợt hộp bí mật tháng '+thisMonth+'</h2>'
     +(cfg?'<div class="muted">Đã tạo — config id '+cfg.id+'</div>':'<button onclick="createBoxConfig(\''+thisMonth+'\')">Tạo đợt mới</button>')
     +'</div>'
+    +(cfg?('<div class="card"><h2>Cấu hình bậc thang lượt bốc thăm</h2>'
+      +'<div class="row"><label>Chỉ số dùng để tính bậc:</label><select id="box-metric">'
+      +METRIC_BOX_OPTIONS.map(function(m){return '<option value="'+m.value+'"'+(cfg.metric===m.value?' selected':'')+'>'+m.label+'</option>';}).join('')
+      +'</select></div>'
+      +'<div class="muted" style="margin:8px 0">Đạt đủ ngưỡng nào thì nhận đúng số lượt của bậc đó (không cộng dồn — lấy bậc cao nhất đã đạt).</div>'
+      +'<div id="box-tiers-list"></div>'
+      +'<button onclick="addBoxTierRow()" style="margin-top:6px">+ Thêm bậc</button><br>'
+      +'<div class="row" style="margin-top:12px"><label>Hộp an ủi — từ:</label><input id="box-cons-min" type="number" value="'+(cfg.consolation_min_value??cfg.consolation_min_pct??30)+'" style="width:70px">'
+      +'<label>đến:</label><input id="box-cons-max" type="number" value="'+(cfg.consolation_max_value??cfg.consolation_max_pct??49)+'" style="width:70px"></div>'
+      +'<button onclick="saveBoxTiers('+cfg.id+')" style="margin-top:10px">Lưu cấu hình bậc thang</button>'
+      +'</div>'):'')
     +(cfg?('<div class="card"><h2>Danh sách hộp ('+boxes.length+')</h2><table><tr><th>Loại</th><th>Tên quà</th><th>Đã bốc?</th><th></th></tr>'
       +boxes.map(function(b){return '<tr><td>'+(b.box_type==='consolation'?'An ủi':'Thường')+'</td><td>'+b.prize_title+'</td><td>'+(b.is_drawn?'✅':'—')+'</td><td>'+(b.is_drawn?'':'<button class="danger" onclick="deleteBox('+b.id+')">Xoá</button>')+'</td></tr>';}).join('')
       +'</table>'
@@ -239,10 +373,41 @@ async function renderBox(){
       +'<select id="box-type"><option value="normal">Thường</option><option value="consolation">An ủi</option></select>'
       +'<input id="box-title" placeholder="Tên phần thưởng"><input id="box-note" placeholder="Ghi chú">'
       +'<button onclick="addBox('+cfg.id+')">Thêm hộp</button></div></div>'):'');
+  if(cfg)renderBoxTiersList();
+}
+const METRIC_BOX_OPTIONS=[
+  {value:'target_pct',label:'% đạt target tháng (mặc định cũ)'},
+  {value:'orders_closed',label:'Số đơn chốt trong kỳ'},
+  {value:'revenue_amount',label:'Doanh số ($) trong kỳ'},
+  {value:'calls_answered',label:'Số cuộc "Bắt máy" trong kỳ'},
+];
+function renderBoxTiersList(){
+  const el=document.getElementById('box-tiers-list');
+  if(!el)return;
+  el.innerHTML=boxTiersDraft.map(function(t,i){
+    return '<div class="row"><span class="muted">Đạt từ</span>'
+      +'<input type="number" value="'+t.min_value+'" style="width:80px" onchange="boxTiersDraft['+i+'].min_value=parseFloat(this.value)||0">'
+      +'<span class="muted">→</span>'
+      +'<input type="number" value="'+t.draws+'" style="width:60px" onchange="boxTiersDraft['+i+'].draws=parseInt(this.value)||1">'
+      +'<span class="muted">lượt</span>'
+      +'<button class="danger" onclick="removeBoxTierRow('+i+')">Xoá</button></div>';
+  }).join('');
+}
+function addBoxTierRow(){boxTiersDraft.push({min_value:0,draws:1});renderBoxTiersList();}
+function removeBoxTierRow(i){boxTiersDraft.splice(i,1);renderBoxTiersList();}
+async function saveBoxTiers(cfgId){
+  const metric=document.getElementById('box-metric').value;
+  const consMin=parseFloat(document.getElementById('box-cons-min').value)||0;
+  const consMax=parseFloat(document.getElementById('box-cons-max').value)||0;
+  await fWrite('game_box_config?id=eq.'+cfgId,'PATCH',{
+    metric:metric,tier_json:boxTiersDraft,
+    consolation_min_value:consMin,consolation_max_value:consMax,
+  });
+  alert('Đã lưu');renderBox();
 }
 async function createBoxConfig(periodKey){
-  const tiers=[{min_pct:50,draws:1},{min_pct:75,draws:2},{min_pct:100,draws:3}];
-  await fWrite('game_box_config','POST',{period_type:'month',period_key:periodKey,tier_json:tiers,consolation_min_pct:30,consolation_max_pct:49,is_active:true});
+  const tiers=[{min_value:50,draws:1},{min_value:75,draws:2},{min_value:100,draws:3}];
+  await fWrite('game_box_config','POST',{period_type:'month',period_key:periodKey,metric:'target_pct',tier_json:tiers,consolation_min_value:30,consolation_max_value:49,is_active:true});
   renderBox();
 }
 async function addBox(configId){
@@ -303,7 +468,7 @@ async function closeAuctionItem(itemId){
 // ⚠️ THAY user_id thật của Calvin (profiles.id bên CRM) vào đây trước khi dùng tab Đấu giá
 const CALVIN_USER_ID='c5e92fdc-b546-4674-846b-a994ef0ee71e';
 
-switchTab('race');
+switchTab('contest');
 </script>
 </body>
 </html>
