@@ -778,9 +778,9 @@ th.num{text-align:right;}
       </div>
       <div class="fg"><label class="fl">Cost Price ($)</label><input type="number" id="cost-price" step="0.01" min="0" oninput="recalcCostGap()"></div>
       <div class="fg"><label class="fl">Price Gap ($) <span style="color:var(--text3);font-weight:400;">— tự tính</span></label><input type="number" id="cost-gap" step="0.01" min="0" readonly style="opacity:.75;cursor:not-allowed;"></div>
-      <div class="fg"><label class="fl">Selling Expenses ($)</label><input type="number" id="cost-selling" step="0.01" min="0"></div>
+      <div class="fg"><label class="fl">Charge Fee ($)</label><input type="number" id="cost-selling" step="0.01" min="0" oninput="recalcCostGap()"></div>
       <div class="fg">
-        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap − Shipping − Headspa − Referral)</span></label>
+        <label class="fl">Commission % <span style="color:var(--text3);font-weight:400;">(trên Total − Gap − Shipping − Headspa − Referral − Charge Fee)</span></label>
         <select id="cost-comm-pct" onchange="onCommPctChange()">
           <option value="3">3%</option><option value="5">5%</option><option value="7">7%</option>
           <option value="__custom__">Tuỳ chỉnh %</option>
@@ -1180,7 +1180,7 @@ function _renderOrderView(o){
     (parseFloat(o.headspa_amount)>0?dl('Headspa Amount',fmtUSD(o.headspa_amount)+' (Bonus 7%: '+fmtUSD(headspaBonusOf(o))+')','','var(--gold)'):'')+
     (parseFloat(o.referral_amount)>0?dl('Referral Amount',fmtUSD(o.referral_amount)+' (đã trừ vào Price Gap)','','var(--red)'):'')+
     dl('Tổng Commission',fmtUSD(totalCommOf(o)),'','var(--gold)')+
-    dl('Selling Exp',fmtUSD(o.selling_expenses),'','var(--red)');
+    dl('Charge Fee',fmtUSD(o.selling_expenses),'','var(--red)');
   // Tracking
   const trkEl=document.getElementById('ov-tracking-val');
   const trkBtn=document.getElementById('ov-trk-btn');
@@ -1545,12 +1545,14 @@ function onVendorChange(){
 
 // Price Gap = Total Amount − Shipping − Cost Price
 // Price Gap = Total Amount − Shipping − Referral Amount − Cost Price
+// Price Gap = Total Amount − Shipping − Referral Amount − Charge Fee − Cost Price
 function recalcCostGap(){
   const cost=parseFloat(document.getElementById('cost-price').value)||0;
   const vendor=document.getElementById('cost-vendor').value;
   const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
   const referral=parseFloat(document.getElementById('cost-referral').value)||0;
-  const gap=_costTotalAmount-shipping-referral-cost;
+  const chargeFee=parseFloat(document.getElementById('cost-selling').value)||0;
+  const gap=_costTotalAmount-shipping-referral-chargeFee-cost;
   document.getElementById('cost-gap').value=gap.toFixed(2);
   const sel=document.getElementById('cost-comm-pct').value;
   if(sel!=='__manual__')recalcCommission();else recalcTotalComm();
@@ -1578,6 +1580,8 @@ function onCommPctChange(){
 // (= (Cost Price − Headspa Amount) × %, vì Total−Gap−Shipping = Cost Price)
 // Commission ($) = (Total Amount − Price Gap − Shipping − Headspa − Referral) × Commission %
 // (= (Cost Price − Headspa Amount) × %, referral không đụng cơ sở này)
+// Commission ($) = (Total Amount − Price Gap − Shipping − Headspa − Referral − Charge Fee) × Commission %
+// (= (Cost Price − Headspa Amount) × %, referral/charge fee không đụng cơ sở này)
 function recalcCommission(){
   const sel=document.getElementById('cost-comm-pct').value;
   if(sel==='__manual__')return; // đang ở chế độ nhập tay, không ghi đè giá trị đã gõ
@@ -1589,7 +1593,8 @@ function recalcCommission(){
   const shipping=vendor==='TSPA'?(parseFloat(document.getElementById('cost-shipping').value)||0):0;
   const headspaAmt=parseFloat(document.getElementById('cost-headspa').value)||0;
   const referral=parseFloat(document.getElementById('cost-referral').value)||0;
-  const comm=(_costTotalAmount-gap-shipping-headspaAmt-referral)*(pct/100);
+  const chargeFee=parseFloat(document.getElementById('cost-selling').value)||0;
+  const comm=(_costTotalAmount-gap-shipping-headspaAmt-referral-chargeFee)*(pct/100);
   document.getElementById('cost-comm').value=comm.toFixed(2);
   recalcTotalComm();
 }
@@ -1630,13 +1635,14 @@ function openCostModal(id){
 
   document.getElementById('cost-price').value=o?.cost_price||'';
   document.getElementById('cost-referral').value=o?.referral_amount||'';
-  // Gap = Total − Shipping − Referral − Cost, tính trực tiếp (không qua recalcCostGap
-  // để tránh đụng dropdown % trước khi được set đúng giá trị đã lưu bên dưới)
+  document.getElementById('cost-selling').value=o?.selling_expenses||'';
+  // Gap = Total − Shipping − Referral − Charge Fee − Cost, tính trực tiếp (không qua
+  // recalcCostGap để tránh đụng dropdown % trước khi được set đúng giá trị đã lưu bên dưới)
   const shipping=vendorVal==='TSPA'?(parseFloat(o?.shipping)||0):0;
   const referralInit=parseFloat(o?.referral_amount)||0;
-  const gap=_costTotalAmount-shipping-referralInit-(parseFloat(o?.cost_price)||0);
+  const chargeFeeInit=parseFloat(o?.selling_expenses)||0;
+  const gap=_costTotalAmount-shipping-referralInit-chargeFeeInit-(parseFloat(o?.cost_price)||0);
   document.getElementById('cost-gap').value=gap.toFixed(2);
-  document.getElementById('cost-selling').value=o?.selling_expenses||'';
   document.getElementById('cost-headspa').value=o?.headspa_amount||'';
 
   // Commission % — khôi phục đúng lựa chọn đã lưu (3/5/7/tuỳ chỉnh/nhập tay)
@@ -2247,7 +2253,7 @@ async function exportReport(){
       {header:'Headspa Bonus',key:'headspaBonus',width:14},
       {header:'Referral Amount',key:'referralAmt',width:14},
       {header:'Tổng Commission',key:'totalComm',width:16},
-      {header:'Selling expenses',key:'sellingExp',width:14},
+      {header:'Charge Fee',key:'sellingExp',width:14},
       {header:'Status',key:'status',width:14},
       {header:'Tracking Nuber',key:'tracking',width:16},
       {header:'Picture',key:'picture',width:22},
@@ -3290,7 +3296,7 @@ async function exportReconBatch(batchId){
       {header:'Headspa Bonus',key:'headspaBonus',width:14},
       {header:'Referral Amount',key:'referralAmt',width:14},
       {header:'Tổng Commission',key:'totalComm',width:16},
-      {header:'Selling expenses',key:'sellingExp',width:14},
+      {header:'Charge Fee',key:'sellingExp',width:14},
       {header:'Status',key:'status',width:14},
       {header:'Tracking Nuber',key:'tracking',width:16},
       {header:'Picture',key:'picture',width:22},
