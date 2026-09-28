@@ -61,7 +61,14 @@ async function fRead(pathAndQuery){
 }
 async function fWrite(path,method,body){
   const res=await fetch(FIN_URL+'/rest/v1/'+path,{method:method,headers:{apikey:FIN_ANON,Authorization:'Bearer '+FIN_ANON,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
-  return res.ok?await res.json():{error:await res.text()};
+  if(res.ok)return await res.json();
+  // Lỗi ghi DB: hiện nguyên nhân từ server thay vì im lặng (trước đây phải mở Console mới thấy)
+  const errText=await res.text();
+  let msg=errText;
+  try{const j=JSON.parse(errText);msg=j.message||j.hint||errText;}catch(_){}
+  console.error('[fWrite] '+method+' '+path+' → '+res.status,errText);
+  alert('❌ Ghi dữ liệu thất bại ('+res.status+'):\n'+msg);
+  return {error:errText};
 }
 async function cRead(pathAndQuery){
   const res=await fetch(CRM_URL+'/rest/v1/'+pathAndQuery,{headers:{apikey:CRM_ANON,Authorization:'Bearer '+CRM_ANON}});
@@ -161,7 +168,7 @@ async function createContest(){
   if(metric==='sku_qty'&&(!skuPrefixes||skuPrefixes.length===0)){alert('Nhập ít nhất 1 mã SKU');return;}
 
   const created=await fWrite('contests','POST',{name:name,metric_type:metric,sku_prefixes:skuPrefixes,ranking_mode:ranking,start_date:start,end_date:end,status:'active'});
-  if(!Array.isArray(created)||!created[0]){alert('Lỗi tạo contest');return;}
+  if(!Array.isArray(created)||!created[0]){return;}
   const contestId=created[0].id;
 
   const prizeRows=contestPrizesDraft.filter(function(p){return p.prize_title;}).map(function(p){return {contest_id:contestId,rank_from:p.rank_from,rank_to:p.rank_to,prize_title:p.prize_title};});
@@ -322,17 +329,11 @@ async function addWheelEntry(sessionId){
   if(!label){alert('Nhập tên phần thưởng');return;}
   if(!sessionId){
     const created=await fWrite('wheel_sessions','POST',{name:'Sale Game Wheel',purpose:'Vòng quay may mắn cho sale',is_sale_game:true,is_active:true});
-    if(!Array.isArray(created)||!created[0]){
-      alert('Lỗi tạo session vòng quay: '+(created&&created.error?created.error:'không rõ nguyên nhân — mở Console (F12) xem chi tiết'));
-      return;
-    }
+    if(!Array.isArray(created)||!created[0])return; // fWrite đã báo lỗi
     sessionId=created[0].id;
   }
   const entryRes=await fWrite('wheel_entries','POST',{session_id:sessionId,label:label,weight:weight,is_active:true});
-  if(!Array.isArray(entryRes)){
-    alert('Lỗi thêm phần thưởng: '+(entryRes&&entryRes.error?entryRes.error:'không rõ nguyên nhân — mở Console (F12) xem chi tiết'));
-    return;
-  }
+  if(!Array.isArray(entryRes))return; // fWrite đã báo lỗi
   renderWheel();
 }
 async function deleteWheelEntry(id){
