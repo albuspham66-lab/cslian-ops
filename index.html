@@ -4139,8 +4139,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   }
   const {rate:rateGiuong,extra:extraGiuong}=rateExtraForGiuong(soGiuong);
 
-  // (A) Immediate — chỉ còn Extra (không gắn đơn nào)
-  const bonusImmediate=extraGiuong*tyLeDat;
+  // (A) Immediate — CHỈ còn Vượt target (140%/200%, trả ngay theo đúng mốc
+  // Calvin xác nhận giữ nguyên). Extra theo số lượng giường ĐÃ TÁCH RIÊNG
+  // sang luồng Deferred bên dưới — chỉ trả khi TẤT CẢ đơn có giường của
+  // đúng billing_month đó đã tất toán hết hoàn toàn.
+  const bonusImmediate=0;
 
   // (B) Bonus DS 1% + Bonus giường + chênh lệch của các đơn TẤT TOÁN trong
   // tháng này — cần biết rate & tỷ lệ đạt của ĐÚNG billing_month gốc từng
@@ -4178,6 +4181,39 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     bracketCache[bm]={rate:rateExtraForGiuong(bmGiuong).rate,tyLeDat:bmTyLeDat};
   }));
 
+  // ── Extra theo số lượng giường — TÁCH RIÊNG khỏi rate (Calvin xác nhận) ──
+  // Extra của 1 billing_month CHỈ trả khi TẤT CẢ đơn có giường của đúng
+  // tháng gốc đó đã tất toán hết (is_settled=true), và trả vào ĐÚNG tháng
+  // mà đơn CUỐI CÙNG (muộn nhất) tất toán — không phải đơn đầu tiên.
+  // Mốc Extra ($100/150/200/250) vẫn xác định theo TỔNG giường cả tháng gốc
+  // (kể cả lúc còn deposit) — chỉ THỜI ĐIỂM TRẢ bị hoãn, không đổi mốc.
+  const extraBracketCache={};
+  await Promise.all(billingMonthsNeeded.map(async bm=>{
+    const {data:bmOrds2}=await sb.from('orders').select('id,total_amount,is_settled,thang_tat_toan')
+      .eq('user_id',empId).eq('billing_month',bm).or('order_status.is.null,order_status.neq.Cancelled');
+    const ordIds2=(bmOrds2||[]).map(o=>o.id);
+    if(!ordIds2.length){extraBracketCache[bm]={extra:0,payable:false};return;}
+    const {data:bmItems2}=await sb.from('order_items').select('order_id,so_luong')
+      .in('order_id',ordIds2).eq('vendor','BOLSA').eq('la_bolsa',true);
+    const giuongOrderIds=new Set((bmItems2||[]).map(i=>i.order_id));
+    const bmGiuongTotal=(bmItems2||[]).reduce((s,i)=>s+(i.so_luong||0),0);
+    const {extra}=rateExtraForGiuong(bmGiuongTotal);
+    if(!giuongOrderIds.size||!extra){extraBracketCache[bm]={extra:0,payable:false};return;}
+    const giuongOrds=(bmOrds2||[]).filter(o=>giuongOrderIds.has(o.id));
+    const allSettled=giuongOrds.every(o=>o.is_settled);
+    let payable=false;
+    if(allSettled){
+      const maxThangTatToan=giuongOrds.reduce((mx,o)=>(!mx||(o.thang_tat_toan&&o.thang_tat_toan>mx))?o.thang_tat_toan:mx,null);
+      payable=(maxThangTatToan===thang);
+    }
+    extraBracketCache[bm]={extra,payable};
+  }));
+  let deferredExtra=0;
+  billingMonthsNeeded.forEach(bm=>{
+    const eb=extraBracketCache[bm];
+    if(eb&&eb.payable)deferredExtra+=eb.extra*(bracketCache[bm]?.tyLeDat??1.0);
+  });
+
   let deferredDS1pct=0,deferredGiuong=0,deferredChenh=0;
   settledThisMonth.forEach(o=>{
     const bracket=bracketCache[o.billing_month]||{rate:15,tyLeDat:1.0};
@@ -4201,14 +4237,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     deferredGiuong+=soG*bracket.rate*pct/100*bracket.tyLeDat;
     deferredChenh+=bChenh*bracket.tyLeDat;
   });
-  const deferredBonus=deferredDS1pct+deferredGiuong+deferredChenh;
+  const deferredBonus=deferredDS1pct+deferredGiuong+deferredChenh+deferredExtra;
 
   // Giữ lại tên biến cũ để tương thích các chỗ dùng bên dưới (payslip/báo cáo)
   // — bonusBase giờ đã là Bonus DS 1% dạng DEFERRED, ĐÃ nhân tyLeDat sẵn
   // (không nhân lại lần nữa ở chỗ hiển thị, khác với thiết kế cũ).
   const bonusBase=deferredDS1pct;
   const bonusChenh=deferredChenh; // "Bonus chênh lệch giá" trên payslip
-  const bolsaHeadspaBonus=deferredGiuong+extraGiuong*tyLeDat; // "Bonus Headspa Bed" trên payslip — giường (hoãn) + Extra (ngay)
+  const bolsaHeadspaBonus=deferredGiuong+deferredExtra; // "Bonus Headspa Bed" trên payslip — giường + Extra (cả 2 đều hoãn đến khi tất toán)
 
   // Vượt target (tính trên tổng doanh số toàn tháng, KHÔNG nhân tỷ lệ đạt) —
   // mốc 140%/200% tính trên target CỦA NHÂN VIÊN ĐÓ (đã điều chỉnh 85% nếu thử việc)
