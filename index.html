@@ -2320,7 +2320,13 @@ async function exportOrdersExcel(){
   {const {data:allOrdMonth}=await sb.from('orders').select('user_id,total_amount').eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled');
   (allOrdMonth||[]).forEach(o=>{if(o.user_id)tongDoanhSoTheoSale[o.user_id]=(tongDoanhSoTheoSale[o.user_id]||0)+(o.total_amount||0);});}
   // Helper: kiểm tra 1 đơn có đạt target không (dựa vào user_id của đơn đó)
-  function isOrderDatTarget(o){return (tongDoanhSoTheoSale[o.user_id]||0)>=TARGET_USD;}
+  // Target thử việc = 85% — tra đúng contract_type của Sale sở hữu đơn đó.
+  function isOrderDatTarget(o){
+    const p=allProfilesMap[o.user_id]||allProfiles.find(x=>x.id===o.user_id);
+    const isProb=p&&(p.contract_type==='probation'||p.contract_type==='thu-viec');
+    const tgt=isProb?TARGET_USD*0.85:TARGET_USD;
+    return (tongDoanhSoTheoSale[o.user_id]||0)>=tgt;
+  }
 
   const wb=new ExcelJS.Workbook();
   wb.creator='C-Slian Ops';
@@ -2547,7 +2553,9 @@ async function exportOrdersExcel(){
         const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
         let rate=15;
         if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
-        let tyLeDat=total>=TARGET_USD?1.0:0.5;
+        const pUid=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
+        const isProbUid=pUid&&(pUid.contract_type==='probation'||pUid.contract_type==='thu-viec');
+        let tyLeDat=total>=(isProbUid?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
         if(tyLeDat<1.0&&uid!=='_'){
           const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
           if((nextSal?.backup_bonus_usd||0)>0)tyLeDat=1.0;
@@ -3214,10 +3222,15 @@ async function renderOrders(){
   },0);
   const totalTruyThu=list.reduce((s,o)=>s+(o.truy_thu_usd||0),0);
   const tatToanCount=list.filter(o=>o.is_settled||o.balance_due===0).length;
+  // Target thử việc = 85% — chỉ áp dụng khi đang xem riêng 1 Sale cụ thể
+  // (xem "Tất cả nhân viên" thì không có 1 target chung để điều chỉnh).
+  const selEmpForTarget=empId?(allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)):null;
+  const isProbationSel=selEmpForTarget&&(selEmpForTarget.contract_type==='probation'||selEmpForTarget.contract_type==='thu-viec');
+  const targetDisplay=isProbationSel?TARGET_USD*0.85:TARGET_USD;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
-    <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(TARGET_USD)}</div></div>
-    <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=TARGET_USD?'var(--success)':'var(--warn)'}">${Math.round(totalRev/TARGET_USD*100)}%</div><div class="stat-sub">${totalRev>=TARGET_USD?'✅ Đạt':'❌ Chưa đạt'}</div></div>
+    <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(targetDisplay)}${isProbationSel?' (thử việc 85%)':''}</div></div>
+    <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=targetDisplay?'var(--success)':'var(--warn)'}">${Math.round(totalRev/targetDisplay*100)}%</div><div class="stat-sub">${totalRev>=targetDisplay?'✅ Đạt':'❌ Chưa đạt'}</div></div>
     <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Giường: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
 
   if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
@@ -3337,7 +3350,9 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
       const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
       let rate=15;
       if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
-      let tyLeDat=total>=TARGET_USD?1.0:0.5;
+      const pUid2=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
+      const isProbUid2=pUid2&&(pUid2.contract_type==='probation'||pUid2.contract_type==='thu-viec');
+      let tyLeDat=total>=(isProbUid2?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
       // Liên kết Backup Bonus — giống hệt calcSalaryForEmp, giữ số hiển thị
       // ở Tab Đơn hàng khớp đúng số thật trên phiếu lương.
       if(tyLeDat<1.0&&uid!=='_'){
@@ -4088,7 +4103,12 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
 
   const dtTotalForTarget=billingOrds.reduce((s,o)=>s+(o.total_amount||0),0);
-  const datTarget=dtTotalForTarget>=TARGET_USD;
+  // Target thử việc = 85% target chuẩn — thiếu điều kiện này khiến NV thử
+  // việc phải đạt ĐỦ target chuẩn mới được 100%, trong khi đúng ra chỉ cần
+  // đạt 85% (VD Thái T9: DS $20,108 ≥ $19,975 (85%) nhưng code cũ so với
+  // $23,500 đầy đủ → bị tính sai thành "Không đạt").
+  const targetForThisEmp=isProbation?TARGET_USD*0.85:TARGET_USD;
+  const datTarget=dtTotalForTarget>=targetForThisEmp;
   const tyLeDat=datTarget?1.0:0.5;
 
   // ── P3A — 2 luồng tách biệt theo thống nhất với Calvin ─────────────
@@ -4190,10 +4210,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const bonusChenh=deferredChenh; // "Bonus chênh lệch giá" trên payslip
   const bolsaHeadspaBonus=deferredGiuong+extraGiuong*tyLeDat; // "Bonus Headspa Bed" trên payslip — giường (hoãn) + Extra (ngay)
 
-  // Vượt target (tính trên tổng doanh số toàn tháng, KHÔNG nhân tỷ lệ đạt)
+  // Vượt target (tính trên tổng doanh số toàn tháng, KHÔNG nhân tỷ lệ đạt) —
+  // mốc 140%/200% tính trên target CỦA NHÂN VIÊN ĐÓ (đã điều chỉnh 85% nếu thử việc)
   let vuotBonus=0;
-  if(dtTotalForTarget>=TARGET_USD*2)vuotBonus=200;
-  else if(dtTotalForTarget>=TARGET_USD*1.4)vuotBonus=100;
+  if(dtTotalForTarget>=targetForThisEmp*2)vuotBonus=200;
+  else if(dtTotalForTarget>=targetForThisEmp*1.4)vuotBonus=100;
 
   // P3A = Immediate (DS 1% + Extra, đã nhân tỷ lệ đạt) + Deferred (giường+chênh lệch, đã nhân tỷ lệ đạt CỦA THÁNG GỐC từng đơn) + Vượt target
   const p3aTotalUsd=bonusImmediate+deferredBonus+vuotBonus;
