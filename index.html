@@ -4794,6 +4794,37 @@ async function exportSalaryTableExcel(){
     gT_ngayCT+=sal.ngay_cong_thuc_te||0;gT_ngayChuan+=sal.cong_chuan_thang||0;
     moneyCols.forEach(c=>{gT[c]+=vals[c-1]||0;});
 
+    // ── Công thức sống cho các cột tính toán (thay vì số tĩnh) ──────────
+    // TNCT/TNTT theo đúng chuẩn kế toán đã thống nhất: TNCT = Gross − Miễn
+    // thuế (KHÔNG trừ BHXH ở bước này); BHXH được trừ CÙNG giảm trừ gia
+    // cảnh ở bước TNTT. Thử việc: không có TNTT/giảm trừ, TNCN=10% thẳng
+    // trên TNCT; Chính thức: TNCN theo biểu lũy tiến 5 bậc trên TNTT.
+    const giamTruVal=f.isProbation?0:(GIAM_TRU_BAN_THAN+(sal.so_nguoi_phu_thuoc_snapshot||0)*GIAM_TRU_NGUOI_PHU_THUOC);
+    ws.getCell(r,22).value={formula:`SUM(F${r}:S${r})`,result:vals[21]};                 // Tổng Thu Nhập
+    ws.getCell(r,24).value={formula:`W${r}*0.175`,result:vals[23]};                      // BHXH 17.5% (DN)
+    ws.getCell(r,25).value={formula:`W${r}*0.03`,result:vals[24]};                       // BHYT 3% (DN)
+    ws.getCell(r,26).value={formula:`W${r}*0.01`,result:vals[25]};                       // BHTN 1% (DN)
+    ws.getCell(r,27).value={formula:`SUM(X${r}:Z${r})`,result:vals[26]};                 // Cộng (DN)
+    ws.getCell(r,28).value={formula:`W${r}*0.08`,result:vals[27]};                       // BHXH 8% (NLĐ)
+    ws.getCell(r,29).value={formula:`W${r}*0.015`,result:vals[28]};                      // BHYT 1.5% (NLĐ)
+    ws.getCell(r,30).value={formula:`W${r}*0.01`,result:vals[29]};                       // BHTN 1% (NLĐ)
+    ws.getCell(r,31).value={formula:`SUM(AB${r}:AD${r})`,result:vals[30]};               // Cộng (NLĐ)
+    ws.getCell(r,32).value={formula:`V${r}-H${r}-K${r}`,result:vals[31]};                // TNCT = Gross−Miễn thuế
+    if(f.isProbation){
+      ws.getCell(r,33).value=0; // Thử việc: không áp dụng TNTT/giảm trừ
+      ws.getCell(r,34).value={formula:`AF${r}*0.1`,result:vals[33]};                     // TNCN thử việc = 10%×TNCT
+    }else{
+      ws.getCell(r,33).value={formula:`AF${r}-AE${r}-${giamTruVal}`,result:vals[32]};    // TNTT = TNCT−BHXH(NLĐ)−Giảm trừ
+      // Thuế lũy tiến 5 BẬC TÙY CHỈNH (BIEU_THUE_5_BAC) trên TNTT (AG) —
+      // khớp đúng calcThueTNCNLuyTien(): ≤10tr→5%/0, ≤30tr→10%−500k,
+      // ≤60tr→20%−3.5tr, ≤100tr→30%−9.5tr, còn lại→35%−14.5tr
+      ws.getCell(r,34).value={formula:`IF(AG${r}<=0,0,IF(AG${r}<=10000000,AG${r}*0.05,IF(AG${r}<=30000000,AG${r}*0.1-500000,IF(AG${r}<=60000000,AG${r}*0.2-3500000,IF(AG${r}<=100000000,AG${r}*0.3-9500000,AG${r}*0.35-14500000)))))`,result:vals[33]};
+    }
+    ws.getCell(r,36).value={formula:`V${r}-AE${r}-AH${r}-AI${r}`,result:vals[35]};       // Tổng TN sau thuế = Gross−BHXH(NLĐ)−TNCN−Tạm ứng
+    ws.getCell(r,37).value=f.isProbation
+      ?{formula:`(V${r}-AE${r}-AH${r})*0.85-AI${r}`,result:vals[36]}                      // Thử việc: ×85% trước khi trừ tạm ứng
+      :{formula:`AJ${r}`,result:vals[36]};                                                // Chính thức: bằng Tổng TN sau thuế
+
     ws.getRow(r).eachCell((cell,c)=>{
       cell.font={size:10};
       cell.border={top:{style:'thin',color:{argb:'FFE2E8F0'}},bottom:{style:'thin',color:{argb:'FFE2E8F0'}}};
