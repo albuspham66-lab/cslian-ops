@@ -4775,7 +4775,7 @@ async function exportSalaryTableExcel(){
     const bonusHeadspa=(sal.p3a_bolsa_headspa_usd||0)*tyGia;
     const bonusDsChenh=((sal.p3a_base_usd||0)+(sal.p3a_chenh_lech_usd||0))*tyGia;
     const bonusVuot=(sal.p3a_vuot_target_usd||0)*tyGia;
-    const tongThuNhapSauThue=Math.max(0,(sal.tong_luong_vnd||0)-(sal.bhxh_vnd||0)-(sal.thue_tncn_vnd||0)-(sal.tam_ung_vnd||0));
+    const tongThuNhapSauThue=Math.max(0,(sal.tong_luong_vnd||0)-(sal.thue_tncn_vnd||0)-(sal.tam_ung_vnd||0));
     const thucLinh=(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)-(sal.tam_ung_vnd||0);
 
     const vals=[
@@ -4800,7 +4800,7 @@ async function exportSalaryTableExcel(){
     // cảnh ở bước TNTT. Thử việc: không có TNTT/giảm trừ, TNCN=10% thẳng
     // trên TNCT; Chính thức: TNCN theo biểu lũy tiến 5 bậc trên TNTT.
     const giamTruVal=f.isProbation?0:(GIAM_TRU_BAN_THAN+(sal.so_nguoi_phu_thuoc_snapshot||0)*GIAM_TRU_NGUOI_PHU_THUOC);
-    ws.getCell(r,22).value={formula:`SUM(F${r}:S${r})`,result:vals[21]};                 // Tổng Thu Nhập
+    ws.getCell(r,22).value={formula:`SUM(G${r}:S${r})`,result:vals[21]};                 // Tổng Thu Nhập (KHÔNG gồm cột F "Lương Chính" — đó chỉ là số tham khảo cố định theo hợp đồng, không phải số thực nhận; G mới là số đã prorate theo ngày công)
     ws.getCell(r,24).value={formula:`W${r}*0.175`,result:vals[23]};                      // BHXH 17.5% (DN)
     ws.getCell(r,25).value={formula:`W${r}*0.03`,result:vals[24]};                       // BHYT 3% (DN)
     ws.getCell(r,26).value={formula:`W${r}*0.01`,result:vals[25]};                       // BHTN 1% (DN)
@@ -4820,10 +4820,10 @@ async function exportSalaryTableExcel(){
       // ≤60tr→20%−3.5tr, ≤100tr→30%−9.5tr, còn lại→35%−14.5tr
       ws.getCell(r,34).value={formula:`IF(AG${r}<=0,0,IF(AG${r}<=10000000,AG${r}*0.05,IF(AG${r}<=30000000,AG${r}*0.1-500000,IF(AG${r}<=60000000,AG${r}*0.2-3500000,IF(AG${r}<=100000000,AG${r}*0.3-9500000,AG${r}*0.35-14500000)))))`,result:vals[33]};
     }
-    ws.getCell(r,36).value={formula:`V${r}-AE${r}-AH${r}-AI${r}`,result:vals[35]};       // Tổng TN sau thuế = Gross−BHXH(NLĐ)−TNCN−Tạm ứng
+    ws.getCell(r,36).value={formula:`V${r}-AH${r}-AI${r}`,result:vals[35]};              // Tổng TN sau thuế = Gross−TNCN−Tạm ứng (KHÔNG trừ BHXH — tách riêng, trừ ở cột Thực lĩnh)
     ws.getCell(r,37).value=f.isProbation
       ?{formula:`(V${r}-AE${r}-AH${r})*0.85-AI${r}`,result:vals[36]}                      // Thử việc: ×85% trước khi trừ tạm ứng
-      :{formula:`AJ${r}`,result:vals[36]};                                                // Chính thức: bằng Tổng TN sau thuế
+      :{formula:`AJ${r}-AE${r}`,result:vals[36]};                                          // Chính thức: Tổng TN sau thuế − BHXH(NLĐ) — BHXH tách khỏi cột AJ nên trừ riêng ở đây
 
     ws.getRow(r).eachCell((cell,c)=>{
       cell.font={size:10};
