@@ -2290,13 +2290,12 @@ async function exportOrdersExcel(){
     (allItems||[]).forEach(it=>{
       if(it.is_gift)return; // gift không tính vào bonus
       const oid=it.order_id;
-      // Tổng chênh lệch Sale: ưu tiên chenh_sale×qty, fallback bonus_sale_usd/0.3
-      // chenh_sale mặc định = 0 (không phải null) khi Manager chưa tự tay
-      // chỉnh giá qua "Chi tiết item" — trước đây check "!=null" luôn đúng
-      // ngay cả khi =0, nên KHÔNG BAO GIỜ fallback về bonus_sale_usd (vốn đã
-      // có số liệu thật từ CRM sync), khiến cột "Chênh lệch" luôn ra $0 sai.
-      const chenhPerUnit=it.chenh_sale?it.chenh_sale:((it.bonus_sale_usd||0)/0.3/(it.so_luong||1));
-      chenhSaleMap[oid]=(chenhSaleMap[oid]||0)+chenhPerUnit*(it.so_luong||1);
+      // chenh_sale cấp ITEM — chỉ có giá trị khi Manager tự tay chỉnh qua
+      // "Chi tiết item". Mặc định =0 (không phải null) nên cộng thẳng, KHÔNG
+      // fallback ở đây — bonus_sale_usd không tồn tại ở cấp item (chỉ có ở
+      // cấp ĐƠN HÀNG, orders.bonus_sale_usd), fallback áp dụng riêng bên dưới
+      // sau khi có đủ danh sách orders (list), theo từng đơn chứ không theo item.
+      chenhSaleMap[oid]=(chenhSaleMap[oid]||0)+(it.chenh_sale||0)*(it.so_luong||1);
       // Giường Headspa: đếm số lượng và tổng giá gốc (để trừ ra khỏi doanh số trước khi nhân 1%)
       if(it.la_bolsa){
         soGiuongMap[oid]=(soGiuongMap[oid]||0)+(it.so_luong||0);
@@ -2305,6 +2304,15 @@ async function exportOrdersExcel(){
       }
     });
   }
+  // Fallback cấp ĐƠN HÀNG: nếu không item nào của đơn này có chenh_sale tự
+  // chỉnh tay (tổng=0), dùng ngược lại bonus_sale_usd của ĐƠN (orders table —
+  // CRM tự sync, KHÔNG nằm ở order_items) để suy ra chênh lệch gốc (÷30%).
+  list.forEach(o=>{
+    if(!chenhSaleMap[o.id]){
+      const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
+      if(bChenh)chenhSaleMap[o.id]=bChenh/0.3;
+    }
+  });
 
   // Target xét theo TỪNG SALE riêng biệt — tổng doanh số của mỗi Sale trong tháng ≥ $23,500
   // Dùng TẤT CẢ đơn trong tháng (kể cả chưa settled) để tính target
@@ -2508,11 +2516,17 @@ async function exportOrdersExcel(){
     const soItemsClean=(soItems||[]).filter(i=>!i.is_gift);
     const soGiuongMap2={},chenhSaleMap2={},giaBanGocGiuongMap2={};
     soItemsClean.forEach(i=>{
-      {const cpu=i.chenh_sale?i.chenh_sale:((i.bonus_sale_usd||0)/0.3/(i.so_luong||1));
-      chenhSaleMap2[i.order_id]=(chenhSaleMap2[i.order_id]||0)+cpu*(i.so_luong||1);}
+      chenhSaleMap2[i.order_id]=(chenhSaleMap2[i.order_id]||0)+(i.chenh_sale||0)*(i.so_luong||1);
       if(i.la_bolsa){
         soGiuongMap2[i.order_id]=(soGiuongMap2[i.order_id]||0)+(i.so_luong||0);
         giaBanGocGiuongMap2[i.order_id]=(giaBanGocGiuongMap2[i.order_id]||0)+(i.gia_ban_goc||0)*(i.so_luong||1);
+      }
+    });
+    // Fallback cấp đơn (orders.bonus_sale_usd), giống Sheet 1
+    settledOtherList.forEach(o=>{
+      if(!chenhSaleMap2[o.id]){
+        const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
+        if(bChenh)chenhSaleMap2[o.id]=bChenh/0.3;
       }
     });
 
@@ -4125,15 +4139,15 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     // netRev của riêng đơn này (doanh số - chênh lệch sale - giá gốc giường)
     const gbgDon=settledItems.filter(i=>i.order_id===o.id&&i.la_bolsa)
       .reduce((ss,i)=>ss+(i.gia_ban_goc||0)*(i.so_luong||1),0);
-    const clDon=settledItems.filter(i=>i.order_id===o.id)
-      .reduce((ss,i)=>{
-        // chenh_sale mặc định=0 (không phải null) khi chưa chỉnh tay — fallback
-        // về bonus_sale_usd (đã có số liệu thật từ CRM sync) khi =0, giống
-        // hệt cách tính bên exportOrdersExcel, tránh overstate netRev/overpaid
-        // Bonus DS 1% cho các đơn chưa từng chỉnh tay trong OPS (đa số đơn).
-        const chenhPerUnit=i.chenh_sale?i.chenh_sale:((i.bonus_sale_usd||0)/0.3/(i.so_luong||1));
-        return ss+chenhPerUnit*(i.so_luong||1);
-      },0);
+    // clDon: tổng chenh_sale cấp item (chỉ có giá trị khi chỉnh tay). Nếu
+    // không item nào của đơn này có chenh_sale (=0, mặc định), fallback về
+    // bChenh (bonus_sale_usd cấp ĐƠN, đã lấy ở trên) suy ngược ÷30% — field
+    // bonus_sale_usd KHÔNG tồn tại ở cấp item, chỉ có ở cấp đơn (orders).
+    // Thiếu bước này khiến clDon luôn ≈0 cho mọi đơn chưa chỉnh tay (đa số),
+    // làm netRev bị tính cao hơn thực tế → Bonus DS 1% bị trả dư.
+    const clDonRaw=settledItems.filter(i=>i.order_id===o.id)
+      .reduce((ss,i)=>ss+(i.chenh_sale||0)*(i.so_luong||1),0);
+    const clDon=clDonRaw||(bChenh?bChenh/0.3:0);
     const netRevDon=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
     deferredDS1pct+=netRevDon*0.01*bracket.tyLeDat;
     deferredGiuong+=soG*bracket.rate*pct/100*bracket.tyLeDat;
