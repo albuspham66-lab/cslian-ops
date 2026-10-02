@@ -2291,7 +2291,11 @@ async function exportOrdersExcel(){
       if(it.is_gift)return; // gift không tính vào bonus
       const oid=it.order_id;
       // Tổng chênh lệch Sale: ưu tiên chenh_sale×qty, fallback bonus_sale_usd/0.3
-      const chenhPerUnit=it.chenh_sale!=null?it.chenh_sale:((it.bonus_sale_usd||0)/0.3/(it.so_luong||1));
+      // chenh_sale mặc định = 0 (không phải null) khi Manager chưa tự tay
+      // chỉnh giá qua "Chi tiết item" — trước đây check "!=null" luôn đúng
+      // ngay cả khi =0, nên KHÔNG BAO GIỜ fallback về bonus_sale_usd (vốn đã
+      // có số liệu thật từ CRM sync), khiến cột "Chênh lệch" luôn ra $0 sai.
+      const chenhPerUnit=it.chenh_sale?it.chenh_sale:((it.bonus_sale_usd||0)/0.3/(it.so_luong||1));
       chenhSaleMap[oid]=(chenhSaleMap[oid]||0)+chenhPerUnit*(it.so_luong||1);
       // Giường Headspa: đếm số lượng và tổng giá gốc (để trừ ra khỏi doanh số trước khi nhân 1%)
       if(it.la_bolsa){
@@ -2504,7 +2508,8 @@ async function exportOrdersExcel(){
     const soItemsClean=(soItems||[]).filter(i=>!i.is_gift);
     const soGiuongMap2={},chenhSaleMap2={},giaBanGocGiuongMap2={};
     soItemsClean.forEach(i=>{
-      if(i.chenh_sale!=null)chenhSaleMap2[i.order_id]=(chenhSaleMap2[i.order_id]||0)+i.chenh_sale*(i.so_luong||1);
+      {const cpu=i.chenh_sale?i.chenh_sale:((i.bonus_sale_usd||0)/0.3/(i.so_luong||1));
+      chenhSaleMap2[i.order_id]=(chenhSaleMap2[i.order_id]||0)+cpu*(i.so_luong||1);}
       if(i.la_bolsa){
         soGiuongMap2[i.order_id]=(soGiuongMap2[i.order_id]||0)+(i.so_luong||0);
         giaBanGocGiuongMap2[i.order_id]=(giaBanGocGiuongMap2[i.order_id]||0)+(i.gia_ban_goc||0)*(i.so_luong||1);
@@ -4121,7 +4126,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const gbgDon=settledItems.filter(i=>i.order_id===o.id&&i.la_bolsa)
       .reduce((ss,i)=>ss+(i.gia_ban_goc||0)*(i.so_luong||1),0);
     const clDon=settledItems.filter(i=>i.order_id===o.id)
-      .reduce((ss,i)=>ss+(i.chenh_sale!=null?i.chenh_sale*(i.so_luong||1):0),0);
+      .reduce((ss,i)=>{
+        // chenh_sale mặc định=0 (không phải null) khi chưa chỉnh tay — fallback
+        // về bonus_sale_usd (đã có số liệu thật từ CRM sync) khi =0, giống
+        // hệt cách tính bên exportOrdersExcel, tránh overstate netRev/overpaid
+        // Bonus DS 1% cho các đơn chưa từng chỉnh tay trong OPS (đa số đơn).
+        const chenhPerUnit=i.chenh_sale?i.chenh_sale:((i.bonus_sale_usd||0)/0.3/(i.so_luong||1));
+        return ss+chenhPerUnit*(i.so_luong||1);
+      },0);
     const netRevDon=Math.max(0,(o.total_amount||0)-clDon-gbgDon);
     deferredDS1pct+=netRevDon*0.01*bracket.tyLeDat;
     deferredGiuong+=soG*bracket.rate*pct/100*bracket.tyLeDat;
