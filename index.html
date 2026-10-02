@@ -2539,14 +2539,21 @@ async function exportOrdersExcel(){
       const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
       const giuongByOrder={};
       (bmItems||[]).forEach(i=>{giuongByOrder[i.order_id]=(giuongByOrder[i.order_id]||0)+(i.so_luong||0);});
-      Object.keys(byUser).forEach(uid=>{
+      const [by,bmo]=bm.split('-').map(Number);
+      const nextThang=`${bmo===12?by+1:by}-${pad2(bmo===12?1:bmo+1)}`;
+      await Promise.all(Object.keys(byUser).map(async uid=>{
         const userOrds=byUser[uid];
         const total=userOrds.reduce((s,o)=>s+(o.total_amount||0),0);
         const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
         let rate=15;
         if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
-        bracketCache2[bm+'|'+uid]={rate,tyLeDat:total>=TARGET_USD?1.0:0.5};
-      });
+        let tyLeDat=total>=TARGET_USD?1.0:0.5;
+        if(tyLeDat<1.0&&uid!=='_'){
+          const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
+          if((nextSal?.backup_bonus_usd||0)>0)tyLeDat=1.0;
+        }
+        bracketCache2[bm+'|'+uid]={rate,tyLeDat};
+      }));
     }));
 
     const ws2=wb.addWorksheet('Tat toan thang khac',{views:[{state:'frozen',xSplit:1,ySplit:1}]});
@@ -3322,14 +3329,23 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
     const {data:bmItems}=await sb.from('order_items').select('order_id,so_luong').in('order_id',(bmOrds||[]).map(o=>o.id)).eq('vendor','BOLSA').eq('la_bolsa',true);
     const giuongByOrder={};
     (bmItems||[]).forEach(i=>{giuongByOrder[i.order_id]=(giuongByOrder[i.order_id]||0)+(i.so_luong||0);});
-    Object.keys(byUser).forEach(uid=>{
+    const [by,bmo]=bm.split('-').map(Number);
+    const nextThang=`${bmo===12?by+1:by}-${pad2(bmo===12?1:bmo+1)}`;
+    await Promise.all(Object.keys(byUser).map(async uid=>{
       const userOrds=byUser[uid];
       const total=userOrds.reduce((s,o)=>s+(o.total_amount||0),0);
       const giuong=userOrds.reduce((s,o)=>s+(giuongByOrder[o.id]||0),0);
       let rate=15;
       if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
-      bracketCache[bm+'|'+uid]={rate,tyLeDat:total>=TARGET_USD?1.0:0.5};
-    });
+      let tyLeDat=total>=TARGET_USD?1.0:0.5;
+      // Liên kết Backup Bonus — giống hệt calcSalaryForEmp, giữ số hiển thị
+      // ở Tab Đơn hàng khớp đúng số thật trên phiếu lương.
+      if(tyLeDat<1.0&&uid!=='_'){
+        const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
+        if((nextSal?.backup_bonus_usd||0)>0)tyLeDat=1.0;
+      }
+      bracketCache[bm+'|'+uid]={rate,tyLeDat};
+    }));
   }));
 
   tbody.innerHTML=list.map(o=>{
@@ -4127,7 +4143,19 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
       bmGiuong=(bmItems||[]).reduce((s,i)=>s+(i.so_luong||0),0);
     }
     const bmTarget=isProbation?TARGET_USD*0.85:TARGET_USD; // xấp xỉ — bậc thử việc có thể đổi theo thời điểm đó
-    bracketCache[bm]={rate:rateExtraForGiuong(bmGiuong).rate,tyLeDat:bmTotal>=bmTarget?1.0:0.5};
+    let bmTyLeDat=bmTotal>=bmTarget?1.0:0.5;
+    // Liên kết với Backup Bonus: nếu tháng `bm` không tự đạt target, nhưng
+    // tháng NGAY SAU đó đã bù đủ GAP thành công (backup_bonus_usd>0 cho đúng
+    // nhân viên này) — coi `bm` NHƯ ĐÃ ĐẠT (100%) cho MỌI đơn Deferred từ
+    // tháng đó, nhất quán với tinh thần Backup Bonus, không chỉ dừng ở riêng
+    // khoản top-up 1 lần trả vào tháng sau.
+    if(bmTyLeDat<1.0){
+      const [by,bmo]=bm.split('-').map(Number);
+      const nextThang=`${bmo===12?by+1:by}-${pad2(bmo===12?1:bmo+1)}`;
+      const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',empId).eq('thang',nextThang).maybeSingle();
+      if((nextSal?.backup_bonus_usd||0)>0)bmTyLeDat=1.0;
+    }
+    bracketCache[bm]={rate:rateExtraForGiuong(bmGiuong).rate,tyLeDat:bmTyLeDat};
   }));
 
   let deferredDS1pct=0,deferredGiuong=0,deferredChenh=0;
