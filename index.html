@@ -1990,7 +1990,7 @@ function updateCIButtons(rec){
     btnIn.className='ci-btn btn-dis';btnIn.disabled=true;
     btnOut.className='ci-btn btn-dis';btnOut.disabled=true;
     const _now=new Date();
-    const r=calcDayLogic(rec,curProfile.type||curProfile.role,luongNgayThang(_now.getFullYear(),_now.getMonth()+1),luongGioThang(_now.getFullYear(),_now.getMonth()+1));
+    const r=calcDayLogic(rec,curProfile.contract_type,luongNgayThang(_now.getFullYear(),_now.getMonth()+1),luongGioThang(_now.getFullYear(),_now.getMonth()+1));
     chips=`<span class="status-chip chip-in">✅ Check in: ${fmtTime(rec.checkin_time)}</span>
            <span class="status-chip chip-out">🚪 Check out: ${fmtTime(rec.checkout_time)}</span>
            <span class="status-chip chip-earn">💰 ${r.hours}h · ${vnd(r.salary)}</span>`;
@@ -2115,7 +2115,11 @@ function calcDayLogic(rec,empType,luongNgay,luongGio){
   if(!rec)return{hours:0,salary:0,isLate:false,lateMin:0};
   if(rec.status==='NL')return{hours:8,salary:luongNgay,isLate:false,lateMin:0};
   if(rec.status==='NKP')return{hours:0,salary:0,isLate:false,lateMin:0};
-  if(rec.status==='NP'){const ok=empType==='chinh-thuc'||empType==='manager'||empType==='leader';return{hours:ok?8:0,salary:ok?luongNgay:0,isLate:false,lateMin:0};}
+  // NP (nghỉ phép) chỉ hưởng lương nếu CHÍNH THỨC — empType ở đây phải là
+  // contract_type (không phải role, vốn luôn là sale/leader/manager, không
+  // khớp 'chinh-thuc' cho dù người đó có chính thức hay không — bug cũ
+  // khiến NP của Sale luôn ra 0đ bất kể loại hợp đồng thật).
+  if(rec.status==='NP'){const ok=empType==='chinh-thuc'||empType==='official';return{hours:ok?8:0,salary:ok?luongNgay:0,isLate:false,lateMin:0};}
   if(!fmtTime(rec.checkin_time)||!fmtTime(rec.checkout_time))return{hours:0,salary:0,isLate:false,lateMin:0};
   // Parse ISO timestamp hoặc HH:MM string
   function toHHMM(t){
@@ -2162,7 +2166,7 @@ async function renderAttTable(){
   let totalH=0,totalS=0,late=0,np=0,nl=0,nkp=0,wd=0,tbody='';
   for(let d=1;d<=last;d++){
     const ds=dateStr(curYear,curMonth,d),dow=new Date(curYear,curMonth,d).getDay(),we=isWE(dow),hl=isHL(ds),isToday=ds===todayStr;
-    const rec=recMap[ds],r=calcDayLogic(rec,emp.type||emp.role,_luongNgay,_luongGio);
+    const rec=recMap[ds],r=calcDayLogic(rec,emp.contract_type,_luongNgay,_luongGio);
     let trClass=we?'tr-weekend':(isToday?'tr-today':'');
     if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="7" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
     let ciShow='—',coShow='—',hShow='—',sShow='—',statusHtml='',noteHtml='';
@@ -4143,7 +4147,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const ds=dateStr(salYear,salMonth,d),dow=new Date(salYear,salMonth,d).getDay();
     if(isWE(dow))continue;
     const rec=recMap[ds];
-    const r=calcDayLogic(rec,emp.role,_luongNgay,_luongGio);
+    const r=calcDayLogic(rec,emp.contract_type,_luongNgay,_luongGio);
     const isHolidayDay=rec?.status==='NL'||isHL(ds);
     // Ngày lễ chỉ tính công/lương cho người ĐÃ set "Ngày bắt đầu tính lương"
     // và ngày lễ đó rơi từ mốc đó trở đi — tránh tự động cấp công lễ cho
