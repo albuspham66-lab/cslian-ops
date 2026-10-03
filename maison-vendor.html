@@ -1176,7 +1176,7 @@ function _renderOrderView(o){
     dl('Deposit',fmtUSD(deposit),'','var(--green)')+
     dl('Balance Due',fmtUSD(o.balance_due),'',o.balance_due>0?'var(--red)':'var(--text3)')+
     dl('Commission',fmtUSD(o.commission),'','var(--blue)')+
-    dl('Price Gap',fmtUSD(o.price_gap))+
+    dl('Price Gap',fmtUSD(priceGapOf(o)))+
     (parseFloat(o.headspa_amount)>0?dl('Headspa Amount',fmtUSD(o.headspa_amount)+' (Bonus 7%: '+fmtUSD(headspaBonusOf(o))+')','','var(--gold)'):'')+
     (parseFloat(o.referral_amount)>0?dl('Referral Amount',fmtUSD(o.referral_amount)+' (đã trừ vào Price Gap)','','var(--red)'):'')+
     dl('Tổng Commission',fmtUSD(totalCommOf(o)),'','var(--gold)')+
@@ -1656,19 +1656,9 @@ function openCostModal(id){
   }else{
     commPctEl.value='__custom__';commPctCustomEl.style.display='block';commPctCustomEl.value=o.commission_pct;
   }
-  if(commPctEl.value==='__manual__'){
-    const commEl=document.getElementById('cost-comm');
-    commEl.readOnly=false;commEl.style.opacity='';commEl.style.cursor='';
-    document.getElementById('cost-comm-auto-tag').textContent='— nhập tay';
-    commEl.value=o?.commission||'';
-  }else{
-    const commEl=document.getElementById('cost-comm');
-    commEl.readOnly=true;commEl.style.opacity='.75';commEl.style.cursor='not-allowed';
-    document.getElementById('cost-comm-auto-tag').textContent='— tự tính';
-    recalcCommission();
-  }
-
-  // % Price Gap → Tổng Commission
+  // % Price Gap → Tổng Commission — khôi phục TRƯỚC khi gọi bất kỳ hàm recalc
+  // nào (recalcCommission/recalcTotalComm đều đọc dropdown này), tránh tính
+  // tạm với %Gap sai do dropdown chưa kịp set đúng giá trị đã lưu.
   const gapPctEl=document.getElementById('cost-gap-pct');
   const gapPctCustomEl=document.getElementById('cost-gap-pct-custom');
   const gapPctVal=(o?.gap_pct===null||o?.gap_pct===undefined)?100:o.gap_pct;
@@ -1678,7 +1668,19 @@ function openCostModal(id){
   }else{
     gapPctEl.value='__custom__';gapPctCustomEl.style.display='block';gapPctCustomEl.value=gapPctVal;
   }
-  recalcTotalComm();
+
+  if(commPctEl.value==='__manual__'){
+    const commEl=document.getElementById('cost-comm');
+    commEl.readOnly=false;commEl.style.opacity='';commEl.style.cursor='';
+    document.getElementById('cost-comm-auto-tag').textContent='— nhập tay';
+    commEl.value=o?.commission||'';
+    recalcTotalComm();
+  }else{
+    const commEl=document.getElementById('cost-comm');
+    commEl.readOnly=true;commEl.style.opacity='.75';commEl.style.cursor='not-allowed';
+    document.getElementById('cost-comm-auto-tag').textContent='— tự tính';
+    recalcCommission(); // đã gọi recalcTotalComm() bên trong, với %Gap đã đúng
+  }
 
   document.getElementById('cost-note').value=o?.note||'';
   document.getElementById('cost-order-type').value=o?.order_type||'';
@@ -2171,7 +2173,7 @@ async function runReport(){
   const activeList=list.filter(o=>o.status!=='cancelled');
   const totalAmt=activeList.reduce((s,o)=>s+(o.total_amount||0),0);
   const totalComm=activeList.reduce((s,o)=>s+(o.commission||0),0);
-  const totalGap=activeList.reduce((s,o)=>s+(o.price_gap||0),0);
+  const totalGap=activeList.reduce((s,o)=>s+priceGapOf(o),0);
   const totalHeadspa=activeList.reduce((s,o)=>s+headspaBonusOf(o),0);
   const totalCommAll=activeList.reduce((s,o)=>s+totalCommOf(o),0);
   const commRecv=activeList.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
@@ -2208,7 +2210,7 @@ function renderReportTable(){
     <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
     <td class="num" style="color:var(--text2);">${fmtUSD(o.shipping)}</td>
     <td class="num" style="color:var(--blue);">${fmtUSD(o.commission)}</td>
-    <td class="num" style="color:var(--text2);">${fmtUSD(o.price_gap)}</td>
+    <td class="num" style="color:var(--text2);">${fmtUSD(priceGapOf(o))}</td>
     <td class="num" style="color:var(--gold);">${headspaBonusOf(o)>0?fmtUSD(headspaBonusOf(o)):'—'}</td>
     <td class="num" style="color:var(--gold);font-weight:600;">${fmtUSD(totalCommOf(o))}</td>
     <td class="num" style="color:${o.commission_received?'var(--green)':'var(--amber)'};">${o.commission_received?fmtUSD(totalCommOf(o)):'—'}</td>
@@ -2269,7 +2271,7 @@ async function exportReport(){
         costPrice:o.cost_price||0,total:o.total_amount||0,shipping:o.shipping||0,
         deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
         note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
-        commission:o.commission||0,priceGap:o.price_gap||0,headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),referralAmt:o.referral_amount||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
+        commission:o.commission||0,priceGap:priceGapOf(o),headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),referralAmt:o.referral_amount||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
         status:statusLbl[o.status]||o.status||'',tracking:o.tracking_number||'',
         picture:photo?'Xem ảnh':''
       });
@@ -2344,12 +2346,24 @@ function soTienBangChu(number){
   result=result.charAt(0).toUpperCase()+result.slice(1);
   return result+' đồng'+(number%1000===0?' chẵn':'');
 }
-// Tổng Commission = Commission ($) + (%Gap × Price Gap). gap_pct mặc định 100% nếu chưa từng set.
+// Price Gap = Total − Shipping(chỉ TSPA) − Referral − Charge Fee − Cost Price
+// Tính SỐNG từ các field gốc mỗi lần gọi, KHÔNG đọc cột price_gap đã lưu sẵn
+// trong DB — để công thức mới áp dụng ngay cho mọi đơn cũ, không cần ai phải
+// mở lại từng đơn bấm Lưu để "làm mới" số liệu mỗi khi công thức có field mới.
+function priceGapOf(o){
+  const total=parseFloat(o?.total_amount)||0;
+  const shipping=(o?.vendor||'').toUpperCase()==='TSPA'?(parseFloat(o?.shipping)||0):0;
+  const referral=parseFloat(o?.referral_amount)||0;
+  const chargeFee=parseFloat(o?.selling_expenses)||0;
+  const cost=parseFloat(o?.cost_price)||0;
+  return total-shipping-referral-chargeFee-cost;
+}
+// Tổng Commission = Commission ($) + (%Gap × Price Gap) + Headspa Bonus. gap_pct mặc định 100% nếu chưa từng set.
 const HEADSPA_BONUS_RATE=0.07; // cố định 7%, cộng thêm vào Total Commission
 function headspaBonusOf(o){return(parseFloat(o?.headspa_amount)||0)*HEADSPA_BONUS_RATE;}
 function totalCommOf(o){
   const gapPct=(o?.gap_pct===null||o?.gap_pct===undefined)?100:parseFloat(o.gap_pct);
-  return (parseFloat(o?.commission)||0)+(parseFloat(o?.price_gap)||0)*(gapPct/100)+headspaBonusOf(o);
+  return (parseFloat(o?.commission)||0)+priceGapOf(o)*(gapPct/100)+headspaBonusOf(o);
 }
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return d.toLocaleDateString('vi-VN')+'  '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 
@@ -3227,7 +3241,7 @@ async function exportReconBatch(batchId){
       ws2.getCell(r2,2).value=isCustom?(it.custom_label?.split(' — ')[0]||'—'):(o?.invoice_no||'');
       ws2.getCell(r2,3).value=isCustom?(it.custom_label?.split(' — ')[1]||it.custom_label||'Tùy chỉnh'):(o?.business_name||'');
       ws2.getCell(r2,4).value=isCustom?(parseFloat(it.custom_commission)||0):(parseFloat(o?.commission)||0);
-      ws2.getCell(r2,5).value=isCustom?(parseFloat(it.custom_price_gap)||0):(parseFloat(o?.price_gap)||0);
+      ws2.getCell(r2,5).value=isCustom?(parseFloat(it.custom_price_gap)||0):priceGapOf(o);
       ws2.getCell(r2,6).value=it.thanh_tien;
       ws2.getCell(r2,4).numFmt='$#,##0.00';
       ws2.getCell(r2,5).numFmt='$#,##0.00';
@@ -3245,7 +3259,7 @@ async function exportReconBatch(batchId){
         const isCustom=it.order_id===null||it.order_id===undefined;
         const o=isCustom?null:allOrders.find(x=>x.id===it.order_id);
         const comm=isCustom?(parseFloat(it.custom_commission)||0):(parseFloat(o?.commission)||0);
-        const gap=isCustom?(parseFloat(it.custom_price_gap)||0):(parseFloat(o?.price_gap)||0);
+        const gap=isCustom?(parseFloat(it.custom_price_gap)||0):priceGapOf(o);
         const vals={4:comm,5:gap,6:it.thanh_tien};
         return s+vals[col];
       },0);
@@ -3314,7 +3328,7 @@ async function exportReconBatch(batchId){
         costPrice:o.cost_price||0,total:o.total_amount||0,shipping:o.shipping||0,
         deposit1:o.deposit1||0,deposit2:o.deposit2||0,balance:o.balance_due||0,
         note:o.note||'',paymentMethod:o.payment_method||'',invoice:o.invoice_no||'',
-        commission:o.commission||0,priceGap:o.price_gap||0,headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),referralAmt:o.referral_amount||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
+        commission:o.commission||0,priceGap:priceGapOf(o),headspaAmt:o.headspa_amount||0,headspaBonus:headspaBonusOf(o),referralAmt:o.referral_amount||0,totalComm:totalCommOf(o),sellingExp:o.selling_expenses||0,
         status:statusLbl3[o.status]||o.status||'',tracking:o.tracking_number||'',
         picture:photo?'Xem ảnh':''
       });
