@@ -1369,11 +1369,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <div class="form-f"><label>Ngày bắt đầu</label><input type="date" id="ae-start-date"/></div>
       <div class="form-f"><label>Ngày bắt đầu tính lương <span style="color:var(--text3);font-weight:400">— để trống nếu chưa</span></label><input type="date" id="ae-ngay-bat-dau-tinh-luong"/></div>
+      <div class="form-f"><label>Ngày lên chính thức <span style="color:var(--text3);font-weight:400">— mốc tính năm phép (12 ngày/năm), để trống nếu chưa</span></label><input type="date" id="ae-ngay-len-chinh-thuc"/></div>
       <div class="form-f"><label>Ngày sinh</label><input type="date" id="ae-birthday"/></div>
       <div class="form-f"><label>Loại hợp đồng</label>
         <select id="ae-contract">
           <option value="official">Chính thức</option>
           <option value="probation">Thử việc</option>
+          <option value="probation_extended">Thử việc gia hạn (tính như chính thức, lương mức thử việc)</option>
         </select>
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ae-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
@@ -1436,11 +1438,13 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <div class="form-f"><label>Ngày bắt đầu làm việc</label><input type="date" id="ep-start-date"/></div>
       <div class="form-f"><label>Ngày bắt đầu tính lương <span style="color:var(--text3);font-weight:400">— để trống = chưa tính lương/không vào Báo cáo thuế</span></label><input type="date" id="ep-ngay-bat-dau-tinh-luong"/></div>
+      <div class="form-f"><label>Ngày lên chính thức <span style="color:var(--text3);font-weight:400">— mốc tính năm phép (12 ngày/năm), để trống nếu chưa</span></label><input type="date" id="ep-ngay-len-chinh-thuc"/></div>
       <div class="form-f"><label>Ngày sinh</label><input type="date" id="ep-birthday"/></div>
       <div class="form-f"><label>Loại hợp đồng</label>
         <select id="ep-contract">
           <option value="chinh-thuc">Chính thức</option>
           <option value="thu-viec">Thử việc</option>
+          <option value="probation_extended">Thử việc gia hạn (tính như chính thức, lương mức thử việc)</option>
         </select>
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ep-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
@@ -1573,6 +1577,11 @@ ALTER TABLE public.orders
 */
 
 const LUONG_CUNG=5310000;
+// Mức lương tối thiểu Vùng I (TP.HCM) làm căn cứ đóng BHXH tối thiểu — theo
+// Nghị định 293/2025/NĐ-CP, hiệu lực 01/01/2026. Tách riêng khỏi LUONG_CUNG
+// dù hiện tại trùng số — đây là 2 khái niệm khác nhau (1 bên là mức lương
+// công ty quy định, 1 bên là sàn pháp lý), có thể lệch nhau nếu luật đổi.
+const LUONG_TOI_THIEU_VUNG_I=5310000;
 // Ngày công tiêu chuẩn của 1 tháng = Tổng ngày trong tháng − Ngày nghỉ hằng
 // tuần (Thứ 7 + Chủ nhật) — đúng công thức trong Hợp đồng lao động/thử việc.
 // KHÔNG cố định 22 ngày vì mỗi tháng có số Thứ7/CN khác nhau (VD T7/2026=23,
@@ -1693,6 +1702,41 @@ function dateStr(y,m,d){return `${y}-${pad2(m+1)}-${pad2(d)}`}
 function monthStr(y,m){return `${y}-${pad2(m+1)}`}
 function initials(n){return(n||'').split(' ').slice(-2).map(w=>w[0]||'').join('').toUpperCase()}
 function isHL(ds){return VN_HL.includes(ds)||(_holidaysCache&&_holidaysCache.has(ds));}
+
+// ── Phép năm (nhân viên chính thức) ──────────────────────────────────
+// 12 ngày/năm, KHÔNG cộng dồn, "năm phép" neo theo ngày lên chính thức
+// của từng người (không phải năm dương lịch chung).
+const PHEP_NAM_QUOTA=12;
+// Tính cửa sổ 12 tháng hiện hành (chứa asOfDs) neo theo ngày lên chính thức.
+function phepNamWindow(ngayLenChinhThuc,asOfDs){
+  if(!ngayLenChinhThuc)return null;
+  const anchor=new Date(ngayLenChinhThuc+'T00:00:00');
+  const asOf=new Date((asOfDs||getTodayVN())+'T00:00:00');
+  if(asOf<anchor)return null; // chưa tới ngày lên chính thức, chưa có phép
+  let start=new Date(anchor);
+  while(true){
+    const next=new Date(start);
+    next.setMonth(next.getMonth()+12);
+    if(asOf<next)break;
+    start=next;
+  }
+  const end=new Date(start);
+  end.setMonth(end.getMonth()+12);
+  end.setDate(end.getDate()-1);
+  const fmt=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  return {start:fmt(start),end:fmt(end)};
+}
+// Số phép đã dùng (đếm bản ghi attendance.status='NP') + còn lại trong
+// đúng cửa sổ năm phép hiện hành của 1 nhân viên.
+async function calcLeaveQuota(empId,ngayLenChinhThuc,asOfDs){
+  const win=phepNamWindow(ngayLenChinhThuc,asOfDs);
+  if(!win)return{quota:0,used:0,remaining:0,window:null};
+  const{data}=await sb.from('attendance').select('date')
+    .eq('user_id',empId).eq('status','NP')
+    .gte('date',win.start).lte('date',win.end);
+  const used=(data||[]).length;
+  return{quota:PHEP_NAM_QUOTA,used,remaining:Math.max(0,PHEP_NAM_QUOTA-used),window:win};
+}
 function isWE(dow){return dow===0||dow===6}
 function avColor(i){return AV_COLORS[i%AV_COLORS.length]}
 
@@ -2183,7 +2227,29 @@ function dmToggle(){document.getElementById('dm-time-fields').style.display=docu
 async function saveDay(){
   if(!editingDay)return;
   const{empId,ds}=editingDay;
-  const st=document.getElementById('dm-status').value;
+  let st=document.getElementById('dm-status').value;
+
+  // Kiểm tra quota phép năm nếu đang đánh dấu NP (nghỉ phép) — vượt quota
+  // → cảnh báo, chuyển thành NKP (nghỉ không phép, không tính lương).
+  if(st==='NP'){
+    const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
+    if(emp?.ngay_len_chinh_thuc){
+      // Nếu đang SỬA lại đúng ngày đã từng là NP, không tính ngày đó vào
+      // "đã dùng" khi kiểm tra (tránh tự chặn chính nó).
+      const{data:existingRec}=await sb.from('attendance').select('status').eq('user_id',empId).eq('date',ds).maybeSingle();
+      const q=await calcLeaveQuota(empId,emp.ngay_len_chinh_thuc,ds);
+      const remainingEffective=existingRec?.status==='NP'?q.remaining+1:q.remaining;
+      if(remainingEffective<=0){
+        const chuyen=confirm(`${emp.full_name} đã dùng hết ${q.quota} ngày phép năm (cửa sổ ${q.window.start} → ${q.window.end}).\n\nChuyển ngày này thành "Nghỉ không phép" (không tính lương)?`);
+        if(chuyen){st='NKP';document.getElementById('dm-status').value='NKP';}
+        else{return;} // Manager huỷ, không lưu
+      }
+    } else if(emp){
+      // Chưa set "Ngày lên chính thức" — không chặn (tránh gián đoạn trước
+      // khi Calvin backfill đủ dữ liệu), chỉ nhắc để điền bổ sung sau.
+      toast(`Lưu ý: ${emp.full_name} chưa set "Ngày lên chính thức" nên chưa theo dõi được quota phép năm`,'error');
+    }
+  }
   const ci=document.getElementById('dm-ci').value;
   const co=document.getElementById('dm-co').value;
   const note=document.getElementById('dm-note').value;
@@ -2323,7 +2389,7 @@ async function exportOrdersExcel(){
   // Target thử việc = 85% — tra đúng contract_type của Sale sở hữu đơn đó.
   function isOrderDatTarget(o){
     const p=allProfilesMap[o.user_id]||allProfiles.find(x=>x.id===o.user_id);
-    const isProb=p&&(p.contract_type==='probation'||p.contract_type==='thu-viec');
+    const isProb=p&&(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended');
     const tgt=isProb?TARGET_USD*0.85:TARGET_USD;
     return (tongDoanhSoTheoSale[o.user_id]||0)>=tgt;
   }
@@ -2554,7 +2620,7 @@ async function exportOrdersExcel(){
         let rate=15;
         if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
         const pUid=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
-        const isProbUid=pUid&&(pUid.contract_type==='probation'||pUid.contract_type==='thu-viec');
+        const isProbUid=pUid&&(pUid.contract_type==='probation'||pUid.contract_type==='thu-viec'||pUid.contract_type==='probation_extended');
         let tyLeDat=total>=(isProbUid?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
         if(tyLeDat<1.0&&uid!=='_'){
           const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_triggered').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
@@ -3225,7 +3291,7 @@ async function renderOrders(){
   // Target thử việc = 85% — chỉ áp dụng khi đang xem riêng 1 Sale cụ thể
   // (xem "Tất cả nhân viên" thì không có 1 target chung để điều chỉnh).
   const selEmpForTarget=empId?(allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)):null;
-  const isProbationSel=selEmpForTarget&&(selEmpForTarget.contract_type==='probation'||selEmpForTarget.contract_type==='thu-viec');
+  const isProbationSel=selEmpForTarget&&(selEmpForTarget.contract_type==='probation'||selEmpForTarget.contract_type==='thu-viec'||selEmpForTarget.contract_type==='probation_extended');
   const targetDisplay=isProbationSel?TARGET_USD*0.85:TARGET_USD;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
@@ -3351,7 +3417,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
       let rate=15;
       if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
       const pUid2=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
-      const isProbUid2=pUid2&&(pUid2.contract_type==='probation'||pUid2.contract_type==='thu-viec');
+      const isProbUid2=pUid2&&(pUid2.contract_type==='probation'||pUid2.contract_type==='thu-viec'||pUid2.contract_type==='probation_extended');
       let tyLeDat=total>=(isProbUid2?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
       // Liên kết Backup Bonus — giống hệt calcSalaryForEmp, giữ số hiển thị
       // ở Tab Đơn hàng khớp đúng số thật trên phiếu lương.
@@ -3875,7 +3941,7 @@ async function renderKPITeamSummary(thang){
     return {p,k,isResigned,winRate,dat,p3c,isSelected};
   }).sort((a,b)=>{
     // Chính thức → Thử việc → Nghỉ
-    function rank(x){if(x.isResigned)return 2;if(x.p.contract_type==='probation'||x.p.contract_type==='thu-viec')return 1;return 0;}
+    function rank(x){if(x.isResigned)return 2;if(x.p.contract_type==='probation'||x.p.contract_type==='thu-viec'||x.p.contract_type==='probation_extended')return 1;return 0;}
     return rank(a)-rank(b);
   });
 
@@ -3900,7 +3966,7 @@ async function renderKPITeamSummary(thang){
         <tr style="border-bottom:1px solid var(--border);background:${isSelected?'rgba(99,102,241,.08)':''}; cursor:pointer" onclick="selectKPIEmp('${p.id}')">
           <td style="padding:8px 10px">
             <div style="font-weight:600;color:${isResigned?'rgba(239,68,68,.7)':'var(--text)'}">${p.full_name}</div>
-            <div style="font-size:10px;color:var(--text3)">${p.employee_code}${p.contract_type==='probation'||p.contract_type==='thu-viec'?' · Thử việc':''}</div>
+            <div style="font-size:10px;color:var(--text3)">${p.employee_code}${p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended'?' · Thử việc':''}</div>
           </td>
           <td style="text-align:center;padding:6px 8px">${k?k.diem_nhom1+'đ':'—'}</td>
           <td style="text-align:center;padding:6px 8px">${k?k.diem_nhom2+'đ':'—'}</td>
@@ -4019,18 +4085,19 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
       p3a_bolsa_usd:0,p3a_bolsa_headspa_usd:0,p3a_bolsa_other_usd:0,p3a_ons_tspa_usd:0,
       p3a_vuot_target_usd:0,p3a_chenh_lech_usd:0,p3a_base_usd:0,
       p3a_ty_le_dat:0,p3a_total_usd:0,ty_gia:TY_GIA,
-      backup_bonus_usd:0,thuong_le_vnd:0,tong_luong_vnd:0,
+      backup_bonus_usd:0,thuong_le_vnd:0,phep_du_payout_vnd:0,tong_luong_vnd:0,
       bhxh_vnd:0,so_nguoi_phu_thuoc_snapshot:0,mien_thue_vnd:0,
       thue_tncn_vnd:0,luong_thuc_nhan_vnd:0};
   }
   await loadHolidays(); // đảm bảo isHL() thấy đủ ngày nghỉ bù tùy chỉnh khi tính công/lương
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId);
   if(!emp)return null;
-  // Thưởng lễ: giá trị Manager nhập tay (theo Role hoặc sửa riêng từng người),
-  // KHÔNG tính bằng công thức — phải đọc lại từ bản ghi cũ (nếu có) để giữ
-  // nguyên qua các lần tính lại tự động, tránh bị xoá mất khi is_locked=false.
-  const {data:existingSal}=await sb.from('salary_monthly').select('thuong_le_vnd').eq('user_id',empId).eq('thang',thang).maybeSingle();
+  // Thưởng lễ + Phép dư (khi nghỉ việc): giá trị Manager nhập tay/hệ thống
+  // tính 1 lần lúc đánh dấu nghỉ việc — KHÔNG tính bằng công thức mỗi lần,
+  // phải đọc lại từ bản ghi cũ để giữ nguyên qua các lần tính lại tự động.
+  const {data:existingSal}=await sb.from('salary_monthly').select('thuong_le_vnd,phep_du_payout_vnd').eq('user_id',empId).eq('thang',thang).maybeSingle();
   const thuongLeVnd=existingSal?.thuong_le_vnd||0;
+  const phepDuPayoutVnd=existingSal?.phep_du_payout_vnd||0;
   const from=`${salYear}-${pad2(salMonth+1)}-01`,last=new Date(salYear,salMonth+1,0).getDate(),to=`${salYear}-${pad2(salMonth+1)}-${pad2(last)}`;
 
   const [attRes, kpiRes, billingOrdsRes, settledOrdsRes] = await Promise.all([
@@ -4060,6 +4127,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
   const isProbation=(emp.contract_type==='probation'||emp.contract_type==='thu-viec');
+  // Thử việc GIA HẠN (quá 2 tháng luật cho phép, Calvin cho thêm cơ hội):
+  // pipeline tính lương/thuế/BHXH chạy Y HỆT chính thức (isProbation vẫn
+  // false ở các bước BHXH/thuế/thực lĩnh bên dưới — không có dòng "khấu
+  // trừ 10%"/"điều chỉnh thử việc 15%" nào hiện ra, tránh lộ format thử
+  // việc trên phiếu lương quá 2 tháng, sai luật). CHỈ khác: mức lương đầu
+  // vào (P1-P3D) giảm 85% NGAY TỪ ĐẦU, và Target xét bonus vẫn ở mức 85%.
+  const isProbationExtended=(emp.contract_type==='probation_extended');
+  const isProbationTarget=isProbation||isProbationExtended; // dùng cho TARGET bonus (85%)
 
   const congChuan=congChuanThang(salYear,salMonth+1);
   const _luongNgay=luongNgayThang(salYear,salMonth+1),_luongGio=luongGioThang(salYear,salMonth+1);
@@ -4075,7 +4150,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     // người chưa/không nằm trong diện tính lương (CEO, Kế toán chưa set...).
     const eligibleForHolidayPay=emp.ngay_bat_dau_tinh_luong&&ds>=emp.ngay_bat_dau_tinh_luong;
     if(isHolidayDay&&eligibleForHolidayPay){nlD++;ngayCong++;}
-    else if(rec?.status==='NP'){npD++;if(!isProbation)ngayCong++;}
+    else if(rec?.status==='NP'){npD++;if(!isProbationTarget)ngayCong++;}
     else if(rec?.status==='NKP'){nkpD++;}
     else if(rec&&r.hours>0){ngayCong+=r.hours/8;if(r.isLate)soLanTre++;}
   }
@@ -4086,28 +4161,34 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // hạng mục (P1/P2A/P2B/P2C/P3B/P3C), để P1 không bao giờ hiển thị thấp
   // hơn lương sàn quy định. Hệ số thử việc (0.85) áp dụng ở BƯỚC SAU dưới
   // dạng 1 dòng "Điều chỉnh thử việc" trừ vào TỔNG, không trừ riêng từng dòng.
-  const p1=Math.round(LUONG_CUNG/congChuan*ngayCong);
   const congRatio=ngayCong/congChuan;
-  const p2a=Math.round(504550*congRatio); // P2A — Phụ cấp ăn giữa ca (trước đây gộp chung 704,550 với đi lại)
-  const p3d=Math.round(200000*congRatio); // P3D — Phụ cấp đi lại/xăng xe (tách riêng từ P2A)
-  const p2b=Math.round(1593000*congRatio); // P2B — Tiền lương ca đêm, trước đây 1,240,000
-  const p2c=P2C_MAP[emp.lever||1]||0;
+  // Hệ số mức lương thử việc gia hạn — nhân NGAY TỪ ĐẦU vào từng input,
+  // để toàn bộ pipeline phía sau (BHXH/thuế/thực lĩnh) chạy y hệt chính
+  // thức trên mức lương ĐÃ giảm, thay vì trừ 1 cục ở cuối như thử việc
+  // thường (cách đó để lộ rõ "format thử việc" trên phiếu lương — sai luật
+  // nếu áp dụng quá 2 tháng).
+  const heSoMucLuong=isProbationExtended?0.85:1.0;
+  const p1=Math.round(LUONG_CUNG/congChuan*ngayCong*heSoMucLuong);
+  const p2a=Math.round(504550*congRatio*heSoMucLuong); // P2A — Phụ cấp ăn giữa ca (trước đây gộp chung 704,550 với đi lại)
+  const p3d=Math.round(200000*congRatio*heSoMucLuong); // P3D — Phụ cấp đi lại/xăng xe (tách riêng từ P2A)
+  const p2b=Math.round(1593000*congRatio*heSoMucLuong); // P2B — Tiền lương ca đêm, trước đây 1,240,000
+  const p2c=Math.round((P2C_MAP[emp.lever||1]||0)*heSoMucLuong);
   // Công < 50% công chuẩn → không hưởng chuyên cần, bất kể số lần trễ
   const duCongChuyenCan=congRatio>=0.5;
-  const p3b=!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0);
+  const p3b=Math.round((!duCongChuyenCan?0:(soLanTre===0?300000:soLanTre===1?150000:0))*heSoMucLuong);
 
   const kpi=kpiRes.data;
   // P3C: đọc ngưỡng từ kpi_settings tháng này, fallback 80
   const {data:kpiSet}=await sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle();
   const p3cNguong=kpiSet?.nguong_dat||80;
-  const p3c=(kpi&&kpi.diem_tong>=p3cNguong)?500000:0;
+  const p3c=Math.round(((kpi&&kpi.diem_tong>=p3cNguong)?500000:0)*heSoMucLuong);
 
   const dtTotalForTarget=billingOrds.reduce((s,o)=>s+(o.total_amount||0),0);
   // Target thử việc = 85% target chuẩn — thiếu điều kiện này khiến NV thử
   // việc phải đạt ĐỦ target chuẩn mới được 100%, trong khi đúng ra chỉ cần
   // đạt 85% (VD Thái T9: DS $20,108 ≥ $19,975 (85%) nhưng code cũ so với
   // $23,500 đầy đủ → bị tính sai thành "Không đạt").
-  const targetForThisEmp=isProbation?TARGET_USD*0.85:TARGET_USD;
+  const targetForThisEmp=isProbationTarget?TARGET_USD*0.85:TARGET_USD;
   const datTarget=dtTotalForTarget>=targetForThisEmp;
   const tyLeDat=datTarget?1.0:0.5;
 
@@ -4312,10 +4393,14 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const backupBonusVnd=Math.round(backupBonusUsd*TY_GIA);
   // TỔNG LƯƠNG (GROSS) = cộng ĐỦ 100% mọi khoản, kể cả P3A — hệ số thử việc
   // KHÔNG áp vào đây. (Xem giải thích thứ tự đúng bên dưới.)
-  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d+p3aVnd+backupBonusVnd+thuongLeVnd;
+  const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d+p3aVnd+backupBonusVnd+thuongLeVnd+phepDuPayoutVnd;
 
   // ── BHXH & Thuế TNCN — tính trên GROSS ĐỦ 100% ──────────────────────
-  const bhxhVnd=calcBHXH(p1,isProbation);
+  // Thử việc gia hạn: BHXH đóng trên P1 đã giảm 85%, NHƯNG không được thấp
+  // hơn sàn Vùng I (Nghị định 293/2025/NĐ-CP) — nếu P1 giảm xuống dưới sàn,
+  // vẫn phải đóng BHXH tính trên đúng mức sàn.
+  const p1ChoBHXH=isProbationExtended?Math.max(p1,LUONG_TOI_THIEU_VUNG_I):p1;
+  const bhxhVnd=calcBHXH(p1ChoBHXH,isProbation);
   const soNguoiPhuThuoc=emp.so_nguoi_phu_thuoc||0;
   // Khoản miễn thuế TNCN: tiền ăn giữa ca (P2A) + tiền lương làm đêm (P2B) —
   // theo hợp đồng, P2B được xác định là "khoản trả thêm 30% cho giờ làm đêm"
@@ -4342,7 +4427,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     p3a_base_usd:bonusBase,
     p3a_ty_le_dat:tyLeDat,p3a_total_usd:p3aTotalUsd,ty_gia:TY_GIA,
     backup_bonus_usd:backupBonusUsd,backup_bonus_triggered:backupBonusTriggered,
-    thuong_le_vnd:thuongLeVnd,
+    thuong_le_vnd:thuongLeVnd,phep_du_payout_vnd:phepDuPayoutVnd,
     tong_luong_vnd:tongLuong,
     bhxh_vnd:bhxhVnd,so_nguoi_phu_thuoc_snapshot:soNguoiPhuThuoc,
     mien_thue_vnd:mienThueVnd,
@@ -4503,6 +4588,7 @@ async function viewSalaryDetail(empId,thang){
       ${(sal.backup_bonus_usd>0)?`<div class="salary-row" style="background:rgba(16,185,129,0.08);border-radius:8px;padding:4px 8px"><span class="salary-label" style="color:#10b981">🔄 Backup Bonus tháng trước (${usd(sal.backup_bonus_usd)})</span><span class="salary-val" style="color:#10b981">${vnd((sal.backup_bonus_usd||0)*(sal.ty_gia||TY_GIA))}</span></div>`:''}
       <div class="salary-row"><span class="salary-label">Tỷ lệ đạt target</span><span class="salary-val">${sal.p3a_ty_le_dat===1?'100% (Đạt)':'50% (Không đạt)'}</span></div>
       ${(sal.thuong_le_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:var(--accent)">🎁 Thưởng lễ</span><span class="salary-val" style="color:var(--accent)">${vnd(sal.thuong_le_vnd)}</span></div>`:''}
+      ${(sal.phep_du_payout_vnd>0)?`<div class="salary-row"><span class="salary-label" style="color:var(--accent)">🏖️ Thanh toán phép dư (nghỉ việc)</span><span class="salary-val" style="color:var(--accent)">${vnd(sal.phep_du_payout_vnd)}</span></div>`:''}
       <div class="salary-row" style="margin-top:8px"><span>TỔNG LƯƠNG (GROSS)</span><span class="salary-val">${vnd(sal.tong_luong_vnd)}</span></div>
       ${sal.bhxh_vnd>0?`<div class="salary-row"><span class="salary-label" style="color:#c0392b">BHXH/BHYT/BHTN (10.5% trên P1)</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.bhxh_vnd)}</span></div>`:''}
       <div class="salary-row"><span class="salary-label" style="color:#c0392b">Thuế TNCN</span><span class="salary-val" style="color:#c0392b">−${vnd(sal.thue_tncn_vnd)}</span></div>
@@ -4577,6 +4663,7 @@ function buildPhieuLuongHTML(emp,sal,thang){
       <div class="pl-section-title">C — Tổng hợp</div>
       <table class="pl-table">
         ${sal.thuong_le_vnd>0?`<tr><td class="label">🎁 Thưởng lễ (đã gồm trong Gross)</td><td class="formula">Thưởng lễ</td><td class="amount">${vndFmt(sal.thuong_le_vnd)}</td></tr>`:''}
+        ${sal.phep_du_payout_vnd>0?`<tr><td class="label">🏖️ Thanh toán phép dư — nghỉ việc (đã gồm trong Gross)</td><td class="formula">Phép dư</td><td class="amount">${vndFmt(sal.phep_du_payout_vnd)}</td></tr>`:''}
         <tr class="subtotal"><td class="label">TỔNG LƯƠNG (GROSS)</td><td class="formula">P1+P2+P3</td><td class="amount" style="font-size:13px">${vndFmt(sal.tong_luong_vnd)}</td></tr>
         <tr><td class="label">BHXH/BHYT/BHTN (8%+1.5%+1%, trên P1)${sal.p1_he_so===0.85?' — thử việc: không đóng':''}</td><td class="formula">−10.5%×P1</td><td class="amount" style="color:#c0392b">${sal.bhxh_vnd?'−'+vndFmt(sal.bhxh_vnd):vndFmt(0)}</td></tr>
         <tr><td class="label">Thuế TNCN${sal.p1_he_so===0.85?' (khấu trừ 10% — HĐ thử việc <3 tháng)':` (biểu lũy tiến, GT gia cảnh: bản thân 15.5tr${sal.so_nguoi_phu_thuoc_snapshot?` + ${sal.so_nguoi_phu_thuoc_snapshot} người phụ thuộc×6.2tr`:''})`} — đã trừ ${vndFmt(sal.mien_thue_vnd||0)} thu nhập miễn thuế (ăn ca+làm đêm)</td><td class="formula">−Thuế</td><td class="amount" style="color:#c0392b">${sal.thue_tncn_vnd?'−'+vndFmt(sal.thue_tncn_vnd):vndFmt(0)}</td></tr>
@@ -5045,7 +5132,7 @@ function renderEmpGrid(){
     const isInactive=p.status==='inactive'||!p.is_active;
     const roleMap={manager:'<span class="pill pill-manager">Manager</span>',leader:'<span class="pill pill-leader">Leader</span>',sale:'<span class="pill pill-sale">Sale</span>',accountant:'<span class="pill pill-manager">Kế toán</span>',ceo:'<span class="pill pill-manager">CEO</span>'};
     const startDate=p.start_date?new Date(p.start_date+'T12:00:00').toLocaleDateString('vi-VN'):'—';
-    const isThuViec=p.contract_type==='probation'||p.contract_type==='thu-viec';
+    const isThuViec=p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended';
     const contractLabel=isThuViec?'<span style="color:var(--warn);font-size:11px">Thử việc</span>':'<span style="color:var(--success);font-size:11px">Chính thức</span>';
     const ngayNghi=p.ngay_nghi_viec?'<span style="color:var(--danger);font-size:11px"> · Nghỉ: '+p.ngay_nghi_viec+'</span>':'';
     // Birthday
@@ -5126,6 +5213,7 @@ async function openEditProfile(id){
   document.getElementById('ep-lever').value=p.lever||1;
   document.getElementById('ep-start-date').value=p.start_date||'';
   document.getElementById('ep-ngay-bat-dau-tinh-luong').value=p.ngay_bat_dau_tinh_luong||'';
+  document.getElementById('ep-ngay-len-chinh-thuc').value=p.ngay_len_chinh_thuc||'';
   const ctMap={'official':'chinh-thuc','probation':'thu-viec'};
   document.getElementById('ep-contract').value=ctMap[p.contract_type]||p.contract_type||'chinh-thuc';
   document.getElementById('ep-so-nguoi-phu-thuoc').value=p.so_nguoi_phu_thuoc||0;
@@ -5161,6 +5249,7 @@ async function saveEmpProfile(){
   const lever=parseInt(document.getElementById('ep-lever').value)||1;
   const startDate=document.getElementById('ep-start-date').value;
   const ngayBatDauTinhLuong=document.getElementById('ep-ngay-bat-dau-tinh-luong').value;
+  const ngayLenChinhThuc=document.getElementById('ep-ngay-len-chinh-thuc').value;
   const contractTypeRaw=document.getElementById('ep-contract').value;
   const contractType=contractTypeRaw==='chinh-thuc'?'official':contractTypeRaw==='thu-viec'?'probation':contractTypeRaw;
   const soNguoiPhuThuoc=parseInt(document.getElementById('ep-so-nguoi-phu-thuoc').value)||0;
@@ -5192,7 +5281,7 @@ async function saveEmpProfile(){
 
   var updatePayload={
     full_name:hoTen,nickname:bietDanh,employee_code:maNV,role,lever,phong_ban:phongBan,
-    start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
+    start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong||null,ngay_len_chinh_thuc:ngayLenChinhThuc||null,contract_type:contractType,so_nguoi_phu_thuoc:soNguoiPhuThuoc,
     phone,cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
     mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
     address,birthday:birthday||null
@@ -5214,13 +5303,38 @@ async function saveEmpProfile(){
   buildProfilesMap();populateSelects();renderEmpGrid();
 }
 
-// Nghỉ việc modal
-function openDeactivateModal(id){
+// Nghỉ việc modal — tự tính "Phép dư × lương ngày" và đề nghị thanh toán,
+// theo đúng Khoản 3 Điều 113 BLLĐ 2019 (bắt buộc thanh toán bằng tiền cho
+// phép năm chưa nghỉ hết khi nhân viên thôi việc/mất việc — khác với lúc
+// còn đang làm, hết năm dư phép không bắt buộc trả, mất theo chính sách
+// không cộng dồn).
+async function openDeactivateModal(id){
   var p=allProfilesMap[id];
   if(!p)return;
   var ngay=getTodayVN();
-  if(!confirm('Xác nhận nghỉ việc cho '+p.full_name+'?\nNgày nghỉ: '+ngay+'\n\nNhân viên sẽ bị ẩn khỏi hệ thống nhưng lịch sử vẫn giữ nguyên.')){return;}
-  toggleEmpStatus(id,'inactive',ngay);
+  var phepDuMsg='',payoutAmount=0;
+  if(p.ngay_len_chinh_thuc){
+    var q=await calcLeaveQuota(id,p.ngay_len_chinh_thuc,ngay);
+    if(q.remaining>0){
+      var [y,m]=ngay.split('-').map(Number);
+      var luongNgay=luongNgayThang(y,m);
+      payoutAmount=q.remaining*luongNgay;
+      phepDuMsg='\n\n🏖️ Còn dư '+q.remaining+' ngày phép (quota '+q.quota+', đã dùng '+q.used+') — '+
+        'theo luật BẮT BUỘC thanh toán bằng tiền khi nghỉ việc: '+
+        q.remaining+' × '+vnd(luongNgay)+' = '+vnd(payoutAmount)+
+        '.\nSố tiền này sẽ được cộng vào lương tháng '+ngay.slice(0,7)+' (có tính thuế TNCN như lương bình thường).';
+    }
+  }
+  if(!confirm('Xác nhận nghỉ việc cho '+p.full_name+'?\nNgày nghỉ: '+ngay+phepDuMsg+'\n\nNhân viên sẽ bị ẩn khỏi hệ thống nhưng lịch sử vẫn giữ nguyên.')){return;}
+  await toggleEmpStatus(id,'inactive',ngay);
+  if(payoutAmount>0){
+    var thangNghi=ngay.slice(0,7);
+    await sb.from('salary_monthly').upsert(
+      {user_id:id,thang:thangNghi,phep_du_payout_vnd:payoutAmount},
+      {onConflict:'user_id,thang'}
+    );
+    toast('Đã ghi nhận thanh toán phép dư '+vnd(payoutAmount)+' vào lương tháng '+thangNghi);
+  }
 }
 
 async function toggleEmpStatus(id,newStatus,ngayNghi){
@@ -5311,6 +5425,7 @@ async function saveNewEmp(){
   var password=document.getElementById('ae-password').value||null;
   var startDate=document.getElementById('ae-start-date').value||null;
   var ngayBatDauTinhLuong=document.getElementById('ae-ngay-bat-dau-tinh-luong').value||null;
+  var ngayLenChinhThuc=document.getElementById('ae-ngay-len-chinh-thuc').value||null;
   var birthday=document.getElementById('ae-birthday').value||null;
   var contractType=document.getElementById('ae-contract').value;
   var soNguoiPhuThuoc=parseInt(document.getElementById('ae-so-nguoi-phu-thuoc').value)||0;
@@ -5366,7 +5481,7 @@ async function saveNewEmp(){
 
     var payload={
       full_name:hoTen,nickname:bietDanh||null,employee_code:maNV,
-      role,lever,start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong,birthday:birthday||null,
+      role,lever,start_date:startDate||null,ngay_bat_dau_tinh_luong:ngayBatDauTinhLuong,ngay_len_chinh_thuc:ngayLenChinhThuc,birthday:birthday||null,
       contract_type:contractType,is_active:true,status:'active',so_nguoi_phu_thuoc:soNguoiPhuThuoc,
       phone:phone,cccd:cccd,cccd_ngay_cap:cccdNgayCap,cccd_noi_cap:cccdNoiCap,quoc_tich:quocTich,
       mst_ca_nhan:mstCaNhan,so_bhxh:soBHXH,
@@ -6458,7 +6573,7 @@ async function renderDashboard(){
   // ── Target Team = Σ target từng Sale (thử việc × 85%, chính thức × 100%) ──
   var TARGET_CHINH_THUC=23500, TARGET_THU_VIEC=19975;
   var planDSTeam=saleProfiles.reduce(function(s,p){
-    var t=(p.contract_type==='probation'||p.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    var t=(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
     return s+t*planMonths;
   },0);
   var planDon=tgt.target_don_hang*planMonths;
@@ -6634,7 +6749,7 @@ async function renderDashboard(){
   }).sort(function(a,b){
     function rank(p){
       if(!p.is_active||p.status==='inactive'||p.ngay_nghi_viec)return 2;
-      if(p.contract_type==='probation'||p.contract_type==='thu-viec')return 1;
+      if(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended')return 1;
       return 0;
     }
     return rank(a)-rank(b);
@@ -6644,7 +6759,7 @@ async function renderDashboard(){
     var isResigned=!p.is_active||p.status==='inactive'||!!p.ngay_nghi_viec;
     var resignedSince=p.ngay_nghi_viec||null;
     var daysSinceResign=resignedSince?Math.floor((new Date()-new Date(resignedSince))/(1000*60*60*24)):0;
-    var myTarget=(p.contract_type==='probation'||p.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    var myTarget=(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
     var totalTarget=180*totalWorkDays;
     var totalTalkTarget=120*totalWorkDays;
     var totalPotTarget=4*totalWorkDays;
@@ -6674,7 +6789,7 @@ async function renderDashboard(){
     return '<tr style="border-bottom:1px solid var(--border)">'+
       '<td style="padding:10px 12px;white-space:nowrap">'+
         '<div style="font-weight:600;font-size:13px;color:'+(isResigned?'rgba(239,68,68,0.7)':'var(--text)')+'">'+p.full_name+(isResigned?' <span style="font-size:9px;color:rgba(239,68,68,0.7);background:rgba(239,68,68,0.1);border-radius:4px;padding:1px 5px">Nghỉ việc</span>':'')+'</div>'+
-        '<div style="font-size:10px;color:var(--text3)">'+p.employee_code+(p.contract_type==='probation'||p.contract_type==='thu-viec'?' · Thử việc':'')+' · Target: $'+myTarget.toLocaleString()+'</div>'+
+        '<div style="font-size:10px;color:var(--text3)">'+p.employee_code+(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended'?' · Thử việc':'')+' · Target: $'+myTarget.toLocaleString()+'</div>'+
         (isResigned&&resignedSince?'<div style="font-size:10px;color:rgba(239,68,68,0.6)">Nghỉ từ '+resignedSince+' · '+daysSinceResign+' ngày</div>':'')+
       '</td>'+
       weekCells+
@@ -6722,7 +6837,7 @@ async function renderDashboard(){
   var medals=['🥇','🥈','🥉'];
   document.getElementById('leaderboard-list').innerHTML=''; // reset
   document.getElementById('leaderboard-list').innerHTML=lbArr.length===0?'<div class="empty">Chưa có dữ liệu</div>':lbArr.map(function(s,i){
-    var myT=(s.emp.contract_type==='probation'||s.emp.contract_type==='thu-viec')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
+    var myT=(s.emp.contract_type==='probation'||s.emp.contract_type==='thu-viec'||s.emp.contract_type==='probation_extended')?TARGET_THU_VIEC:TARGET_CHINH_THUC;
     var pct=myT>0?(s.ds/myT*100):0;
     var bc=i===0?'var(--warn)':i===1?'rgba(192,192,192,0.5)':i===2?'rgba(205,127,50,0.5)':'var(--border)';
     var dsD=s.ds>0?'$'+s.ds.toLocaleString('en-US',{maximumFractionDigits:0}):'—';
@@ -6823,7 +6938,7 @@ async function renderSaleDashboard(){
   document.getElementById('sdash-content').innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner"></div></div>';
 
   const uid=curProfile.id;
-  const isProbation=(curProfile.contract_type==='probation'||curProfile.contract_type==='thu-viec');
+  const isProbation=(curProfile.contract_type==='probation'||curProfile.contract_type==='thu-viec'||curProfile.contract_type==='probation_extended');
   const myTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
   const workDaysNext=calcWorkDaysInMonth(sdashYear,sdashMonth===11?0:sdashMonth+1,sdashYear+(sdashMonth===11?1:0));
 
