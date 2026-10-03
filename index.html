@@ -2557,8 +2557,8 @@ async function exportOrdersExcel(){
         const isProbUid=pUid&&(pUid.contract_type==='probation'||pUid.contract_type==='thu-viec');
         let tyLeDat=total>=(isProbUid?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
         if(tyLeDat<1.0&&uid!=='_'){
-          const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
-          if((nextSal?.backup_bonus_usd||0)>0)tyLeDat=1.0;
+          const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_triggered').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
+          if(nextSal?.backup_bonus_triggered)tyLeDat=1.0;
         }
         bracketCache2[bm+'|'+uid]={rate,tyLeDat};
       }));
@@ -3356,8 +3356,8 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
       // Liên kết Backup Bonus — giống hệt calcSalaryForEmp, giữ số hiển thị
       // ở Tab Đơn hàng khớp đúng số thật trên phiếu lương.
       if(tyLeDat<1.0&&uid!=='_'){
-        const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
-        if((nextSal?.backup_bonus_usd||0)>0)tyLeDat=1.0;
+        const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_triggered').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
+        if(nextSal?.backup_bonus_triggered)tyLeDat=1.0;
       }
       bracketCache[bm+'|'+uid]={rate,tyLeDat};
     }));
@@ -4168,15 +4168,16 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const bmTarget=isProbation?TARGET_USD*0.85:TARGET_USD; // xấp xỉ — bậc thử việc có thể đổi theo thời điểm đó
     let bmTyLeDat=bmTotal>=bmTarget?1.0:0.5;
     // Liên kết với Backup Bonus: nếu tháng `bm` không tự đạt target, nhưng
-    // tháng NGAY SAU đó đã bù đủ GAP thành công (backup_bonus_usd>0 cho đúng
-    // nhân viên này) — coi `bm` NHƯ ĐÃ ĐẠT (100%) cho MỌI đơn Deferred từ
-    // tháng đó, nhất quán với tinh thần Backup Bonus, không chỉ dừng ở riêng
-    // khoản top-up 1 lần trả vào tháng sau.
+    // tháng NGAY SAU đó đã bù đủ GAP thành công — coi `bm` NHƯ ĐÃ ĐẠT (100%)
+    // cho MỌI đơn Deferred từ tháng đó. Dùng cờ `backup_bonus_triggered`
+    // (KHÔNG dùng backup_bonus_usd>0 — số tiền top-up có thể ra đúng $0 dù
+    // điều kiện ĐÃ đạt, nếu tháng gốc vốn P3A=$0 sẵn, không có gì để "trả
+    // thêm"; dùng $ làm tín hiệu sẽ bỏ sót chính xác case này).
     if(bmTyLeDat<1.0){
       const [by,bmo]=bm.split('-').map(Number);
       const nextThang=`${bmo===12?by+1:by}-${pad2(bmo===12?1:bmo+1)}`;
-      const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_usd').eq('user_id',empId).eq('thang',nextThang).maybeSingle();
-      if((nextSal?.backup_bonus_usd||0)>0)bmTyLeDat=1.0;
+      const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_triggered').eq('user_id',empId).eq('thang',nextThang).maybeSingle();
+      if(nextSal?.backup_bonus_triggered)bmTyLeDat=1.0;
     }
     bracketCache[bm]={rate:rateExtraForGiuong(bmGiuong).rate,tyLeDat:bmTyLeDat};
   }));
@@ -4260,6 +4261,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // Điều kiện: tháng trước không đạt target VÀ tháng này DS ≥ Target + GAP tháng trước
   // Chỉ áp dụng 2 tháng liền kề — không carry forward
   let backupBonusUsd=0;
+  let backupBonusTriggered=false;
   try{
     // Tháng trước = tháng T-1
     const prevYear=salMonth===0?salYear-1:salYear;
@@ -4294,7 +4296,11 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
       const curDT=dtTotalForTarget;
 
       if(gap>0&&curDT>=curTarget+gap){
-        // Đủ điều kiện — tính bonus đã mất tháng trước
+        // Đủ điều kiện — tính bonus đã mất tháng trước. Luôn set cờ
+        // "triggered" bất kể số tiền top-up tính ra bao nhiêu (có thể = 0
+        // nếu tháng gốc vốn P3A=0, không có gì để trả thêm — nhưng VẪN
+        // coi là đã bù GAP thành công cho mục đích liên kết tyLeDat).
+        backupBonusTriggered=true;
         const p3aFull=prevSal.p3a_ty_le_dat>0
           ?(prevSal.p3a_total_usd/prevSal.p3a_ty_le_dat)
           :0;
@@ -4335,7 +4341,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     p3a_vuot_target_usd:vuotBonus,p3a_chenh_lech_usd:bonusChenh,
     p3a_base_usd:bonusBase,
     p3a_ty_le_dat:tyLeDat,p3a_total_usd:p3aTotalUsd,ty_gia:TY_GIA,
-    backup_bonus_usd:backupBonusUsd,
+    backup_bonus_usd:backupBonusUsd,backup_bonus_triggered:backupBonusTriggered,
     thuong_le_vnd:thuongLeVnd,
     tong_luong_vnd:tongLuong,
     bhxh_vnd:bhxhVnd,so_nguoi_phu_thuoc_snapshot:soNguoiPhuThuoc,
@@ -6853,7 +6859,7 @@ async function renderSaleDashboard(){
     sb.from('kpi_monthly').select('*').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',thang).or('order_status.is.null,order_status.neq.Cancelled'),
     sb.from('orders').select('total_amount,is_settled,billing_month').eq('user_id',uid).eq('billing_month',prevThang).or('order_status.is.null,order_status.neq.Cancelled'),
-    sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd').eq('user_id',uid).eq('thang',thang).maybeSingle(),
+    sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat,backup_bonus_usd,backup_bonus_triggered').eq('user_id',uid).eq('thang',thang).maybeSingle(),
     sb.from('salary_monthly').select('p3a_total_usd,p3a_ty_le_dat').eq('user_id',uid).eq('thang',prevThang).maybeSingle(),
     sb.from('daily_tracking').select('total_calls,talktime_phut,potential_calls,so_bao_gia')
       .eq('user_id',uid).gte('ngay',firstDay).lte('ngay',todayStr),
@@ -6917,7 +6923,7 @@ async function renderSaleDashboard(){
   const bonusDaMat=prevTyLe<1&&prevTyLe>0
     ?Math.max(0,(salPrev.p3a_total_usd||0)/prevTyLe-(salPrev.p3a_total_usd||0)):0;
   const needForBackup=prevTyLe<1&&prevGap>0?myTarget+prevGap:0;
-  const backupDone=(salCur.backup_bonus_usd||0)>0;
+  const backupDone=!!salCur.backup_bonus_triggered;
   const backupPct=needForBackup>0?Math.min(100,Math.round(dsCur/needForBackup*100)):0;
 
   // Số ngày làm tháng tới
