@@ -2204,8 +2204,8 @@ async function openDayModalById(empId, ds){
     .eq('user_id', empId).eq('date', ds).maybeSingle();
   openDayModal(empId, ds,
     rec ? rec.status : 'WD',
-    fmtTime(rec.checkin_time)||'',
-    fmtTime(rec.checkout_time)||'',
+    rec?fmtTime(rec.checkin_time)||'':'',
+    rec?fmtTime(rec.checkout_time)||'':'',
     rec && rec.note ? rec.note : '',
     !!rec
   );
