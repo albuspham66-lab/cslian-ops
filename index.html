@@ -20,6 +20,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 :root{
   --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#20253a;
@@ -1380,6 +1381,11 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ae-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
       <div class="form-f"><label>Số điện thoại</label><input type="text" id="ae-phone" placeholder="0901234567"/></div>
+      <div class="form-f" style="grid-column:1/-1">
+        <label>📷 Quét CCCD <span style="color:var(--text3);font-weight:400">— tự điền Số CCCD/Họ tên/Ngày sinh/Địa chỉ từ mã QR, xem lại trước khi lưu</span></label>
+        <input type="file" accept="image/*" id="ae-cccd-scan" onchange="scanCccdQr(this,'ae')" style="padding:8px"/>
+        <div id="ae-cccd-scan-msg" style="font-size:12px;margin-top:4px"></div>
+      </div>
       <div class="form-f"><label>CCCD</label><input type="text" id="ae-cccd" placeholder="012345678901"/></div>
       <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ae-cccd-ngay-cap"/></div>
       <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ae-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
@@ -1449,6 +1455,11 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ep-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
       <div class="form-f"><label>Số điện thoại</label><input type="text" id="ep-phone" placeholder="0901234567"/></div>
+      <div class="form-f" style="grid-column:1/-1">
+        <label>📷 Quét CCCD <span style="color:var(--text3);font-weight:400">— tự điền Số CCCD/Họ tên/Ngày sinh/Địa chỉ từ mã QR, xem lại trước khi lưu</span></label>
+        <input type="file" accept="image/*" id="ep-cccd-scan" onchange="scanCccdQr(this,'ep')" style="padding:8px"/>
+        <div id="ep-cccd-scan-msg" style="font-size:12px;margin-top:4px"></div>
+      </div>
       <div class="form-f"><label>CCCD</label><input type="text" id="ep-cccd" placeholder="012345678901"/></div>
       <div class="form-f"><label>Ngày cấp CCCD</label><input type="date" id="ep-cccd-ngay-cap"/></div>
       <div class="form-f"><label>Nơi cấp CCCD</label><input type="text" id="ep-cccd-noi-cap" placeholder="Cục Cảnh sát QLHC về TTXH"/></div>
@@ -2228,6 +2239,68 @@ function openDayModal(empId,ds,status,ci,co,note,hasRecord){
   document.getElementById('day-modal').classList.add('open');
 }
 function dmToggle(){document.getElementById('dm-time-fields').style.display=document.getElementById('dm-status').value==='WD'?'block':'none';}
+// Quét mã QR trên CCCD gắn chip (góc phải mặt trước) — giải mã HOÀN TOÀN
+// phía trình duyệt bằng jsQR, không gọi API/server nào, không cần giấu key.
+// Thứ tự field chuẩn trong QR: Số CCCD|Số CMND cũ|Họ tên|Ngày sinh(DDMMYYYY)
+// |Giới tính|Địa chỉ thường trú|Ngày cấp(DDMMYYYY) — phân cách bằng "|".
+function cccdDateToISO(d){
+  // "DDMMYYYY" (8 số) → "YYYY-MM-DD" cho input type=date
+  if(!d||d.length!==8)return'';
+  return`${d.slice(4,8)}-${d.slice(2,4)}-${d.slice(0,2)}`;
+}
+async function scanCccdQr(inputEl,prefix){
+  const msgEl=document.getElementById(prefix+'-cccd-scan-msg');
+  const file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  msgEl.style.color='var(--text3)';msgEl.textContent='Đang đọc mã QR...';
+  try{
+    const dataUrl=await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('Không đọc được file'));
+      r.readAsDataURL(file);
+    });
+    const img=await new Promise((res,rej)=>{
+      const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('Ảnh lỗi'));im.src=dataUrl;
+    });
+    // Giới hạn kích thước để giải mã nhanh, không ảnh hưởng độ chính xác QR
+    const maxW=1600;const scale=img.width>maxW?maxW/img.width:1;
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(imgData.data,imgData.width,imgData.height);
+    if(!code||!code.data){
+      msgEl.style.color='var(--danger)';
+      msgEl.textContent='❌ Không tìm thấy mã QR trong ảnh — chụp lại rõ hơn (đủ sáng, không lóa, QR nằm trọn khung hình) hoặc nhập tay bên dưới.';
+      inputEl.value='';
+      return;
+    }
+    const parts=code.data.split('|');
+    if(parts.length<6){
+      msgEl.style.color='var(--danger)';
+      msgEl.textContent='❌ Mã QR đọc được nhưng không đúng định dạng CCCD gắn chip (có thể là CMND cũ không có QR, hoặc QR khác) — vui lòng nhập tay.';
+      inputEl.value='';
+      return;
+    }
+    const [soCccd,,hoTen,ngaySinh,,diaChi,ngayCap]=parts;
+    if(soCccd)document.getElementById(prefix+'-cccd').value=soCccd;
+    if(hoTen)document.getElementById(prefix+'-name').value=hoTen;
+    const isoNgaySinh=cccdDateToISO(ngaySinh);
+    if(isoNgaySinh)document.getElementById(prefix+'-birthday').value=isoNgaySinh;
+    if(diaChi)document.getElementById(prefix+'-address').value=diaChi;
+    const isoNgayCap=cccdDateToISO(ngayCap);
+    const ngayCapEl=document.getElementById(prefix+'-cccd-ngay-cap');
+    if(isoNgayCap&&ngayCapEl)ngayCapEl.value=isoNgayCap;
+    msgEl.style.color='var(--success)';
+    msgEl.textContent='✅ Đã đọc mã QR — kiểm tra lại các ô bên dưới trước khi Lưu. Trường "Nơi cấp" không có trong QR, cần nhập tay.';
+  }catch(e){
+    msgEl.style.color='var(--danger)';
+    msgEl.textContent='❌ Lỗi xử lý ảnh: '+e.message+' — thử chụp lại hoặc nhập tay.';
+    inputEl.value='';
+  }
+}
+
 async function saveDay(){
   if(!editingDay)return;
   const{empId,ds}=editingDay;
