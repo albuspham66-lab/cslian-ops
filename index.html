@@ -1376,7 +1376,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <select id="ae-contract">
           <option value="official">Chính thức</option>
           <option value="probation">Thử việc</option>
-          <option value="probation_extended">Thử việc gia hạn (tính như chính thức, lương mức thử việc)</option>
+          <option value="probation_extended">Thử việc gia hạn (lương 100% như chính thức, target mức thử việc 85%)</option>
         </select>
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ae-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
@@ -1450,7 +1450,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
         <select id="ep-contract">
           <option value="chinh-thuc">Chính thức</option>
           <option value="thu-viec">Thử việc</option>
-          <option value="probation_extended">Thử việc gia hạn (tính như chính thức, lương mức thử việc)</option>
+          <option value="probation_extended">Thử việc gia hạn (lương 100% như chính thức, target mức thử việc 85%)</option>
         </select>
       </div>
       <div class="form-f"><label>Số người phụ thuộc (giảm trừ thuế TNCN)</label><input type="number" id="ep-so-nguoi-phu-thuoc" min="0" step="1" placeholder="0"/></div>
@@ -4239,12 +4239,9 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // hơn lương sàn quy định. Hệ số thử việc (0.85) áp dụng ở BƯỚC SAU dưới
   // dạng 1 dòng "Điều chỉnh thử việc" trừ vào TỔNG, không trừ riêng từng dòng.
   const congRatio=ngayCong/congChuan;
-  // Hệ số mức lương thử việc gia hạn — nhân NGAY TỪ ĐẦU vào từng input,
-  // để toàn bộ pipeline phía sau (BHXH/thuế/thực lĩnh) chạy y hệt chính
-  // thức trên mức lương ĐÃ giảm, thay vì trừ 1 cục ở cuối như thử việc
-  // thường (cách đó để lộ rõ "format thử việc" trên phiếu lương — sai luật
-  // nếu áp dụng quá 2 tháng).
-  const heSoMucLuong=isProbationExtended?0.85:1.0;
+  // Thử việc gia hạn: lương 100% ngay từ đầu (không nhân 0.85), chạy y hệt
+  // chính thức (BHXH, thuế lũy tiến). Chỉ Target vẫn ở mức thử việc 85%.
+  const heSoMucLuong=1.0;
   const p1=Math.round(LUONG_CUNG/congChuan*ngayCong*heSoMucLuong);
   const p2a=Math.round(504550*congRatio*heSoMucLuong); // P2A — Phụ cấp ăn giữa ca (trước đây gộp chung 704,550 với đi lại)
   const p3d=Math.round(200000*congRatio*heSoMucLuong); // P3D — Phụ cấp đi lại/xăng xe (tách riêng từ P2A)
@@ -4473,9 +4470,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   const tongLuong=p1+p2a+p2b+p2c+p3b+p3c+p3d+p3aVnd+backupBonusVnd+thuongLeVnd+phepDuPayoutVnd;
 
   // ── BHXH & Thuế TNCN — tính trên GROSS ĐỦ 100% ──────────────────────
-  // Thử việc gia hạn: BHXH đóng trên P1 đã giảm 85%, NHƯNG không được thấp
-  // hơn sàn Vùng I (Nghị định 293/2025/NĐ-CP) — nếu P1 giảm xuống dưới sàn,
-  // vẫn phải đóng BHXH tính trên đúng mức sàn.
+  // Thử việc gia hạn: BHXH đóng trên P1 (100%), không thấp hơn sàn Vùng I
+  // (Nghị định 293/2025/NĐ-CP).
   const p1ChoBHXH=isProbationExtended?Math.max(p1,LUONG_TOI_THIEU_VUNG_I):p1;
   const bhxhVnd=calcBHXH(p1ChoBHXH,isProbation);
   const soNguoiPhuThuoc=emp.so_nguoi_phu_thuoc||0;
