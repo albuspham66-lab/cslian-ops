@@ -3113,7 +3113,9 @@ async function exportTaxReportExcel(){
 // ── Modal chi tiết lương (Báo cáo thuế → bấm 1 hàng) ────────────────
 function computeTaxDetailFigures(r){
   const isProbation=r.p1_he_so===0.85;
-  const p1=r.p1_thuc_te||0;
+  // Mức đóng BHXH thật = bhxh_vnd/10.5% (thử việc gia hạn có thể đóng trên
+  // sàn Vùng I, cao hơn P1 thực tế); không có thì dùng P1.
+  const p1=(!isProbation&&r.bhxh_vnd>0)?Math.round(r.bhxh_vnd/BH_TOTAL_RATE):(r.p1_thuc_te||0);
   const bhxhNld_bhxh=isProbation?0:Math.round(p1*BHXH_NLD_RATE);
   const bhxhNld_bhyt=isProbation?0:Math.round(p1*BHYT_NLD_RATE);
   const bhxhNld_bhtn=isProbation?0:Math.round(p1*BHTN_NLD_RATE);
@@ -4951,7 +4953,7 @@ async function exportSalaryTableExcel(){
       sal.p3b_chuyen_can||0, sal.p3c_kpi||0, bonusHeadspa, bonusDsChenh, bonusVuot,
       sal.thuong_le_vnd||0,
       sal.ngay_cong_thuc_te||0, sal.cong_chuan_thang||0,
-      sal.tong_luong_vnd||0, f.isProbation?0:(sal.p1_thuc_te||0),
+      sal.tong_luong_vnd||0, f.isProbation?0:f.p1,
       f.bhxhCty_bhxh, f.bhxhCty_bhyt, f.bhxhCty_bhtn, f.bhxhCty_cong,
       f.bhxhNld_bhxh, f.bhxhNld_bhyt, f.bhxhNld_bhtn, f.bhxhNld_cong,
       f.tnct, f.tntt||0, sal.thue_tncn_vnd||0, sal.tam_ung_vnd||0, tongThuNhapSauThue, thucLinh,
