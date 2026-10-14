@@ -616,7 +616,7 @@ textarea{resize:vertical;min-height:72px;}
       <div class="ph-sub">Quản lý chi tiêu và phân tích lợi nhuận</div>
     </div>
     <div class="ph-right">
-      <button class="btn btn-primary btn-sm" onclick="openModal('m-exp')">+ Thêm chi phí</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()">+ Thêm chi phí</button>
     </div>
   </div>
 
@@ -984,7 +984,13 @@ textarea{resize:vertical;min-height:72px;}
         <div class="fg"><label class="fl">% Extra Bonus</label><input type="number" id="cfg-extra" value="30"></div>
         <div class="fg"><label class="fl">Lương cơ bản (P1 base)</label><input type="number" id="cfg-p1" value="5310000"></div>
       </div>
-      <div style="margin-top:14px;"><button class="btn btn-success" onclick="saveSettings()">Lưu cài đặt</button></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:16px;">
+        <button class="btn btn-success" onclick="saveSettings()">Lưu cài đặt</button>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
+          <input type="checkbox" id="cfg-manager-mode" style="accent-color:var(--blue2);width:16px;height:16px;" onchange="toggleManagerMode(this.checked)">
+          <span>Chế độ Manager (cho phép chỉnh sửa chi phí)</span>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -1038,7 +1044,7 @@ textarea{resize:vertical;min-height:72px;}
 <!-- Modal: Thêm chi phí -->
 <div class="mbg" id="m-exp">
   <div class="modal">
-    <div class="modal-title">Thêm chi phí</div>
+    <div class="modal-title" id="m-exp-title">Thêm chi phí</div>
     <div class="fgrid2">
       <div class="fg"><label class="fl">Ngày</label><input type="date" id="e-date"></div>
       <div class="fg"><label class="fl">Số tiền (VNĐ)</label><input type="number" id="e-amount" min="0" placeholder="0"></div>
@@ -1060,7 +1066,7 @@ textarea{resize:vertical;min-height:72px;}
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('m-exp')">Huỷ</button>
-      <button class="btn btn-primary" onclick="addExpense()">Thêm</button>
+      <button class="btn btn-primary" id="m-exp-save-btn" onclick="saveExpense()">Thêm</button>
     </div>
   </div>
 </div>
@@ -2603,19 +2609,55 @@ function renderExpenseTable(){
     <td>${e._salary
       ?`<button class="act-btn" onclick="openSalaryEdit(${e._salaryId})" title="Chỉnh sửa lương">✏️</button>
          <button class="act-btn act-del" onclick="deleteSalary(${e._salaryId})" title="Xoá">✕</button>`
-      :`<button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button>`}
+      :`${isManager()?`<button class="act-btn" onclick="editExpense('${e.id}')" title="Chỉnh sửa">✏️</button>`:''}
+       <button class="act-btn act-del" onclick="delExpense('${e.id}')">✕</button>`}
     </td>
   </tr>`).join('');
   setTxt('exp-foot',fmtVND(total));
 }
 
-async function addExpense(){
+function openAddExpenseModal(){
+  _editingExpenseId=null;
+  document.getElementById('m-exp-title').textContent='Thêm chi phí';
+  document.getElementById('m-exp-save-btn').textContent='Thêm';
+  document.getElementById('e-date').value=today();
+  document.getElementById('e-amount').value='';
+  document.getElementById('e-desc').value='';
+  document.getElementById('e-cat').value='Thuê nhà';
+  document.getElementById('e-type').value='ops';
+  document.getElementById('e-by').value='Manager';
+  document.getElementById('e-note').value='';
+  openModal('m-exp');
+}
+function editExpense(id){
+  if(!isManager()){toast('Chỉ Manager mới có thể chỉnh sửa chi phí','amber');return;}
+  const e=allExpenses.find(x=>x.id==id||x.id===id);
+  if(!e){toast('Không tìm thấy chi phí','red');return;}
+  _editingExpenseId=id;
+  document.getElementById('m-exp-title').textContent='✏️ Chỉnh sửa chi phí';
+  document.getElementById('m-exp-save-btn').textContent='Lưu';
+  document.getElementById('e-date').value=e.ngay||today();
+  document.getElementById('e-amount').value=e.so_tien||'';
+  document.getElementById('e-desc').value=e.mo_ta||'';
+  document.getElementById('e-cat').value=e.danh_muc||'Thuê nhà';
+  document.getElementById('e-type').value=e.loai||'ops';
+  document.getElementById('e-by').value=e.nguoi_chi||'Manager';
+  document.getElementById('e-note').value=e.ghi_chu||'';
+  openModal('m-exp');
+}
+async function saveExpense(){
   const ngay=document.getElementById('e-date').value||today();
-  const thang=ngay.slice(0,7); // lấy tháng từ ngày thực tế, không phải kỳ đang xem
+  const thang=ngay.slice(0,7);
   const data={thang,ngay,mo_ta:document.getElementById('e-desc').value,danh_muc:document.getElementById('e-cat').value,loai:document.getElementById('e-type').value,nguoi_chi:document.getElementById('e-by').value,so_tien:parseFloat(document.getElementById('e-amount').value)||0,ghi_chu:document.getElementById('e-note').value};
   if(!data.mo_ta){toast('Vui lòng nhập mô tả','amber');return;}
-  try{await sbInsert('expenses',data);closeModal('m-exp');await loadAll();toast('Đã thêm chi phí','green');}
-  catch(e){toast('Lỗi: '+e.message,'red');}
+  try{
+    if(_editingExpenseId){
+      await fetch(`${CFG.url}/rest/v1/expenses?id=eq.${_editingExpenseId}`,{method:'PATCH',headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(data)});
+      closeModal('m-exp');await loadAll();toast('Đã cập nhật chi phí','green');
+    }else{
+      await sbInsert('expenses',data);closeModal('m-exp');await loadAll();toast('Đã thêm chi phí','green');
+    }
+  }catch(e){toast('Lỗi: '+e.message,'red');}
 }
 async function delExpense(id){
   try{await sbDelete('expenses',id);await loadAll();toast('Đã xoá','green');}
@@ -2769,6 +2811,8 @@ async function toggleCommReceived(orderId,val){
 
 // ─── TẠM ỨNG ───
 let allTamUng=[];
+let _editingExpenseId=null;
+function isManager(){return !!(CFG.managerMode);}
 async function loadTamUng(){
   try{
     const r=await fetch(`${CFG.url}/rest/v1/tam_ung?order=ngay.desc`,{headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`}});
@@ -2795,13 +2839,14 @@ function renderTamUng(){
   const list=document.getElementById('tu-list');
   if(list){
     list.innerHTML=allTamUng.length?allTamUng.map(t=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bord);">
-        <span class="b ${t.nguoi==='Leader'?'b-purple':'b-blue'}" style="font-size:10px;">${t.nguoi}</span>
-        <span style="flex:1;color:var(--text2);">${t.ngay} · ${t.ghi_chu||'—'}</span>
-        <span style="color:var(--amber2);font-weight:600;">${fmtVND(t.so_tien)}</span>
-        <input type="checkbox" ${t.da_hoan?'checked':''} title="Đã hoàn" style="accent-color:var(--green2);cursor:pointer;"
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--bord);flex-wrap:nowrap;min-width:0;">
+        <span style="color:var(--text2);font-size:11px;white-space:nowrap;flex-shrink:0;">${t.ngay}</span>
+        <span class="b ${t.nguoi==='Leader'?'b-purple':'b-blue'}" style="font-size:10px;flex-shrink:0;">${t.nguoi}</span>
+        <span style="flex:1;color:var(--text2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${t.ghi_chu||'—'}</span>
+        <span style="color:var(--amber2);font-weight:600;font-size:12px;white-space:nowrap;flex-shrink:0;">${fmtVND(t.so_tien)}</span>
+        <input type="checkbox" ${t.da_hoan?'checked':''} title="Đã hoàn" style="accent-color:var(--green2);cursor:pointer;flex-shrink:0;"
           onchange="toggleTamUngHoan(${t.id},this.checked)">
-        <button class="act-btn act-del" style="padding:2px 6px;" onclick="delTamUng(${t.id})">✕</button>
+        <button class="act-btn act-del" style="padding:2px 5px;flex-shrink:0;" onclick="delTamUng(${t.id})">✕</button>
       </div>`).join(''):'<div style="color:var(--text3);text-align:center;padding:16px;">Chưa có dữ liệu</div>';
   }
 }
@@ -3652,6 +3697,7 @@ function renderSettings(){
   document.getElementById('cfg-extra').value=CFG.extraPct||30;
   document.getElementById('cfg-p1').value=CFG.p1base||5310000;
   setTxt('fx-usd',(CFG.rate||25000).toLocaleString('vi-VN'));
+  const mgr=document.getElementById('cfg-manager-mode');if(mgr)mgr.checked=!!(CFG.managerMode);
 
   // Staff config table
   document.getElementById('staff-cfg-body').innerHTML=allProfiles.map(p=>{
@@ -3673,6 +3719,12 @@ function renderSettings(){
 function saveConfig(){
   CFG.url=document.getElementById('cfg-url').value;CFG.key=document.getElementById('cfg-key').value;
   localStorage.setItem('cslian_cfg_v4',JSON.stringify(CFG));loadAll();
+}
+function toggleManagerMode(val){
+  CFG.managerMode=val;
+  localStorage.setItem('cslian_cfg_v4',JSON.stringify(CFG));
+  renderExpenseTable();
+  toast(val?'✅ Đã bật chế độ Manager':'🔒 Đã tắt chế độ Manager', val?'green':'amber');
 }
 function saveSettings(){
   CFG.rate=parseFloat(document.getElementById('cfg-rate').value)||25000;
