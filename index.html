@@ -141,6 +141,38 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .chip-earn{background:var(--info-bg);color:var(--accent);border:1px solid rgba(79,127,255,0.2)}
 .chip-late{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(255,181,71,0.2)}
 
+/* CHECKIN — layout mới (giữ nguyên tone màu hệ thống) */
+.ci-hero{text-align:center;padding:28px 20px 22px}
+.ci-top{flex-direction:column;align-items:center;gap:10px}
+.ci-greet{font-size:12px;color:var(--text2)}
+.ci-clock{font-size:52px;font-weight:700;letter-spacing:1px;line-height:1.1;margin-top:14px;font-variant-numeric:tabular-nums}
+.ci-clock span{font-size:22px;color:var(--text3);font-weight:500}
+.ci-shiftline{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.ci-pill{background:var(--bg4);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:11px;color:var(--text2)}
+.ci-btns{justify-content:center;margin-top:22px}
+.ci-btns .ci-btn{width:150px;height:150px;border-radius:50%;flex-direction:column;justify-content:center;gap:6px;font-size:15px;padding:0;white-space:normal;text-align:center}
+.ci-btns .btn-dis{display:none}
+.ci-btns.ci-done .ci-btn{display:none}
+.ci-donebadge{display:none;width:150px;height:150px;border-radius:50%;background:var(--success-bg);border:2px solid rgba(34,199,122,0.3);color:var(--success);flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-weight:600;gap:4px}
+.ci-btns.ci-done .ci-donebadge{display:flex}
+.ci-status{justify-content:center}
+.ci-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.ci-stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.ci-stat-l{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.ci-stat-v{font-size:20px;font-weight:700;line-height:1}
+.ci-stat-v small{font-size:11px;font-weight:500;color:var(--text2);margin-left:3px}
+.ci-week{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px}
+.ci-week-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:600}
+.ci-week-h span{font-size:11px;font-weight:500;color:var(--text2)}
+.ci-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.ci-day{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 2px;text-align:center}
+.ci-day.today{border-color:var(--accent);background:var(--accent-glow)}
+.ci-day-n{font-size:10px;color:var(--text3)}
+.ci-day-d{font-size:15px;font-weight:700;margin:2px 0}
+.ci-day-h{font-size:10px;color:var(--text2);min-height:12px}
+.ci-day.off .ci-day-d{color:var(--text3)}
+@media(max-width:600px){.ci-clock{font-size:42px}.ci-btns .ci-btn,.ci-donebadge{width:130px;height:130px}.ci-stats{gap:6px}.ci-stat-v{font-size:17px}}
+
 /* LOG */
 .log-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px}
 .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -500,19 +532,28 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div style="margin-bottom:20px">
       <div class="ci-hero">
         <div class="ci-top">
+          <div class="ci-greet" id="ci-greet"></div>
           <div>
             <div class="emp-name-big" id="ci-name">—</div>
             <div class="emp-role-sub" id="ci-role"></div>
             <div id="ci-badge" style="margin-top:8px"></div>
           </div>
-          <div class="shift-info">🌙 Ca đêm 22:00 – 06:00</div>
         </div>
-        <div class="ci-btns">
+        <div class="ci-clock" id="ci-clock">--:--<span>:--</span></div>
+        <div class="ci-shiftline">
+          <span class="ci-pill">🌙 Ca đêm 22:00 – 06:00</span>
+          <span class="ci-pill">Bắt đầu 22:00</span>
+          <span class="ci-pill">Kết thúc 06:00</span>
+        </div>
+        <div class="ci-btns" id="ci-btns">
           <button class="ci-btn btn-in" id="btn-ci" onclick="doCheckIn()">✅ Check in</button>
           <button class="ci-btn btn-dis" id="btn-co" onclick="doCheckOut()" disabled>🚪 Check out</button>
+          <div class="ci-donebadge" id="ci-done">✔<span>Đã hoàn thành ca</span></div>
         </div>
         <div class="ci-status" id="ci-status-row"></div>
       </div>
+      <div class="ci-stats" id="ci-stats"></div>
+      <div class="ci-week"><div class="ci-week-h">Tuần này<span id="ci-week-total"></span></div><div class="ci-week-grid" id="ci-week-grid"></div></div>
       <div class="two-col">
         <div class="card"><div class="card-title"><span class="dot"></span>Hôm nay của bạn</div><div id="my-log-today"></div></div>
         <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>Lịch sử check log</div><div id="all-log-list" style="max-height:200px;overflow-y:auto"></div></div>
@@ -1757,6 +1798,8 @@ function updateClock(){
   document.getElementById('live-clock').textContent=`${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`;
   const days=['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
   document.getElementById('live-date').textContent=`${days[n.getDay()]}, ${pad2(n.getDate())}/${pad2(n.getMonth()+1)}/${n.getFullYear()}`;
+  const cc=document.getElementById('ci-clock');
+  if(cc)cc.innerHTML=`${pad2(n.getHours())}:${pad2(n.getMinutes())}<span>:${pad2(n.getSeconds())}</span>`;
 }
 setInterval(updateClock,1000);updateClock();
 
@@ -1991,6 +2034,9 @@ async function renderCheckinPage(){
     window._ciCache[_ciCacheKey]={rec,ts:Date.now()};
   }
   updateCIButtons(rec);renderMyLogToday(rec,p);
+  const gr=document.getElementById('ci-greet');
+  if(gr){const h=new Date().getHours();gr.textContent=(h<12?'Chào buổi sáng':h<18?'Chào buổi chiều':'Chào buổi tối')+', '+(p.nickname||p.full_name);}
+  renderCiWeek(p,ds).catch(e=>console.warn('[ci-week]',e));
 }
 
 function updateCIButtons(rec){
@@ -2024,6 +2070,56 @@ function updateCIButtons(rec){
     chips=`<span class="status-chip chip-wait">📍 Chưa check in hôm nay</span>`;
   }
   row.innerHTML=chips;
+  const btnsBox=document.getElementById('ci-btns');
+  if(btnsBox)btnsBox.classList.toggle('ci-done',!!(rec&&fmtTime(rec.checkin_time)&&fmtTime(rec.checkout_time)));
+}
+
+// Dải "Tuần này" + thẻ thống kê nhanh (chỉ hiển thị, không đổi cách tính công/lương)
+async function renderCiWeek(p,ds){
+  const box=document.getElementById('ci-week-grid');
+  if(!box)return;
+  const base=new Date(ds+'T12:00:00');
+  const dow=base.getDay();
+  const mon=new Date(base);mon.setDate(base.getDate()-((dow+6)%7));
+  const days=[];
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);days.push(dateStr(d.getFullYear(),d.getMonth(),d.getDate()));}
+  const {data}=await sb.from('attendance').select('date,status,checkin_time,checkout_time').eq('user_id',p.id).gte('date',days[0]).lte('date',days[6]);
+  const map={};(data||[]).forEach(r=>map[r.date]=r);
+  const _y=base.getFullYear(),_m=base.getMonth()+1;
+  const ln=luongNgayThang(_y,_m),lg=luongGioThang(_y,_m);
+  const names=['T2','T3','T4','T5','T6','T7','CN'];
+  let totalH=0,lateN=0;
+  box.innerHTML=days.map((d,i)=>{
+    const rec=map[d],isToday=d===ds,isWkEnd=i>=5;
+    let lab='';
+    if(rec){
+      if(rec.status==='NL')lab='Lễ';
+      else if(rec.status==='NP')lab='Phép';
+      else if(rec.status==='NKP')lab='K.phép';
+      else{
+        const r=calcDayLogic(rec,p.contract_type,ln,lg);
+        if(r.hours>0){lab=r.hours+'h';totalH+=r.hours;if(r.isLate)lateN++;}
+        else if(fmtTime(rec.checkin_time))lab='…';
+      }
+    } else if(isHL(d))lab='Lễ';
+    else if(isWkEnd)lab='Off';
+    return `<div class="ci-day${isToday?' today':''}${isWkEnd?' off':''}"><div class="ci-day-n">${names[i]}</div><div class="ci-day-d">${d.slice(8)}</div><div class="ci-day-h">${lab}</div></div>`;
+  }).join('');
+  const tot=document.getElementById('ci-week-total');
+  if(tot)tot.textContent=totalH+'h đã ghi nhận';
+  // Phép năm còn lại (chỉ khi đã có "Ngày lên chính thức")
+  let phepTxt='—',phepSub='';
+  try{
+    if(p.ngay_len_chinh_thuc){
+      const q=await calcLeaveQuota(p.id,p.ngay_len_chinh_thuc,ds);
+      phepTxt=String(q.remaining);phepSub='/ '+q.quota+' ngày';
+    }
+  }catch(e){}
+  const st=document.getElementById('ci-stats');
+  if(st)st.innerHTML=
+    `<div class="ci-stat"><div class="ci-stat-l">Phép năm còn lại</div><div class="ci-stat-v">${phepTxt}<small>${phepSub}</small></div></div>`+
+    `<div class="ci-stat"><div class="ci-stat-l">Giờ làm tuần này</div><div class="ci-stat-v">${totalH}<small>giờ</small></div></div>`+
+    `<div class="ci-stat"><div class="ci-stat-l">Đi trễ tuần này</div><div class="ci-stat-v">${lateN}<small>lần</small></div></div>`;
 }
 
 function renderMyLogToday(rec,p){
