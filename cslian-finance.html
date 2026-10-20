@@ -1178,54 +1178,85 @@ textarea{resize:vertical;min-height:72px;}
   <div class="modal modal-lg">
     <div class="modal-title" id="m-prod-title">Thêm sản phẩm</div>
     <input type="hidden" id="p-id">
-    <!-- Image upload -->
-    <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;padding:14px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);">
-      <div id="p-img-preview" style="width:90px;height:90px;border-radius:8px;border:1px solid var(--border2);overflow:hidden;flex-shrink:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">
-        Chưa có ảnh
-      </div>
-      <div style="flex:1;">
-        <div class="fl" style="margin-bottom:6px;">Hình ảnh sản phẩm</div>
-        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--card2);border:1px solid var(--border2);border-radius:var(--rsm);padding:7px 12px;font-size:12px;color:var(--text2);">
-          📁 Chọn ảnh (JPG/PNG)
+    <!-- 2-column layout -->
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start;">
+      <!-- LEFT: Image + identity -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Image preview -->
+        <div id="p-img-preview" style="width:100%;aspect-ratio:1;border-radius:10px;border:2px dashed var(--border2);overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;text-align:center;">
+          Chưa có ảnh
+        </div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;background:var(--card2);border:1px solid var(--border2);border-radius:var(--rsm);padding:8px 10px;font-size:12px;color:var(--text2);width:100%;box-sizing:border-box;">
+          📁 Chọn ảnh
           <input type="file" id="p-img-file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewProductImg(this)">
         </label>
-        <div id="p-img-url" style="font-size:10px;color:var(--text3);margin-top:6px;word-break:break-all;"></div>
-        <div id="p-img-status" style="font-size:11px;margin-top:4px;"></div>
+        <div id="p-img-url" style="font-size:10px;color:var(--text3);word-break:break-all;line-height:1.4;"></div>
+        <div id="p-img-status" style="font-size:11px;"></div>
+        <!-- SKU + Vendor -->
+        <div class="fg" style="margin:0;">
+          <label class="fl">SKU</label>
+          <input type="text" id="p-sku" list="p-sku-list" placeholder="VD: BLS-001" autocomplete="off"
+            oninput="onSkuInput(this.value)" style="text-transform:uppercase;">
+          <datalist id="p-sku-list"></datalist>
+          <div id="p-sku-hint" style="font-size:10px;color:var(--text3);margin-top:3px;min-height:14px;"></div>
+        </div>
+        <div class="fg" style="margin:0;">
+          <label class="fl">Vendor</label>
+          <select id="p-vendor" onchange="onVendorChange()">
+            <option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0;"><label class="fl">Trạng thái</label>
+          <select id="p-active"><option value="true">Active</option><option value="false">Inactive</option></select>
+        </div>
+        <div class="fg" style="margin:0;"><label class="fl">Tình trạng kho</label>
+          <select id="p-stock-status">
+            <option value="in_stock">In Stock</option>
+            <option value="out_of_stock">Out of Stock</option>
+            <option value="pre_order">Pre Order</option>
+          </select>
+        </div>
+      </div>
+      <!-- RIGHT: Pricing + details -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="fg" style="margin:0;"><label class="fl">Tên sản phẩm</label><input type="text" id="p-name" placeholder="VD: BOLSA Headspa Bed Pro"></div>
+        <div class="fg" style="margin:0;"><label class="fl">Màu / Variant</label><input type="text" id="p-variant" placeholder="VD: Black, White..."></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="fg" style="margin:0;"><label class="fl">Giá bán ($)</label><input type="number" id="p-gia-ban" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="fg" style="margin:0;"><label class="fl">Giá cost Vendor ($)</label><input type="number" id="p-vendor-cost" min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+        <!-- Commission rate: dropdown + custom -->
+        <div class="fg" style="margin:0;">
+          <label class="fl">Commission rate</label>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+            <select id="p-commission-preset" onchange="onCommPresetChange(this.value)" style="width:100%;">
+              <option value="3">3%</option>
+              <option value="5">5%</option>
+              <option value="7">7%</option>
+              <option value="custom">Tùy chỉnh...</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" id="p-commission" min="0" max="100" step="0.1" value="3"
+                style="width:64px;text-align:right;" oninput="onCommCustomInput(this.value)">
+              <span style="font-size:12px;color:var(--text2);">%</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="fg" style="margin:0;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Tùy chọn"></div>
+          <div class="fg" style="margin:0;"><label class="fl">Shipping</label><input type="text" id="p-shipping-fee" placeholder="VD: Free ship..."></div>
+        </div>
+        <!-- Bolsa: Headspa bed toggle (only shown for BOLSA) -->
+        <div class="fg" id="p-bolsa-wrap" style="display:none;align-items:center;padding:10px 12px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);flex-direction:row;gap:10px;margin:0;">
+          <input type="checkbox" id="p-la-bolsa" style="width:16px;height:16px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;">
+          <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
+        </div>
+        <div class="fg" style="margin:0;"><label class="fl">Mô tả (CRM)</label><textarea id="p-description" rows="2" placeholder="VD: Free shipping từ 4 ghế" style="resize:vertical;"></textarea></div>
+        <div class="fg" style="margin:0;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
+        <div class="fg" id="p-note-wrap" style="display:none;margin:0;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
       </div>
     </div>
-    <div class="fgrid2">
-      <div class="fg"><label class="fl">SKU</label><input type="text" id="p-sku" placeholder="VD: BLS-001"></div>
-      <div class="fg"><label class="fl">Vendor</label>
-        <select id="p-vendor" onchange="onVendorChange()">
-          <option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option>
-        </select>
-      </div>
-      <div class="fg" style="grid-column:span 2;"><label class="fl">Tên sản phẩm</label><input type="text" id="p-name" placeholder="VD: BOLSA Headspa Bed Pro"></div>
-      <div class="fg"><label class="fl">Giá bán C-Slian ($)</label><input type="number" id="p-gia-ban" min="0" step="0.01" placeholder="0.00"></div>
-      <div class="fg"><label class="fl">Giá cost Vendor ($)</label><input type="number" id="p-vendor-cost" min="0" step="0.01" placeholder="0.00"></div>
-      <div class="fg"><label class="fl">Commission rate (%)</label><input type="number" id="p-commission" min="0" max="100" step="0.1" value="3"></div>
-      <div class="fg"><label class="fl">Màu / Variant</label><input type="text" id="p-variant" placeholder="VD: Black, White..."></div>
-      <div class="fg"><label class="fl">Trạng thái</label>
-        <select id="p-active"><option value="true">Active</option><option value="false">Inactive</option></select>
-      </div>
-      <div class="fg" id="p-bolsa-wrap" style="display:none;align-items:center;padding:10px 12px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--border2);flex-direction:row;gap:10px;">
-        <input type="checkbox" id="p-la-bolsa" style="width:16px;height:16px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;">
-        <div><label for="p-la-bolsa" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Là Headspa Bed</label><div style="font-size:11px;color:var(--text3);margin-top:2px;">Bonus $15/sp thay vì 1% doanh số</div></div>
-      </div>
-      <div class="fg" style="grid-column:span 2;"><label class="fl">Best Price ($)</label><input type="number" id="p-best-price" min="0" step="0.01" placeholder="Giá tốt nhất (tuỳ chọn)"></div>
-      <div class="fg"><label class="fl">Tình trạng kho</label>
-        <select id="p-stock-status">
-          <option value="in_stock">In Stock</option>
-          <option value="out_of_stock">Out of Stock</option>
-          <option value="pre_order">Pre Order</option>
-        </select>
-      </div>
-      <div class="fg"><label class="fl">Shipping</label><input type="text" id="p-shipping-fee" placeholder="VD: Check ship, Free ship..."></div>
-      <div class="fg" style="grid-column:span 2;"><label class="fl">Mô tả (hiển thị bên CRM)</label><textarea id="p-description" rows="2" placeholder="VD: Free shipping từ 4 ghế" style="resize:vertical;"></textarea></div>
-      <div class="fg" style="grid-column:span 2;"><label class="fl">Ghi chú sản phẩm</label><input type="text" id="p-prod-note" placeholder="VD: 11 ghế trở lên, Free ship từ 8 ghế..."></div>
-      <div class="fg" id="p-note-wrap" style="grid-column:span 2;display:none;"><label class="fl">Lý do thay đổi giá</label><input type="text" id="p-note" placeholder="VD: Vendor tăng giá Q2/2026"></div>
-    </div>
-    <div class="mfoot">
+    <div class="mfoot" style="margin-top:16px;">
       <button class="btn btn-ghost" onclick="closeModal('m-prod')">Huỷ</button>
       <button class="btn btn-primary" id="m-prod-btn" onclick="saveProduct()">Thêm sản phẩm</button>
     </div>
@@ -3303,7 +3334,49 @@ function onVendorChange(resetCommission=true){
   const v=document.getElementById('p-vendor').value;
   document.getElementById('p-bolsa-wrap').style.display=v==='BOLSA'?'flex':'none';
   if(v!=='BOLSA')document.getElementById('p-la-bolsa').checked=false;
-  if(resetCommission)document.getElementById('p-commission').value=v==='TSPA'?3:v==='ONS'?1:0;
+  if(resetCommission){
+    const rate=v==='BOLSA'?5:v==='TSPA'?3:v==='ONS'?1:3;
+    setCommRate(rate);
+  }
+}
+function setCommRate(val){
+  document.getElementById('p-commission').value=val;
+  const preset=document.getElementById('p-commission-preset');
+  if(preset){
+    const match=['3','5','7'].includes(String(val))?String(val):'custom';
+    preset.value=match;
+  }
+}
+function onCommPresetChange(val){
+  if(val==='custom')return;
+  document.getElementById('p-commission').value=val;
+}
+function onCommCustomInput(val){
+  const preset=document.getElementById('p-commission-preset');
+  if(!preset)return;
+  const match=['3','5','7'].includes(String(parseFloat(val)))?String(parseFloat(val)):'custom';
+  preset.value=match;
+}
+function onSkuInput(val){
+  const upper=val.toUpperCase();
+  const el=document.getElementById('p-sku');
+  if(el&&el.value!==upper)el.value=upper;
+  // Update datalist with SKUs near typed value
+  const dl=document.getElementById('p-sku-list');
+  const hint=document.getElementById('p-sku-hint');
+  if(!dl)return;
+  const existing=allProducts.map(p=>p.sku).filter(Boolean).sort();
+  // show SKUs that contain the typed string (up to 8)
+  const matches=upper?existing.filter(s=>s.includes(upper)&&s!==upper).slice(0,8):[];
+  dl.innerHTML=matches.map(s=>`<option value="${s}">`).join('');
+  // hint: show exact match warning
+  if(upper&&existing.includes(upper)){
+    hint.innerHTML=`<span style="color:var(--red2);">⚠️ SKU này đã tồn tại</span>`;
+  }else if(matches.length){
+    hint.innerHTML=`<span style="color:var(--text3);">SKU gần nhất: ${matches.slice(0,3).join(', ')}${matches.length>3?'…':''}</span>`;
+  }else{
+    hint.innerHTML='';
+  }
 }
 
 function openProductModal(){
@@ -3321,8 +3394,10 @@ function openProductModal(){
   document.getElementById('p-description').value='';
   document.getElementById('p-vendor').value='BOLSA';
   document.getElementById('p-gia-ban').value='';document.getElementById('p-vendor-cost').value='';
-  document.getElementById('p-commission').value='0';document.getElementById('p-active').value='true';
+  document.getElementById('p-active').value='true';
   document.getElementById('p-la-bolsa').checked=false;
+  const dlSku=document.getElementById('p-sku-list');if(dlSku)dlSku.innerHTML='';
+  const hintSku=document.getElementById('p-sku-hint');if(hintSku)hintSku.innerHTML='';
   document.getElementById('p-note-wrap').style.display='none';
   onVendorChange();openModal('m-prod');
 }
@@ -3332,7 +3407,8 @@ function editProduct(id){
   document.getElementById('p-id').value=p.id;document.getElementById('p-sku').value=p.sku||'';
   document.getElementById('p-name').value=p.name||'';document.getElementById('p-vendor').value=p.vendor||'BOLSA';
   document.getElementById('p-gia-ban').value=p.sale_price||0;document.getElementById('p-vendor-cost').value=p.vendor_cost||0;
-  document.getElementById('p-commission').value=((p.commission_rate||0.03)*100).toFixed(1);
+  const commVal=parseFloat(((p.commission_rate||0.03)*100).toFixed(1));
+  setCommRate(commVal);
   document.getElementById('p-variant').value=p.variant||'';document.getElementById('p-active').value=p.is_active===false?'false':'true';
   document.getElementById('p-la-bolsa').checked=!!p.is_bolsa;document.getElementById('p-note').value='';
   document.getElementById('p-prod-note').value=p.note||'';
