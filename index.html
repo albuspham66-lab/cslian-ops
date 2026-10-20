@@ -180,7 +180,10 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 #page-attendance .att-left .ci-hero{padding:22px 16px 18px}
 #page-attendance .att-left .ci-clock{font-size:44px}
 #page-attendance .att-left .ci-btns .ci-btn,#page-attendance .att-left .ci-donebadge{width:130px;height:130px}
-@media(max-width:1000px){#page-attendance.active{grid-template-columns:1fr}}
+@media(max-width:1000px){#page-attendance.active{grid-template-columns:minmax(0,1fr)}}
+#page-attendance .att-left,#page-attendance .att-right{min-width:0}
+html,body{overflow-x:hidden;max-width:100%}
+.content{min-width:0;max-width:100%;overflow-x:auto}
 /* LOG */
 .log-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px}
 .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -593,7 +596,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
             <th style="width:80px">Ngày</th><th style="width:36px">Thứ</th>
             <th style="width:72px">Check in</th><th style="width:72px">Check out</th>
             <th style="width:50px">Giờ</th><th style="width:70px">Trạng thái</th>
-            <th style="width:110px">Lương ngày</th><th>Ghi chú</th><th style="width:32px"></th>
+            <th style="width:110px">Lương ngày</th><th>Ghi chú</th>
           </tr></thead>
           <tbody id="att-tbody"></tbody>
           <tfoot id="att-tfoot"></tfoot>
@@ -1766,7 +1769,7 @@ function initials(n){return(n||'').split(' ').slice(-2).map(w=>w[0]||'').join(''
 function isHL(ds){return VN_HL.includes(ds)||(_holidaysCache&&_holidaysCache.has(ds));}
 
 // ── Phép năm (nhân viên chính thức) ──────────────────────────────────
-// 12 ngày/năm, KHÔNG cộng dồn, "năm phép" neo theo ngày lên chính thức
+// 12 ngày/năm, cộng dần 1 ngày/tháng trong 12 tháng đầu, KHÔNG cộng dồn, "năm phép" neo theo ngày lên chính thức
 // của từng người (không phải năm dương lịch chung).
 const PHEP_NAM_QUOTA=12;
 // Tính cửa sổ 12 tháng hiện hành (chứa asOfDs) neo theo ngày lên chính thức.
@@ -1776,17 +1779,18 @@ function phepNamWindow(ngayLenChinhThuc,asOfDs){
   const asOf=new Date((asOfDs||getTodayVN())+'T00:00:00');
   if(asOf<anchor)return null; // chưa tới ngày lên chính thức, chưa có phép
   let start=new Date(anchor);
+  let idx=0;
   while(true){
     const next=new Date(start);
     next.setMonth(next.getMonth()+12);
     if(asOf<next)break;
-    start=next;
+    start=next;idx++;
   }
   const end=new Date(start);
   end.setMonth(end.getMonth()+12);
   end.setDate(end.getDate()-1);
   const fmt=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-  return {start:fmt(start),end:fmt(end)};
+  return {start:fmt(start),end:fmt(end),idx,anchor:fmt(anchor)};
 }
 // Số phép đã dùng (đếm bản ghi attendance.status='NP') + còn lại trong
 // đúng cửa sổ năm phép hiện hành của 1 nhân viên.
@@ -1797,7 +1801,16 @@ async function calcLeaveQuota(empId,ngayLenChinhThuc,asOfDs){
     .eq('user_id',empId).eq('status','NP')
     .gte('date',win.start).lte('date',win.end);
   const used=(data||[]).length;
-  return{quota:PHEP_NAM_QUOTA,used,remaining:Math.max(0,PHEP_NAM_QUOTA-used),window:win};
+  // Cộng dần: trong 12 tháng ĐẦU kể từ ngày lên chính thức, mỗi tháng làm việc
+  // (tính cả tháng lên chính thức) được cộng 1 ngày, tối đa 12. Từ năm phép thứ 2
+  // trở đi cấp đủ 12 ngày ngay đầu kỳ. Không cộng dồn giữa các kỳ.
+  let earned=PHEP_NAM_QUOTA;
+  if(win.idx===0){
+    const a=new Date(win.anchor+'T00:00:00'),o=new Date((asOfDs||getTodayVN())+'T00:00:00');
+    const months=(o.getFullYear()-a.getFullYear())*12+(o.getMonth()-a.getMonth())+1;
+    earned=Math.max(0,Math.min(PHEP_NAM_QUOTA,months));
+  }
+  return{quota:earned,quotaYear:PHEP_NAM_QUOTA,used,remaining:Math.max(0,earned-used),window:win};
 }
 function isWE(dow){return dow===0||dow===6}
 function avColor(i){return AV_COLORS[i%AV_COLORS.length]}
@@ -1896,7 +1909,7 @@ async function initApp(user){
   // ---- REALTIME SUBSCRIPTIONS ----
   initRealtime();
 
-  Promise.all([renderCheckinPage(), renderAllLog()]);
+  Promise.all([renderCheckinPage(), renderAllLog(), renderAttTable()]);
   initPWA();
   initNavScroll();
 }
@@ -2122,7 +2135,7 @@ async function renderCiWeek(p,ds){
   try{
     if(p.ngay_len_chinh_thuc){
       const q=await calcLeaveQuota(p.id,p.ngay_len_chinh_thuc,ds);
-      phepTxt=String(q.remaining);phepSub='/ '+q.quota+' ngày';
+      phepTxt=String(q.remaining);phepSub='/ '+q.quota+' tích lũy';
     }
   }catch(e){}
   const st=document.getElementById('ci-stats');
@@ -2271,7 +2284,7 @@ async function renderAttTable(){
   } else {
     // Show loading skeleton
     const tbodyEl=document.getElementById('att-tbody');
-    if(tbodyEl) tbodyEl.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)"><div class="spinner" style="display:inline-block;margin-right:8px"></div>Đang tải...</td></tr>';
+    if(tbodyEl) tbodyEl.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)"><div class="spinner" style="display:inline-block;margin-right:8px"></div>Đang tải...</td></tr>';
     const {data}=await sb.from('attendance').select('date,status,checkin_time,checkout_time,note').eq('user_id',empId).gte('date',from).lte('date',to);
     rows=data;
     _attCache[cacheKey]=rows;
@@ -2285,7 +2298,7 @@ async function renderAttTable(){
     const ds=dateStr(curYear,curMonth,d),dow=new Date(curYear,curMonth,d).getDay(),we=isWE(dow),hl=isHL(ds),isToday=ds===todayStr;
     const rec=recMap[ds],r=calcDayLogic(rec,emp.contract_type,_luongNgay,_luongGio);
     let trClass=we?'tr-weekend':(isToday?'tr-today':'');
-    if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="7" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
+    if(we){tbody+=`<tr class="${trClass}"><td style="font-size:11px">${pad2(d)}/${pad2(curMonth+1)}</td><td style="color:var(--danger)">${DAYS[dow]}</td><td colspan="6" style="color:var(--text3);font-size:11px">Nghỉ cuối tuần</td></tr>`;continue;}
     let ciShow='—',coShow='—',hShow='—',sShow='—',statusHtml='',noteHtml='';
     if(hl||rec?.status==='NL'){
       // Ngày lễ (trong danh sách holidays HOẶC được đánh dấu tay NL) — luôn
@@ -2305,11 +2318,10 @@ async function renderAttTable(){
       <td style="font-family:'JetBrains Mono',monospace">${ciShow}</td>
       <td style="font-family:'JetBrains Mono',monospace">${coShow}</td>
       <td>${hShow}</td><td>${statusHtml}</td>
-      <td style="color:var(--success)">${sShow}</td><td>${noteHtml}</td>
-      <td>${isMgr?`<button class="icon-btn" onclick="openDayModalById('${empId}','${ds}')">✏️</button>`:''}</td></tr>`;
+      <td style="color:var(--success)">${sShow}</td><td><div style="display:flex;align-items:center;gap:8px">${isMgr?`<button class="icon-btn" onclick="openDayModalById('${empId}','${ds}')">✏️</button>`:''}<span>${noteHtml}</span></div></td></tr>`;
   }
   document.getElementById('att-tbody').innerHTML=tbody;
-  document.getElementById('att-tfoot').innerHTML=`<tr><td colspan="4" style="text-align:right;color:var(--text2)">Tổng tháng</td><td>${totalH}h</td><td style="font-size:11px;color:var(--warn)">Trễ: ${late} lần</td><td style="color:var(--success)">${vnd(totalS)}</td><td colspan="2"></td></tr>`;
+  document.getElementById('att-tfoot').innerHTML=`<tr><td colspan="4" style="text-align:right;color:var(--text2)">Tổng tháng</td><td>${totalH}h</td><td style="font-size:11px;color:var(--warn)">Trễ: ${late} lần</td><td style="color:var(--success)">${vnd(totalS)}</td><td></td></tr>`;
   document.getElementById('att-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">⏱ Tổng giờ công</div><div class="stat-val" style="color:var(--accent)">${totalH}<span style="font-size:14px;font-weight:400">h</span></div><div class="stat-sub">${wd} ngày · NP:${np} · NL:${nl}</div></div>
     <div class="stat-card"><div class="stat-label">⚠️ Đi trễ</div><div class="stat-val" style="color:${late>0?'var(--warn)':'var(--text)'}">${late}</div><div class="stat-sub">Xem chi tiết tại Bảng lương</div></div>
@@ -2423,7 +2435,7 @@ async function saveDay(){
       const q=await calcLeaveQuota(empId,emp.ngay_len_chinh_thuc,ds);
       const remainingEffective=existingRec?.status==='NP'?q.remaining+1:q.remaining;
       if(remainingEffective<=0){
-        const chuyen=confirm(`${emp.full_name} đã dùng hết ${q.quota} ngày phép năm (cửa sổ ${q.window.start} → ${q.window.end}).\n\nChuyển ngày này thành "Nghỉ không phép" (không tính lương)?`);
+        const chuyen=confirm(`${emp.full_name} đã dùng hết ${q.quota} ngày phép tích lũy (tối đa ${q.quotaYear}/năm, kỳ ${q.window.start} → ${q.window.end}).\n\nChuyển ngày này thành "Nghỉ không phép" (không tính lương)?`);
         if(chuyen){st='NKP';document.getElementById('dm-status').value='NKP';}
         else{return;} // Manager huỷ, không lưu
       }
@@ -5500,7 +5512,7 @@ async function openDeactivateModal(id){
       var [y,m]=ngay.split('-').map(Number);
       var luongNgay=luongNgayThang(y,m);
       payoutAmount=q.remaining*luongNgay;
-      phepDuMsg='\n\n🏖️ Còn dư '+q.remaining+' ngày phép (quota '+q.quota+', đã dùng '+q.used+') — '+
+      phepDuMsg='\n\n🏖️ Còn dư '+q.remaining+' ngày phép (tích lũy '+q.quota+', đã dùng '+q.used+') — '+
         'theo luật BẮT BUỘC thanh toán bằng tiền khi nghỉ việc: '+
         q.remaining+' × '+vnd(luongNgay)+' = '+vnd(payoutAmount)+
         '.\nSố tiền này sẽ được cộng vào lương tháng '+ngay.slice(0,7)+' (có tính thuế TNCN như lương bình thường).';
