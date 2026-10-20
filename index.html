@@ -173,6 +173,14 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .ci-day.off .ci-day-d{color:var(--text3)}
 @media(max-width:600px){.ci-clock{font-size:42px}.ci-btns .ci-btn,.ci-donebadge{width:130px;height:130px}.ci-stats{gap:6px}.ci-stat-v{font-size:17px}}
 
+/* Chấm công: chia 2 cột cho gọn (trái: check-in; phải: bảng công) */
+#page-attendance.active{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:20px;align-items:start}
+#page-attendance .att-left{margin-bottom:0}
+#page-attendance .att-left .two-col{grid-template-columns:1fr}
+#page-attendance .att-left .ci-hero{padding:22px 16px 18px}
+#page-attendance .att-left .ci-clock{font-size:44px}
+#page-attendance .att-left .ci-btns .ci-btn,#page-attendance .att-left .ci-donebadge{width:130px;height:130px}
+@media(max-width:1000px){#page-attendance.active{grid-template-columns:1fr}}
 /* LOG */
 .log-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px}
 .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -529,7 +537,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
     <!-- CHECK IN/OUT -->
     <!-- CHẤM CÔNG (gộp check in/out) -->
     <div id="page-attendance" class="page-content active">
-      <div style="margin-bottom:20px">
+      <div class="att-left">
       <div class="ci-hero">
         <div class="ci-top">
           <div class="ci-greet" id="ci-greet"></div>
@@ -560,6 +568,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       </div>
     </div>
 
+      <div class="att-right">
       <div class="page-header">
         <div><h2>Bảng chấm công</h2><div class="page-sub" id="att-emp-info"></div></div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -589,6 +598,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
           <tbody id="att-tbody"></tbody>
           <tfoot id="att-tfoot"></tfoot>
         </table>
+      </div>
       </div>
     </div>
 
