@@ -3595,6 +3595,11 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
     : {data:[]};
   const soGiuongMap={};
   (items||[]).filter(i=>!i.is_gift&&i.la_bolsa).forEach(i=>{soGiuongMap[i.order_id]=(soGiuongMap[i.order_id]||0)+(i.so_luong||0);});
+  // Đưa các đơn "tất toán từ tháng khác" vào cache chung để modal Điều chỉnh
+  // Bonus mở được (trước đây cache chỉ có đơn của billing_month → báo
+  // "Không tìm thấy đơn hàng").
+  list.forEach(o=>{_ordersCache[o.id]=o;});
+  Object.keys(soGiuongMap).forEach(k=>{_soGiuongCache[k]=soGiuongMap[k];});
 
   const billingMonthsNeeded=[...new Set(list.map(o=>o.billing_month).filter(Boolean))];
   const bracketCache={};
@@ -3814,11 +3819,7 @@ async function saveItemsAdjustment(orderId){
   await sb.from('orders').update({bonus_sale_usd:totalBonusSale}).eq('id',orderId);
 
   // Xóa salary_monthly để force tính lại
-  const ordForSal=_ordersCache[orderId];
-  if(ordForSal&&ordForSal.user_id&&ordForSal.billing_month){
-    await sb.from('salary_monthly').delete()
-      .eq('user_id',ordForSal.user_id).eq('thang',ordForSal.billing_month).eq('is_locked',false);
-  }
+  await resetSalaryForOrder(_ordersCache[orderId]);
 
   toast('Đã lưu điều chỉnh — bảng lương sẽ tính lại tự động');
   toggleOrderItemsDetail(orderId);
@@ -3933,6 +3934,15 @@ function calcBonusFromGiaMin(){
   noteEl.textContent=`Doanh số $${doanhSo.toFixed(2)} − Giá min $${giaMin.toFixed(2)} = Chênh lệch $${chenhLech.toFixed(2)} → Bonus 30% = $${bonus.toFixed(2)}`;
 }
 
+// Xoá bảng lương chưa chốt của MỌI tháng bị ảnh hưởng bởi 1 đơn (tháng gốc +
+// tháng tất toán — bonus hoãn được trả ở tháng tất toán) để tự tính lại.
+async function resetSalaryForOrder(ord){
+  if(!ord||!ord.user_id)return;
+  const months=[...new Set([ord.billing_month,ord.thang_tat_toan].filter(Boolean))];
+  for(const m of months){
+    await sb.from('salary_monthly').delete().eq('user_id',ord.user_id).eq('thang',m).eq('is_locked',false);
+  }
+}
 async function saveBonusOverride(){
   const orderId=document.getElementById('bonus-modal-order-id').value;
   const chenhVal=document.getElementById('bonus-modal-chenh').value.trim();
@@ -3954,11 +3964,7 @@ async function saveBonusOverride(){
   if(error){toast('Lỗi: '+error.message,'error');return;}
 
   // Xóa salary_monthly của tháng này để force tính lại bảng lương
-  const ord=_ordersCache[orderId];
-  if(ord&&ord.user_id&&ord.billing_month){
-    await sb.from('salary_monthly').delete()
-      .eq('user_id',ord.user_id).eq('thang',ord.billing_month).eq('is_locked',false);
-  }
+  await resetSalaryForOrder(_ordersCache[orderId]);
 
   toast('Đã lưu điều chỉnh bonus — bảng lương sẽ tính lại tự động');
   closeBonusEditModal();
@@ -3971,11 +3977,7 @@ async function clearBonusOverride(){
   if(error){toast('Lỗi: '+error.message,'error');return;}
 
   // Xóa salary_monthly để force tính lại
-  const ordForClear=_ordersCache[orderId];
-  if(ordForClear&&ordForClear.user_id&&ordForClear.billing_month){
-    await sb.from('salary_monthly').delete()
-      .eq('user_id',ordForClear.user_id).eq('thang',ordForClear.billing_month).eq('is_locked',false);
-  }
+  await resetSalaryForOrder(_ordersCache[orderId]);
 
   toast('Đã xoá override — dùng giá trị tự động');
   closeBonusEditModal();
