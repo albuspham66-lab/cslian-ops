@@ -13,7 +13,7 @@
   --gold:#C9A84C;--gold2:#E8C96A;--gold-dim:rgba(201,168,76,0.12);
   --text:#EDE8DF;--text2:#9896A6;--text3:#514E63;
   --green:#52D49A;--red:#F07070;--blue:#6EB3F7;--amber:#F5A623;
-  --border:rgba(201,168,76,0.15);--border2:rgba(255,255,255,0.06);
+  --border:rgba(201,168,76,0.15);--border2:var(--w006);
   --r:10px;--rsm:6px;--tr:all .18s ease;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -65,7 +65,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 nav{flex:1;padding:12px 0;overflow-y:auto;}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
   color:var(--text2);font-size:13px;border-left:2px solid transparent;transition:var(--tr);position:relative;}
-.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.nav-item:hover{color:var(--text);background:var(--w03);}
 .nav-item.active{color:var(--gold);border-left-color:var(--gold);background:var(--gold-dim);}
 .nav-icon{font-size:15px;width:18px;text-align:center;}
 .notif-badge{background:var(--gold);color:#0A0B12;font-size:10px;font-weight:700;
@@ -123,7 +123,7 @@ nav{flex:1;padding:12px 0;overflow-y:auto;}
 table{width:100%;border-collapse:collapse;}
 th{padding:10px 14px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);
   text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border2);white-space:nowrap;}
-td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.03);font-size:12px;color:var(--text2);vertical-align:middle;}
+td{padding:11px 14px;border-bottom:1px solid var(--w03);font-size:12px;color:var(--text2);vertical-align:middle;}
 tr.order-row{cursor:pointer;transition:background .15s;}
 tr.order-row:hover td{background:rgba(201,168,76,.04);}
 tr.order-row.expanded td{background:rgba(201,168,76,.06);color:var(--text);}
@@ -217,6 +217,45 @@ th.num{text-align:right;}
 .report-label{font-size:12px;color:var(--text2);}
 .report-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:var(--text);}
 </style>
+<style id="csilan-theme-css">
+#csilan-theme-btn{position:fixed;right:14px;bottom:14px;z-index:9990;width:32px;height:32px;border-radius:50%;border:1px solid var(--border2,rgba(128,128,128,.3));background:var(--bg2,var(--card,#fff));color:var(--text,#222);font-size:15px;line-height:1;cursor:pointer;opacity:.75;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#csilan-theme-btn:hover{opacity:1}
+:root{--w006:rgba(255,255,255,0.06);--w03:rgba(255,255,255,.03);--w02:rgba(255,255,255,.02);--w05:rgba(255,255,255,.05);}html[data-csilan-mode="light"]{--w006:rgba(15,23,42,0.06);--w03:rgba(15,23,42,.03);--w02:rgba(15,23,42,.02);--w05:rgba(15,23,42,.05);}html[data-csilan-mode="light"]{color-scheme:light;--bg:#f6f3ec;--sidebar:#ffffff;--card:#ffffff;--card2:#f4efe4;--gold:#a8842a;--gold2:#8a6a16;--gold-dim:rgba(168,132,42,.14);--text:#2a2418;--text2:#6b6354;--text3:#a29a88;--green:#17895a;--red:#d04545;--blue:#2f7fc4;--amber:#c77d0a;--border:rgba(168,132,42,.28);--border2:rgba(15,23,42,.09);}
+html[data-csilan-mode="light"] .mbg,html[data-csilan-mode="light"] .modal-bg,html[data-csilan-mode="light"] #sidebar-overlay{background:rgba(15,23,42,.45)}
+html[data-csilan-mode="light"] .login-box{box-shadow:0 24px 60px rgba(60,45,10,.15)}html[data-csilan-mode="light"] #sidebar{box-shadow:4px 0 24px rgba(60,45,10,.08)}html[data-csilan-mode="light"] .btn-gold{color:#fff}</style>
+
+<script id="csilan-theme-js">
+/* Csilan theme sync: sáng/tối đồng bộ với CRM (postMessage / ?theme=) + nút đổi khi chạy độc lập */
+(function(){
+  var KEY='csilan_embed_mode',R=document.documentElement;
+  var OK=/^https:\/\/(cnail1911-maker|albuspham66-lab)\.github\.io$|^http:\/\/localhost(:\d+)?$/;
+  function get(){return R.getAttribute('data-csilan-mode')==='light'?'light':'dark';}
+  function apply(m,keep){
+    m=(m==='light')?'light':'dark';
+    if(m==='light')R.setAttribute('data-csilan-mode','light');else R.removeAttribute('data-csilan-mode');
+    try{localStorage.setItem(KEY,m);}catch(e){}
+    var b=document.getElementById('csilan-theme-btn');if(b)b.textContent=m==='light'?'☾':'☀';
+    try{if(window.Chart&&Chart.defaults){Chart.defaults.color=m==='light'?'#5b667d':'#8b92a8';Chart.defaults.borderColor=m==='light'?'rgba(15,23,42,.08)':'rgba(255,255,255,.06)';}}catch(e){}
+    try{window.dispatchEvent(new CustomEvent('csilan-theme',{detail:{mode:m}}));}catch(e){}
+  }
+  window._csilanMode=get;window._csilanSetMode=apply;
+  var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1],m0=q;
+  if(!m0){try{m0=localStorage.getItem(KEY);}catch(e){}}
+  if(m0)apply(m0);
+  window.addEventListener('message',function(e){
+    if(!OK.test(e.origin))return;var d=e.data;
+    if(d&&d.type==='csilan-theme')apply(d.mode);
+  });
+  var embedded=window.parent!==window;
+  if(embedded){try{window.parent.postMessage({type:'csilan-theme-request'},'*');}catch(e){}}
+  else document.addEventListener('DOMContentLoaded',function(){
+    var b=document.createElement('button');b.id='csilan-theme-btn';b.title='Light / Dark';
+    b.textContent=get()==='light'?'☾':'☀';
+    b.onclick=function(){apply(get()==='light'?'dark':'light');};
+    document.body.appendChild(b);
+  });
+})();
+</script>
 </head>
 <body>
 
@@ -603,7 +642,7 @@ th.num{text-align:right;}
       <button class="btn btn-ghost btn-sm" onclick="closeOrderView()">✕</button>
     </div>
     <!-- Action bar -->
-    <div style="padding:12px 28px;border-bottom:1px solid var(--border2);display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;background:rgba(255,255,255,.02);">
+    <div style="padding:12px 28px;border-bottom:1px solid var(--border2);display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;background:var(--w02);">
       <span id="ov-edit-btn"></span>
       <button class="btn btn-ghost btn-sm" onclick="openStatusModal(_ovId)">🔄 Trạng thái</button>
       <button class="btn btn-gold btn-sm" onclick="openTrackingModal(_ovId)">🚚 Tracking</button>
@@ -648,7 +687,7 @@ th.num{text-align:right;}
       <div class="photo-grid" id="ov-photos-payment"></div>
     </div>
     <!-- Footer nav -->
-    <div style="padding:14px 28px;border-top:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:rgba(255,255,255,.02);">
+    <div style="padding:14px 28px;border-top:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--w02);">
       <button class="btn btn-ghost" id="ov-prev" onclick="navOrderView(-1)">← Đơn trước</button>
       <span id="ov-nav-label" style="font-size:12px;color:var(--text3);"></span>
       <button class="btn btn-ghost" id="ov-next" onclick="navOrderView(1)">Đơn tiếp →</button>
@@ -1159,7 +1198,7 @@ function _renderOrderView(o){
   document.getElementById('ov-edit-btn').innerHTML=currentProfile?.role==='admin'
     ?`<button class="btn btn-ghost btn-sm" onclick="openCostModal(_ovId)">✏️ Chỉnh sửa</button>`:'';
   document.getElementById('ov-comm-btn').innerHTML=`
-    <button class="btn btn-sm" style="${o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2);'}"
+    <button class="btn btn-sm" style="${o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:var(--w05);color:var(--text2);border:1px solid var(--border2);'}"
       onclick="toggleCommReceived('${o.id}',${o.commission_received?'false':'true'})">
       ${o.commission_received?'✅ HH Đã thu':'⏳ HH Chưa thu'}</button>`;
   // Info
