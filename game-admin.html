@@ -6,29 +6,67 @@
 <title>Game Admin — C-Silan</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+:root{--bg:#0f0a24;--card:#1a1240;--line:#2d2560;--text:#e8e6f5;--muted:#8a86b8;--accent2:#a29bfe;--text2:#a7a3c9;--border:#2d2560}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
-body{background:#0f0a24;color:#e8e6f5;padding:24px}
+body{background:var(--bg);color:var(--text);padding:24px}
 h1{font-size:22px;margin-bottom:4px}
-h2{font-size:16px;margin:24px 0 10px;color:#a29bfe}
-.card{background:#1a1240;border:1px solid #2d2560;border-radius:10px;padding:16px;margin-bottom:16px}
+h2{font-size:16px;margin:24px 0 10px;color:var(--accent2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:8px;border-bottom:1px solid #2d2560;text-align:left}
-th{color:#a29bfe;font-weight:600}
-input,select,textarea{background:#0f0a24;border:1px solid #2d2560;color:#e8e6f5;padding:6px 10px;border-radius:6px;font-size:13px;margin:2px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--accent2);font-weight:600}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;margin:2px}
 button{background:#6c5ce7;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
 button:hover{background:#4834d4}
 button.danger{background:#ff7675}
 button.danger:hover{background:#e84118}
 .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.tab{padding:8px 16px;border-radius:8px;cursor:pointer;background:#1a1240;border:1px solid #2d2560}
-.tab.active{background:#6c5ce7}
+.tab{padding:8px 16px;border-radius:8px;cursor:pointer;background:var(--card);border:1px solid var(--line)}
+.tab.active{background:#6c5ce7;color:#fff}
 .hidden{display:none}
 .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.muted{color:#8a86b8;font-size:12px}
-.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#2d2560}
+.muted{color:var(--muted);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:var(--line)}
 .badge.open{background:#00b894}
 .badge.closed{background:#636e72}
 </style>
+<style id="csilan-theme-css">
+#csilan-theme-btn{position:fixed;right:14px;bottom:14px;z-index:9990;width:32px;height:32px;border-radius:50%;border:1px solid var(--border2,rgba(128,128,128,.3));background:var(--bg2,var(--card,#fff));color:var(--text,#222);font-size:15px;line-height:1;cursor:pointer;opacity:.75;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#csilan-theme-btn:hover{opacity:1}
+html[data-csilan-mode="light"]{color-scheme:light;--bg:#f4f6fb;--card:#ffffff;--line:#dfe3ef;--text:#1a2238;--muted:#6b7789;--accent2:#4b3fc4;--text2:#56617a;--border:#dfe3ef;}html[data-csilan-mode="light"] .badge{color:#1a2238}html[data-csilan-mode="light"] button.danger,html[data-csilan-mode="light"] .badge.open{color:#fff}</style>
+
+<script id="csilan-theme-js">
+/* Csilan theme sync: sáng/tối đồng bộ với CRM (postMessage / ?theme=) + nút đổi khi chạy độc lập */
+(function(){
+  var KEY='csilan_embed_mode',R=document.documentElement;
+  var OK=/^https:\/\/(cnail1911-maker|albuspham66-lab)\.github\.io$|^http:\/\/localhost(:\d+)?$/;
+  function get(){return R.getAttribute('data-csilan-mode')==='light'?'light':'dark';}
+  function apply(m,keep){
+    m=(m==='light')?'light':'dark';
+    if(m==='light')R.setAttribute('data-csilan-mode','light');else R.removeAttribute('data-csilan-mode');
+    try{localStorage.setItem(KEY,m);}catch(e){}
+    var b=document.getElementById('csilan-theme-btn');if(b)b.textContent=m==='light'?'☾':'☀';
+    try{if(window.Chart&&Chart.defaults){Chart.defaults.color=m==='light'?'#5b667d':'#8b92a8';Chart.defaults.borderColor=m==='light'?'rgba(15,23,42,.08)':'rgba(255,255,255,.06)';}}catch(e){}
+    try{window.dispatchEvent(new CustomEvent('csilan-theme',{detail:{mode:m}}));}catch(e){}
+  }
+  window._csilanMode=get;window._csilanSetMode=apply;
+  var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1],m0=q;
+  if(!m0){try{m0=localStorage.getItem(KEY);}catch(e){}}
+  if(m0)apply(m0);
+  window.addEventListener('message',function(e){
+    if(!OK.test(e.origin))return;var d=e.data;
+    if(d&&d.type==='csilan-theme')apply(d.mode);
+  });
+  var embedded=window.parent!==window;
+  if(embedded){try{window.parent.postMessage({type:'csilan-theme-request'},'*');}catch(e){}}
+  else document.addEventListener('DOMContentLoaded',function(){
+    var b=document.createElement('button');b.id='csilan-theme-btn';b.title='Light / Dark';
+    b.textContent=get()==='light'?'☾':'☀';
+    b.onclick=function(){apply(get()==='light'?'dark':'light');};
+    document.body.appendChild(b);
+  });
+})();
+</script>
 </head>
 <body>
 <h1>🎮 Game Admin</h1>
