@@ -24,7 +24,7 @@
 <style>
 :root{
   --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#20253a;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --border:var(--w007);--border2:var(--w012);
   --text:#f0f2f8;--text2:#8b92a8;--text3:#555e78;
   --accent:#4f7fff;--accent2:#3d6aff;--accent-glow:rgba(79,127,255,0.15);
   --success:#22c77a;--success-bg:rgba(34,199,122,0.1);
@@ -472,6 +472,45 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .doc-item-cat{font-size:10px;padding:1px 6px;border-radius:4px;margin-top:3px;display:inline-block}
 
 </style>
+<style id="csilan-theme-css">
+#csilan-theme-btn{position:fixed;right:14px;bottom:14px;z-index:9990;width:32px;height:32px;border-radius:50%;border:1px solid var(--border2,rgba(128,128,128,.3));background:var(--bg2,var(--card,#fff));color:var(--text,#222);font-size:15px;line-height:1;cursor:pointer;opacity:.75;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#csilan-theme-btn:hover{opacity:1}
+:root{--w007:rgba(255,255,255,0.07);--w012:rgba(255,255,255,0.12);--w8:rgba(255,255,255,.8);--w02:rgba(255,255,255,0.2);--w04:rgba(255,255,255,0.4);--w01:rgba(255,255,255,0.1);}html[data-csilan-mode="light"]{--w007:rgba(15,23,42,0.07);--w012:rgba(15,23,42,0.12);--w8:rgba(15,23,42,.8);--w02:rgba(15,23,42,0.2);--w04:rgba(15,23,42,0.4);--w01:rgba(15,23,42,0.1);}html[data-csilan-mode="light"]{color-scheme:light;--bg:#f3f5fa;--bg2:#ffffff;--bg3:#eef1f7;--bg4:#e4e9f3;--border:rgba(15,23,42,.09);--border2:rgba(15,23,42,.15);--text:#1a2238;--text2:#56617a;--text3:#98a2b6;--accent:#3d6aff;--accent2:#2f58e6;--accent-glow:rgba(61,106,255,.12);--success:#12a965;--danger:#e0393a;--warn:#c47f0a;--info:#3d6aff;--manager:#7a55e0;--leader:#0f9d73;--shadow:0 4px 20px rgba(15,23,42,.10);}
+html[data-csilan-mode="light"] .mbg,html[data-csilan-mode="light"] .modal-bg,html[data-csilan-mode="light"] #sidebar-overlay{background:rgba(15,23,42,.45)}
+</style>
+
+<script id="csilan-theme-js">
+/* Csilan theme sync: sáng/tối đồng bộ với CRM (postMessage / ?theme=) + nút đổi khi chạy độc lập */
+(function(){
+  var KEY='csilan_embed_mode',R=document.documentElement;
+  var OK=/^https:\/\/(cnail1911-maker|albuspham66-lab)\.github\.io$|^http:\/\/localhost(:\d+)?$/;
+  function get(){return R.getAttribute('data-csilan-mode')==='light'?'light':'dark';}
+  function apply(m,keep){
+    m=(m==='light')?'light':'dark';
+    if(m==='light')R.setAttribute('data-csilan-mode','light');else R.removeAttribute('data-csilan-mode');
+    try{localStorage.setItem(KEY,m);}catch(e){}
+    var b=document.getElementById('csilan-theme-btn');if(b)b.textContent=m==='light'?'☾':'☀';
+    try{if(window.Chart&&Chart.defaults){Chart.defaults.color=m==='light'?'#5b667d':'#8b92a8';Chart.defaults.borderColor=m==='light'?'rgba(15,23,42,.08)':'rgba(255,255,255,.06)';}}catch(e){}
+    try{window.dispatchEvent(new CustomEvent('csilan-theme',{detail:{mode:m}}));}catch(e){}
+  }
+  window._csilanMode=get;window._csilanSetMode=apply;
+  var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1],m0=q;
+  if(!m0){try{m0=localStorage.getItem(KEY);}catch(e){}}
+  if(m0)apply(m0);
+  window.addEventListener('message',function(e){
+    if(!OK.test(e.origin))return;var d=e.data;
+    if(d&&d.type==='csilan-theme')apply(d.mode);
+  });
+  var embedded=window.parent!==window;
+  if(embedded){try{window.parent.postMessage({type:'csilan-theme-request'},'*');}catch(e){}}
+  else document.addEventListener('DOMContentLoaded',function(){
+    var b=document.createElement('button');b.id='csilan-theme-btn';b.title='Light / Dark';
+    b.textContent=get()==='light'?'☾':'☀';
+    b.onclick=function(){apply(get()==='light'?'dark':'light');};
+    document.body.appendChild(b);
+  });
+})();
+</script>
 </head>
 <body>
 
@@ -1076,7 +1115,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
       <div class="modal-box" style="max-width:440px">
         <div style="padding:18px 24px 14px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:var(--radius-lg) var(--radius-lg) 0 0">
           <div style="font-weight:700;font-size:15px;color:#fff">💰 Điều chỉnh Bonus</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px" id="bonus-modal-inv"></div>
+          <div style="font-size:12px;color:var(--w8);margin-top:2px" id="bonus-modal-inv"></div>
         </div>
         <div style="padding:18px 24px;display:flex;flex-direction:column;gap:14px">
           <input type="hidden" id="bonus-modal-order-id">
@@ -1203,7 +1242,7 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 <!-- PWA update banner -->
     <div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;align-items:center;justify-content:space-between;gap:10px">
       <span>Có phiên bản mới — bấm để cập nhật</span>
-      <button onclick="pwaDoUpdate()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:Be Vietnam Pro,sans-serif">Cập nhật ngay</button>
+      <button onclick="pwaDoUpdate()" style="background:var(--w02);border:1px solid var(--w04);border-radius:6px;color:#fff;padding:5px 12px;font-size:12px;cursor:pointer;font-family:Be Vietnam Pro,sans-serif">Cập nhật ngay</button>
     </div>
     <!-- Image fullscreen viewer -->
     <div id="chat-img-fullscreen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer" onclick="this.style.display='none'">
@@ -5701,7 +5740,7 @@ async function saveNewEmp(){
     noteEl.innerHTML='✅ <strong>Đã thêm '+hoTen+' vào hệ thống OPS.</strong><br><br>'
       +'⚠️ <strong>Còn cần làm thủ công trên Supabase CRM:</strong><br>'
       +'1. Vào <strong>Authentication → Users → Add user</strong><br>'
-      +'2. Email gợi ý: <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px">'+emailGợiý+'</code><br>'
+      +'2. Email gợi ý: <code style="background:var(--w01);padding:1px 6px;border-radius:4px">'+emailGợiý+'</code><br>'
       +'3. Sau đó insert profile vào CRM với code=<strong>'+maNV+'</strong>';
     saveBtn.disabled=false;
     saveBtn.textContent='Đóng';
@@ -6836,8 +6875,8 @@ async function renderDashboard(){
       legend:{labels:{color:'#8b92a8',font:{size:11}}},
       tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=dsPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
     },scales:{
-      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
-      y:{min:0,max:Math.round(maxDS),ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}
+      x:{ticks:{color:(window._csilanMode&&_csilanMode()==='light'?'#5b667d':'#8b92a8')},grid:{color:(window._csilanMode&&_csilanMode()==='light'?'rgba(15,23,42,.08)':'rgba(255,255,255,0.05)')}},
+      y:{min:0,max:Math.round(maxDS),ticks:{color:(window._csilanMode&&_csilanMode()==='light'?'#5b667d':'#8b92a8'),callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}
     }}
   });
 
@@ -6858,8 +6897,8 @@ async function renderDashboard(){
       legend:{labels:{color:'#8b92a8',font:{size:11}}},
       tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=donPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
     },scales:{
-      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
-      y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}
+      x:{ticks:{color:(window._csilanMode&&_csilanMode()==='light'?'#5b667d':'#8b92a8')},grid:{color:(window._csilanMode&&_csilanMode()==='light'?'rgba(15,23,42,.08)':'rgba(255,255,255,0.05)')}},
+      y:{min:0,max:Math.round(maxDon),ticks:{color:(window._csilanMode&&_csilanMode()==='light'?'#5b667d':'#8b92a8'),stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}
     }}
   });
 
