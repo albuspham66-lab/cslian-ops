@@ -3637,6 +3637,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   if(!tbody)return;
   // Chống race: đổi tháng nhanh thì lần render cũ KHÔNG được ghi đè lần mới
   const _tok=(window._ordSetTok=(window._ordSetTok||0)+1);
+  tbody.innerHTML='<tr><td colspan="12" class="empty">Đang tải...</td></tr>'; // xóa dữ liệu tháng/tài khoản trước khi tải mới
   let q=sb.from('orders').select('*,profiles(full_name,employee_code)')
     .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang)
     .or('order_status.is.null,order_status.neq.Cancelled')
