@@ -3554,7 +3554,7 @@ async function renderOrders(){
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
     <div class="stat-card"><div class="stat-label">💵 Doanh số tháng</div><div class="stat-val" style="color:var(--success);font-size:18px">${usd(totalRev)}</div><div class="stat-sub">Target: ${usd(targetDisplay)}${isProbationSel?' (thử việc 85%)':''}</div></div>
     <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=targetDisplay?'var(--success)':'var(--warn)'}">${Math.round(totalRev/targetDisplay*100)}%</div><div class="stat-sub">${totalRev>=targetDisplay?'✅ Đạt':'❌ Chưa đạt'}</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Giường: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" id="ord-bonus-main" data-base="${totalBonusChenh+totalBonusMacDinh+totalExtraBonus}" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Giường: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}<span id="ord-bonus-other"></span></div></div>`;
 
   if(list.length===0){
     document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;
@@ -3639,6 +3639,15 @@ async function renderOrdersCancelled(thang,isMgr,empId){
 // Đơn cũ (billing_month ≠ tháng đang xem) nhưng vừa tất toán TRONG tháng
 // đang xem (thang_tat_toan = tháng này) — bonus giường/chênh lệch của các
 // đơn này đang được cộng vào lương tháng này theo luồng Deferred.
+// Cộng bonus của "đơn tất toán từ tháng khác" vào thẻ Tổng Bonus (thẻ chỉ tính đơn gốc tháng này)
+function setOrdOtherBonus(chenh,giuong){
+  const el=document.getElementById('ord-bonus-main'),sub=document.getElementById('ord-bonus-other');
+  if(!el)return;
+  const base=parseFloat(el.dataset.base)||0,extra=(chenh||0)+(giuong||0);
+  el.textContent=usd(base+extra);
+  if(sub)sub.textContent=extra>0?` · Từ đơn tháng khác: ${usd(extra)}`:'';
+}
+
 async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   const tbody=document.getElementById('ord-settled-other-tbody');
   if(!tbody)return;
@@ -3656,6 +3665,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   const list=rows||[];
   if(!list.length){
     tbody.innerHTML=`<tr><td colspan="12" class="empty">Không có đơn nào tất toán từ tháng khác trong tháng này</td></tr>`;
+    setOrdOtherBonus(0,0);
     return;
   }
   // Cần rate/tỷ lệ đạt của ĐÚNG billing_month gốc từng đơn (giống hệt cách
@@ -3703,6 +3713,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   }));
 
   if(_tok!==window._ordSetTok)return;
+  let _sumChenh=0,_sumGiuong=0;
   tbody.innerHTML=list.map(o=>{
     const uid=o.user_id||'_';
     const bracket=bracketCache[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
@@ -3710,6 +3721,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
     const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
     const bonusGiuong=soG*bracket.rate*pct/100*bracket.tyLeDat;
     const bChenh=(o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0))*bracket.tyLeDat;
+    _sumChenh+=bChenh;_sumGiuong+=bonusGiuong;
     const tatToan=o.is_settled||o.balance_due===0;
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${o.invoice_no||'—'}</td>
@@ -3733,6 +3745,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
     </tr>
     <tr id="order-detail-${o.id}" style="display:none"><td colspan="13" style="padding:0;background:var(--bg3)"><div id="order-detail-content-${o.id}" style="padding:12px 16px"></div></td></tr>`;
   }).join('');
+  setOrdOtherBonus(_sumChenh,_sumGiuong);
 }
 
 // Mở/đóng chi tiết order_items của 1 đơn — Manager/Sale tick "Gift" cho sản phẩm
