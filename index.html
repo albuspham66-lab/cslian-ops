@@ -3556,7 +3556,14 @@ async function renderOrders(){
     <div class="stat-card"><div class="stat-label">🎯 % Target</div><div class="stat-val" style="color:${totalRev>=targetDisplay?'var(--success)':'var(--warn)'}">${Math.round(totalRev/targetDisplay*100)}%</div><div class="stat-sub">${totalRev>=targetDisplay?'✅ Đạt':'❌ Chưa đạt'}</div></div>
     <div class="stat-card"><div class="stat-label">💰 Tổng Bonus</div><div class="stat-val" style="color:var(--warn);font-size:18px">${usd(totalBonusChenh+totalBonusMacDinh+totalExtraBonus)}</div><div class="stat-sub">Chênh lệch: ${usd(totalBonusChenh)} · Giường: ${usd(totalBonusMacDinh)} · Extra: ${usd(totalExtraBonus)}</div></div>`;
 
-  if(list.length===0){document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;return;}
+  if(list.length===0){
+    document.getElementById('ord-tbody').innerHTML=`<tr><td colspan="12" class="empty">Chưa có đơn hàng tháng này</td></tr>`;
+    // Tháng không có đơn gốc VẪN phải tải "đơn tất toán từ tháng khác" + đơn huỷ,
+    // nếu không 2 bảng này giữ nguyên dữ liệu tháng/tài khoản trước đó.
+    await renderOrdersSettledFromOtherMonth(thang,isMgr,empId);
+    await renderOrdersCancelled(thang,isMgr,empId);
+    return;
+  }
   document.getElementById('ord-tbody').innerHTML=list.map(o=>{
     const tatToan=o.is_settled||o.balance_due===0;
     const bonusMacDinh=bonusMacDinhMap[o.id]||0;
