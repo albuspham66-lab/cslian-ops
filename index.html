@@ -3635,6 +3635,8 @@ async function renderOrdersCancelled(thang,isMgr,empId){
 async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   const tbody=document.getElementById('ord-settled-other-tbody');
   if(!tbody)return;
+  // Chống race: đổi tháng nhanh thì lần render cũ KHÔNG được ghi đè lần mới
+  const _tok=(window._ordSetTok=(window._ordSetTok||0)+1);
   let q=sb.from('orders').select('*,profiles(full_name,employee_code)')
     .eq('thang_tat_toan',thang).eq('is_settled',true).neq('billing_month',thang)
     .or('order_status.is.null,order_status.neq.Cancelled')
@@ -3642,6 +3644,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   if(!isMgr)q=q.eq('user_id',curProfile.id);
   else if(empId)q=q.eq('user_id',empId);
   const {data:rows}=await q;
+  if(_tok!==window._ordSetTok)return;
   const list=rows||[];
   if(!list.length){
     tbody.innerHTML=`<tr><td colspan="12" class="empty">Không có đơn nào tất toán từ tháng khác trong tháng này</td></tr>`;
@@ -3691,6 +3694,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
     }));
   }));
 
+  if(_tok!==window._ordSetTok)return;
   tbody.innerHTML=list.map(o=>{
     const uid=o.user_id||'_';
     const bracket=bracketCache[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
