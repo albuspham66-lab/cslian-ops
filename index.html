@@ -1742,6 +1742,31 @@ const GIAM_TRU_BAN_THAN=15500000;      // giảm trừ gia cảnh bản thân/th
 const GIAM_TRU_NGUOI_PHU_THUOC=6200000; // giảm trừ mỗi người phụ thuộc/tháng
 const BHXH_NLD_RATE=0.08,BHYT_NLD_RATE=0.015,BHTN_NLD_RATE=0.01; // tỷ lệ NLĐ đóng
 const BH_TOTAL_RATE=BHXH_NLD_RATE+BHYT_NLD_RATE+BHTN_NLD_RATE; // 10.5%
+// ── Loại hợp đồng HIỆU LỰC theo từng THÁNG lương ──────────────────────
+// contract_type trong hồ sơ chỉ là loại HIỆN TẠI. Tháng trước "Ngày lên chính
+// thức" phải tính theo loại hợp đồng lúc đó (thử việc / thử việc gia hạn), nếu
+// không khi nhân viên lên chính thức thì mọi tháng cũ bị tính lại sai (target
+// 23.5k thay vì 85%, mất BHXH sàn, kích hoạt Backup Bonus sai...).
+// contract_type_truoc_chinh_thuc (tuỳ chọn): loại HĐ trước khi lên chính thức,
+// mặc định 'probation'.
+function isProbLikeType(ct){return ct==='probation'||ct==='thu-viec'||ct==='probation_extended';}
+function effContractType(emp,thang){
+  const ct=emp?.contract_type||'official';
+  if(isProbLikeType(ct))return ct;
+  const d=emp?.ngay_len_chinh_thuc;
+  if(d&&thang&&thang<String(d).slice(0,7))return emp.contract_type_truoc_chinh_thuc||'probation';
+  return ct;
+}
+// Chỉ tự tính lại bảng lương CHƯA CHỐT của tháng hiện tại và tháng trước.
+// Tháng cũ hơn đã có dữ liệu thì giữ nguyên số đã lưu (phải bấm chốt/xoá bản ghi
+// để tính lại chủ động) — tránh số đã trả bị đổi âm thầm.
+function monthIsRecent(thang){
+  const n=new Date(),cur=n.getFullYear()*12+n.getMonth();
+  const [y,m]=String(thang).split('-').map(Number);
+  return cur-(y*12+(m-1))<=1;
+}
+function needRecalc(existing,thang){return !existing||(!existing.is_locked&&monthIsRecent(thang));}
+
 // Khấu trừ 10% tại nguồn — HĐLĐ <3 tháng (kể cả khoản trả sau khi đã chấm dứt HĐ),
 // mỗi lần trả ≥5 triệu (Nghị định 253/2026/NĐ-CP, Điều 50 — trước đây ngưỡng 2tr)
 const KHAU_TRU_THU_VIEC_RATE=0.10,KHAU_TRU_THU_VIEC_NGUONG=5000000;
@@ -2647,7 +2672,7 @@ async function exportOrdersExcel(){
   // Target thử việc = 85% — tra đúng contract_type của Sale sở hữu đơn đó.
   function isOrderDatTarget(o){
     const p=allProfilesMap[o.user_id]||allProfiles.find(x=>x.id===o.user_id);
-    const isProb=p&&(p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended');
+    const isProb=p&&isProbLikeType(effContractType(p,o.billing_month));
     const tgt=isProb?TARGET_USD*0.85:TARGET_USD;
     return (tongDoanhSoTheoSale[o.user_id]||0)>=tgt;
   }
@@ -2878,7 +2903,7 @@ async function exportOrdersExcel(){
         let rate=15;
         if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
         const pUid=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
-        const isProbUid=pUid&&(pUid.contract_type==='probation'||pUid.contract_type==='thu-viec'||pUid.contract_type==='probation_extended');
+        const isProbUid=pUid&&isProbLikeType(effContractType(pUid,bm));
         let tyLeDat=total>=(isProbUid?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
         if(tyLeDat<1.0&&uid!=='_'){
           const {data:nextSal}=await sb.from('salary_monthly').select('backup_bonus_triggered').eq('user_id',uid).eq('thang',nextThang).maybeSingle();
@@ -3553,7 +3578,7 @@ async function renderOrders(){
   // Target thử việc = 85% — chỉ áp dụng khi đang xem riêng 1 Sale cụ thể
   // (xem "Tất cả nhân viên" thì không có 1 target chung để điều chỉnh).
   const selEmpForTarget=empId?(allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)):null;
-  const isProbationSel=selEmpForTarget&&(selEmpForTarget.contract_type==='probation'||selEmpForTarget.contract_type==='thu-viec'||selEmpForTarget.contract_type==='probation_extended');
+  const isProbationSel=selEmpForTarget&&isProbLikeType(effContractType(selEmpForTarget,thang));
   const targetDisplay=isProbationSel?TARGET_USD*0.85:TARGET_USD;
   document.getElementById('ord-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">📦 Số đơn hàng</div><div class="stat-val" style="color:var(--accent)">${list.length}</div><div class="stat-sub">${tatToanCount} đã tất toán</div></div>
@@ -3705,7 +3730,7 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
       let rate=15;
       if(giuong>=40)rate=25;else if(giuong>=30)rate=20;else if(giuong>=20)rate=17;else if(giuong>=10)rate=15;
       const pUid2=allProfilesMap[uid]||allProfiles.find(x=>x.id===uid);
-      const isProbUid2=pUid2&&(pUid2.contract_type==='probation'||pUid2.contract_type==='thu-viec'||pUid2.contract_type==='probation_extended');
+      const isProbUid2=pUid2&&isProbLikeType(effContractType(pUid2,bm));
       let tyLeDat=total>=(isProbUid2?TARGET_USD*0.85:TARGET_USD)?1.0:0.5;
       // Liên kết Backup Bonus — giống hệt calcSalaryForEmp, giữ số hiển thị
       // ở Tab Đơn hàng khớp đúng số thật trên phiếu lương.
@@ -4455,14 +4480,15 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     : {data:[]};
 
   const recMap={};(attRes.data||[]).forEach(r=>recMap[r.date]=r);
-  const isProbation=(emp.contract_type==='probation'||emp.contract_type==='thu-viec');
+  const ctM=effContractType(emp,thang); // loại HĐ hiệu lực của ĐÚNG tháng đang tính
+  const isProbation=(ctM==='probation'||ctM==='thu-viec');
   // Thử việc GIA HẠN (quá 2 tháng luật cho phép, Calvin cho thêm cơ hội):
   // pipeline tính lương/thuế/BHXH chạy Y HỆT chính thức (isProbation vẫn
   // false ở các bước BHXH/thuế/thực lĩnh bên dưới — không có dòng "khấu
   // trừ 10%"/"điều chỉnh thử việc 15%" nào hiện ra, tránh lộ format thử
   // việc trên phiếu lương quá 2 tháng, sai luật). CHỈ khác: mức lương đầu
   // vào (P1-P3D) giảm 85% NGAY TỪ ĐẦU, và Target xét bonus vẫn ở mức 85%.
-  const isProbationExtended=(emp.contract_type==='probation_extended');
+  const isProbationExtended=(ctM==='probation_extended');
   const isProbationTarget=isProbation||isProbationExtended; // dùng cho TARGET bonus (85%)
 
   const congChuan=congChuanThang(salYear,salMonth+1);
@@ -4472,7 +4498,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const ds=dateStr(salYear,salMonth,d),dow=new Date(salYear,salMonth,d).getDay();
     if(isWE(dow))continue;
     const rec=recMap[ds];
-    const r=calcDayLogic(rec,emp.contract_type,_luongNgay,_luongGio);
+    const r=calcDayLogic(rec,ctM,_luongNgay,_luongGio);
     const isHolidayDay=rec?.status==='NL'||isHL(ds);
     // Ngày lễ chỉ tính công/lương cho người ĐÃ set "Ngày bắt đầu tính lương"
     // và ngày lễ đó rơi từ mốc đó trở đi — tránh tự động cấp công lễ cho
@@ -4572,7 +4598,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
       const {data:bmItems}=await sb.from('order_items').select('so_luong').in('order_id',bmOrdIds).eq('vendor','BOLSA').eq('la_bolsa',true);
       bmGiuong=(bmItems||[]).reduce((s,i)=>s+(i.so_luong||0),0);
     }
-    const bmTarget=isProbation?TARGET_USD*0.85:TARGET_USD; // xấp xỉ — bậc thử việc có thể đổi theo thời điểm đó
+    const bmTarget=isProbLikeType(effContractType(emp,bm))?TARGET_USD*0.85:TARGET_USD; // theo loại HĐ của ĐÚNG tháng gốc bm
     let bmTyLeDat=bmTotal>=bmTarget?1.0:0.5;
     // Liên kết với Backup Bonus: nếu tháng `bm` không tự đạt target, nhưng
     // tháng NGAY SAU đó đã bù đủ GAP thành công — coi `bm` NHƯ ĐÃ ĐẠT (100%)
@@ -4674,7 +4700,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
     const prevYear=salMonth===0?salYear-1:salYear;
     const prevMonth=salMonth===0?11:salMonth-1;
     const prevThang=monthStr(prevYear,prevMonth);
-    const prevTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
+    const prevTarget=isProbLikeType(effContractType(emp,prevThang))?TARGET_USD*0.85:TARGET_USD;
 
     // ── Chặn Backup Bonus xuyên mốc đổi người dùng chung account ──────
     // Khi 1 account (employee_code) được tái sử dụng cho nhân viên mới
@@ -4699,7 +4725,7 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
       const gap=Math.max(0,prevTarget-prevDT);
 
       // Doanh số tháng này (tất cả đơn) để xét điều kiện backup
-      const curTarget=isProbation?TARGET_USD*0.85:TARGET_USD;
+      const curTarget=isProbationTarget?TARGET_USD*0.85:TARGET_USD;
       const curDT=dtTotalForTarget;
 
       if(gap>0&&curDT>=curTarget+gap){
@@ -4812,8 +4838,8 @@ async function renderSalary(){
     try{
       const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',emp.id).eq('thang',thang).maybeSingle();
       let sal=existing;
-      if(!existing||!existing.is_locked){
-        // Chưa chốt (hoặc chưa có) → tính mới + ghi đè
+      if(needRecalc(existing,thang)){
+        // Chưa có, hoặc chưa chốt VÀ là tháng hiện tại/tháng trước → tính mới + ghi đè
         const fresh=await calcSalaryForEmp(emp.id,thang,salYear,salMonth);
         if(fresh){
           const mergedData={...fresh,is_locked:existing?.is_locked||false};
@@ -4841,8 +4867,8 @@ function renderSalaryRow(emp,sal,thang,isMgr){
   // ngay từ đây, tránh query lại DB (tránh race condition / RLS delay).
   _salCache[emp.id+'|'+thang]=sal;
   const locked=!!sal.is_locked;
-  const lockBtn=isMgr?`<button class="sal-lock-badge ${locked?'locked':'unlocked'}" onclick="toggleLockSalary('${emp.id}','${thang}')">${locked?'🔒 Đã chốt':'🔓 Đang tính'}</button>`:
-    `<span class="sal-lock-badge ${locked?'locked':'unlocked'}">${locked?'🔒 Đã chốt':'🔓 Đang tính'}</span>`;
+  const lockBtn=isMgr?`<button class="sal-lock-badge ${locked?'locked':'unlocked'}" onclick="toggleLockSalary('${emp.id}','${thang}')">${locked?'🔒 Đã chốt':(monthIsRecent(thang)?'🔓 Đang tính':'⚠️ Chưa chốt')}</button>`:
+    `<span class="sal-lock-badge ${locked?'locked':'unlocked'}">${locked?'🔒 Đã chốt':(monthIsRecent(thang)?'🔓 Đang tính':'⚠️ Chưa chốt')}</span>`;
   row.innerHTML=`
     <td><span class="sal-name">${emp.full_name}</span><span class="sal-code">${emp.employee_code||''}</span></td>
     <td><span class="sal-total">${vndFmt(sal.luong_thuc_nhan_vnd!=null?sal.luong_thuc_nhan_vnd:sal.tong_luong_vnd)}</span></td>
@@ -4883,7 +4909,7 @@ async function viewSalaryDetail(empId,thang){
   // Nếu chưa chốt → tính lại fresh để hiển thị số mới nhất
   const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
   let sal;
-  if(existing?.is_locked){
+  if(existing&&!needRecalc(existing,thang)){
     sal=existing;
   } else {
     sal=await calcSalaryForEmp(empId,thang,salYear,salMonth);
@@ -5063,8 +5089,8 @@ async function exportPhieuLuong(empId,thang){
   const emp=allProfilesMap[empId]||allProfiles.find(p=>p.id===empId)||curProfile;
   const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',empId).eq('thang',thang).maybeSingle();
   let sal=existing;
-  if(!existing?.is_locked){
-    // Chưa chốt → PHẢI tính lại fresh giống hệt renderSalary()/viewSalaryDetail(),
+  if(needRecalc(existing,thang)){
+    // Chưa chốt (tháng gần đây) → PHẢI tính lại fresh giống hệt renderSalary()/viewSalaryDetail(),
     // không được tin thẳng vào DB (trước đây không tính lại ở đây → phiếu lương
     // xuất ra có thể lệch số với danh sách "Bảng lương" nếu DB đang giữ 1 bản
     // tính từ trước đó, VD trước khi có đơn hàng/chấm công mới hoặc trước khi
@@ -5111,7 +5137,7 @@ async function exportSalaryTableExcel(){
   const rows=(await Promise.all(emps.map(async(emp)=>{
     const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',emp.id).eq('thang',thang).maybeSingle();
     let sal=existing;
-    if(!existing?.is_locked){
+    if(needRecalc(existing,thang)){
       const [ty,tm]=thang.split('-').map(Number);
       const fresh=await calcSalaryForEmp(emp.id,thang,ty,tm-1);
       if(fresh){
@@ -5290,7 +5316,7 @@ async function exportAllPhieuLuong(){
   const results=await Promise.all(emps.map(async(emp)=>{
     const {data:existing}=await sb.from('salary_monthly').select('*').eq('user_id',emp.id).eq('thang',thang).maybeSingle();
     let sal=existing;
-    if(!existing?.is_locked){
+    if(needRecalc(existing,thang)){
       // Giống exportPhieuLuong: tính lại fresh cho các bảng lương chưa chốt,
       // tránh xuất số liệu cũ/lệch so với danh sách Bảng lương.
       const [ty,tm]=thang.split('-').map(Number);
