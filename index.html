@@ -1742,8 +1742,11 @@ const GIAM_TRU_BAN_THAN=15500000;      // giảm trừ gia cảnh bản thân/th
 const GIAM_TRU_NGUOI_PHU_THUOC=6200000; // giảm trừ mỗi người phụ thuộc/tháng
 const BHXH_NLD_RATE=0.08,BHYT_NLD_RATE=0.015,BHTN_NLD_RATE=0.01; // tỷ lệ NLĐ đóng
 const BH_TOTAL_RATE=BHXH_NLD_RATE+BHYT_NLD_RATE+BHTN_NLD_RATE; // 10.5%
-// Khấu trừ 10% tại nguồn — áp dụng cho HĐLĐ <3 tháng (thử việc), mỗi lần trả ≥2tr
-const KHAU_TRU_THU_VIEC_RATE=0.10,KHAU_TRU_THU_VIEC_NGUONG=2000000;
+// Khấu trừ 10% tại nguồn — HĐLĐ <3 tháng (kể cả khoản trả sau khi đã chấm dứt HĐ),
+// mỗi lần trả ≥5 triệu (Nghị định 253/2026/NĐ-CP, Điều 50 — trước đây ngưỡng 2tr)
+const KHAU_TRU_THU_VIEC_RATE=0.10,KHAU_TRU_THU_VIEC_NGUONG=5000000;
+// Nhân viên CHÍNH THỨC làm dưới 14 ngày công trong tháng → không đóng BHXH tháng đó
+const BHXH_MIN_NGAY_CONG=14;
 
 // Biểu thuế lũy tiến từng phần 5 bậc (2026) — dùng công thức rút gọn
 // Thuế = Thu nhập tính thuế × Thuế suất bậc − Số trừ nhanh
@@ -1768,7 +1771,7 @@ function calcBHXH(p1,isProbation){
 }
 // Tính thuế TNCN cho 1 tháng lương.
 // - Thử việc (HĐ <3 tháng): khấu trừ 10% flat trên (TỔNG LƯƠNG − các khoản
-//   miễn thuế) nếu ≥2 triệu, KHÔNG áp giảm trừ gia cảnh, KHÔNG trừ BHXH.
+//   miễn thuế) nếu ≥5 triệu, KHÔNG áp giảm trừ gia cảnh, KHÔNG trừ BHXH.
 // - Chính thức: (Tổng lương − BHXH − các khoản miễn thuế − Giảm trừ gia cảnh)
 //   → áp biểu lũy tiến 5 bậc.
 // mienThueVnd = các khoản miễn thuế theo Điều 2/3 Thông tư 111/2013: tiền ăn
@@ -3087,7 +3090,7 @@ async function renderTaxReport(){
     totThue+=r.thue_tncn_vnd||0;
     totNet+=r.luong_thuc_nhan_vnd!=null?r.luong_thuc_nhan_vnd:(r.tong_luong_vnd||0);
     // BHXH doanh nghiệp đóng (21.5% trên P1) — chỉ chính thức, thông tin cho quyết toán
-    if(r.p1_he_so!==0.85)totBHDoanhNghiep+=Math.round((r.p1_thuc_te||0)*0.215);
+    if(r.p1_he_so!==0.85&&(r.bhxh_vnd||0)>0)totBHDoanhNghiep+=Math.round((r.p1_thuc_te||0)*0.215);
   });
   const totKhauTru=totBH+totThue;
   const totChiPhiKhac=(await _fetchChiPhiKhac()).reduce((s,e)=>s+(e.so_tien||0),0);
@@ -3291,17 +3294,19 @@ async function exportTaxReportExcel(){
 // ── Modal chi tiết lương (Báo cáo thuế → bấm 1 hàng) ────────────────
 function computeTaxDetailFigures(r){
   const isProbation=r.p1_he_so===0.85;
+  // Chính thức nhưng bhxh_vnd=0 (VD tháng <14 ngày công) → không có BHXH NLĐ lẫn công ty
+  const noBh=isProbation||!(r.bhxh_vnd>0);
   // Mức đóng BHXH thật = bhxh_vnd/10.5% (thử việc gia hạn có thể đóng trên
   // sàn Vùng I, cao hơn P1 thực tế); không có thì dùng P1.
   const p1=(!isProbation&&r.bhxh_vnd>0)?Math.round(r.bhxh_vnd/BH_TOTAL_RATE):(r.p1_thuc_te||0);
-  const bhxhNld_bhxh=isProbation?0:Math.round(p1*BHXH_NLD_RATE);
-  const bhxhNld_bhyt=isProbation?0:Math.round(p1*BHYT_NLD_RATE);
-  const bhxhNld_bhtn=isProbation?0:Math.round(p1*BHTN_NLD_RATE);
+  const bhxhNld_bhxh=noBh?0:Math.round(p1*BHXH_NLD_RATE);
+  const bhxhNld_bhyt=noBh?0:Math.round(p1*BHYT_NLD_RATE);
+  const bhxhNld_bhtn=noBh?0:Math.round(p1*BHTN_NLD_RATE);
   const bhxhNld_cong=bhxhNld_bhxh+bhxhNld_bhyt+bhxhNld_bhtn;
   // Phần Công ty đóng (21.5%) — chi phí doanh nghiệp, KHÔNG trừ vào lương NLĐ
-  const bhxhCty_bhxh=isProbation?0:Math.round(p1*0.175);
-  const bhxhCty_bhyt=isProbation?0:Math.round(p1*0.03);
-  const bhxhCty_bhtn=isProbation?0:Math.round(p1*0.01);
+  const bhxhCty_bhxh=noBh?0:Math.round(p1*0.175);
+  const bhxhCty_bhyt=noBh?0:Math.round(p1*0.03);
+  const bhxhCty_bhtn=noBh?0:Math.round(p1*0.01);
   const bhxhCty_cong=bhxhCty_bhxh+bhxhCty_bhyt+bhxhCty_bhtn;
   // TNCT (Thu nhập chịu thuế) = Tổng thu nhập − Các khoản được miễn thuế.
   // BHXH KHÔNG trừ ở bước này — theo đúng chuẩn kế toán, BHXH được xem là
@@ -3312,7 +3317,7 @@ function computeTaxDetailFigures(r){
   const tnct=Math.max(0,(r.tong_luong_vnd||0)-(r.mien_thue_vnd||0));
   const giamTru=isProbation?0:(GIAM_TRU_BAN_THAN+(r.so_nguoi_phu_thuoc_snapshot||0)*GIAM_TRU_NGUOI_PHU_THUOC);
   const tntt=isProbation?null:Math.max(0,tnct-bhxhNld_cong-giamTru);
-  return {isProbation,p1,bhxhNld_bhxh,bhxhNld_bhyt,bhxhNld_bhtn,bhxhNld_cong,
+  return {isProbation,noBh,p1,bhxhNld_bhxh,bhxhNld_bhyt,bhxhNld_bhtn,bhxhNld_cong,
     bhxhCty_bhxh,bhxhCty_bhyt,bhxhCty_bhtn,bhxhCty_cong,tnct,giamTru,tntt};
 }
 function openTaxDetailModal(idx){
@@ -4719,7 +4724,8 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
   // Thử việc gia hạn: BHXH đóng trên P1 (100%), không thấp hơn sàn Vùng I
   // (Nghị định 293/2025/NĐ-CP).
   const p1ChoBHXH=isProbationExtended?Math.max(p1,LUONG_TOI_THIEU_VUNG_I):p1;
-  const bhxhVnd=calcBHXH(p1ChoBHXH,isProbation);
+  // Chính thức làm <14 ngày công trong tháng → không đóng BHXH tháng đó
+  const bhxhVnd=(!isProbation&&ngayCong<BHXH_MIN_NGAY_CONG)?0:calcBHXH(p1ChoBHXH,isProbation);
   const soNguoiPhuThuoc=emp.so_nguoi_phu_thuoc||0;
   // Khoản miễn thuế TNCN: tiền ăn giữa ca (P2A) + tiền lương làm đêm (P2B) —
   // theo hợp đồng, P2B được xác định là "khoản trả thêm 30% cho giờ làm đêm"
@@ -5197,7 +5203,7 @@ async function exportSalaryTableExcel(){
       sal.p3b_chuyen_can||0, sal.p3c_kpi||0, bonusHeadspa, bonusDsChenh, bonusVuot,
       sal.thuong_le_vnd||0,
       sal.ngay_cong_thuc_te||0, sal.cong_chuan_thang||0,
-      sal.tong_luong_vnd||0, f.isProbation?0:f.p1,
+      sal.tong_luong_vnd||0, f.noBh?0:f.p1,
       f.bhxhCty_bhxh, f.bhxhCty_bhyt, f.bhxhCty_bhtn, f.bhxhCty_cong,
       f.bhxhNld_bhxh, f.bhxhNld_bhyt, f.bhxhNld_bhtn, f.bhxhNld_cong,
       f.tnct, f.tntt||0, sal.thue_tncn_vnd||0, sal.tam_ung_vnd||0, tongThuNhapSauThue, thucLinh,
@@ -5224,13 +5230,13 @@ async function exportSalaryTableExcel(){
     ws.getCell(r,32).value={formula:`V${r}-H${r}-K${r}`,result:vals[31]};                // TNCT = Gross−Miễn thuế
     if(f.isProbation){
       ws.getCell(r,33).value=0; // Thử việc: không áp dụng TNTT/giảm trừ
-      ws.getCell(r,34).value={formula:`AF${r}*0.1`,result:vals[33]};                     // TNCN thử việc = 10%×TNCT
+      ws.getCell(r,34).value={formula:`ROUND(AF${r}*0.1,0)`,result:vals[33]};                     // TNCN thử việc = 10%×TNCT
     }else{
       ws.getCell(r,33).value={formula:`AF${r}-AE${r}-${giamTruVal}`,result:vals[32]};    // TNTT = TNCT−BHXH(NLĐ)−Giảm trừ
       // Thuế lũy tiến 5 BẬC TÙY CHỈNH (BIEU_THUE_5_BAC) trên TNTT (AG) —
       // khớp đúng calcThueTNCNLuyTien(): ≤10tr→5%/0, ≤30tr→10%−500k,
       // ≤60tr→20%−3.5tr, ≤100tr→30%−9.5tr, còn lại→35%−14.5tr
-      ws.getCell(r,34).value={formula:`IF(AG${r}<=0,0,IF(AG${r}<=10000000,AG${r}*0.05,IF(AG${r}<=30000000,AG${r}*0.1-500000,IF(AG${r}<=60000000,AG${r}*0.2-3500000,IF(AG${r}<=100000000,AG${r}*0.3-9500000,AG${r}*0.35-14500000)))))`,result:vals[33]};
+      ws.getCell(r,34).value={formula:`ROUND(IF(AG${r}<=0,0,IF(AG${r}<=10000000,AG${r}*0.05,IF(AG${r}<=30000000,AG${r}*0.1-500000,IF(AG${r}<=60000000,AG${r}*0.2-3500000,IF(AG${r}<=100000000,AG${r}*0.3-9500000,AG${r}*0.35-14500000))))),0)`,result:vals[33]};
     }
     ws.getCell(r,36).value={formula:`V${r}-AH${r}-AI${r}`,result:vals[35]};              // Tổng TN sau thuế = Gross−TNCN−Tạm ứng (KHÔNG trừ BHXH — tách riêng, trừ ở cột Thực lĩnh)
     ws.getCell(r,37).value=f.isProbation
@@ -5250,6 +5256,8 @@ async function exportSalaryTableExcel(){
   ws.getCell(totalR,2).value='Tổng cộng';
   ws.mergeCells(totalR,2,totalR,5);
   moneyCols.forEach(c=>{ws.getCell(totalR,c).value=gT[c];});
+  // Tổng thuế TNCN = tổng chính cột đã làm tròn từng NV (khớp số kế toán cộng tay)
+  if(rows.length)ws.getCell(totalR,34).value={formula:`SUM(AH${dataStart}:AH${totalR-1})`,result:gT[34]};
   ws.getCell(totalR,20).value=gT_ngayCT;ws.getCell(totalR,21).value=gT_ngayChuan;
   ws.getRow(totalR).eachCell(cell=>{
     cell.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};
