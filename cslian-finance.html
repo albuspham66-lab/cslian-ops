@@ -1561,7 +1561,7 @@ async function loadAll(){
       prevOrFilter?sb('orders',`select=total_amount,is_settled,billing_month&${prevOrFilter}`).catch(()=>[]):[],
       sb('expenses',`select=so_tien&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
       sb('salary_monthly',`select=tong_luong_vnd&thang=gte.${prev.from}&thang=lte.${prev.to}`).catch(()=>[]),
-      sb('orders',`select=id,invoice_no,shop_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id&is_settled=eq.false`).catch(()=>[]),
+      sb('orders',`select=id,invoice_no,shop_name,affiliate_member_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id,sale_rep_name,order_status&is_settled=eq.false`).catch(()=>[]),
       sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
       sb('monthly_budget',`select=*`).catch(()=>[]),
       sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month&billing_month=in.(${months.join(',')})`).catch(()=>[])
@@ -2446,14 +2446,15 @@ function calcCashFlowForecast(){
     return commAmt;
   };
   const commUSD=ordersPerMonth.map(ords=>ords.reduce((s,o)=>s+calcOrderComm(o),0));
+  const revenueUSD=ordersPerMonth.map(ords=>ords.reduce((s,o)=>s+(o.total_amount||0),0));
   const countPerMonth=ordersPerMonth.map(ords=>ords.length);
-  return{months,cutoffs,commUSD,countPerMonth,ordersPerMonth};
+  return{months,cutoffs,commUSD,revenueUSD,countPerMonth,ordersPerMonth};
 }
 
 function renderCashFlowForecast(){
   const fc=calcCashFlowForecast();
-  const totalComm=fc.commUSD.reduce((s,v)=>s+v,0);
-  setTxt('cf-total-val',fmtUSD(totalComm));
+  const totalRevenue=fc.revenueUSD.reduce((s,v)=>s+v,0);
+  setTxt('cf-total-val',fmtUSD(totalRevenue));
   const labels=fc.months.map(mk=>{const[y,m]=mk.split('-');return`T${parseInt(m)}/${y.slice(2)}`;});
   setTxt('cf-m0-label',labels[0]);setTxt('cf-m1-label',labels[1]);setTxt('cf-m2-label',labels[2]);
   // Make column headers clickable
@@ -2462,7 +2463,8 @@ function renderCashFlowForecast(){
     if(el){el.style.cursor='pointer';el.title='Xem danh sách đơn hàng';}
   });
   const rows=[
-    {label:'🤝 HH chưa thu (USD)',vals:fc.commUSD.map((v,i)=>`<span style="cursor:pointer;text-decoration:underline dotted;" onclick="showCFOrderList(${i})">${fmtUSD(v)}</span>`),color:'var(--teal2)'},
+    {label:'💰 Doanh số đơn chưa thu HH',vals:fc.revenueUSD.map((v,i)=>`<span style="cursor:pointer;text-decoration:underline dotted;" onclick="showCFOrderList(${i})">${fmtUSD(v)}</span>`),color:'var(--green2)'},
+    {label:'🤝 HH ước tính (5% fallback)',vals:fc.commUSD.map((v,i)=>`<span style="cursor:pointer;text-decoration:underline dotted;" onclick="showCFOrderList(${i})">${fmtUSD(v)}</span>`),color:'var(--teal2)'},
     {label:'📦 Số đơn',vals:fc.countPerMonth.map((v,i)=>`<span style="cursor:pointer;text-decoration:underline dotted;" onclick="showCFOrderList(${i})">${v} đơn</span>`),color:'var(--text2)'},
     {label:'📅 Đơn từ tháng ≤',vals:fc.cutoffs.map(c=>{const[y,m]=c.split('-');return`T${parseInt(m)}/${y.slice(2)}`;}),color:'var(--text3)'},
   ];
@@ -2483,6 +2485,8 @@ function showCFOrderList(idx){
   const rows=ords.map(o=>`<tr>
     <td style="font-size:11px;">${o.invoice_no||'—'}</td>
     <td style="font-size:11px;">${o.shop_name||'—'}</td>
+    <td style="font-size:11px;">${o.affiliate_member_name||'—'}</td>
+    <td style="font-size:11px;">${o.sale_rep_name||'—'}</td>
     <td style="font-size:11px;">${o.billing_month||'—'}</td>
     <td class="num" style="font-size:11px;color:var(--teal2);">${fmtUSD(o.total_amount||0)}</td>
     <td style="font-size:10px;color:${o.is_settled?'var(--green2)':'var(--amber2)'};">${o.is_settled?'Tất toán':'Pending'}</td>
@@ -2490,7 +2494,7 @@ function showCFOrderList(idx){
   setHTML('cf-order-list',`<div style="margin-top:14px;">
     <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;">${title}</div>
     <div class="tw"><table>
-      <thead><tr><th>Invoice</th><th>Cửa hàng</th><th>Tháng</th><th class="num">Doanh số</th><th>Trạng thái</th></tr></thead>
+      <thead><tr><th>Invoice</th><th>Business Name</th><th>Customer</th><th>Sale</th><th>Tháng</th><th class="num">Doanh số</th><th>Trạng thái</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
   </div>`);
@@ -2545,6 +2549,7 @@ function showAgingOrderList(key,min,max){
   const rows=ords.map(o=>`<tr>
     <td style="font-size:11px;">${o.invoice_no||'—'}</td>
     <td style="font-size:11px;">${o.shop_name||'—'}</td>
+    <td style="font-size:11px;">${o.affiliate_member_name||'—'}</td>
     <td style="font-size:11px;">${o.sale_rep_name||'—'}</td>
     <td style="font-size:11px;">${o.order_date||'—'}</td>
     <td class="num" style="font-size:11px;">${agingDays(o.order_date)} ngày</td>
@@ -2553,7 +2558,7 @@ function showAgingOrderList(key,min,max){
   const html=`<div style="margin-top:12px;">
     <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;">${labels[key]} — ${ords.length} đơn</div>
     <div class="tw"><table>
-      <thead><tr><th>Invoice</th><th>Cửa hàng</th><th>Sale</th><th>Ngày tạo</th><th class="num">Tuổi nợ</th><th class="num">Balance Due</th></tr></thead>
+      <thead><tr><th>Invoice</th><th>Business Name</th><th>Customer</th><th>Sale</th><th>Ngày tạo</th><th class="num">Tuổi nợ</th><th class="num">Balance Due</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
   </div>`;
@@ -2599,7 +2604,8 @@ function toggleKpiDetail(key){
   const card=document.getElementById('kpi-card-'+key);
   const wasActive=_activeKpiKey[panelId]===key;
 
-  Object.keys(KPI_PANEL_MAP).filter(k=>KPI_PANEL_MAP[k]===panelId).forEach(k=>{
+  // Đóng ALL stat card active states
+  Object.keys(KPI_PANEL_MAP).forEach(k=>{
     const c=document.getElementById('kpi-card-'+k);
     if(c)c.classList.remove('mc-active');
   });
@@ -2607,8 +2613,21 @@ function toggleKpiDetail(key){
   if(wasActive){
     panel.style.display='none';
     _activeKpiKey[panelId]=null;
+    // Đóng expense list nếu đang mở
+    const expCard=document.getElementById('expense-list-card');
+    if(expCard)expCard.style.display='none';
     return;
   }
+
+  // Đóng panel còn lại (kpi vs forecast)
+  const otherPanelId=panelId==='kpi-detail-panel'?'forecast-detail-panel':'kpi-detail-panel';
+  const otherPanel=document.getElementById(otherPanelId);
+  if(otherPanel){otherPanel.style.display='none';}
+  _activeKpiKey[otherPanelId]=null;
+
+  // Ẩn expense-list-card khi đổi sang block khác (chỉ mở lại khi click nút chi tiết)
+  const expCard=document.getElementById('expense-list-card');
+  if(expCard&&key!=='exp')expCard.style.display='none';
 
   panel.querySelectorAll('.kpi-detail-block').forEach(b=>{
     b.style.display=(b.dataset.key===key)?'block':'none';
