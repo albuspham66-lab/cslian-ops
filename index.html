@@ -2941,7 +2941,8 @@ async function exportOrdersExcel(){
 
     settledOtherList.forEach((o,idx)=>{
       const uid=o.user_id||'_';
-      const bracket=bracketCache2[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+      const bracket0=bracketCache2[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+      const bracket=o.ty_le_dat_chot!=null?{...bracket0,tyLeDat:+o.ty_le_dat_chot}:bracket0;
       const soG=soGiuongMap2[o.id]||0;
       const chenhSale2=chenhSaleMap2[o.id]||0;
       const gbg2=giaBanGocGiuongMap2[o.id]||0;
@@ -3746,7 +3747,8 @@ async function renderOrdersSettledFromOtherMonth(thang,isMgr,empId){
   let _sumChenh=0,_sumGiuong=0;
   tbody.innerHTML=list.map(o=>{
     const uid=o.user_id||'_';
-    const bracket=bracketCache[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+    const bracket0=bracketCache[o.billing_month+'|'+uid]||{rate:15,tyLeDat:1.0};
+    const bracket=o.ty_le_dat_chot!=null?{...bracket0,tyLeDat:+o.ty_le_dat_chot}:bracket0;
     const soG=soGiuongMap[o.id]||0;
     const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
     const bonusGiuong=soG*bracket.rate*pct/100*bracket.tyLeDat;
@@ -4650,7 +4652,9 @@ async function calcSalaryForEmp(empId,thang,salYear,salMonth){
 
   let deferredDS1pct=0,deferredGiuong=0,deferredChenh=0;
   settledThisMonth.forEach(o=>{
-    const bracket=bracketCache[o.billing_month]||{rate:15,tyLeDat:1.0};
+    const bracket0=bracketCache[o.billing_month]||{rate:15,tyLeDat:1.0};
+    // Đơn nhận bàn giao từ người cũ: dùng tỷ lệ đạt đã chốt của người cũ (ty_le_dat_chot)
+    const bracket=o.ty_le_dat_chot!=null?{...bracket0,tyLeDat:+o.ty_le_dat_chot}:bracket0;
     const soG=soGiuongSettledMap[o.id]||0;
     const pct=o.pct_bonus_giuong!=null?o.pct_bonus_giuong:100;
     const bChenh=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:((o.bonus_sale_usd??o.bonus_chenh_lech)??0);
