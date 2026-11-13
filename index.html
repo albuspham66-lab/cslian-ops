@@ -4817,7 +4817,7 @@ async function renderSalary(){
   // thuế, tránh Manager lỡ tay chốt lương cho người chưa đủ điều kiện (VD Nam/
   // Tiên/Gấm/Khuê từng bị tính nhầm Extra/Thưởng lễ dù chưa/không nên tính).
   const emps=(isMgr?allProfiles.filter(p=>p.role!=='manager'||p.id===curProfile.id):[curProfile])
-    .filter(p=>p.ngay_bat_dau_tinh_luong&&thang>=p.ngay_bat_dau_tinh_luong.slice(0,7));
+    .filter(p=>p.ngay_bat_dau_tinh_luong&&thang>=p.ngay_bat_dau_tinh_luong.slice(0,7)&&(!p.ngay_nghi_viec||thang<=p.ngay_nghi_viec.slice(0,7))); // người đã nghỉ: không tính lương các tháng SAU tháng nghỉ
   const tbody=document.getElementById('salary-display');
   if(!emps.length){tbody.innerHTML='<div class="card"><div class="empty">Không có nhân viên</div></div>';return;}
 
@@ -5132,7 +5132,7 @@ async function exportSalaryTableExcel(){
   const isMgr=curProfile&&isManagerRole(curProfile.role);
   if(!isMgr){toast('Chỉ Manager mới xuất được','error');return;}
   const thang=monthStr(salYear,salMonth);
-  const emps=allProfiles.filter(e=>e.ngay_bat_dau_tinh_luong&&thang>=e.ngay_bat_dau_tinh_luong.slice(0,7));
+  const emps=allProfiles.filter(e=>e.ngay_bat_dau_tinh_luong&&thang>=e.ngay_bat_dau_tinh_luong.slice(0,7)&&(!e.ngay_nghi_viec||thang<=e.ngay_nghi_viec.slice(0,7)));
   if(!emps.length){toast('Không có nhân viên nào đủ điều kiện (đã set Ngày bắt đầu tính lương)','error');return;}
   toast('Đang chuẩn bị dữ liệu cho '+emps.length+' người...');
   const {data:kpiSetForExport}=await sb.from('kpi_settings').select('nguong_dat').eq('thang',thang).maybeSingle();
@@ -5314,7 +5314,7 @@ async function exportAllPhieuLuong(){
   const isMgr=curProfile&&isManagerRole(curProfile.role);
   if(!isMgr){toast('Chỉ Manager mới xuất được hàng loạt','error');return;}
   const thang=monthStr(salYear,salMonth);
-  const emps=allProfiles;
+  const emps=allProfiles.filter(e=>!e.ngay_nghi_viec||thang<=e.ngay_nghi_viec.slice(0,7)); // bỏ người đã nghỉ từ tháng trước
   toast('Đang chuẩn bị '+emps.length+' phiếu lương...');
 
   const results=await Promise.all(emps.map(async(emp)=>{
