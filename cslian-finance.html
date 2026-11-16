@@ -1574,7 +1574,7 @@ async function loadAll(){
       sb('orders',`select=id,invoice_no,shop_name,affiliate_member_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id,sale_rep_name,order_status&is_settled=eq.false`).catch(()=>[]),
       sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
       sb('monthly_budget',`select=*`).catch(()=>[]),
-      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month,shipping,selling_expenses,deposit1,deposit2,cost_price,referral_amount&billing_month=in.(${months.join(',')})`).catch(()=>[])
+      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month,shipping,selling_expenses,deposit1,deposit2,cost_price,referral_amount,customer_name,business_name&billing_month=in.(${months.join(',')})`).catch(()=>[])
     ]);
     allPendingGlobal=pendingGlobal||[];
     leadTimeOrders=leadOrders||[];
@@ -2380,8 +2380,8 @@ function renderOrdersTable(orders){
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.order_date||'—'}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.billing_month||'—'}</td>
       <td style="font-size:12px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${agent}">${agent}</td>
-      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.shop_name||''}">${o.shop_name||'—'}</td>
-      <td style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.affiliate_member_name||''}">${o.affiliate_member_name||'—'}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${vo.business_name||o.shop_name||''}">${vo.business_name||o.shop_name||'—'}</td>
+      <td style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${vo.customer_name||''}">${vo.customer_name||'—'}</td>
       <td class="num" style="color:var(--green2);font-weight:600;white-space:nowrap;">${fmtUSD(o.total_amount)}</td>
       <td class="num" style="white-space:nowrap;">${fmtN(deposit,'var(--teal2)')}</td>
       <td class="num" style="white-space:nowrap;">${fmtN(o.balance_due||0,(o.balance_due||0)>0?'var(--amber2)':'var(--green2)')}</td>
