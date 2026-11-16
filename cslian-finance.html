@@ -620,22 +620,23 @@ html[data-csilan-mode="light"] .sidebar{box-shadow:1px 0 0 rgba(15,23,42,.06)}ht
           <option value="done">Đã tất toán</option>
           <option value="pending">Pending</option>
         </select>
-        <select id="ord-vendor-f" onchange="filterOrders()" style="width:130px;padding:7px 10px;font-size:12px;">
-          <option value="">Tất cả Vendor</option>
-          <option value="BOLSA">BOLSA</option>
-          <option value="ONS">ONS</option>
-          <option value="TSPA">TSPA</option>
+        <select id="ord-hh-f" onchange="filterOrders()" style="width:140px;padding:7px 10px;font-size:12px;">
+          <option value="">Tất cả HH</option>
+          <option value="received">Đã thu HH</option>
+          <option value="pending">Chưa thu HH</option>
         </select>
       </div>
     </div>
     <div class="tw">
-      <table style="min-width:1700px;">
+      <table style="min-width:2000px;">
         <thead><tr>
-          <th>Mã đơn</th><th>Ngày lên</th><th>Tháng HT</th><th>Agent</th><th>Shop</th>
-          <th>Vendor</th><th class="num">Total ($)</th><th class="num">Shipping</th>
-          <th class="num">Truy thu</th><th class="num">Balance</th><th class="num">Chênh lệch</th>
-          <th class="num">HH Theo Rate ($)</th><th class="num">HH Chênh lệch ($)</th><th class="num">Hoa hồng ($)</th>
-          <th>Tình trạng</th><th style="white-space:nowrap;">Đã thu HH</th><th></th>
+          <th>Order ID</th><th>Order Date</th><th>Month</th><th>Agent</th>
+          <th>Business Name</th><th>Customer Name</th>
+          <th class="num">Total ($)</th><th class="num">Deposit ($)</th><th class="num">Balance ($)</th>
+          <th class="num">Shipping ($)</th><th class="num">Charge Fee ($)</th>
+          <th class="num" title="Price Gap × gap_pct%">Price Gap ($)</th>
+          <th class="num">Commission ($)</th><th class="num">Bonus Sale ($)</th>
+          <th>Tình trạng</th><th style="white-space:nowrap;">Đã thu HH</th>
         </tr></thead>
         <tbody id="orders-body"></tbody>
       </table>
@@ -1438,6 +1439,15 @@ let prevOrders=[], prevExpenses=[], prevSalary=[];
 // Forecast & cash-flow (không phụ thuộc kỳ báo cáo đang chọn — luôn lấy toàn bộ)
 let allPendingGlobal=[], leadTimeOrders=[], leadTimeItems=[], monthlyBudgets={};
 let filteredOrders=[], filteredExpenses=[];
+// vendorMap: invoice_no → vendor_orders row (lazy built after fetch)
+let _vendorMap=null;
+function getVendorMap(){
+  if(_vendorMap)return _vendorMap;
+  _vendorMap={};
+  (allVendorOrders||[]).forEach(vo=>{if(vo.invoice_no)_vendorMap[vo.invoice_no]=vo;});
+  return _vendorMap;
+}
+function getVO(o){return getVendorMap()[o.invoice_no]||{};}
 let prodPage=1; const PROD_PER_PAGE=30; let prodFiltered=[];
 
 // ─── MONTH RANGE ───
@@ -1564,7 +1574,7 @@ async function loadAll(){
       sb('orders',`select=id,invoice_no,shop_name,affiliate_member_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id,sale_rep_name,order_status&is_settled=eq.false`).catch(()=>[]),
       sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
       sb('monthly_budget',`select=*`).catch(()=>[]),
-      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month&billing_month=in.(${months.join(',')})`).catch(()=>[])
+      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month,shipping,selling_expenses,deposit1,deposit2,cost_price,referral_amount&billing_month=in.(${months.join(',')})`).catch(()=>[])
     ]);
     allPendingGlobal=pendingGlobal||[];
     leadTimeOrders=leadOrders||[];
@@ -1579,6 +1589,7 @@ async function loadAll(){
     allOrders=orders||[]; allExpenses=expenses||[]; allProfiles=profiles||[];
     allSalary=salary||[]; allKpi=kpi||[]; allProducts=products||[];
     allVendorOrders=vendorOrders||[];
+    _vendorMap=null; // reset cache khi load lại
     // Fetch order_items for current period orders
     if(allOrders.length>0){
       const orderIds=allOrders.map(o=>o.id).join(',');
@@ -2315,7 +2326,7 @@ function renderOrders(){
   const debt=pendingOrders().reduce((s,o)=>s+(o.balance_due||0),0);
   setTxt('ord-debt',fmtUSD(debt));
 
-  const agents=[...new Set(allProfiles.map(p=>p.full_name))];
+  const agents=[...new Set(allOrders.map(o=>o.sale_rep_name).filter(Boolean))].sort();
   const sel=document.getElementById('ord-agent-f');
   const cur=sel.value;
   sel.innerHTML='<option value="">Tất cả Agent</option>'+agents.map(a=>`<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
@@ -2326,14 +2337,13 @@ function renderOrders(){
 function filterOrders(){
   const agent=document.getElementById('ord-agent-f').value;
   const status=document.getElementById('ord-status-f').value;
-  const vendor=document.getElementById('ord-vendor-f').value;
+  const hh=document.getElementById('ord-hh-f')?.value||'';
   let f=allOrders;
-  if(agent)f=f.filter(o=>{const p=allProfiles.find(x=>x.id===o.user_id);return p&&p.full_name===agent;});
+  if(agent)f=f.filter(o=>o.sale_rep_name===agent);
   if(status==='done')f=f.filter(o=>o.is_settled);
   if(status==='pending')f=f.filter(o=>!o.is_settled);
-  if(vendor==='BOLSA')f=f.filter(o=>(o.revenue_bolsa||0)>0);
-  if(vendor==='ONS')f=f.filter(o=>(o.revenue_ons||0)>0);
-  if(vendor==='TSPA')f=f.filter(o=>(o.revenue_tspa||0)>0);
+  if(hh==='received')f=f.filter(o=>o.commission_received);
+  if(hh==='pending')f=f.filter(o=>!o.commission_received);
   filteredOrders=f;
   renderOrdersTable(f);
 }
@@ -2344,40 +2354,48 @@ function renderOrdersTable(orders){
   if(!orders.length){document.getElementById('orders-body').innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
   document.getElementById('orders-body').innerHTML=orders.map(o=>{
-    const p=allProfiles.find(x=>x.id===o.user_id);
-    const agent=p?p.full_name:'—';
-    const vendors=[];
-    if((o.revenue_bolsa||0)>0)vendors.push('<span class="b b-amber" style="font-size:10px;white-space:nowrap;">🔶 BOLSA</span>');
-    if((o.revenue_ons||0)>0)vendors.push('<span class="b b-blue" style="font-size:10px;white-space:nowrap;">🔷 ONS</span>');
-    if((o.revenue_tspa||0)>0)vendors.push('<span class="b b-purple" style="font-size:10px;white-space:nowrap;">💜 TSPA</span>');
-    const comm=calcOrderCommission(o.id);
-    const shipping=calcOrderShipping(o.id);
-    const chenh=calcOrderChenhLech(o.id);
-    const rateComm=calcOrderRateCommission(o.id);
-    const commChenh=calcOrderCommissionChenhLech(o.id);
+    const vo=getVO(o);
+    const agent=o.sale_rep_name||'—';
+    // Deposit từ vendor_orders; nếu không có thì derived từ total - balance
+    const deposit=(vo.deposit1!=null||vo.deposit2!=null)
+      ?(parseFloat(vo.deposit1||0)+parseFloat(vo.deposit2||0))
+      :Math.max(0,(o.total_amount||0)-(o.balance_due||0));
+    const shipping=parseFloat(vo.shipping)||0;
+    const chargeFee=parseFloat(vo.selling_expenses)||0;
+    // Price Gap contribution: price_gap × gap_pct / 100
+    const priceGap=parseFloat(vo.price_gap)||0;
+    const gapPct=(vo.gap_pct!=null?parseFloat(vo.gap_pct):100);
+    const priceGapContrib=priceGap*(gapPct/100);
+    // Commission = commission + priceGap*gapPct/100 + headspa*7%
+    const baseComm=parseFloat(vo.commission)||0;
+    const headspaBonus=(parseFloat(vo.headspa_amount)||0)*0.07;
+    const totalComm=baseComm+priceGapContrib+headspaBonus;
+    // Bonus Sale từ orders
+    const bonusSale=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:(o.bonus_chenh_lech||0);
+    const hasOverride=o.bonus_sale_usd_override!=null;
     const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
-    return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};cursor:pointer;" onclick="viewOrderDetail('${o.id}')" onmouseenter="this.style.background='var(--w003)'" onmouseleave="this.style.background=''">
+    const fmtN=(v,color='var(--text2)')=>v>0?`<span style="color:${color};">${fmtUSD(v)}</span>`:'<span style="color:var(--text3);">—</span>';
+    return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};" onmouseenter="this.style.background='var(--w003)'" onmouseleave="this.style.background=''">
       <td style="color:var(--blue2);font-size:12px;font-weight:600;white-space:nowrap;">${o.invoice_no||'—'}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.order_date||'—'}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap;">${o.billing_month||'—'}</td>
-      <td style="font-size:12px;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;" title="${agent}">${agent}</td>
-      <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.shop_name||''}">${o.shop_name||'—'}</td>
-      <td style="white-space:nowrap;">${vendors.join(' ')||'—'}</td>
-      <td class="num" style="color:var(--green2);font-weight:600;white-space:nowrap;cursor:pointer;text-decoration:underline dotted;" onclick="event.stopPropagation();viewOrderDetail('${o.id}')" title="Click để tính nhanh chênh lệch">${fmtUSD(o.total_amount)}</td>
-      <td class="num" style="white-space:nowrap;">${shipping>0?fmtUSD(shipping):'—'}</td>
-      <td class="num" style="white-space:nowrap;color:${(o.truy_thu_usd||0)>0?'var(--amber2)':'var(--text2)'}">${fmtUSD(o.truy_thu_usd)}</td>
-      <td class="num" style="white-space:nowrap;color:${(o.balance_due||0)<0?'var(--red2)':(o.balance_due||0)>0?'var(--amber2)':'var(--green2)'}">${fmtUSD(o.balance_due)}</td>
-      <td class="num" style="white-space:nowrap;color:${chenh>0?'var(--amber2)':'var(--text3)'}">${chenh>0?fmtUSD(chenh):'—'}</td>
-      <td class="num" style="white-space:nowrap;color:var(--purple2);">${rateComm>0?fmtUSD(rateComm):'—'}</td>
-      <td class="num" style="white-space:nowrap;color:${commChenh>0?'var(--amber2)':'var(--text3)'}">${commChenh>0?fmtUSD(commChenh):'—'}</td>
-      <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${comm>0?fmtUSD(comm):'—'}</td>
+      <td style="font-size:12px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${agent}">${agent}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.shop_name||''}">${o.shop_name||'—'}</td>
+      <td style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.affiliate_member_name||''}">${o.affiliate_member_name||'—'}</td>
+      <td class="num" style="color:var(--green2);font-weight:600;white-space:nowrap;">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="white-space:nowrap;">${fmtN(deposit,'var(--teal2)')}</td>
+      <td class="num" style="white-space:nowrap;">${fmtN(o.balance_due||0,(o.balance_due||0)>0?'var(--amber2)':'var(--green2)')}</td>
+      <td class="num" style="white-space:nowrap;">${fmtN(shipping)}</td>
+      <td class="num" style="white-space:nowrap;">${fmtN(chargeFee,'var(--red2)')}</td>
+      <td class="num" style="white-space:nowrap;" title="${priceGap>0?'$'+priceGap.toFixed(2)+' × '+gapPct+'%':''}">${fmtN(priceGapContrib,'var(--purple2)')}</td>
+      <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${totalComm>0?fmtUSD(totalComm):'<span style="color:var(--text3);">—</span>'}</td>
+      <td class="num" style="white-space:nowrap;">${bonusSale>0?`<span style="color:var(--amber2);">${fmtUSD(bonusSale)}${hasOverride?'<span title="Manager override" style="font-size:9px;color:var(--blue2);margin-left:3px;">✏️</span>':''}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
       <td style="white-space:nowrap;"><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
       <td style="text-align:center;" onclick="event.stopPropagation();">
         <input type="checkbox" ${o.commission_received?'checked':''} title="${o.commission_received?'Đã thu hoa hồng':'Chưa thu hoa hồng'}"
           style="width:16px;height:16px;accent-color:var(--green2);cursor:pointer;"
           onchange="toggleCommReceived('${o.id}',this.checked)">
       </td>
-      <td style="white-space:nowrap;"><button class="act-btn" title="Xem chi tiết" onclick="event.stopPropagation();viewOrderDetail('${o.id}')">👁</button></td>
     </tr>`;
   }).join('');
 }
