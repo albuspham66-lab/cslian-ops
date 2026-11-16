@@ -1574,7 +1574,7 @@ async function loadAll(){
       sb('orders',`select=id,invoice_no,shop_name,affiliate_member_name,total_amount,balance_due,is_settled,order_date,expected_settlement_date,settled_date,billing_month,user_id,sale_rep_name,order_status&is_settled=eq.false`).catch(()=>[]),
       sb('orders',`select=id,order_date,settled_date&is_settled=eq.true&settled_date=not.is.null&order=settled_date.desc&limit=300`).catch(()=>[]),
       sb('monthly_budget',`select=*`).catch(()=>[]),
-      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month,shipping,selling_expenses,deposit1,deposit2,cost_price,referral_amount,customer_name,business_name&billing_month=in.(${months.join(',')})`).catch(()=>[])
+      sb('vendor_orders',`select=invoice_no,commission,price_gap,gap_pct,headspa_amount,billing_month,shipping,selling_expenses,deposit1,deposit2,cost_price,referral_amount,customer_name,business_name,commission_received&billing_month=in.(${months.join(',')})`).catch(()=>[])
     ]);
     allPendingGlobal=pendingGlobal||[];
     leadTimeOrders=leadOrders||[];
@@ -2373,6 +2373,9 @@ function renderOrdersTable(orders){
     // Bonus Sale từ orders
     const bonusSale=o.bonus_sale_usd_override!=null?o.bonus_sale_usd_override:(o.bonus_chenh_lech||0);
     const hasOverride=o.bonus_sale_usd_override!=null;
+    // HH: ưu tiên vendor_orders.commission_received (đồng bộ với Maison), fallback orders
+    const hhReceived=vo.commission_received!=null?vo.commission_received:o.commission_received;
+    const voId=vo.invoice_no; // dùng invoice_no để update vendor_orders
     const sideColor=o.is_settled?'var(--green2)':'var(--amber2)';
     const fmtN=(v,color='var(--text2)')=>v>0?`<span style="color:${color};">${fmtUSD(v)}</span>`:'<span style="color:var(--text3);">—</span>';
     return`<tr style="box-shadow:inset 3px 0 0 ${sideColor};" onmouseenter="this.style.background='var(--w003)'" onmouseleave="this.style.background=''">
@@ -2387,14 +2390,14 @@ function renderOrdersTable(orders){
       <td class="num" style="white-space:nowrap;">${fmtN(o.balance_due||0,(o.balance_due||0)>0?'var(--amber2)':'var(--green2)')}</td>
       <td class="num" style="white-space:nowrap;">${fmtN(shipping)}</td>
       <td class="num" style="white-space:nowrap;">${fmtN(chargeFee,'var(--red2)')}</td>
-      <td class="num" style="white-space:nowrap;" title="${priceGap>0?'$'+priceGap.toFixed(2)+' × '+gapPct+'%':''}">${fmtN(priceGapContrib,'var(--purple2)')}</td>
+      <td class="num" style="white-space:nowrap;">${priceGapContrib>0?`<span style="color:var(--purple2);">${fmtUSD(priceGapContrib)}</span><div style="font-size:10px;color:var(--text3);margin-top:1px;">$${priceGap.toFixed(0)}×${gapPct}%</div>`:'<span style="color:var(--text3);">—</span>'}</td>
       <td class="num" style="white-space:nowrap;color:var(--teal2);font-weight:600;">${totalComm>0?fmtUSD(totalComm):'<span style="color:var(--text3);">—</span>'}</td>
       <td class="num" style="white-space:nowrap;">${bonusSale>0?`<span style="color:var(--amber2);">${fmtUSD(bonusSale)}${hasOverride?'<span title="Manager override" style="font-size:9px;color:var(--blue2);margin-left:3px;">✏️</span>':''}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
       <td style="white-space:nowrap;"><span class="b ${o.is_settled?'b-green':'b-amber'}">${o.is_settled?'✅ Tất toán':'⏳ Pending'}</span></td>
       <td style="text-align:center;" onclick="event.stopPropagation();">
-        <input type="checkbox" ${o.commission_received?'checked':''} title="${o.commission_received?'Đã thu hoa hồng':'Chưa thu hoa hồng'}"
+        <input type="checkbox" ${hhReceived?'checked':''} title="${hhReceived?'Đã thu hoa hồng':'Chưa thu hoa hồng'}"
           style="width:16px;height:16px;accent-color:var(--green2);cursor:pointer;"
-          onchange="toggleCommReceived('${o.id}',this.checked)">
+          onchange="toggleCommReceived('${o.invoice_no}',this.checked,'${o.id}')">
       </td>
     </tr>`;
   }).join('');
@@ -2996,15 +2999,23 @@ async function deleteSalary(id){
     toast('Đã xoá','green');
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
-async function toggleCommReceived(orderId,val){
+async function toggleCommReceived(invoiceNo,val,orderId){
   try{
-    await fetch(`${CFG.url}/rest/v1/orders?id=eq.${orderId}`,{
-      method:'PATCH',
-      headers:{'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({commission_received:val})
-    });
-    const o=allOrders.find(x=>x.id===orderId);
-    if(o)o.commission_received=val;
+    const headers={'apikey':CFG.key,'Authorization':`Bearer ${CFG.key}`,'Content-Type':'application/json','Prefer':'return=minimal'};
+    const body=JSON.stringify({commission_received:val});
+    // Ghi vào vendor_orders (đồng bộ Maison) — invoice_no
+    if(invoiceNo&&invoiceNo!=='undefined'){
+      await fetch(`${CFG.url}/rest/v1/vendor_orders?invoice_no=eq.${encodeURIComponent(invoiceNo)}`,{method:'PATCH',headers,body});
+      const vo=allVendorOrders.find(x=>x.invoice_no===invoiceNo);
+      if(vo)vo.commission_received=val;
+    }
+    // Ghi vào orders (local state)
+    if(orderId&&orderId!=='undefined'){
+      await fetch(`${CFG.url}/rest/v1/orders?id=eq.${orderId}`,{method:'PATCH',headers,body});
+      const o=allOrders.find(x=>x.id===orderId);
+      if(o)o.commission_received=val;
+    }
+    _vendorMap=null; // reset cache
     toast(val?'✅ Đã đánh dấu đã thu HH':'Đã bỏ đánh dấu','green');
   }catch(e){toast('Lỗi: '+e.message,'red');}
 }
