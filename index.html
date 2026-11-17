@@ -535,6 +535,54 @@ select{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;p
 .doc-item-cat{font-size:10px;padding:1px 6px;border-radius:4px;margin-top:3px;display:inline-block}
 
 </style>
+<style id="csilan-theme-css">
+#csilan-theme-btn{position:fixed;right:14px;bottom:14px;z-index:9990;width:32px;height:32px;border-radius:50%;border:1px solid var(--border2,rgba(128,128,128,.3));background:var(--bg2,#fff);color:var(--text,#222);font-size:15px;line-height:1;cursor:pointer;opacity:.75;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#csilan-theme-btn:hover{opacity:1}
+:root{--w005:rgba(255,255,255,.05);--w009:rgba(255,255,255,.09);--w1:rgba(255,255,255,.1)}
+html[data-csilan-mode="light"]{--w005:rgba(15,23,42,.05);--w009:rgba(15,23,42,.09);--w1:rgba(15,23,42,.1)}
+html[data-csilan-mode="light"]{color-scheme:light;--bg:#f3f5fa;--bg2:#ffffff;--bg3:#eef1f7;--bg4:#e3e8f2;--border:rgba(15,23,42,.08);--border2:rgba(15,23,42,.13);--text:#1a2238;--text2:#56617a;--text3:#98a2b6;--accent:#2563eb;--accent2:#1d4ed8;--accent-glow:rgba(37,99,235,.12);--success:#0f9d63;--success-bg:rgba(15,157,99,.1);--danger:#d23b39;--danger-bg:rgba(210,59,57,.1);--warn:#a8650a;--warn-bg:rgba(168,101,10,.1);--info:#2563eb;--info-bg:rgba(37,99,235,.1);--manager:#6d3fdc;--manager-bg:rgba(109,63,220,.1);--leader:#0a8f99;--leader-bg:rgba(10,143,153,.1);--shadow:0 4px 24px rgba(15,23,42,.12)}
+html[data-csilan-mode="light"] .modal-bg{background:rgba(15,23,42,.45)}
+</style>
+<script id="csilan-theme-js">
+/* Csilan theme sync: sáng/tối đồng bộ với CRM (postMessage / ?theme=) + nút đổi khi chạy độc lập (giống Finance) */
+function _chartCol(){var l=document.documentElement.getAttribute('data-csilan-mode')==='light';return l?{t:'#5b667d',g:'rgba(15,23,42,.08)'}:{t:'#8b92a8',g:'rgba(255,255,255,0.05)'}}
+(function(){
+  var KEY='csilan_embed_mode',R=document.documentElement;
+  var OK=/^https:\/\/(cnail1911-maker|albuspham66-lab)\.github\.io$|^http:\/\/localhost(:\d+)?$/;
+  function get(){return R.getAttribute('data-csilan-mode')==='light'?'light':'dark';}
+  function apply(m){
+    m=(m==='light')?'light':'dark';
+    if(m==='light')R.setAttribute('data-csilan-mode','light');else R.removeAttribute('data-csilan-mode');
+    try{localStorage.setItem(KEY,m);}catch(e){}
+    var b=document.getElementById('csilan-theme-btn');if(b)b.textContent=m==='light'?'☾':'☀';
+    try{
+      var cc=_chartCol();
+      ['chartRevenue','chartOrders'].forEach(function(n){
+        var ch=window[n];if(!ch||!ch.options||!ch.options.scales)return;
+        Object.keys(ch.options.scales).forEach(function(k){var sc=ch.options.scales[k];if(sc.ticks)sc.ticks.color=cc.t;if(sc.grid)sc.grid.color=cc.g;});
+        ch.update('none');
+      });
+    }catch(e){}
+    try{window.dispatchEvent(new CustomEvent('csilan-theme',{detail:{mode:m}}));}catch(e){}
+  }
+  window._csilanMode=get;window._csilanSetMode=apply;
+  var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1],m0=q;
+  if(!m0){try{m0=localStorage.getItem(KEY);}catch(e){}}
+  if(m0)apply(m0);
+  window.addEventListener('message',function(e){
+    if(!OK.test(e.origin))return;var d=e.data;
+    if(d&&d.type==='csilan-theme')apply(d.mode);
+  });
+  var embedded=window.parent!==window;
+  if(embedded){try{window.parent.postMessage({type:'csilan-theme-request'},'*');}catch(e){}}
+  else document.addEventListener('DOMContentLoaded',function(){
+    var b=document.createElement('button');b.id='csilan-theme-btn';b.title='Light / Dark';
+    b.textContent=get()==='light'?'☾':'☀';
+    b.onclick=function(){apply(get()==='light'?'dark':'light');};
+    document.body.appendChild(b);
+  });
+})();
+</script>
 </head>
 <body>
 
@@ -5462,7 +5510,7 @@ var _empDept='all';
 function setEmpDept(d){_empDept=d;renderEmpGrid();}
 function empAvatarHTML(p,c,isInactive){
   const ini=initials(p.full_name);
-  const fb=`<div class="idc-av-ini" style="background:${isInactive?'rgba(255,255,255,0.05)':c.bg};color:${isInactive?'var(--text3)':c.color};${p.avatar_url?'display:none':''}">${ini}</div>`;
+  const fb=`<div class="idc-av-ini" style="background:${isInactive?'var(--w005)':c.bg};color:${isInactive?'var(--text3)':c.color};${p.avatar_url?'display:none':''}">${ini}</div>`;
   const img=p.avatar_url?`<img src="${p.avatar_url}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'';
   return img+fb;
 }
@@ -5877,7 +5925,7 @@ async function saveNewEmp(){
     noteEl.innerHTML='✅ <strong>Đã thêm '+hoTen+' vào hệ thống OPS.</strong><br><br>'
       +'⚠️ <strong>Còn cần làm thủ công trên Supabase CRM:</strong><br>'
       +'1. Vào <strong>Authentication → Users → Add user</strong><br>'
-      +'2. Email gợi ý: <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px">'+emailGợiý+'</code><br>'
+      +'2. Email gợi ý: <code style="background:var(--w1);padding:1px 6px;border-radius:4px">'+emailGợiý+'</code><br>'
       +'3. Sau đó insert profile vào CRM với code=<strong>'+maNV+'</strong>';
     saveBtn.disabled=false;
     saveBtn.textContent='Đóng';
@@ -7044,8 +7092,8 @@ async function renderDashboard(){
       legend:{labels:{color:'#8b92a8',font:{size:11}}},
       tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=dsPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
     },scales:{
-      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
-      y:{min:0,max:Math.round(maxDS),ticks:{color:'#8b92a8',callback:function(v){return '$'+v.toLocaleString();}},grid:{color:'rgba(255,255,255,0.05)'}}
+      x:{ticks:{color:_chartCol().t},grid:{color:_chartCol().g}},
+      y:{min:0,max:Math.round(maxDS),ticks:{color:_chartCol().t,callback:function(v){return '$'+v.toLocaleString();}},grid:{color:_chartCol().g}}
     }}
   });
 
@@ -7066,8 +7114,8 @@ async function renderDashboard(){
       legend:{labels:{color:'#8b92a8',font:{size:11}}},
       tooltip:{callbacks:{afterBody:function(ctx){var i=ctx[0].dataIndex;var pct=donPctChange[i];return pct!==null?[(pct>=0?'▲ +':'▼ ')+pct+'% so tháng trước']:[];}}}
     },scales:{
-      x:{ticks:{color:'#8b92a8'},grid:{color:'rgba(255,255,255,0.05)'}},
-      y:{min:0,max:Math.round(maxDon),ticks:{color:'#8b92a8',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}
+      x:{ticks:{color:_chartCol().t},grid:{color:_chartCol().g}},
+      y:{min:0,max:Math.round(maxDon),ticks:{color:_chartCol().t,stepSize:1},grid:{color:_chartCol().g}}
     }}
   });
 
