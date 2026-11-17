@@ -6930,7 +6930,7 @@ async function renderDashboard(){
   // ── Fetch ─────────────────────────────────────────────────────────────
   var [tgt,ordersRes,dailyAllRes,dailyTodayRes,profilesRes]=await Promise.all([
     getTarget(fromMonth),
-    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('order_date',fromDate).lte('order_date',toDate).or('order_status.is.null,order_status.neq.Cancelled'),
+    sb.from('orders').select('*,profiles(full_name,employee_code,nickname,role,contract_type,is_active,ngay_nghi_viec)').gte('billing_month',fromMonth).lte('billing_month',toDate.slice(0,7)).or('order_status.is.null,order_status.neq.Cancelled'),
     sb.from('daily_tracking').select('*').gte('ngay',fromDate).lte('ngay',toDate),
     sb.from('daily_tracking').select('*').eq('ngay',today),
     sb.from('profiles').select('id,employee_code,full_name,nickname,role,contract_type,is_active,ngay_nghi_viec,lever').order('employee_code'),
@@ -6978,7 +6978,7 @@ async function renderDashboard(){
 
   // ── Row 4: Charts DS + Đơn theo tháng với % chênh lệch ───────────────
   var monthlyData={};
-  ords.forEach(function(o){var m=o.order_date?o.order_date.slice(0,7):'';if(!m)return;if(!monthlyData[m])monthlyData[m]={ds:0,don:0};monthlyData[m].ds+=(o.total_amount||0);monthlyData[m].don++;});
+  ords.forEach(function(o){var m=o.billing_month||(o.order_date?o.order_date.slice(0,7):'');if(!m)return;if(!monthlyData[m])monthlyData[m]={ds:0,don:0};monthlyData[m].ds+=(o.total_amount||0);monthlyData[m].don++;});
   var allMonths=[],cur=new Date(fromDate.slice(0,7)+'-01'),toD=new Date(toDate.slice(0,7)+'-01');
   while(cur<=toD){allMonths.push(cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0'));cur.setMonth(cur.getMonth()+1);}
   var labels=allMonths.map(function(m){return m.slice(5)+'/'+m.slice(0,4);});
@@ -6995,8 +6995,8 @@ async function renderDashboard(){
     var hmEnd=toDate.slice(0,7),hmArr=[];
     var hc=new Date(hmEnd+'-01');hc.setMonth(hc.getMonth()-5);
     for(var hi=0;hi<6;hi++){hmArr.push(hc.getFullYear()+'-'+String(hc.getMonth()+1).padStart(2,'0'));hc.setMonth(hc.getMonth()+1);}
-    var hmRes=await sb.from('orders').select('order_date,total_amount').gte('order_date',hmArr[0]+'-01').lte('order_date',toDate).or('order_status.is.null,order_status.neq.Cancelled');
-    var hmMap={};(hmRes.data||[]).forEach(function(o){var m=(o.order_date||'').slice(0,7);if(m)hmMap[m]=(hmMap[m]||0)+(o.total_amount||0);});
+    var hmRes=await sb.from('orders').select('order_date,billing_month,total_amount').gte('billing_month',hmArr[0]).lte('billing_month',toDate.slice(0,7)).or('order_status.is.null,order_status.neq.Cancelled');
+    var hmMap={};(hmRes.data||[]).forEach(function(o){var m=o.billing_month||(o.order_date||'').slice(0,7);if(m)hmMap[m]=(hmMap[m]||0)+(o.total_amount||0);});
     var hmVals=hmArr.map(function(m){return Math.round(hmMap[m]||0);});
     var hmMax=Math.max.apply(null,hmVals.concat([1]));
     function fmtK(v){return v>=1000?(v/1000).toFixed(v>=10000?0:1)+'k':String(v);}
