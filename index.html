@@ -583,6 +583,74 @@ function _chartCol(){var l=document.documentElement.getAttribute('data-csilan-mo
   });
 })();
 </script>
+<style id="ecf-css">
+/* ── Nhân viên: carousel coverflow + modal chi tiết ── */
+.ecf-wrap{position:relative;margin:6px 0 4px}
+.ecf{position:relative;width:100%;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.ecf-card{position:absolute;left:50%;top:10px;border-radius:20px;overflow:hidden;cursor:pointer;background:var(--bg3);border:1px solid var(--border2);box-shadow:0 14px 34px rgba(0,0,0,.28);transition:transform .45s cubic-bezier(.22,.8,.26,1),opacity .45s,filter .45s;filter:grayscale(1) brightness(.85);-webkit-tap-highlight-color:transparent}
+.ecf-card.center{filter:none;box-shadow:0 22px 50px rgba(0,0,0,.4)}
+.ecf-card.off .ecf-img{filter:grayscale(1)}
+.ecf-ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:800;letter-spacing:2px}
+.ecf-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 20%;display:block;pointer-events:none}
+.ecf-top{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:space-between;gap:6px}
+.ecf-chip{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:rgba(10,14,25,.55);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.ecf-chip.warn{background:rgba(255,181,71,.9);color:#3a2600}
+.ecf-chip.ok{background:rgba(34,199,122,.9);color:#05301b}
+.ecf-chip.gone{background:rgba(255,92,92,.92);color:#fff}
+.ecf-lab{position:absolute;left:10px;right:10px;bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 13px;border-radius:12px;background:rgba(10,14,25,.58);color:#fff;font-size:13px;font-weight:600;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.ecf-lab span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ecf-lab b{font-weight:700;white-space:nowrap;color:#9fe7c9}
+.ecf-arrow{position:absolute;top:44%;z-index:200;width:38px;height:38px;border-radius:50%;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.85;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.ecf-arrow:hover{opacity:1;border-color:var(--accent)}
+.ecf-arrow.l{left:6px}.ecf-arrow.r{right:6px}
+.ecf-cap{text-align:center;padding:4px 10px 14px}
+.ecf-cap h3{margin:0;font-size:24px;font-weight:800;letter-spacing:-.2px}
+.ecf-cap .sub{margin-top:4px;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text2)}
+.ecf-cap .hint{margin-top:6px;font-size:11px;color:var(--text3)}
+.ecf-dots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.ecf-dots i{width:7px;height:7px;border-radius:50%;background:var(--border2);cursor:pointer;transition:all .2s}
+.ecf-dots i.on{background:var(--accent);width:20px;border-radius:99px}
+/* modal */
+.ecf-mbg{position:fixed;inset:0;z-index:520;background:rgba(5,8,18,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:16px}
+.ecf-mbg.open{display:flex}
+.ecf-modal{position:relative;display:flex;width:min(900px,100%);max-height:92vh;background:var(--bg2);border:1px solid var(--border2);border-radius:24px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:ecfIn .28s cubic-bezier(.22,.8,.26,1)}
+@keyframes ecfIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.ecf-x{position:absolute;right:12px;top:10px;z-index:5;width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:18px;line-height:1;cursor:pointer}
+.ecf-x:hover{border-color:var(--accent)}
+.ecf-mleft{position:relative;flex:0 0 42%;min-height:460px;background:linear-gradient(160deg,var(--accent),var(--accent2));border-radius:0 150px 150px 0;overflow:hidden}
+.ecf-mleft .ecf-ini{font-size:96px;color:#fff!important;background:transparent!important}
+.ecf-mleft .ecf-img{object-position:center 18%}
+.ecf-mleft::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(5,10,25,.72));pointer-events:none}
+.ecf-mname{position:absolute;left:0;right:0;bottom:30px;z-index:2;text-align:center;color:#fff;padding:0 60px 0 28px}
+.ecf-mname b{display:block;font-size:22px;font-weight:800;line-height:1.2;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+.ecf-mname span{display:inline-block;margin-top:8px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 12px;border-radius:99px;background:rgba(255,255,255,.2);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.ecf-mright{flex:1;min-width:0;padding:30px 32px 22px 28px;overflow:auto}
+.ecf-mright h2{margin:0 0 2px;font-size:22px;font-weight:800;padding-right:34px}
+.ecf-mright .nick{color:var(--text2);font-size:13px;min-height:18px}
+.ecf-badges{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}
+.ecf-b{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid var(--border2);color:var(--text2)}
+.ecf-b.ok{color:var(--success);border-color:var(--success);background:var(--success-bg)}
+.ecf-b.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.ecf-b.bad{color:var(--danger);border-color:var(--danger);background:var(--danger-bg)}
+.ecf-b.acc{color:var(--accent);border-color:var(--accent);background:var(--accent-glow)}
+.ecf-sec{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.ecf-info{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+.ecf-info div{min-width:0}
+.ecf-info span{display:block;font-size:11px;color:var(--text3)}
+.ecf-info b{display:block;font-size:13.5px;font-weight:600;word-break:break-word}
+.ecf-info .wide{grid-column:1/-1}
+.ecf-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;padding-top:14px;border-top:1px solid var(--border)}
+@media(max-width:720px){
+  .ecf-modal{flex-direction:column;overflow:auto}
+  .ecf-mleft{flex:0 0 auto;min-height:0;height:250px;border-radius:0 0 50% 50%/0 0 46px 46px}
+  .ecf-mname{bottom:20px;padding:0 20px}
+  .ecf-mright{padding:20px 18px 18px;overflow:visible}
+  .ecf-info{grid-template-columns:1fr 1fr}
+  .ecf-cap h3{font-size:20px}
+  .ecf-arrow{width:34px;height:34px}
+}
+</style>
+
 </head>
 <body>
 
@@ -5531,6 +5599,7 @@ function renderEmpGrid(){
     <button class="dr-quick-btn ${_empFilter==='active'?'active':''}" onclick="setEmpFilter('active')">Đang làm</button>
     <button class="dr-quick-btn ${_empFilter==='inactive'?'active':''}" onclick="setEmpFilter('inactive')">Đã nghỉ</button>
     <button class="dr-quick-btn ${_empFilter==='all'?'active':''}" onclick="setEmpFilter('all')">Tất cả</button>
+    <span style="margin-left:auto;display:flex;gap:6px"><button class="dr-quick-btn ${_empView==='cf'?'active':''}" onclick="setEmpView('cf')">🎴 Carousel</button><button class="dr-quick-btn ${_empView==='grid'?'active':''}" onclick="setEmpView('grid')">▦ Lưới</button></span>
     <span style="font-size:11px;color:var(--text3);margin-left:8px">${allProfiles.filter(p=>(p.status||'active')==='active').length} đang làm · ${allProfiles.filter(p=>p.status==='inactive').length} đã nghỉ</span>
   `;
 
@@ -5565,6 +5634,7 @@ function renderEmpGrid(){
 
   var shown=_empDept==='all'?groupOrder.reduce(function(acc,d){return acc.concat(groups[d]);},[]):groups[_empDept]||[];
 
+  if(_empView==='cf'){ecfRender(el,statHtml,shown);return;}
   var roleMap={manager:'Manager',leader:'Leader',sale:'Sale',accountant:'Kế toán',ceo:'CEO'};
   var cards=shown.map(function(p,i){
     const c=avColor(i);
@@ -5617,6 +5687,140 @@ function renderEmpGrid(){
   el.innerHTML=`<div class="dept-grid">${statHtml}</div>
     <div class="idc-list">${cards.join('')||'<div class="empty">Không có nhân viên</div>'}</div>`;
 }
+
+// ============================================================
+// NHÂN VIÊN — carousel coverflow + modal chi tiết
+// ============================================================
+var _empView=(function(){try{return localStorage.getItem('emp_view')||'cf'}catch(e){return 'cf'}})();
+function setEmpView(v){_empView=v;try{localStorage.setItem('emp_view',v)}catch(e){}renderEmpGrid();}
+var _ecf={list:[],idx:0,drag:false,x0:null};
+function ecfEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
+function ecfRole(r){return {manager:'Manager',leader:'Leader',sale:'Sale',accountant:'Kế toán',ceo:'CEO'}[r]||r||'';}
+function ecfFmtDate(s){if(!s)return '—';var d=new Date(String(s).slice(0,10)+'T12:00:00');return isNaN(d)?'—':d.toLocaleDateString('vi-VN');}
+function ecfIsProb(p){return p.contract_type==='probation'||p.contract_type==='thu-viec'||p.contract_type==='probation_extended';}
+function ecfInactive(p){return p.status==='inactive'||!p.is_active;}
+function ecfPhoto(p,c){
+  var inactive=ecfInactive(p);
+  var ini='<div class="ecf-ini" style="background:'+(inactive?'var(--bg4)':c.bg)+';color:'+(inactive?'var(--text3)':c.color)+'">'+ecfEsc(initials(p.full_name))+'</div>';
+  var img=p.avatar_url?'<img class="ecf-img" src="'+ecfEsc(p.avatar_url)+'" alt="" loading="lazy" draggable="false" onerror="this.remove()">':'';
+  return ini+img;
+}
+function ecfCardHtml(p,i){
+  var c=avColor(i),inactive=ecfInactive(p),prob=ecfIsProb(p);
+  var short=p.nickname||(p.full_name||'').split(' ').slice(-1)[0]||'';
+  var st=inactive?'<span class="ecf-chip gone">Đã nghỉ</span>':(prob?'<span class="ecf-chip warn">Thử việc</span>':'<span class="ecf-chip ok">Chính thức</span>');
+  return '<div class="ecf-card'+(inactive?' off':'')+'" data-i="'+i+'" onclick="ecfClick('+i+')">'+ecfPhoto(p,c)
+    +'<div class="ecf-top"><span class="ecf-chip">'+ecfEsc(ecfRole(p.role))+'</span>'+st+'</div>'
+    +'<div class="ecf-lab"><span>'+ecfEsc(p.employee_code||'—')+' · '+ecfEsc(short)+'</span><b>Level '+(p.lever||1)+'</b></div></div>';
+}
+function ecfRender(el,statHtml,list){
+  _ecf.list=list;
+  if(_ecf.idx>=list.length)_ecf.idx=list.length-1;
+  if(_ecf.idx<0)_ecf.idx=0;
+  el.innerHTML='<div class="dept-grid">'+statHtml+'</div>'
+    +'<div class="ecf-wrap"><div class="ecf" id="ecf">'+list.map(ecfCardHtml).join('')+'</div>'
+    +'<button class="ecf-arrow l" onclick="ecfMove(-1)" aria-label="Trước">‹</button><button class="ecf-arrow r" onclick="ecfMove(1)" aria-label="Sau">›</button></div>'
+    +'<div class="ecf-cap" id="ecf-cap"></div>';
+  var st=document.getElementById('ecf');
+  st.addEventListener('pointerdown',function(e){_ecf.x0=e.clientX;_ecf.drag=false;});
+  st.addEventListener('pointermove',function(e){if(_ecf.x0!=null&&Math.abs(e.clientX-_ecf.x0)>8)_ecf.drag=true;});
+  function end(e){
+    if(_ecf.x0==null)return;var dx=e.clientX-_ecf.x0;_ecf.x0=null;
+    if(Math.abs(dx)>45){ecfMove(dx<0?1:-1);}
+    setTimeout(function(){_ecf.drag=false;},0);
+  }
+  st.addEventListener('pointerup',end);st.addEventListener('pointercancel',function(){_ecf.x0=null;_ecf.drag=false;});
+  ecfLayout();
+}
+function ecfLayout(){
+  var st=document.getElementById('ecf');if(!st)return;
+  var list=_ecf.list,W=st.clientWidth||600;
+  var cw=Math.round(Math.min(270,Math.max(168,W*0.56))),ch=Math.round(cw*1.38),step=cw*0.52;
+  st.style.height=(ch+34)+'px';
+  st.querySelectorAll('.ecf-card').forEach(function(el){
+    var i=+el.getAttribute('data-i'),d=i-_ecf.idx,a=Math.abs(d);
+    el.style.width=cw+'px';el.style.height=ch+'px';
+    if(a>3){el.style.opacity='0';el.style.pointerEvents='none';el.style.zIndex='0';el.style.transform='translateX(calc(-50% + '+(d<0?-1:1)*step*3.6+'px)) scale(.5)';el.classList.remove('center');return;}
+    el.style.pointerEvents='auto';
+    el.style.opacity=a===0?'1':String(Math.max(.4,.82-.16*a));
+    el.style.zIndex=String(100-a);
+    el.style.transform='translateX(calc(-50% + '+(d*step)+'px)) scale('+(1-0.12*a)+')';
+    el.classList.toggle('center',a===0);
+  });
+  var p=list[_ecf.idx],cap=document.getElementById('ecf-cap');
+  if(cap&&p){
+    cap.innerHTML='<h3>'+ecfEsc(p.full_name||'')+'</h3><div class="sub">'+ecfEsc(ecfRole(p.role))+' · '+ecfEsc(p.employee_code||'—')+' · Level '+(p.lever||1)+' · Vào làm '+ecfFmtDate(p.start_date)+'</div>'
+      +'<div class="hint">Bấm thẻ ở giữa để xem chi tiết · vuốt hoặc dùng phím ← →</div>'
+      +(list.length>1&&list.length<=24?'<div class="ecf-dots">'+list.map(function(_,i){return '<i class="'+(i===_ecf.idx?'on':'')+'" onclick="ecfGo('+i+')"></i>';}).join('')+'</div>':'');
+  }
+}
+function ecfGo(i){if(i<0||i>=_ecf.list.length)return;_ecf.idx=i;ecfLayout();}
+function ecfMove(n){ecfGo(Math.max(0,Math.min(_ecf.list.length-1,_ecf.idx+n)));}
+function ecfClick(i){
+  if(_ecf.drag)return;
+  if(i===_ecf.idx){var p=_ecf.list[i];if(p)openEmpDetail(p.id);}
+  else ecfGo(i);
+}
+addEventListener('resize',function(){ecfLayout();});
+document.addEventListener('keydown',function(e){
+  if(!document.getElementById('ecf'))return;
+  var pg=document.getElementById('page-team');if(!pg||!pg.offsetParent)return;
+  var mb=document.getElementById('ecf-mbg');
+  if(mb&&mb.classList.contains('open')){if(e.key==='Escape')closeEmpDetail();return;}
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target.tagName||'')))return;
+  if(e.key==='ArrowLeft'){ecfMove(-1);e.preventDefault();}
+  else if(e.key==='ArrowRight'){ecfMove(1);e.preventDefault();}
+  else if(e.key==='Enter'){var p=_ecf.list[_ecf.idx];if(p)openEmpDetail(p.id);}
+});
+
+function ecfInfo(label,val,wide){return '<div'+(wide?' class="wide"':'')+'><span>'+label+'</span><b>'+(val==null||val===''?'—':val)+'</b></div>';}
+function openEmpDetail(id){
+  var p=allProfilesMap[id]||allProfiles.find(function(x){return x.id===id;});if(!p)return;
+  var idx=_ecf.list.findIndex(function(x){return x.id===id;});var c=avColor(idx<0?0:idx);
+  var inactive=ecfInactive(p),prob=ecfIsProb(p),pii=curProfile&&isManagerRole(curProfile.role);
+  var bd=p.birthday;if(!bd){try{bd=(JSON.parse(localStorage.getItem('cslian_birthdays')||'{}'))[p.id]||null;}catch(e){}}
+  var bdTxt='—';
+  if(bd){var d=new Date(String(bd).slice(0,10)+'T12:00:00');if(!isNaN(d)){bdTxt='🎂 '+d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
+    var n=new Date(),t0=new Date(n.getFullYear(),n.getMonth(),n.getDate()),t1=new Date(n.getFullYear(),d.getMonth(),d.getDate()),dl=Math.round((t1-t0)/864e5);
+    if(dl===0)bdTxt+=' · Hôm nay!';else if(dl>0&&dl<=7)bdTxt+=' · còn '+dl+' ngày';}}
+  var ctTxt=prob?'Thử việc':'Chính thức';
+  var html='<div class="ecf-modal" role="dialog" aria-modal="true">'
+    +'<button class="ecf-x" onclick="closeEmpDetail()" aria-label="Đóng">×</button>'
+    +'<div class="ecf-mleft">'+ecfPhoto(p,c)+'<div class="ecf-mname"><b>'+ecfEsc(p.full_name||'')+'</b><span>'+ecfEsc(ecfRole(p.role))+(inactive?' · Đã nghỉ':'')+'</span></div></div>'
+    +'<div class="ecf-mright"><h2>'+ecfEsc(p.full_name||'')+'</h2>'+(p.nickname?'<div class="nick">('+ecfEsc(p.nickname)+')</div>':'')
+    +'<div class="ecf-badges"><span class="ecf-b acc">'+ecfEsc(p.employee_code||'—')+'</span><span class="ecf-b acc">Level '+(p.lever||1)+'</span>'
+    +(inactive?'<span class="ecf-b bad">Đã nghỉ</span>':'<span class="ecf-b '+(prob?'warn':'ok')+'">'+ctTxt+'</span>')+'</div>'
+    +'<div class="ecf-sec">Công việc</div><div class="ecf-info">'
+    +ecfInfo('Phòng ban',ecfEsc(p.phong_ban||'Chưa phân loại'))+ecfInfo('Hợp đồng',ctTxt)
+    +ecfInfo('Vào làm',ecfFmtDate(p.start_date))+ecfInfo('Bắt đầu tính lương',ecfFmtDate(p.ngay_bat_dau_tinh_luong))
+    +(p.ngay_len_chinh_thuc?ecfInfo('Lên chính thức',ecfFmtDate(p.ngay_len_chinh_thuc)):'')
+    +(p.ngay_nghi_viec?ecfInfo('Nghỉ việc','<span style="color:var(--danger)">'+ecfFmtDate(p.ngay_nghi_viec)+'</span>'):'')
+    +(p.ly_do_nghi?ecfInfo('Lý do nghỉ',ecfEsc(p.ly_do_nghi),true):'')
+    +ecfInfo('Sinh nhật',bdTxt)
+    +'</div>'
+    +(pii?'<div class="ecf-sec">Cá nhân &amp; giấy tờ</div><div class="ecf-info">'
+      +ecfInfo('Điện thoại',ecfEsc(p.phone))+ecfInfo('Người phụ thuộc',p.so_nguoi_phu_thuoc||0)
+      +ecfInfo('CCCD',ecfEsc(p.cccd))+ecfInfo('Ngày cấp · Nơi cấp',ecfFmtDate(p.cccd_ngay_cap)+(p.cccd_noi_cap?' · '+ecfEsc(p.cccd_noi_cap):''))
+      +ecfInfo('Mã số thuế',ecfEsc(p.mst_ca_nhan))+ecfInfo('Số BHXH',ecfEsc(p.so_bhxh))
+      +ecfInfo('Quốc tịch',ecfEsc(p.quoc_tich||'Việt Nam'))+ecfInfo('Địa chỉ',ecfEsc(p.address),true)+'</div>':'')
+    +'<div class="ecf-act">'+ecfActions(p,inactive)+'</div></div></div>';
+  var bg=document.getElementById('ecf-mbg');
+  if(!bg){bg=document.createElement('div');bg.id='ecf-mbg';bg.className='ecf-mbg';bg.addEventListener('mousedown',function(e){if(e.target===bg)closeEmpDetail();});document.body.appendChild(bg);}
+  bg.innerHTML=html;bg.classList.add('open');
+}
+function ecfActions(p,inactive){
+  var a='<button class="btn-sm" onclick="ecfDo(\'openEditProfile\',\''+p.id+'\')">✏️ Sửa</button><button class="btn-sm" onclick="ecfDo(\'openContractModal\',\''+p.id+'\')">📄 Hợp đồng</button>';
+  if(curProfile&&isManagerRole(curProfile.role)){
+    a+=inactive?'<button class="btn-sm" onclick="ecfDo(\'toggleEmpStatus\',\''+p.id+'\',\'active\')" style="border-color:var(--success);color:var(--success)">✅ Kích hoạt</button>'
+               :'<button class="btn-sm" onclick="ecfDo(\'openDeactivateModal\',\''+p.id+'\')" style="border-color:var(--danger);color:var(--danger)">🚫 Nghỉ việc</button>';
+  }
+  if(curProfile&&(curProfile.role==='manager'||curProfile.role==='ceo')){
+    a+='<button class="btn-sm" onclick="ecfDo(\'openDeleteEmpModal\',\''+p.id+'\')" style="border-color:var(--danger);color:var(--danger)">🗑️ Xóa</button>';
+  }
+  return a;
+}
+function ecfDo(fn,id,arg){closeEmpDetail();var f=window[fn];if(typeof f==='function')f(id,arg);}
+function closeEmpDetail(){var bg=document.getElementById('ecf-mbg');if(bg){bg.classList.remove('open');bg.innerHTML='';}}
 
 function setEmpFilter(f){_empFilter=f;renderEmpGrid();}
 
