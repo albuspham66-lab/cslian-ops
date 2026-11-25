@@ -677,7 +677,7 @@ html[data-csilan-mode="light"] .sidebar{box-shadow:1px 0 0 rgba(15,23,42,.06)}ht
       <span class="mc-arrow">▾</span>
       <div class="mc-lbl">Tổng chi phí</div>
       <div class="mc-val" id="pf-exp">—</div>
-      <div class="mc-sub">VNĐ</div>
+      <div class="mc-sub" id="pf-exp-sub">VNĐ</div>
     </div>
     <div class="mc" style="background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(168,85,247,.06));border-color:rgba(168,85,247,.3);cursor:pointer;" id="kpi-card-tu" onclick="toggleKpiDetail('tu')">
       <span class="mc-arrow">▾</span>
@@ -802,9 +802,12 @@ html[data-csilan-mode="light"] .sidebar{box-shadow:1px 0 0 rgba(15,23,42,.06)}ht
   <div class="card gap" id="expense-list-card" style="display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
       <div class="ctitle" style="margin-bottom:0;">Danh sách chi phí</div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="exp-month-f" onchange="filterExpenses()" style="width:120px;padding:6px 10px;font-size:12px;">
+          <option value="">Tất cả tháng</option>
+        </select>
         <select id="exp-type-f" onchange="filterExpenses()" style="width:140px;padding:6px 10px;font-size:12px;">
-          <option value="">Tất cả loại</option><option value="ops">Vận hành</option><option value="invest">Đầu tư</option><option value="other">Khác</option>
+          <option value="">Tất cả loại</option><option value="ops">Vận hành</option><option value="invest">Đầu tư</option><option value="sal">Lương Sale</option><option value="other">Khác</option>
         </select>
         <select id="exp-by-f" onchange="filterExpenses()" style="width:140px;padding:6px 10px;font-size:12px;">
           <option value="">Tất cả người chi</option><option value="Manager">Manager</option><option value="Leader">Leader</option>
@@ -864,7 +867,13 @@ html[data-csilan-mode="light"] .sidebar{box-shadow:1px 0 0 rgba(15,23,42,.06)}ht
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
         <div class="ctitle" style="margin-bottom:0;">Bảng lương chi tiết</div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="sal-month-f" onchange="filterSalary()" style="width:120px;padding:6px 10px;font-size:12px;">
+            <option value="">Tất cả tháng</option>
+          </select>
+          <select id="sal-agent-f" onchange="filterSalary()" style="width:160px;padding:6px 10px;font-size:12px;">
+            <option value="">Tất cả sale</option>
+          </select>
           <select id="sal-status-f" onchange="filterSalary()" style="width:160px;padding:6px 10px;font-size:12px;">
             <option value="">Tất cả trạng thái</option>
             <option value="approved">Đã duyệt</option>
@@ -2700,7 +2709,10 @@ function renderFinance(){
       ${maisonComm>0?'<span style="color:var(--text3);font-size:10px;">From Maison</span>':''}
       <span style="color:var(--amber2);">💸 Bonus: ${fmt2(saleBonus.total)}</span>
     </div>`);
-  setHTML('pf-exp',fmtVND(exp)+trendHTML(exp,prevExp,true));
+  // Card Tổng chi phí = expenses + lương
+  const totalCostVnd=exp+sal;
+  setHTML('pf-exp',fmtVND(totalCostVnd)+trendHTML(exp,prevExp,true));
+  setTxt('pf-exp-sub',`Chi phí ${fmtVND(exp)} · Lương ${fmtVND(sal)}`);
   setTxt('pf-net',fmtVND(net));
   document.getElementById('pf-net').style.color=net>=0?'var(--green2)':'var(--red2)';
   setTxt('pf-net-sub',net>=0?'Net Profit':'Loss');
@@ -2744,6 +2756,7 @@ function renderFinance(){
     expChart=new Chart(ctx,{type:'doughnut',data:{labels:clabels,datasets:[{data:cvals,backgroundColor:colors,borderWidth:0,borderRadius:4,spacing:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#6b7a9e',font:{size:11},padding:10,boxWidth:10}}},cutout:'65%'}});
   }
 
+  populateExpMonthFilter();
   renderExpenseTable();
 
   // Mở mặc định panel "Lợi nhuận ròng" lần đầu vào trang (chỉ 1 lần, không reset mỗi lần reload data)
@@ -2781,23 +2794,49 @@ function renderBudget(ops,inv,total,profit){
 function filterExpenses(){
   const type=document.getElementById('exp-type-f').value;
   const by=document.getElementById('exp-by-f').value;
-  filteredExpenses=allExpenses.filter(e=>(!type||e.loai===type)&&(!by||e.nguoi_chi===by));
+  const month=document.getElementById('exp-month-f')?.value||'';
+  filteredExpenses=allExpenses.filter(e=>{
+    if(type&&type!=='sal'&&e.loai!==type)return false;
+    if(by&&e.nguoi_chi!==by)return false;
+    if(month&&(e.ngay||'').slice(0,7)!==month)return false;
+    return true;
+  });
+  // 'sal' filter: show only salary rows (hide expenses)
+  _expShowSalOnly=(type==='sal');
+  _expHideSal=(type&&type!=='sal');
+  _expMonthFilter=month;
   renderExpenseTable();
+}
+let _expShowSalOnly=false,_expHideSal=false,_expMonthFilter='';
+
+function populateExpMonthFilter(){
+  const sel=document.getElementById('exp-month-f');
+  if(!sel)return;
+  // Lấy tất cả tháng từ expenses + salary
+  const months=new Set();
+  allExpenses.forEach(e=>{if(e.ngay)months.add(e.ngay.slice(0,7));});
+  allSalary.forEach(s=>{if(s.thang)months.add(s.thang);});
+  const sorted=[...months].sort().reverse();
+  sel.innerHTML='<option value="">Tất cả tháng</option>'+sorted.map(m=>`<option value="${m}">${m}</option>`).join('');
 }
 
 function renderExpenseTable(){
-  const list=filteredExpenses.length?filteredExpenses:allExpenses;
+  const list=(_expShowSalOnly||_expHideSal||_expMonthFilter)?filteredExpenses:allExpenses;
   const empty=document.getElementById('exp-empty');
   // Salary rows từ salary_monthly
-  const salaryRows=(allSalary||[]).map(s=>{
+  let salaryRows=(allSalary||[]).map(s=>{
     const p=allProfiles.find(x=>x.id===s.user_id);
     return{
       ngay:s.thang+'-01',mo_ta:`Lương: ${p?p.full_name:'NV'}`,danh_muc:'Lương',
       loai:'sal',nguoi_chi:'',so_tien:s.tong_luong_vnd||0,ghi_chu:`T${s.thang}`,
-      _salary:true,_salaryId:s.id
+      _salary:true,_salaryId:s.id,_thang:s.thang
     };
   }).filter(s=>s.so_tien>0);
-  const allRows=[...list,...salaryRows].sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||''));
+  // Áp filter tháng và loại cho salary rows
+  if(_expHideSal)salaryRows=[];
+  if(_expMonthFilter)salaryRows=salaryRows.filter(s=>s._thang===_expMonthFilter);
+  const expRows=_expShowSalOnly?[]:list;
+  const allRows=[...expRows,...salaryRows].sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||''));
   if(!allRows.length){document.getElementById('exp-body').innerHTML='';empty.style.display='block';setTxt('exp-foot','0đ');return;}
   empty.style.display='none';
   const total=allRows.reduce((s,e)=>s+(e.so_tien||0),0);
@@ -3213,15 +3252,36 @@ function showStaffDetail(uid){
 function closeStaffDetail(){document.getElementById('staff-detail').style.display='none';}
 
 function renderSalary(){
+  // Populate month dropdown
+  const salMonthSel=document.getElementById('sal-month-f');
+  if(salMonthSel){
+    const months=[...new Set(allSalary.map(s=>s.thang).filter(Boolean))].sort().reverse();
+    const curMonth=salMonthSel.value;
+    salMonthSel.innerHTML='<option value="">Tất cả tháng</option>'+months.map(m=>`<option value="${m}"${m===curMonth?' selected':''}>${m}</option>`).join('');
+  }
+  // Populate agent dropdown — chỉ nhân viên có start_date
+  const salAgentSel=document.getElementById('sal-agent-f');
+  if(salAgentSel){
+    const activeProfiles=allProfiles.filter(p=>p.start_date);
+    const curAgent=salAgentSel.value;
+    salAgentSel.innerHTML='<option value="">Tất cả sale</option>'+activeProfiles.map(p=>`<option value="${p.id}"${p.id===curAgent?' selected':''}>${p.full_name}</option>`).join('');
+  }
+
   const total=allSalary.reduce((s,r)=>s+(r.tong_luong_vnd||0),0);
   const bonus=allSalary.reduce((s,r)=>s+(r.p3a_total_usd||0),0);
   const approved=allSalary.filter(r=>r.da_chot).length;
   setTxt('sal-total',fmtVND(total));setTxt('sal-bonus',fmtUSD(bonus));
   setTxt('sal-approved',`${approved}/${allSalary.length}`);
   const statusF=document.getElementById('sal-status-f').value;
-  let list=allSalary;
+  const monthF=document.getElementById('sal-month-f')?.value||'';
+  const agentF=document.getElementById('sal-agent-f')?.value||'';
+  // Chỉ hiển thị nhân viên có start_date (đang tính lương)
+  const activeIds=new Set(allProfiles.filter(p=>p.start_date).map(p=>p.id));
+  let list=allSalary.filter(s=>activeIds.has(s.user_id));
   if(statusF==='approved')list=list.filter(r=>r.da_chot);
   if(statusF==='pending')list=list.filter(r=>!r.da_chot);
+  if(monthF)list=list.filter(r=>r.thang===monthF);
+  if(agentF)list=list.filter(r=>r.user_id===agentF);
   const empty=document.getElementById('sal-empty');
   if(!list.length){document.getElementById('sal-body').innerHTML='';empty.style.display='block';setTxt('sal-foot','—');return;}
   empty.style.display='none';
@@ -3247,6 +3307,7 @@ function renderSalary(){
 }
 
 function filterSalary(){renderSalary();}
+
 
 async function toggleSalaryApproval(id,current){
   try{
