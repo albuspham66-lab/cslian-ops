@@ -392,15 +392,16 @@ th.num{text-align:right;}
       <div class="nb-tabs">
         <button class="btn btn-sm" id="nbt-catalog" onclick="nbTab('catalog')">📚 Catalog</button>
         <button class="btn btn-ghost btn-sm" id="nbt-debt" onclick="nbTab('debt')">💵 Công nợ</button>
+        <button class="btn btn-ghost btn-sm" id="nbt-st" onclick="nbTab('st')">📑 Sao kê tháng</button>
         <button class="btn btn-ghost btn-sm admin-only" id="nbt-set" onclick="nbTab('set')">⚙️ Cài đặt VAT</button>
       </div>
       <div id="nb-catalog">
+        <div id="nb-subs"></div>
         <div class="filters">
           <input type="text" class="search-input" id="nb-search" placeholder="🔍 Tìm SKU, tên, nhóm…" oninput="renderNbCatalog()">
-          <span class="admin-only" style="display:contents;">
-            <button class="btn btn-gold btn-sm" onclick="document.getElementById('nb-import-file').click()">⬆ Import Excel (template NeoBa)</button>
-            <input type="file" id="nb-import-file" accept=".xlsx" style="display:none" onchange="importNeobaExcel(this)">
-          </span>
+          <span id="nb-cat-actions" style="display:contents;"></span>
+          <input type="file" id="nb-import-file" accept=".xlsx" style="display:none" onchange="importNeobaExcel(this)">
+          <input type="file" id="nb-submit-file" accept=".xlsx" style="display:none" onchange="submitNeobaCatalog(this)">
           <span id="nb-count" style="font-size:12px;color:var(--text3);"></span>
         </div>
         <div class="card"><div class="tw"><table><thead><tr><th>SKU</th><th>Nhóm</th><th>Sản phẩm</th><th>TT</th><th class="num">Cost (chưa VAT)</th><th>Màu</th><th class="num">Lead</th><th>Add-on</th></tr></thead>
@@ -411,6 +412,15 @@ th.num{text-align:right;}
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-ghost btn-sm" onclick="exportNeobaDebt()">⬇ Xuất Excel</button></div>
         <div class="card"><div class="tw"><table><thead><tr><th>Invoice</th><th>Khách</th><th>TT đơn</th><th class="num">Tổng PO (đã VAT)</th><th class="num">Cọc yêu cầu</th><th class="num">Đã trả</th><th class="num">Còn lại</th><th>Thanh toán</th><th class="num admin-only">Maison Gap</th></tr></thead>
         <tbody id="nb-debt-body"></tbody></table></div></div>
+      </div>
+      <div id="nb-st" style="display:none;">
+        <div id="nb-st-new" style="display:none;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <label class="fl" style="margin:0;">Tháng</label>
+          <input type="month" id="nb-st-month" style="width:170px;">
+          <button class="btn btn-gold btn-sm" onclick="previewStatement()">+ Tạo / tính lại sao kê</button>
+        </div>
+        <div class="card"><div class="tw"><table><thead><tr><th>Tháng</th><th>Trạng thái</th><th class="num">Đầu kỳ</th><th class="num">Cuối kỳ (còn nợ)</th><th>Gửi lúc</th><th>NeoBa phản hồi</th></tr></thead>
+        <tbody id="nb-st-list"></tbody></table></div></div>
       </div>
       <div id="nb-set" style="display:none;">
         <div class="nb-box" style="max-width:560px;">
@@ -775,6 +785,8 @@ th.num{text-align:right;}
       <div class="fg"><label class="fl">Cước thực tế (trống = chưa có hoá đơn)</label><input type="number" step="0.01" id="npo-fr-act" oninput="npoTotals()"></div>
       <div class="fg"><label class="fl">% đặt cọc</label><input type="number" step="1" min="0" max="100" id="npo-dep" list="npo-dep-list" oninput="npoTotals()"><datalist id="npo-dep-list"><option value="30"><option value="40"><option value="50"></datalist></div>
       <div class="fg"><label class="fl">VAT áp dụng cho PO này</label><div id="npo-vat-info" style="font-size:12px;color:var(--text2);padding-top:10px;"></div></div>
+      <div class="fg"><label class="fl">Ngày PO (tính vào sao kê tháng)</label><input type="date" id="npo-po-date"></div>
+      <div class="fg"><label class="fl">Số hoá đơn VAT của NeoBa</label><input type="text" id="npo-vat-inv" placeholder="Điền khi nhận hoá đơn"></div>
     </div>
     <div id="npo-totals" class="npo-totals"></div>
     <div class="mfoot">
@@ -805,6 +817,29 @@ th.num{text-align:right;}
     <div class="modal-title" id="nprod-title"></div>
     <div id="nprod-body"></div>
     <div class="mfoot"><button class="btn btn-ghost btn-sm" id="nprod-chat">💬 Nhắn về SP này</button><button class="btn btn-ghost" onclick="closeModal('m-neoba-prod')">Đóng</button></div>
+  </div>
+</div>
+
+<!-- NeoBa: duyệt bảng giá -->
+<div class="mbg" id="m-neoba-sub">
+  <div class="modal" style="max-width:900px;width:96vw;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title" id="nsub-title"></div>
+    <div id="nsub-body"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-neoba-sub')">Đóng</button>
+      <button class="btn btn-ghost" style="color:var(--red);" id="nsub-reject">❌ Từ chối</button>
+      <button class="btn btn-gold" id="nsub-approve">✅ Duyệt & áp dụng</button></div>
+  </div>
+</div>
+<!-- NeoBa: sao kê tháng -->
+<div class="mbg" id="m-neoba-st">
+  <div class="modal" style="max-width:1100px;width:96vw;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title" id="nst-title"></div>
+    <div id="nst-warn"></div>
+    <div class="kpi-grid" id="nst-sum" style="margin-bottom:12px;"></div>
+    <div class="card"><div class="tw"><table><thead><tr><th>Ngày</th><th>Invoice</th><th>Nội dung</th><th>HĐ VAT</th><th class="num">Phát sinh (+)</th><th class="num">Thanh toán (−)</th><th>Đối chiếu</th></tr></thead>
+    <tbody id="nst-body"></tbody></table></div></div>
+    <textarea id="nst-note" rows="2" style="margin-top:10px;display:none;"></textarea>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-neoba-st')">Đóng</button><span id="nst-actions" style="display:flex;gap:8px;"></span></div>
   </div>
 </div>
 
@@ -3619,6 +3654,7 @@ async function loadNeoba(){
   const ids=new Set(allOrders.map(o=>String(o.id)));
   neobaPayments=(pay.data||[]).filter(x=>ids.has(String(x.order_id)));
   (s.data||[]).forEach(r=>{portalSettings[r.key]=r.value;});
+  await loadNeobaDocs();
 }
 const paidOf=o=>neobaPayments.filter(p=>String(p.order_id)===String(o.id)).reduce((s,p)=>s+num(p.amount),0);
 function payStatusOf(o){
@@ -3636,7 +3672,7 @@ function neobaTotals(lines,frEst,frAct,vat){
 
 // ── Tabs ──
 function nbTab(t){
-  ['catalog','debt','set'].forEach(k=>{
+  ['catalog','debt','st','set'].forEach(k=>{
     document.getElementById('nb-'+k).style.display=k===t?'block':'none';
     document.getElementById('nbt-'+k).className=k===t?'btn btn-sm':'btn btn-ghost btn-sm';
   });
@@ -3646,9 +3682,10 @@ function nbTab(t){
     document.getElementById('nbs-ded').value=String(portalSettings.neoba_vat_deductible!==false);
   }
   if(t==='debt')renderNbDebt();
+  if(t==='st')renderNbStatements();
   if(t==='catalog')renderNbCatalog();
 }
-function renderNeoba(){renderNbCatalog();renderNbDebt();}
+async function renderNeoba(){await loadNeobaDocs();renderNbCatalog();renderNbDebt();renderNbStatements();}
 
 async function saveNeobaSettings(){
   const rows=[
@@ -3663,6 +3700,7 @@ async function saveNeobaSettings(){
 
 // ── Catalog ──
 function renderNbCatalog(){
+  renderNbCatActions();renderNbSubs();
   const q=(document.getElementById('nb-search')?.value||'').toLowerCase();
   const list=neobaProducts.filter(p=>!q||[p.sku,p.name,p.category].some(x=>(x||'').toLowerCase().includes(q)));
   document.getElementById('nb-count').textContent=`${list.length} sản phẩm · ${neobaAddons.length} add-on`;
@@ -3696,59 +3734,290 @@ function openNeobaProduct(sku){
   openModal('m-neoba-prod');
 }
 
-// ── Import Excel (template NeoBa v3) ──
+// ── Import Excel (template NeoBa v3): parse dùng chung cho admin import trực tiếp và NeoBa gửi duyệt ──
+async function parseNeobaWorkbook(f){
+  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
+  const cv=c=>{let v=c?.value;if(v&&typeof v==='object'){if(v instanceof Date)return v;if('result' in v)v=v.result;else if(v.richText)v=v.richText.map(t=>t.text).join('');else if(v.text)v=v.text;}return(v===undefined||v===null||v==='')?null:v;};
+  const str=v=>v==null?null:String(v).trim();
+  const dte=v=>v instanceof Date?v.toISOString().slice(0,10):(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}/.test(v)?v.slice(0,10):null);
+  const nn=v=>v==null?null:num(v);
+  const st=wb.getWorksheet('Settings');
+  const basis=st&&String(cv(st.getCell('B3'))||'').startsWith('Incl')?'incl':(st?'excl':portalSettings.neoba_price_basis);
+  const rate=st?num(cv(st.getCell('B4'))):num(portalSettings.neoba_vat_rate);
+  const toExcl=v=>v==null?null:Math.round((basis==='incl'?num(v)/(1+rate):num(v))*10000)/10000;
+  const pm=wb.getWorksheet('Product Master');
+  if(!pm)throw new Error('Không thấy sheet "Product Master" — hãy dùng đúng template NeoBa v3');
+  const prods=[];
+  for(let r=6;r<=pm.rowCount;r++){
+    const row=pm.getRow(r),g=i=>cv(row.getCell(i)),sku=str(g(2));
+    if(!sku)continue;
+    prods.push({sku,category:str(g(3)),name:str(g(4)),status:str(g(5))||'Active',base_colors:str(g(6)),leather_colors:str(g(7)),features:str(g(8)),
+      cost_input:nn(g(9)),cost_excl:toExcl(g(9)),effective_date:dte(g(12)),moq:nn(g(13)),box_l:nn(g(14)),box_w:nn(g(15)),box_h:nn(g(16)),
+      weight_lbs:nn(g(18)),per_pallet:nn(g(19)),lead_days:nn(g(20)),warranty:str(g(21)),certs:str(g(22)),voltage:str(g(23)),origin:str(g(24)),
+      price_terms:str(g(25)),image_url:str(g(26)),spec_url:str(g(27))});
+  }
+  const ad=wb.getWorksheet('Add-ons'),adds=[];
+  if(ad)for(let r=6;r<=ad.rowCount;r++){
+    const row=ad.getRow(r),g=i=>cv(row.getCell(i)),code=str(g(1));
+    if(!code)continue;
+    adds.push({code,sku:str(g(2)),name:str(g(3)),cost_input:nn(g(4)),cost_excl:toExcl(g(4)),status:str(g(7))||'Active',notes:str(g(8))});
+  }
+  return{prods,adds,basis,rate,fileName:f.name};
+}
+// Admin import trực tiếp (không qua duyệt)
 async function importNeobaExcel(input){
-  const f=input.files?.[0];input.value='';
-  if(!f)return;
+  const f=input.files?.[0];input.value='';if(!f)return;
   try{
-    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
-    const cv=c=>{let v=c?.value;if(v&&typeof v==='object'){if(v instanceof Date)return v;if('result' in v)v=v.result;else if(v.richText)v=v.richText.map(t=>t.text).join('');else if(v.text)v=v.text;}return(v===undefined||v===null||v==='')?null:v;};
-    const str=v=>v==null?null:String(v).trim();
-    const dte=v=>v instanceof Date?v.toISOString().slice(0,10):(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}/.test(v)?v.slice(0,10):null);
-    // Settings trong file → so với Portal
-    const stS=wb.getWorksheet('Settings');
-    if(stS){
-      const basis=String(cv(stS.getCell('B3'))||'').startsWith('Incl')?'incl':'excl';
-      const rate=num(cv(stS.getCell('B4')));
-      if((basis!==portalSettings.neoba_price_basis||Math.abs(rate-num(portalSettings.neoba_vat_rate))>1e-9)&&
-         confirm(`File dùng: giá ${basis==='incl'?'ĐÃ':'CHƯA'} gồm VAT, VAT ${(rate*100).toFixed(0)}%.\nPortal đang: ${portalSettings.neoba_price_basis==='incl'?'ĐÃ':'CHƯA'} VAT, ${(num(portalSettings.neoba_vat_rate)*100).toFixed(0)}%.\n\nOK = cập nhật Portal theo file. Huỷ = giữ cài đặt Portal.`)){
-        portalSettings.neoba_price_basis=basis;portalSettings.neoba_vat_rate=rate;
-        await sb.from('portal_settings').upsert([{key:'neoba_price_basis',value:basis},{key:'neoba_vat_rate',value:rate}],{onConflict:'key'});
+    const r=await parseNeobaWorkbook(f);
+    if(!r.prods.length){toast('File không có sản phẩm nào (cột SKU trống)','var(--amber)');return;}
+    if((r.basis!==portalSettings.neoba_price_basis||Math.abs(r.rate-num(portalSettings.neoba_vat_rate))>1e-9)&&
+       confirm(`File dùng: giá ${r.basis==='incl'?'ĐÃ':'CHƯA'} gồm VAT, VAT ${(r.rate*100).toFixed(0)}%.\nPortal đang: ${portalSettings.neoba_price_basis==='incl'?'ĐÃ':'CHƯA'} VAT, ${(num(portalSettings.neoba_vat_rate)*100).toFixed(0)}%.\n\nOK = cập nhật Portal theo file. Huỷ = giữ cài đặt Portal.`)){
+      portalSettings.neoba_price_basis=r.basis;portalSettings.neoba_vat_rate=r.rate;
+      await sb.from('portal_settings').upsert([{key:'neoba_price_basis',value:r.basis},{key:'neoba_vat_rate',value:r.rate}],{onConflict:'key'});
+    }
+    if(!confirm(`Import ${r.prods.length} sản phẩm + ${r.adds.length} add-on?\nSKU trùng sẽ được CẬP NHẬT (PO cũ giữ giá đã chốt).`))return;
+    await applyCatalog(r.prods,r.adds);
+    toast(`✅ Đã import ${r.prods.length} sản phẩm, ${r.adds.length} add-on`,'var(--green)');
+  }catch(e){console.error(e);toast('Lỗi import: '+(e.message||e),'var(--red)');}
+}
+async function applyCatalog(prods,adds){
+  const now=new Date().toISOString();
+  const e1=await sb.from('neoba_products').upsert(prods.map(p=>({...p,updated_at:now})),{onConflict:'sku'});if(e1.error)throw e1.error;
+  if(adds.length){const e2=await sb.from('neoba_addons').upsert(adds.map(a=>({...a,updated_at:now})),{onConflict:'code'});if(e2.error)throw e2.error;}
+  await loadNeoba();renderNbCatalog();
+}
+
+// ── B: NeoBa tự gửi bảng giá → Maison duyệt ──
+let neobaSubs=[],neobaStatements=[];
+async function loadNeobaDocs(){
+  if(!hasNeobaAccess())return;
+  const[a,b]=await Promise.all([sb.from('neoba_catalog_submissions').select('*').order('created_at',{ascending:false}).limit(30),
+    sb.from('neoba_statements').select('*').order('month',{ascending:false})]);
+  if(a.error)console.error('subs:',a.error);if(b.error)console.error('statements:',b.error);
+  neobaSubs=a.data||[];neobaStatements=b.data||[];
+}
+function renderNbCatActions(){
+  const el=document.getElementById('nb-cat-actions');if(!el)return;
+  el.innerHTML=isAdm()
+    ?`<button class="btn btn-ghost btn-sm" onclick="document.getElementById('nb-import-file').click()">⬆ Import trực tiếp</button>`
+    :`<button class="btn btn-gold btn-sm" onclick="document.getElementById('nb-submit-file').click()">⬆ Gửi bảng giá cho Maison duyệt</button>`;
+}
+function renderNbSubs(){
+  const el=document.getElementById('nb-subs');if(!el)return;
+  const list=isAdm()?neobaSubs.filter(s=>s.status==='pending'):neobaSubs.slice(0,5);
+  if(!list.length){el.innerHTML='';return;}
+  const lbl={pending:'⏳ Chờ duyệt',approved:'✅ Đã duyệt',rejected:'❌ Bị từ chối',superseded:'— Đã thay bằng bản mới'};
+  el.innerHTML=`<div class="nb-box"><div class="section-title" style="margin-bottom:8px;">📥 ${isAdm()?'Bảng giá chờ duyệt':'Bảng giá đã gửi'}</div>`+list.map(s=>`
+    <div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--card2);border-radius:6px;margin-bottom:4px;font-size:12px;align-items:center;flex-wrap:wrap;">
+      <span>${fmtTime(s.created_at)} · <b>${escH(s.submitted_by_name)}</b> · ${escH(s.file_name)} · ${(s.products||[]).length} SP / ${(s.addons||[]).length} add-on</span>
+      <span style="display:flex;gap:8px;align-items:center;"><span>${lbl[s.status]||s.status}${s.status==='rejected'&&s.reject_reason?' — '+escH(s.reject_reason):''}</span>
+      ${isAdm()&&s.status==='pending'?`<button class="btn btn-gold btn-sm" onclick="openNeobaSub(${s.id})">Xem & duyệt</button>`:''}</span></div>`).join('')+'</div>';
+}
+async function submitNeobaCatalog(input){
+  const f=input.files?.[0];input.value='';if(!f)return;
+  try{
+    const r=await parseNeobaWorkbook(f);
+    if(!r.prods.length){toast('File không có sản phẩm nào (cột SKU trống)','var(--amber)');return;}
+    if(!confirm(`Gửi ${r.prods.length} sản phẩm + ${r.adds.length} add-on cho Maison duyệt?\nGiá mới chỉ có hiệu lực sau khi Maison duyệt.`))return;
+    const who=currentProfile.full_name||currentUser.email;
+    await sb.from('neoba_catalog_submissions').update({status:'superseded'}).eq('status','pending').eq('submitted_by',currentUser.id);
+    const{error}=await sb.from('neoba_catalog_submissions').insert({submitted_by:currentUser.id,submitted_by_name:who,file_name:f.name,products:r.prods,addons:r.adds,vat_basis:r.basis,vat_rate:r.rate,status:'pending'});
+    if(error)throw error;
+    await sb.from('notifications').insert({type:'catalog',is_read:false,audience:'admin',message:`📥 ${who} vừa gửi bảng giá mới (${r.prods.length} SP) — chờ Maison duyệt`});
+    await loadNeobaDocs();renderNbSubs();
+    toast('✅ Đã gửi — chờ Maison duyệt','var(--green)');
+  }catch(e){console.error(e);toast('Lỗi gửi: '+(e.message||e)+' (đã chạy neoba-schema-v2.sql chưa?)','var(--red)');}
+}
+const SUB_FIELDS=['category','name','base_colors','leather_colors','features','moq','lead_days','warranty','certs','voltage','origin','status'];
+function diffCatalog(newList,oldList,key){
+  const old=new Map(oldList.map(x=>[x[key],x])),rows=[];let same=0;
+  newList.forEach(n=>{
+    const o=old.get(n[key]);
+    if(!o){rows.push({k:n[key],name:n.name,type:'Mới',cls:'var(--green)',oldc:null,newc:n.cost_excl});return;}
+    const priceChg=Math.abs(num(n.cost_excl)-num(o.cost_excl))>0.005;
+    const other=SUB_FIELDS.filter(f=>f in n&&String(n[f]??'')!==String(o[f]??''));
+    if(priceChg)rows.push({k:n[key],name:n.name,type:'Đổi giá',cls:'var(--amber)',oldc:o.cost_excl,newc:n.cost_excl});
+    else if(other.length)rows.push({k:n[key],name:n.name,type:'Đổi thông số',cls:'var(--blue)',oldc:o.cost_excl,newc:n.cost_excl,extra:other.join(', ')});
+    else same++;
+  });
+  const gone=oldList.filter(o=>!newList.some(n=>n[key]===o[key])).length;
+  return{rows,same,gone};
+}
+function openNeobaSub(id){
+  const s=neobaSubs.find(x=>x.id===id);if(!s)return;
+  const dp=diffCatalog(s.products||[],neobaProducts,'sku'),da=diffCatalog(s.addons||[],neobaAddons,'code');
+  const tbl=(title,d,kcol)=>`<div class="section-title" style="margin:14px 0 6px;">${title} — ${d.rows.length} thay đổi · ${d.same} giữ nguyên${d.gone?` · ${d.gone} mục không có trong file (giữ nguyên)`:''}</div>
+    ${d.rows.length?`<div class="tw"><table><thead><tr><th>${kcol}</th><th>Tên</th><th>Loại</th><th class="num">Cost cũ</th><th class="num">Cost mới</th><th class="num">%</th></tr></thead><tbody>
+    ${d.rows.map(r=>{const pct=r.oldc?((num(r.newc)-num(r.oldc))/num(r.oldc)*100):null;
+      return`<tr><td class="bold">${escH(r.k)}</td><td>${escH(r.name)}${r.extra?`<div style="font-size:10px;color:var(--text3);">${escH(r.extra)}</div>`:''}</td><td style="color:${r.cls};">${r.type}</td>
+      <td class="num">${r.oldc==null?'—':fmtUSD(r.oldc)}</td><td class="num" style="color:var(--gold);">${fmtUSD(r.newc)}</td>
+      <td class="num" style="color:${pct>0?'var(--red)':pct<0?'var(--green)':'var(--text3)'};">${pct==null?'—':(pct>0?'+':'')+pct.toFixed(1)+'%'}</td></tr>`;}).join('')}</tbody></table></div>`:'<div style="color:var(--text3);font-size:12px;">Không thay đổi</div>'}`;
+  const vatWarn=(s.vat_basis!==portalSettings.neoba_price_basis||Math.abs(num(s.vat_rate)-num(portalSettings.neoba_vat_rate))>1e-9)
+    ?`<div style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--amber);margin-bottom:10px;">⚠️ File NeoBa dùng giá ${s.vat_basis==='incl'?'ĐÃ':'CHƯA'} VAT, VAT ${(num(s.vat_rate)*100).toFixed(0)}% — khác cài đặt Portal (${portalSettings.neoba_price_basis==='incl'?'ĐÃ':'CHƯA'} VAT, ${(num(portalSettings.neoba_vat_rate)*100).toFixed(0)}%). Cost đã quy về chưa VAT theo file; khi duyệt có thể cập nhật Portal theo file.</div>`:'';
+  document.getElementById('nsub-title').textContent=`Duyệt bảng giá — ${s.submitted_by_name} · ${fmtTime(s.created_at)}`;
+  document.getElementById('nsub-body').innerHTML=vatWarn+tbl('📦 Sản phẩm',dp,'SKU')+tbl('➕ Add-on',da,'Mã');
+  document.getElementById('nsub-approve').onclick=()=>approveNeobaSub(id);
+  document.getElementById('nsub-reject').onclick=()=>rejectNeobaSub(id);
+  openModal('m-neoba-sub');
+}
+async function approveNeobaSub(id){
+  const s=neobaSubs.find(x=>x.id===id);if(!s)return;
+  try{
+    if((s.vat_basis!==portalSettings.neoba_price_basis||Math.abs(num(s.vat_rate)-num(portalSettings.neoba_vat_rate))>1e-9)&&
+       confirm(`Cập nhật cài đặt VAT của Portal theo file NeoBa (${s.vat_basis==='incl'?'ĐÃ':'CHƯA'} VAT, ${(num(s.vat_rate)*100).toFixed(0)}%)?\nOK = cập nhật · Huỷ = giữ cài đặt hiện tại.`)){
+      portalSettings.neoba_price_basis=s.vat_basis;portalSettings.neoba_vat_rate=num(s.vat_rate);
+      await sb.from('portal_settings').upsert([{key:'neoba_price_basis',value:s.vat_basis},{key:'neoba_vat_rate',value:num(s.vat_rate)}],{onConflict:'key'});
+    }
+    await applyCatalog(s.products||[],s.addons||[]);
+    await sb.from('neoba_catalog_submissions').update({status:'approved',reviewed_by:currentProfile.full_name,reviewed_at:new Date().toISOString()}).eq('id',id);
+    await sb.from('notifications').insert({type:'catalog',is_read:false,audience:'neoba',message:'✅ Maison đã duyệt bảng giá mới của bạn — áp dụng cho PO tạo từ bây giờ'});
+    await loadNeobaDocs();renderNbSubs();closeModal('m-neoba-sub');
+    toast('✅ Đã duyệt & cập nhật catalog','var(--green)');
+  }catch(e){console.error(e);toast('Lỗi: '+(e.message||e),'var(--red)');}
+}
+async function rejectNeobaSub(id){
+  const reason=prompt('Lý do từ chối (NeoBa sẽ thấy):');if(reason===null)return;
+  const{error}=await sb.from('neoba_catalog_submissions').update({status:'rejected',reject_reason:reason.trim()||null,reviewed_by:currentProfile.full_name,reviewed_at:new Date().toISOString()}).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  await sb.from('notifications').insert({type:'catalog',is_read:false,audience:'neoba',message:`❌ Maison từ chối bảng giá vừa gửi${reason.trim()?': '+reason.trim():''}`});
+  await loadNeobaDocs();renderNbSubs();closeModal('m-neoba-sub');toast('Đã từ chối','var(--amber)');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SAO KÊ CÔNG NỢ HÀNG THÁNG Maison ↔ NeoBa
+// Số dư = Σ PO (đã VAT, đơn chưa huỷ) − Σ thanh toán  → dương = Maison còn nợ NeoBa
+// ══════════════════════════════════════════════════════════════════════════
+const poDateOf=o=>o.neoba_po_date||o.order_date||(o.created_at||'').slice(0,10);
+const monthEnd=m=>{const[y,mo]=m.split('-').map(Number);return`${m}-${String(new Date(y,mo,0).getDate()).padStart(2,'0')}`;};
+const prevMonth=m=>{let[y,mo]=m.split('-').map(Number);mo--;if(!mo){mo=12;y--;}return`${y}-${String(mo).padStart(2,'0')}`;};
+function buildStatement(month){
+  const S=month+'-01',E=monthEnd(month);
+  const ords=allOrders.filter(isResale),byId=new Map(ords.map(o=>[String(o.id),o]));
+  const live=ords.filter(o=>o.status!=='cancelled'&&num(o.neoba_payable)>0);
+  const pays=neobaPayments.filter(p=>byId.has(String(p.order_id)));
+  const pd=p=>(p.paid_at||'').slice(0,10);
+  const opening=live.filter(o=>poDateOf(o)<S).reduce((s,o)=>s+num(o.neoba_payable),0)-pays.filter(p=>pd(p)<S).reduce((s,p)=>s+num(p.amount),0);
+  const lines=[];
+  live.filter(o=>poDateOf(o)>=S&&poDateOf(o)<=E).forEach(o=>lines.push({type:'po',date:poDateOf(o),order_id:o.id,invoice_no:o.invoice_no,
+    desc:`PO ${o.business_name||''}${o.neoba_freight_actual==null?' (cước ước tính)':''}`,vat_invoice:o.neoba_vat_invoice||'',debit:num(o.neoba_payable),credit:0}));
+  const kl={deposit:'Cọc',balance:'Thanh toán còn lại',adjustment:'Điều chỉnh'};
+  pays.filter(p=>pd(p)>=S&&pd(p)<=E).forEach(p=>{const o=byId.get(String(p.order_id));
+    lines.push({type:'payment',date:pd(p),order_id:p.order_id,invoice_no:o?.invoice_no||'',desc:`${kl[p.kind]||p.kind}${p.ref?' · '+p.ref:''}${p.note?' · '+p.note:''}${o?.status==='cancelled'?' (đơn huỷ)':''}`,vat_invoice:'',debit:0,credit:num(p.amount)});});
+  lines.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.type==='po'?-1:1));
+  const closing=opening+lines.reduce((s,l)=>s+l.debit-l.credit,0);
+  return{lines,opening:Math.round(opening*100)/100,closing:Math.round(closing*100)/100,
+    noPo:ords.filter(o=>o.status!=='cancelled'&&!(num(o.neoba_payable)>0)&&poDateOf(o)<=E).length};
+}
+function stBadge(s){const m={sent:['⏳ Chờ NeoBa xác nhận','var(--amber)'],confirmed:['✅ NeoBa đã xác nhận','var(--green)'],flagged:['⚠️ NeoBa báo lệch','var(--red)'],closed:['🔒 Đã chốt','var(--text2)']}[s]||[s,'var(--text3)'];return`<span style="color:${m[1]};font-weight:600;">${m[0]}</span>`;}
+function renderNbStatements(){
+  const box=document.getElementById('nb-st-list');if(!box)return;
+  const ctl=document.getElementById('nb-st-new');
+  if(ctl){ctl.style.display=isAdm()?'flex':'none';const mi=document.getElementById('nb-st-month');if(mi&&!mi.value)mi.value=prevMonth(new Date().toISOString().slice(0,7));}
+  box.innerHTML=neobaStatements.length?neobaStatements.map(s=>`<tr style="cursor:pointer;" onclick="openStatement(${s.id})">
+    <td class="bold">${s.month}</td><td>${stBadge(s.status)}</td><td class="num">${fmtUSD(s.opening_balance)}</td><td class="num" style="color:var(--gold);">${fmtUSD(s.closing_balance)}</td>
+    <td style="color:var(--text3);">${fmtTime(s.sent_at)}</td><td style="color:var(--text3);">${s.responded_at?escH(s.responded_by||'')+' · '+fmtTime(s.responded_at):'—'}</td></tr>`).join('')
+    :'<tr><td colspan="6" class="empty-state">Chưa có sao kê nào</td></tr>';
+}
+let _st=null; // {id,month,lines,opening,closing,status,note,preview}
+function previewStatement(){
+  const month=document.getElementById('nb-st-month').value;if(!month){toast('Chọn tháng','var(--amber)');return;}
+  const ex=neobaStatements.find(s=>s.month===month);
+  if(ex?.status==='closed'){toast('Tháng này đã chốt','var(--amber)');return;}
+  const b=buildStatement(month);
+  _st={id:ex?.id||null,month,lines:b.lines,opening:b.opening,closing:b.closing,status:ex?.status||'draft',note:'',preview:true,noPo:b.noPo};
+  renderStatement();openModal('m-neoba-st');
+}
+function openStatement(id){
+  const s=neobaStatements.find(x=>x.id===id);if(!s)return;
+  _st={id:s.id,month:s.month,lines:JSON.parse(JSON.stringify(s.lines||[])),opening:num(s.opening_balance),closing:num(s.closing_balance),status:s.status,note:s.note||'',preview:false};
+  renderStatement();openModal('m-neoba-st');
+}
+function renderStatement(){
+  const s=_st,canFlag=!isAdm()&&!s.preview&&(s.status==='sent'||s.status==='flagged');
+  const sumD=s.lines.reduce((x,l)=>x+num(l.debit),0),sumC=s.lines.reduce((x,l)=>x+num(l.credit),0);
+  document.getElementById('nst-title').innerHTML=`Sao kê NeoBa — ${s.month} ${s.preview?'<span style="font-size:12px;color:var(--amber);">(xem trước — chưa gửi)</span>':stBadge(s.status)}`;
+  const prev=neobaStatements.find(x=>x.month===prevMonth(s.month)&&x.status!=='sent');
+  const warn=[];
+  if(prev&&Math.abs(num(prev.closing_balance)-s.opening)>0.005)warn.push(`Số dư đầu kỳ (${fmtUSD(s.opening)}) lệch so với cuối kỳ sao kê tháng trước (${fmtUSD(prev.closing_balance)}) — có dữ liệu thay đổi sau khi chốt.`);
+  if(s.noPo)warn.push(`${s.noPo} đơn NeoBa chưa soạn PO nên không nằm trong sao kê.`);
+  document.getElementById('nst-warn').innerHTML=isAdm()?warn.map(w=>`<div style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--amber);margin-bottom:6px;">⚠️ ${escH(w)}</div>`).join(''):'';
+  document.getElementById('nst-sum').innerHTML=`
+    <div class="kpi" style="cursor:default;"><div class="kpi-label">Số dư đầu kỳ</div><div class="kpi-val" style="font-size:20px;">${fmtUSD(s.opening)}</div></div>
+    <div class="kpi" style="cursor:default;"><div class="kpi-label">+ PO phát sinh</div><div class="kpi-val" style="font-size:20px;color:var(--gold);">${fmtUSD(sumD)}</div></div>
+    <div class="kpi" style="cursor:default;"><div class="kpi-label">− Đã thanh toán</div><div class="kpi-val" style="font-size:20px;color:var(--green);">${fmtUSD(sumC)}</div></div>
+    <div class="kpi" style="cursor:default;"><div class="kpi-label">${isAdm()?'Còn nợ NeoBa':'Maison còn phải trả'}</div><div class="kpi-val" style="font-size:20px;color:${s.closing>0.005?'var(--red)':'var(--text2)'};">${fmtUSD(s.closing)}</div></div>`;
+  document.getElementById('nst-body').innerHTML=s.lines.length?s.lines.map((l,i)=>`<tr style="${l.flag?'background:rgba(240,112,112,.1);':''}">
+    <td style="white-space:nowrap;color:var(--text3);">${l.date||''}</td><td class="bold" style="white-space:nowrap;">${escH(l.invoice_no)}</td><td>${escH(l.desc)}</td><td>${escH(l.vat_invoice)}</td>
+    <td class="num">${l.debit?fmtUSD(l.debit):''}</td><td class="num" style="color:var(--green);">${l.credit?fmtUSD(l.credit):''}</td>
+    <td style="min-width:170px;">${canFlag?`<label style="display:flex;gap:6px;align-items:center;font-size:11px;cursor:pointer;"><input type="checkbox" ${l.flag?'checked':''} onchange="stFlag(${i},this.checked)" style="width:auto;"> Báo lệch</label>${l.flag?`<input type="text" placeholder="Lý do / số đúng" value="${escH(l.flag_note||'')}" oninput="_st.lines[${i}].flag_note=this.value" style="margin-top:4px;padding:5px 8px;font-size:11px;">`:''}`
+      :(l.flag?`<span style="color:var(--red);font-size:11px;">⚠️ ${escH(l.flag_note||'báo lệch')}</span>`:'')}</td></tr>`).join('')
+    :'<tr><td colspan="7" class="empty-state">Không có phát sinh trong tháng</td></tr>';
+  const noteEl=document.getElementById('nst-note');
+  noteEl.style.display=(canFlag||s.note)?'block':'none';noteEl.readOnly=!canFlag;noteEl.value=s.note||'';
+  noteEl.placeholder='Ghi chú chung (không bắt buộc nếu xác nhận đúng)';
+  const btn=[];
+  if(isAdm()){
+    btn.push(`<button class="btn btn-ghost btn-sm" onclick="exportStatement()">⬇ Excel</button>`);
+    if(s.preview)btn.push(`<button class="btn btn-gold" onclick="sendStatement()">📤 ${s.id?'Tính lại & gửi lại':'Gửi cho NeoBa'}</button>`);
+    else{
+      if(s.status!=='closed'){
+        btn.push(`<button class="btn btn-ghost btn-sm" onclick="previewStatementFor('${s.month}')">🔄 Tính lại & gửi lại</button>`);
+        btn.push(`<button class="btn btn-gold btn-sm" onclick="closeStatement()">🔒 Chốt sao kê</button>`);
       }
     }
-    const rate=num(portalSettings.neoba_vat_rate),incl=portalSettings.neoba_price_basis==='incl';
-    const toExcl=v=>v==null?null:(incl?num(v)/(1+rate):num(v));
-    const pmS=wb.getWorksheet('Product Master');
-    if(!pmS)throw new Error('Không thấy sheet "Product Master" — hãy dùng đúng template NeoBa v3');
-    const prods=[];
-    for(let r=6;r<=pmS.rowCount;r++){
-      const row=pmS.getRow(r),sku=str(cv(row.getCell(2)));
-      if(!sku)continue;
-      const ci=cv(row.getCell(9));
-      prods.push({sku,category:str(cv(row.getCell(3))),name:str(cv(row.getCell(4))),status:str(cv(row.getCell(5)))||'Active',
-        base_colors:str(cv(row.getCell(6))),leather_colors:str(cv(row.getCell(7))),features:str(cv(row.getCell(8))),
-        cost_input:ci==null?null:num(ci),cost_excl:toExcl(ci),effective_date:dte(cv(row.getCell(12))),moq:cv(row.getCell(13))==null?null:num(cv(row.getCell(13))),
-        box_l:cv(row.getCell(14))==null?null:num(cv(row.getCell(14))),box_w:cv(row.getCell(15))==null?null:num(cv(row.getCell(15))),box_h:cv(row.getCell(16))==null?null:num(cv(row.getCell(16))),
-        weight_lbs:cv(row.getCell(18))==null?null:num(cv(row.getCell(18))),per_pallet:cv(row.getCell(19))==null?null:num(cv(row.getCell(19))),lead_days:cv(row.getCell(20))==null?null:num(cv(row.getCell(20))),
-        warranty:str(cv(row.getCell(21))),certs:str(cv(row.getCell(22))),voltage:str(cv(row.getCell(23))),origin:str(cv(row.getCell(24))),
-        price_terms:str(cv(row.getCell(25))),image_url:str(cv(row.getCell(26))),spec_url:str(cv(row.getCell(27))),updated_at:new Date().toISOString()});
+  }else{
+    btn.push(`<button class="btn btn-ghost btn-sm" onclick="exportStatement()">⬇ Excel</button>`);
+    if(canFlag){
+      btn.push(`<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="respondStatement('flagged')">⚠️ Gửi báo lệch</button>`);
+      btn.push(`<button class="btn btn-gold" onclick="respondStatement('confirmed')">✅ Xác nhận đúng</button>`);
     }
-    const adS=wb.getWorksheet('Add-ons'),adds=[];
-    if(adS)for(let r=6;r<=adS.rowCount;r++){
-      const row=adS.getRow(r),code=str(cv(row.getCell(1)));
-      if(!code)continue;
-      const ci=cv(row.getCell(4));
-      adds.push({code,sku:str(cv(row.getCell(2))),name:str(cv(row.getCell(3))),cost_input:ci==null?null:num(ci),cost_excl:toExcl(ci),
-        status:str(cv(row.getCell(7)))||'Active',notes:str(cv(row.getCell(8))),updated_at:new Date().toISOString()});
-    }
-    if(!prods.length){toast('File không có sản phẩm nào (cột SKU trống)','var(--amber)');return;}
-    if(!confirm(`Import ${prods.length} sản phẩm + ${adds.length} add-on?\nSKU trùng sẽ được CẬP NHẬT giá/thông số (PO cũ giữ giá đã chốt).`))return;
-    let e1=await sb.from('neoba_products').upsert(prods,{onConflict:'sku'});
-    if(e1.error)throw e1.error;
-    if(adds.length){const e2=await sb.from('neoba_addons').upsert(adds,{onConflict:'code'});if(e2.error)throw e2.error;}
-    await loadNeoba();renderNbCatalog();
-    toast(`✅ Đã import ${prods.length} sản phẩm, ${adds.length} add-on`,'var(--green)');
-  }catch(e){console.error(e);toast('Lỗi import: '+(e.message||e),'var(--red)');}
+  }
+  document.getElementById('nst-actions').innerHTML=btn.join('');
+}
+function previewStatementFor(m){document.getElementById('nb-st-month').value=m;previewStatement();}
+function stFlag(i,on){_st.lines[i].flag=on;if(!on)_st.lines[i].flag_note='';renderStatement();}
+async function sendStatement(){
+  const s=_st,row={month:s.month,status:'sent',opening_balance:s.opening,closing_balance:s.closing,lines:s.lines,note:null,
+    created_by:currentProfile.full_name,sent_at:new Date().toISOString(),responded_by:null,responded_at:null,closed_at:null};
+  const{error}=await sb.from('neoba_statements').upsert(row,{onConflict:'month'});
+  if(error){toast('Lỗi: '+error.message+' (đã chạy neoba-schema-v2.sql chưa?)','var(--red)');return;}
+  await sb.from('notifications').insert({type:'statement',is_read:false,audience:'neoba',message:`📑 Sao kê công nợ tháng ${s.month} đã gửi — Maison còn phải trả ${fmtUSD(s.closing)}. Vui lòng xác nhận.`});
+  await loadNeobaDocs();renderNbStatements();closeModal('m-neoba-st');toast('✅ Đã gửi sao kê cho NeoBa','var(--green)');
+}
+async function respondStatement(status){
+  const s=_st,note=document.getElementById('nst-note').value.trim();
+  if(status==='flagged'&&!s.lines.some(l=>l.flag)&&!note){toast('Tick dòng bị lệch hoặc ghi chú lý do','var(--amber)');return;}
+  const upd={status,lines:s.lines,note:note||null,responded_by:currentProfile.full_name,responded_at:new Date().toISOString()};
+  const{error}=await sb.from('neoba_statements').update(upd).eq('id',s.id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  const nf=s.lines.filter(l=>l.flag).length;
+  await sb.from('notifications').insert({type:'statement',is_read:false,audience:'admin',message:status==='confirmed'?`✅ ${currentProfile.full_name} đã xác nhận sao kê tháng ${s.month}`:`⚠️ ${currentProfile.full_name} báo lệch sao kê tháng ${s.month} (${nf} dòng)${note?': '+note:''}`});
+  await loadNeobaDocs();renderNbStatements();closeModal('m-neoba-st');toast(status==='confirmed'?'✅ Đã xác nhận':'Đã gửi báo lệch','var(--green)');
+}
+async function closeStatement(){
+  if(!confirm('Chốt sao kê tháng '+_st.month+'? Sau khi chốt không tính lại được.'))return;
+  const{error}=await sb.from('neoba_statements').update({status:'closed',closed_at:new Date().toISOString()}).eq('id',_st.id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  await sb.from('notifications').insert({type:'statement',is_read:false,audience:'neoba',message:`🔒 Sao kê tháng ${_st.month} đã được chốt`});
+  await loadNeobaDocs();renderNbStatements();closeModal('m-neoba-st');toast('🔒 Đã chốt','var(--green)');
+}
+async function exportStatement(){
+  const s=_st,wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Sao kê '+s.month);
+  ws.addRow([`SAO KÊ CÔNG NỢ MAISON DE KCT ↔ NEOBA — ${s.month}`]);ws.getRow(1).font={name:'Arial',bold:true,size:13};
+  ws.addRow(['Số dư đầu kỳ (USD)','','','','',s.opening]);ws.addRow([]);
+  ws.addRow(['Ngày','Invoice','Nội dung','Hoá đơn VAT','Phát sinh (+)','Thanh toán (−)','Báo lệch']);
+  const h=ws.lastRow.number;
+  ws.getRow(h).eachCell(c=>{c.font={name:'Arial',bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3A5F'}};});
+  s.lines.forEach(l=>ws.addRow([l.date,l.invoice_no,l.desc,l.vat_invoice,l.debit||null,l.credit||null,l.flag?('Lệch: '+(l.flag_note||'')):'']));
+  const a=h+1,b=h+s.lines.length;
+  ws.addRow(['TỔNG PHÁT SINH','','','',s.lines.length?{formula:`SUM(E${a}:E${b})`}:0,s.lines.length?{formula:`SUM(F${a}:F${b})`}:0]);
+  const tr=ws.lastRow.number;
+  ws.addRow(['SỐ DƯ CUỐI KỲ (Maison còn phải trả NeoBa)','','','','','',''].slice(0,5).concat([{formula:`F2+E${tr}-F${tr}`}]));
+  ws.getRow(tr).font={name:'Arial',bold:true};ws.lastRow.font={name:'Arial',bold:true};
+  [12,18,44,18,16,16,34].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  for(const c of [5,6])ws.getColumn(c).numFmt='$#,##0.00';ws.getCell('F2').numFmt='$#,##0.00';
+  const buf=await wb.xlsx.writeBuffer(),el=document.createElement('a');
+  el.href=URL.createObjectURL(new Blob([buf]));el.download=`sao-ke-neoba-${s.month}.xlsx`;el.click();
 }
 
 // ── PO builder ──
@@ -3765,6 +4034,8 @@ function openNeobaPO(orderId){
   document.getElementById('npo-fr-est').value=o.neoba_freight_est??'';
   document.getElementById('npo-fr-act').value=o.neoba_freight_actual??'';
   document.getElementById('npo-dep').value=o.neoba_deposit_pct??50;
+  document.getElementById('npo-po-date').value=o.neoba_po_date||new Date().toISOString().slice(0,10);
+  document.getElementById('npo-vat-inv').value=o.neoba_vat_invoice||'';
   document.getElementById('npo-vat-info').textContent=`VAT ${(_npo.vat*100).toFixed(0)}% · ${_npo.ded?'được khấu trừ → Gap tính trên giá chưa VAT':'không khấu trừ → Gap tính trên giá đã VAT'}`;
   npoRender();openModal('m-neoba-po');
 }
@@ -3816,6 +4087,8 @@ async function npoSave(){
   const frEst=document.getElementById('npo-fr-est').value,frAct=document.getElementById('npo-fr-act').value;
   const t=neobaTotals(lines,frEst,frAct,_npo.vat);
   const data={vendor:'NEOBA',vendor_manual:true,
+    neoba_po_date:document.getElementById('npo-po-date').value||new Date().toISOString().slice(0,10),
+    neoba_vat_invoice:document.getElementById('npo-vat-inv').value.trim()||null,
     neoba_lines:lines.map(l=>({sku:l.sku,name:l.name,color:l.color||'',qty:num(l.qty),unit_cost:num(l.unit_cost),addons:l.addons||[],addons_unit:l.addons_unit})),
     neoba_freight_est:frEst===''?null:num(frEst),neoba_freight_actual:frAct===''?null:num(frAct),
     neoba_deposit_pct:num(document.getElementById('npo-dep').value),
@@ -3898,7 +4171,7 @@ function renderOvNeoba(o){
   const kindLbl={deposit:'Cọc',balance:'Còn lại',adjustment:'Điều chỉnh'};
   box.innerHTML=`<div class="divider"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-      <div class="section-title" style="margin:0;">🏭 PO NeoBa</div>
+      <div><div class="section-title" style="margin:0;">🏭 PO NeoBa</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">Ngày PO ${poDateOf(o)}${o.neoba_vat_invoice?' · HĐ VAT '+escH(o.neoba_vat_invoice):''}</div></div>
       ${isAdm()?`<div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="openNeobaPO('${o.id}')">✏️ ${lines.length?'Sửa':'Soạn'} PO</button><button class="btn btn-gold btn-sm" onclick="openNeobaPay('${o.id}')">+ Thanh toán</button></div>`:''}
     </div>
     ${lines.length?`<div class="tw"><table><thead><tr><th>SKU</th><th>Sản phẩm / màu / add-on</th><th class="num">SL</th><th class="num">Đơn giá</th><th class="num">Thành tiền</th></tr></thead><tbody>
