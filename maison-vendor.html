@@ -178,6 +178,48 @@ th.num{text-align:right;}
 .notif-msg{font-size:12px;color:var(--text);line-height:1.5;}
 .notif-time{font-size:10px;color:var(--text3);margin-top:3px;}
 
+.tag-neoba{background:rgba(82,212,154,.12);color:var(--green);}
+.nb-tabs{display:flex;gap:8px;margin:12px 0 16px;flex-wrap:wrap;}
+.nb-note{font-size:11px;color:var(--text3);line-height:1.6;margin-top:10px;}
+.npo-line{display:grid;grid-template-columns:2fr 1.4fr 80px 130px 32px;gap:8px;align-items:center;padding:10px;background:var(--card2);border-radius:8px;margin-bottom:8px;}
+.npo-adds{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text2);}
+.npo-adds label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.npo-sum{font-size:12px;color:var(--gold);text-align:right;font-weight:600;}
+.npo-totals{margin-top:14px;padding:12px 14px;background:rgba(201,168,76,.06);border:1px solid var(--border);border-radius:8px;font-size:12px;display:grid;grid-template-columns:1fr auto;gap:4px 24px;}
+.npo-totals .t{text-align:right;font-weight:600;}
+.nb-box{border:1px solid var(--border2);border-radius:var(--r);background:var(--card);padding:14px 16px;margin-bottom:16px;}
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 80px);min-height:420px;}
+.chat-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.chat-tools{display:flex;gap:8px;align-items:center;}
+.chat-tools input{width:230px;padding:7px 12px;}
+.chat-pins{background:rgba(201,168,76,.07);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;max-height:180px;overflow-y:auto;}
+.chat-pin-item{display:flex;gap:8px;align-items:center;padding:4px 0;cursor:pointer;}
+.chat-pin-item .snip{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.chat-list{flex:1;overflow-y:auto;background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;}
+.chat-day{align-self:center;font-size:10px;color:var(--text3);background:var(--card2);padding:2px 10px;border-radius:10px;margin:6px 0;}
+.chat-msg{max-width:78%;align-self:flex-start;background:var(--card2);border-radius:12px 12px 12px 3px;padding:8px 12px;position:relative;}
+.chat-msg.me{align-self:flex-end;background:rgba(201,168,76,.14);border-radius:12px 12px 3px 12px;}
+.chat-msg.pinned{border:1px solid rgba(201,168,76,.45);}
+.chat-msg.flash{animation:chatflash 1.4s ease;}
+@keyframes chatflash{0%,60%{box-shadow:0 0 0 2px var(--gold);}100%{box-shadow:none;}}
+.chat-meta{font-size:10px;color:var(--text3);margin-bottom:3px;display:flex;gap:8px;align-items:center;}
+.chat-meta b{color:var(--text2);font-weight:600;}
+.chat-body{font-size:13px;line-height:1.5;word-break:break-word;color:var(--text);}
+.chat-body mark{background:rgba(201,168,76,.45);color:var(--text);border-radius:2px;padding:0 1px;}
+.chat-act{display:none;gap:4px;position:absolute;top:-10px;right:8px;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:1px 4px;}
+.chat-msg:hover .chat-act{display:flex;}
+.chat-act button{background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;color:var(--text2);}
+.chat-link{display:inline-block;padding:0 7px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;}
+.chat-link.ord{background:rgba(110,179,247,.15);color:var(--blue);}
+.chat-link.prd{background:rgba(82,212,154,.15);color:var(--green);}
+.chat-compose{position:relative;display:flex;gap:8px;margin-top:10px;align-items:flex-end;}
+.chat-compose textarea{resize:none;max-height:120px;min-height:40px;}
+.chat-ac{position:absolute;bottom:100%;left:0;right:70px;margin-bottom:6px;background:var(--card);border:1px solid var(--border);border-radius:8px;max-height:260px;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:50;}
+.chat-ac .it{padding:8px 12px;font-size:12px;cursor:pointer;display:flex;gap:8px;}
+.chat-ac .it.sel,.chat-ac .it:hover{background:rgba(201,168,76,.12);}
+.chat-ac .it small{color:var(--text3);margin-left:auto;}
+@media(max-width:700px){.npo-line{grid-template-columns:1fr 1fr;}.chat-msg{max-width:92%;}.chat-tools input{width:150px;}}
+
 /* ── MISC ── */
 .divider{height:1px;background:var(--border2);margin:16px 0;}
 .tag{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
@@ -256,8 +298,10 @@ th.num{text-align:right;}
       <div class="nav-item" data-view="orders"><span class="nav-icon">📦</span>Đơn hàng</div>
       <div class="nav-item" data-view="notifications"><span class="nav-icon">🔔</span>Thông báo <span class="notif-badge" id="notif-badge" style="display:none;">0</span></div>
       <div class="nav-item admin-only" data-view="accounts"><span class="nav-icon">👥</span>Tài khoản</div>
-      <div class="nav-item" data-view="reports"><span class="nav-icon">📈</span>Báo cáo</div>
-      <div class="nav-item" data-view="reconciliation"><span class="nav-icon">🧾</span>Đối soát <span class="notif-badge" id="recon-badge" style="display:none;">0</span></div>
+      <div class="nav-item hide-nbo" data-view="reports"><span class="nav-icon">📈</span>Báo cáo</div>
+      <div class="nav-item hide-nbo" data-view="reconciliation"><span class="nav-icon">🧾</span>Đối soát <span class="notif-badge" id="recon-badge" style="display:none;">0</span></div>
+      <div class="nav-item neoba-only" data-view="neoba"><span class="nav-icon">🏭</span>NeoBa</div>
+      <div class="nav-item neoba-only" data-view="chat"><span class="nav-icon">💬</span>Trao đổi <span class="notif-badge" id="chat-badge" style="display:none;">0</span></div>
       <div class="nav-item admin-only" data-view="simulator"><span class="nav-icon">🧮</span>Ước tính hoa hồng</div>
       <div class="nav-item admin-only" data-view="diagram"><span class="nav-icon">🗺️</span>Sơ đồ hệ thống</div>
     </nav>
@@ -289,7 +333,7 @@ th.num{text-align:right;}
         <input type="text" class="search-input" id="ord-search" placeholder="🔍 Tìm invoice, shop…" oninput="renderOrders()">
         <select class="filter-select" id="ord-vendor" onchange="renderOrders()">
           <option value="">Tất cả Vendor</option>
-          <option>BOLSA</option><option>ONS</option><option>TSPA</option>
+          <option>BOLSA</option><option>ONS</option><option>TSPA</option><option>NEOBA</option>
         </select>
         <select class="filter-select" id="ord-status" onchange="renderOrders()">
           <option value="">Tất cả trạng thái</option>
@@ -337,6 +381,68 @@ th.num{text-align:right;}
         </div>
         <div id="orders-empty" class="empty-state" style="display:none;">
           <div class="ei">📦</div><p>Chưa có đơn hàng</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEOBA -->
+    <div class="view" id="view-neoba">
+      <div class="page-title">NeoBa</div>
+      <div class="page-sub">Catalog, PO và công nợ — mô hình mua đứt (Maison hưởng toàn bộ Price Gap)</div>
+      <div class="nb-tabs">
+        <button class="btn btn-sm" id="nbt-catalog" onclick="nbTab('catalog')">📚 Catalog</button>
+        <button class="btn btn-ghost btn-sm" id="nbt-debt" onclick="nbTab('debt')">💵 Công nợ</button>
+        <button class="btn btn-ghost btn-sm admin-only" id="nbt-set" onclick="nbTab('set')">⚙️ Cài đặt VAT</button>
+      </div>
+      <div id="nb-catalog">
+        <div class="filters">
+          <input type="text" class="search-input" id="nb-search" placeholder="🔍 Tìm SKU, tên, nhóm…" oninput="renderNbCatalog()">
+          <span class="admin-only" style="display:contents;">
+            <button class="btn btn-gold btn-sm" onclick="document.getElementById('nb-import-file').click()">⬆ Import Excel (template NeoBa)</button>
+            <input type="file" id="nb-import-file" accept=".xlsx" style="display:none" onchange="importNeobaExcel(this)">
+          </span>
+          <span id="nb-count" style="font-size:12px;color:var(--text3);"></span>
+        </div>
+        <div class="card"><div class="tw"><table><thead><tr><th>SKU</th><th>Nhóm</th><th>Sản phẩm</th><th>TT</th><th class="num">Cost (chưa VAT)</th><th>Màu</th><th class="num">Lead</th><th>Add-on</th></tr></thead>
+        <tbody id="nb-cat-body"></tbody></table></div></div>
+      </div>
+      <div id="nb-debt" style="display:none;">
+        <div class="kpi-grid" id="nb-debt-kpis"></div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-ghost btn-sm" onclick="exportNeobaDebt()">⬇ Xuất Excel</button></div>
+        <div class="card"><div class="tw"><table><thead><tr><th>Invoice</th><th>Khách</th><th>TT đơn</th><th class="num">Tổng PO (đã VAT)</th><th class="num">Cọc yêu cầu</th><th class="num">Đã trả</th><th class="num">Còn lại</th><th>Thanh toán</th><th class="num admin-only">Maison Gap</th></tr></thead>
+        <tbody id="nb-debt-body"></tbody></table></div></div>
+      </div>
+      <div id="nb-set" style="display:none;">
+        <div class="nb-box" style="max-width:560px;">
+          <div class="fg"><label class="fl">Giá NeoBa nhập trong Excel là</label>
+            <select id="nbs-basis"><option value="excl">CHƯA gồm VAT</option><option value="incl">ĐÃ gồm VAT</option></select></div>
+          <div class="fg"><label class="fl">VAT rate</label>
+            <select id="nbs-rate"><option value="0">0%</option><option value="0.08">8%</option><option value="0.1">10%</option></select></div>
+          <div class="fg"><label class="fl">VAT đầu vào có được khấu trừ?</label>
+            <select id="nbs-ded"><option value="true">Có — Gap tính trên giá CHƯA VAT</option><option value="false">Không — Gap tính trên giá ĐÃ VAT</option></select></div>
+          <button class="btn btn-gold" onclick="saveNeobaSettings()">Lưu cài đặt</button>
+          <div class="nb-note">Cài đặt áp dụng cho lần import catalog và PO <b>tạo/sửa sau này</b>. PO đã lưu giữ nguyên VAT đã chốt tại thời điểm lập PO (mở PO → Lưu để áp dụng cài đặt mới).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="view" id="view-chat">
+      <div class="chat-wrap">
+        <div class="chat-head">
+          <div><div class="page-title" style="margin:0;">💬 Trao đổi Maison ↔ NeoBa</div>
+            <div class="page-sub" style="margin:0;">Gõ <b>#</b> hoặc <b>@</b> + mã đơn / SKU để gắn link</div></div>
+          <div class="chat-tools">
+            <input type="text" id="chat-search" placeholder="🔍 Tìm tin nhắn, mã đơn, shop…" oninput="renderChat()">
+            <button class="btn btn-ghost btn-sm" onclick="toggleChatPins()">📌 Ghim (<span id="chat-pin-n">0</span>)</button>
+          </div>
+        </div>
+        <div id="chat-pins" class="chat-pins" style="display:none;"></div>
+        <div id="chat-list" class="chat-list"></div>
+        <div class="chat-compose">
+          <div id="chat-ac" class="chat-ac" style="display:none;"></div>
+          <textarea id="chat-input" rows="1" placeholder="Nhập tin nhắn… (Enter gửi · Shift+Enter xuống dòng)"></textarea>
+          <button class="btn btn-gold" onclick="sendChat()">Gửi</button>
         </div>
       </div>
     </div>
@@ -401,7 +507,7 @@ th.num{text-align:right;}
           </div>
           <select class="filter-select" id="rpt-vendor">
             <option value="">Tất cả Vendor</option>
-            <option>BOLSA</option><option>ONS</option><option>TSPA</option>
+            <option>BOLSA</option><option>ONS</option><option>TSPA</option><option>NEOBA</option>
           </select>
           <button class="btn btn-gold btn-sm" onclick="runReport()">Xem báo cáo</button>
           <button class="btn btn-ghost btn-sm" onclick="exportReport()">⬇ Xuất Excel</button>
@@ -607,7 +713,8 @@ th.num{text-align:right;}
       <span id="ov-edit-btn"></span>
       <button class="btn btn-ghost btn-sm" onclick="openStatusModal(_ovId)">🔄 Trạng thái</button>
       <button class="btn btn-gold btn-sm" onclick="openTrackingModal(_ovId)">🚚 Tracking</button>
-      <button class="btn btn-ghost btn-sm" onclick="viewInvoice(_ovId)">🧾 Invoice</button>
+      <button class="btn btn-ghost btn-sm" id="ov-inv-btn" onclick="viewInvoice(_ovId)">🧾 Invoice</button>
+      <span id="ov-chat-btn"></span>
       <span id="ov-comm-btn"></span>
     </div>
     <!-- Body -->
@@ -635,6 +742,7 @@ th.num{text-align:right;}
           </div>
         </div>
       </div>
+      <div id="ov-neoba"></div>
       <!-- Design Files (chỉ lưu link, không lưu file để đỡ tốn dung lượng) -->
       <div class="divider"></div>
       <div class="section-title" style="margin-bottom:10px;">📎 Tài liệu thiết kế</div>
@@ -653,6 +761,50 @@ th.num{text-align:right;}
       <span id="ov-nav-label" style="font-size:12px;color:var(--text3);"></span>
       <button class="btn btn-ghost" id="ov-next" onclick="navOrderView(1)">Đơn tiếp →</button>
     </div>
+  </div>
+</div>
+
+<!-- NeoBa PO modal -->
+<div class="mbg" id="m-neoba-po">
+  <div class="modal" style="max-width:980px;width:96vw;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title">🏭 PO NeoBa — <span id="npo-title"></span></div>
+    <div id="npo-lines"></div>
+    <button class="btn btn-ghost btn-sm" onclick="npoAdd()">+ Thêm dòng sản phẩm</button>
+    <div class="fgrid2" style="margin-top:14px;">
+      <div class="fg"><label class="fl">Cước ước tính (USD, chưa VAT)</label><input type="number" step="0.01" id="npo-fr-est" oninput="npoTotals()"></div>
+      <div class="fg"><label class="fl">Cước thực tế (trống = chưa có hoá đơn)</label><input type="number" step="0.01" id="npo-fr-act" oninput="npoTotals()"></div>
+      <div class="fg"><label class="fl">% đặt cọc</label><input type="number" step="1" min="0" max="100" id="npo-dep" list="npo-dep-list" oninput="npoTotals()"><datalist id="npo-dep-list"><option value="30"><option value="40"><option value="50"></datalist></div>
+      <div class="fg"><label class="fl">VAT áp dụng cho PO này</label><div id="npo-vat-info" style="font-size:12px;color:var(--text2);padding-top:10px;"></div></div>
+    </div>
+    <div id="npo-totals" class="npo-totals"></div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('m-neoba-po')">Huỷ</button>
+      <button class="btn btn-gold" onclick="npoSave()">Lưu PO</button>
+    </div>
+  </div>
+</div>
+<!-- NeoBa payment modal -->
+<div class="mbg" id="m-neoba-pay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">💳 Thanh toán NeoBa — <span id="npay-title"></span></div>
+    <input type="hidden" id="npay-order">
+    <div class="fg"><label class="fl">Loại</label>
+      <select id="npay-kind" onchange="npayDefault()"><option value="deposit">Đặt cọc</option><option value="balance">Thanh toán phần còn lại</option><option value="adjustment">Điều chỉnh (+/−)</option></select></div>
+    <div class="fgrid2">
+      <div class="fg"><label class="fl">Số tiền (USD)</label><input type="number" step="0.01" id="npay-amt"></div>
+      <div class="fg"><label class="fl">Ngày</label><input type="date" id="npay-date"></div>
+    </div>
+    <div class="fg"><label class="fl">Mã giao dịch / tham chiếu</label><input type="text" id="npay-ref"></div>
+    <div class="fg"><label class="fl">Ghi chú / lý do</label><input type="text" id="npay-note"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-neoba-pay')">Huỷ</button><button class="btn btn-gold" onclick="npaySave()">Lưu</button></div>
+  </div>
+</div>
+<!-- NeoBa product detail -->
+<div class="mbg" id="m-neoba-prod">
+  <div class="modal" style="max-width:720px;width:96vw;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" id="nprod-title"></div>
+    <div id="nprod-body"></div>
+    <div class="mfoot"><button class="btn btn-ghost btn-sm" id="nprod-chat">💬 Nhắn về SP này</button><button class="btn btn-ghost" onclick="closeModal('m-neoba-prod')">Đóng</button></div>
   </div>
 </div>
 
@@ -749,6 +901,8 @@ th.num{text-align:right;}
             <input type="checkbox" id="acc-ons" value="ONS"> ONS</label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);">
             <input type="checkbox" id="acc-tspa" value="TSPA"> TSPA</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);">
+            <input type="checkbox" id="acc-neoba" value="NEOBA"> NEOBA <span style="color:var(--text3);">(chỉ tick riêng)</span></label>
         </div>
       </div>
     </div>
@@ -769,7 +923,7 @@ th.num{text-align:right;}
       <div class="fg">
         <label class="fl">Vendor</label>
         <select id="cost-vendor" onchange="onVendorChange()">
-          <option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option>
+          <option value="BOLSA">BOLSA</option><option value="ONS">ONS</option><option value="TSPA">TSPA</option><option value="NEOBA">NEOBA (mua đứt)</option>
         </select>
       </div>
       <div class="fg" id="cost-shipping-wrap" style="display:none;">
@@ -924,6 +1078,8 @@ async function afterLogin(){
   document.getElementById('sb-name').textContent=prof.full_name||currentUser.email;
   document.getElementById('sb-role').textContent=prof.role==='admin'?'Administrator':'Vendor';
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=prof.role==='admin'?'':'none');
+  document.querySelectorAll('.neoba-only').forEach(el=>el.style.display=hasNeobaAccess()?'':'none');
+  document.querySelectorAll('.hide-nbo').forEach(el=>el.style.display=isNeobaOnlyUser()?'none':'');
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   await loadAll();
@@ -945,11 +1101,12 @@ async function loadAll(){
   // chung Promise.all (nếu không, allOrders rỗng lúc chúng chạy → bỏ qua fetch,
   // để allPhotos/allFiles trống suốt phiên đăng nhập).
   await loadOrders();
-  await Promise.all([loadPhotos(),loadFiles(),loadNotifs(),loadBatches(),
+  await Promise.all([loadPhotos(),loadFiles(),loadNotifs(),isNeobaOnlyUser()?Promise.resolve():loadBatches(),loadNeoba(),
     currentProfile?.role==='admin'?loadAccounts():Promise.resolve()]);
   renderDashboard();renderOrders();renderNotifs();
   if(currentProfile?.role==='admin')renderAccounts();
   populateMonthFilter();
+  await loadChat();renderNbCatalog();renderNbDebt();
 }
 
 async function loadOrders(){
@@ -986,7 +1143,12 @@ async function loadBatches(){
 
 async function loadNotifs(){
   let q=sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(50);
-  if(currentProfile?.role!=='admin')q=q.eq('audience','vendor');
+  if(currentProfile?.role!=='admin'){
+    const va=currentProfile?.vendor_access||[],aud=[];
+    if(!va.length||va.some(v=>v!=='NEOBA'))aud.push('vendor');
+    if(va.includes('NEOBA'))aud.push('neoba');
+    q=q.in('audience',aud);
+  }else q=q.neq('audience','neoba');
   const{data}=await q;
   allNotifs=data||[];
   updateNotifBadge();
@@ -1019,6 +1181,12 @@ function subscribeRealtime(){
       const idx=allOrders.findIndex(x=>x.id===payload.new.id);
       if(idx>=0){Object.assign(allOrders[idx],payload.new);renderOrders();renderDashboard();}
     })
+    .on('postgres_changes',{event:'*',schema:'public',table:'chat_messages'},chatRealtime)
+    .on('postgres_changes',{event:'*',schema:'public',table:'neoba_payments'},p=>{
+      if(p.eventType==='INSERT'){
+        if(allOrders.some(o=>String(o.id)===String(p.new.order_id))&&!neobaPayments.some(x=>x.id===p.new.id)){neobaPayments.push(p.new);renderOrders();renderDashboard();renderNbDebt();}
+      }else if(p.eventType==='DELETE'){neobaPayments=neobaPayments.filter(x=>x.id!==p.old.id);renderOrders();renderDashboard();renderNbDebt();}
+    })
     .subscribe();
 }
 
@@ -1039,9 +1207,10 @@ function renderDashboard(){
   const shipped=activeOrders.filter(o=>o.status==='shipped'||o.status==='delivered').length;
   const done=activeOrders.filter(o=>o.status==='completed').length;
   const cancelled=allOrders.filter(o=>o.status==='cancelled').length;
-  const totalAmt=activeOrders.reduce((s,o)=>s+(o.total_amount||0),0);
-  const commRecv=activeOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
-  const commPend=activeOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
+  const totalAmt=activeOrders.reduce((s,o)=>s+shownTotal(o),0);
+  const commOrders=activeOrders.filter(o=>!isResale(o)); // đơn NeoBa không tính vào HH đã thu/chưa thu
+  const commRecv=commOrders.filter(o=>o.commission_received).reduce((s,o)=>s+totalCommOf(o),0);
+  const commPend=commOrders.reduce((s,o)=>s+totalCommOf(o),0)-commRecv;
   document.getElementById('dash-kpis').innerHTML=`
     <div class="kpi" onclick="goToOrdersFiltered({status:'not_cancelled'})"><div class="kpi-label">Tổng đơn</div><div class="kpi-val">${total}</div><div class="kpi-sub">đơn hàng</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({status:'production'})"><div class="kpi-label">Đang sản xuất</div><div class="kpi-val" style="color:var(--blue)">${prod}</div><div class="kpi-sub">đơn</div></div>
@@ -1050,6 +1219,8 @@ function renderDashboard(){
     <div class="kpi" onclick="goToOrdersFiltered({status:'cancelled'})"><div class="kpi-label">Đã huỷ</div><div class="kpi-val" style="color:var(--text3)">${cancelled}</div><div class="kpi-sub">đơn</div></div>
     <div class="kpi gold" onclick="goToOrdersFiltered({status:'not_cancelled'})"><div class="kpi-label">Tổng doanh số</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(totalAmt)}</div><div class="kpi-sub">USD</div></div>
     <div class="kpi" onclick="goToOrdersFiltered({comm:'received',status:'not_cancelled'})"><div class="kpi-label">HH đã thu</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(commRecv)}</div><div class="kpi-sub" style="color:var(--amber);" onclick="event.stopPropagation();goToOrdersFiltered({comm:'pending',status:'not_cancelled'})">⏳ Chưa thu: ${fmtUSD(commPend)}</div></div>`;
+  if(!commOrders.length&&!isAdm())document.getElementById('dash-kpis').lastElementChild?.remove();
+  document.getElementById('dash-kpis').insertAdjacentHTML('beforeend',neobaDashKpis(activeOrders));
   const recent=allOrders.slice(0,8);
   document.getElementById('dash-orders').innerHTML=recent.length
     ?recent.map(o=>`<tr onclick="nav('orders')" style="cursor:pointer;">
@@ -1057,7 +1228,7 @@ function renderDashboard(){
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.business_name||'—'}</td>
       <td style="color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.customer_name||'—'}</td>
       <td>${vendorTag(o.vendor)}</td>
-      <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(shownTotal(o))}</td>
       <td style="white-space:nowrap;">${statusBadge(o.status)}</td>
       <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);white-space:nowrap;">${o.tracking_number||'—'}</td>
     </tr>`).join('')
@@ -1111,7 +1282,9 @@ function renderOrders(){
   document.getElementById('orders-empty').style.display=list.length?'none':'block';
   if(!list.length){body.innerHTML='';return;}
   body.innerHTML=list.map((o,i)=>{
-    const deposit=(o.deposit1||0)+(o.deposit2||0);
+    const hm=hideMargin(o);
+    const deposit=hm?paidOf(o):(o.deposit1||0)+(o.deposit2||0);
+    const bal=hm?Math.max(0,num(o.neoba_payable)-paidOf(o)):o.balance_due;
     return`<tr class="order-row" onclick="openOrderView('${o.id}')" style="cursor:pointer;">
       <td style="color:var(--text3);font-size:11px;width:36px;">${i+1}</td>
       <td class="bold" style="white-space:nowrap;">${o.invoice_no||'—'}</td>
@@ -1119,9 +1292,9 @@ function renderOrders(){
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.business_name||''}">${o.business_name||'—'}</td>
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3);" title="${o.customer_name||''}">${o.customer_name||'—'}</td>
       <td>${vendorTag(o.vendor)}</td>
-      <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(shownTotal(o))}</td>
       <td class="num" style="color:var(--green);">${fmtUSD(deposit)}</td>
-      <td class="num" style="color:${(o.balance_due||0)>0?'var(--red)':'var(--text3)'};">${fmtUSD(o.balance_due)}</td>
+      <td class="num" style="color:${(bal||0)>0?'var(--red)':'var(--text3)'};">${fmtUSD(bal)}</td>
       <td style="white-space:nowrap;">${statusBadge(o.status)}</td>
       <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--blue);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${o.tracking_number||'—'}</td>
     </tr>`;
@@ -1147,6 +1320,7 @@ function openOrderView(id){
 function _renderOrderView(o){
   if(!o)return;
   _ovId=o.id;_ovDirty=false;
+  renderOvNeoba(o);
   document.getElementById('ov-dirty-warn').style.display='none';
   const photos=allPhotos.filter(p=>p.order_id===o.id);
   const deposit=(o.deposit1||0)+(o.deposit2||0);
@@ -1158,7 +1332,7 @@ function _renderOrderView(o){
   // Action buttons
   document.getElementById('ov-edit-btn').innerHTML=currentProfile?.role==='admin'
     ?`<button class="btn btn-ghost btn-sm" onclick="openCostModal(_ovId)">✏️ Chỉnh sửa</button>`:'';
-  document.getElementById('ov-comm-btn').innerHTML=`
+  document.getElementById('ov-comm-btn').innerHTML=isResale(o)?'':`
     <button class="btn btn-sm" style="${o.commission_received?'background:rgba(82,212,154,.15);color:var(--green);border:1px solid rgba(82,212,154,.3);':'background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2);'}"
       onclick="toggleCommReceived('${o.id}',${o.commission_received?'false':'true'})">
       ${o.commission_received?'✅ HH Đã thu':'⏳ HH Chưa thu'}</button>`;
@@ -1167,10 +1341,10 @@ function _renderOrderView(o){
     dl('Business Name',o.business_name)+dl('Customer',o.customer_name)+
     dl('Address',o.address)+dl('State',o.state)+
     dl('Bus Phone',o.phone_bus)+dl('Cell Phone',o.phone_cell)+
-    dl('Order Type',o.order_type||'—')+dl('Payment',o.payment_method||'—')+
-    dl('Tháng HT',o.billing_month)+dl('Note',o.note||'—');
+    dl('Order Type',o.order_type||'—')+(hideMargin(o)?'':dl('Payment',o.payment_method||'—'))+
+    dl('Tháng HT',o.billing_month)+(hideMargin(o)?'':dl('Note',o.note||'—'));
   // Finance
-  document.getElementById('ov-finance').innerHTML=
+  document.getElementById('ov-finance').innerHTML=hideMargin(o)?neobaFinanceBrief(o):
     dl('Total',fmtUSD(o.total_amount),'','var(--gold)')+
     dl('Cost Price',fmtUSD(o.cost_price),'','var(--red)')+
     dl('Deposit',fmtUSD(deposit),'','var(--green)')+
@@ -1515,7 +1689,7 @@ async function saveStatus(){
   if(currentProfile?.role==='admin'&&oldStatus!==status){
     const lbl={pending:'Pending',production:'Đang làm hàng',shipped:'Đã ship',delivered:'Đã nhận hàng',completed:'Hoàn thành'}[status]||status;
     await sb.from('notifications').insert({
-      type:'status',order_id:parseInt(id),is_read:false,audience:'vendor',
+      type:'status',order_id:parseInt(id),is_read:false,audience:isResale(o)?'neoba':'vendor',
       message:`Đơn ${o?.invoice_no||id} vừa chuyển trạng thái sang "${lbl}"`
     });
   }
@@ -1786,6 +1960,7 @@ function openAccountModal(id=null){
   document.getElementById('acc-bolsa').checked=acc?.vendor_access?.includes('BOLSA')||false;
   document.getElementById('acc-ons').checked=acc?.vendor_access?.includes('ONS')||false;
   document.getElementById('acc-tspa').checked=acc?.vendor_access?.includes('TSPA')||false;
+  document.getElementById('acc-neoba').checked=acc?.vendor_access?.includes('NEOBA')||false;
   openModal('m-account');
 }
 
@@ -1795,7 +1970,7 @@ async function saveAccount(){
   const email=document.getElementById('acc-email').value.trim();
   const pass=document.getElementById('acc-pass').value;
   const role=document.getElementById('acc-role').value;
-  const vendor_access=['BOLSA','ONS','TSPA'].filter(v=>document.getElementById('acc-'+v.toLowerCase()).checked);
+  const vendor_access=['BOLSA','ONS','TSPA','NEOBA'].filter(v=>document.getElementById('acc-'+v.toLowerCase()).checked);
   if(!full_name||!email){toast('Nhập đủ thông tin','var(--amber)');return;}
   if(!id){
     if(!pass){toast('Nhập mật khẩu cho tài khoản mới','var(--amber)');return;}
@@ -2216,7 +2391,7 @@ function renderReportTable(){
     <td>${o.business_name||'—'}</td>
     <td style="font-size:11px;color:var(--text3);">${o.product||'—'}</td>
     <td>${vendorTag(o.vendor)}</td>
-    <td class="num" style="color:var(--gold);">${fmtUSD(o.total_amount)}</td>
+    <td class="num" style="color:var(--gold);">${fmtUSD(shownTotal(o))}</td>
     <td class="num" style="color:var(--text2);">${fmtUSD(o.shipping)}</td>
     <td class="num" style="color:var(--blue);">${fmtUSD(o.commission)}</td>
     <td class="num" style="color:var(--text2);">${fmtUSD(priceGapOf(o))}</td>
@@ -2371,6 +2546,7 @@ function priceGapOf(o){
 const HEADSPA_BONUS_RATE=0.07; // cố định 7%, cộng thêm vào Total Commission
 function headspaBonusOf(o){return(parseFloat(o?.headspa_amount)||0)*HEADSPA_BONUS_RATE;}
 function totalCommOf(o){
+  if(isResale(o))return isAdm()?priceGapOf(o):0; // NeoBa mua đứt: Maison hưởng toàn bộ Price Gap, không có commission %
   const gapPct=(o?.gap_pct===null||o?.gap_pct===undefined)?100:parseFloat(o.gap_pct);
   return (parseFloat(o?.commission)||0)+priceGapOf(o)*(gapPct/100)+headspaBonusOf(o);
 }
@@ -3383,7 +3559,7 @@ function statusBadge(s){
   const{cls,lbl}=m[s]||{cls:'s-pending',lbl:'Pending'};
   return`<span class="status ${cls}">${lbl}</span>`;
 }
-function vendorTag(v){const m={BOLSA:'bolsa',ONS:'ons',TSPA:'tspa'};return`<span class="tag tag-${m[v?.toLowerCase()]||'bolsa'}">${v||'—'}</span>`;}
+function vendorTag(v){const m={BOLSA:'bolsa',ONS:'ons',TSPA:'tspa',NEOBA:'neoba'};return`<span class="tag tag-${m[v?.toLowerCase()]||'bolsa'}">${v||'—'}</span>`;}
 
 function toast(msg,color='var(--text)'){
   const el=document.getElementById('toast');
@@ -3402,6 +3578,8 @@ function nav(view){
   if(view==='notifications'&&allNotifs.some(n=>!n.is_read))markAllRead();
   if(view==='simulator'&&!_simScenarios.length){addSimScenario();addSimScenario();}
   if(view==='diagram'&&!_diagramFrame)initDiagramView();
+  if(view==='neoba')renderNeoba();
+  if(view==='chat')enterChat();
   toggleSidebar(false); // trên mobile: chọn xong mục nào thì tự đóng menu
 }
 
@@ -3414,6 +3592,582 @@ function toggleSidebar(force){
 }
 
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>nav(n.dataset.view)));
+
+// ══════════════════════════════════════════════════════════════════════════
+// NEOBA — mô hình resale (mua đứt): Maison mua theo cost, hưởng toàn bộ Price Gap
+// ══════════════════════════════════════════════════════════════════════════
+let neobaProducts=[],neobaAddons=[],neobaPayments=[];
+let portalSettings={neoba_price_basis:'excl',neoba_vat_rate:0.08,neoba_vat_deductible:true};
+const isAdm=()=>currentProfile?.role==='admin';
+const isResale=o=>(o?.vendor||'').toUpperCase()==='NEOBA';
+const hasNeobaAccess=()=>isAdm()||!!currentProfile?.vendor_access?.includes('NEOBA');
+const isNeobaOnlyUser=()=>!isAdm()&&!!currentProfile?.vendor_access?.length&&currentProfile.vendor_access.every(v=>v==='NEOBA');
+const hideMargin=o=>isResale(o)&&!isAdm();           // NeoBa KHÔNG được thấy giá bán / Gap
+const shownTotal=o=>hideMargin(o)?(parseFloat(o.neoba_payable)||0):(o?.total_amount||0);
+const escH=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n;};
+
+async function loadNeoba(){
+  if(!hasNeobaAccess()&&!allOrders.some(isResale))return;
+  const[p,a,pay,s]=await Promise.all([
+    sb.from('neoba_products').select('*').order('sku'),
+    sb.from('neoba_addons').select('*').order('code'),
+    sb.from('neoba_payments').select('*').order('paid_at',{ascending:true}).order('id',{ascending:true}),
+    sb.from('portal_settings').select('*')]);
+  [p,a,pay,s].forEach(r=>{if(r.error)console.error('loadNeoba:',r.error);});
+  neobaProducts=p.data||[];neobaAddons=a.data||[];
+  const ids=new Set(allOrders.map(o=>String(o.id)));
+  neobaPayments=(pay.data||[]).filter(x=>ids.has(String(x.order_id)));
+  (s.data||[]).forEach(r=>{portalSettings[r.key]=r.value;});
+}
+const paidOf=o=>neobaPayments.filter(p=>String(p.order_id)===String(o.id)).reduce((s,p)=>s+num(p.amount),0);
+function payStatusOf(o){
+  const pay=num(o.neoba_payable),paid=paidOf(o);
+  if(paid<=0.005)return'Chưa thanh toán';
+  if(pay>0&&paid>=pay-0.005)return'Đã thanh toán đủ';
+  return'Đã cọc / TT một phần';
+}
+function neobaTotals(lines,frEst,frAct,vat){
+  const sub=(lines||[]).reduce((s,l)=>s+num(l.qty)*(num(l.unit_cost)+num(l.addons_unit)),0);
+  const fr=(frAct!==null&&frAct!==undefined&&frAct!=='')?num(frAct):num(frEst);
+  const excl=sub+fr,v=excl*vat;
+  return{sub,fr,excl,vat:v,incl:excl+v};
+}
+
+// ── Tabs ──
+function nbTab(t){
+  ['catalog','debt','set'].forEach(k=>{
+    document.getElementById('nb-'+k).style.display=k===t?'block':'none';
+    document.getElementById('nbt-'+k).className=k===t?'btn btn-sm':'btn btn-ghost btn-sm';
+  });
+  if(t==='set'){
+    document.getElementById('nbs-basis').value=portalSettings.neoba_price_basis||'excl';
+    document.getElementById('nbs-rate').value=String(portalSettings.neoba_vat_rate??0.08);
+    document.getElementById('nbs-ded').value=String(portalSettings.neoba_vat_deductible!==false);
+  }
+  if(t==='debt')renderNbDebt();
+  if(t==='catalog')renderNbCatalog();
+}
+function renderNeoba(){renderNbCatalog();renderNbDebt();}
+
+async function saveNeobaSettings(){
+  const rows=[
+    {key:'neoba_price_basis',value:document.getElementById('nbs-basis').value},
+    {key:'neoba_vat_rate',value:parseFloat(document.getElementById('nbs-rate').value)},
+    {key:'neoba_vat_deductible',value:document.getElementById('nbs-ded').value==='true'}];
+  const{error}=await sb.from('portal_settings').upsert(rows.map(r=>({...r,updated_at:new Date().toISOString()})),{onConflict:'key'});
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  rows.forEach(r=>portalSettings[r.key]=r.value);
+  toast('✅ Đã lưu cài đặt VAT','var(--green)');
+}
+
+// ── Catalog ──
+function renderNbCatalog(){
+  const q=(document.getElementById('nb-search')?.value||'').toLowerCase();
+  const list=neobaProducts.filter(p=>!q||[p.sku,p.name,p.category].some(x=>(x||'').toLowerCase().includes(q)));
+  document.getElementById('nb-count').textContent=`${list.length} sản phẩm · ${neobaAddons.length} add-on`;
+  document.getElementById('nb-cat-body').innerHTML=list.length?list.map(p=>`
+    <tr style="cursor:pointer;" data-sku="${escH(p.sku)}" onclick="openNeobaProduct(this.dataset.sku)">
+      <td class="bold">${escH(p.sku)}</td><td>${escH(p.category)}</td><td>${escH(p.name)}</td>
+      <td>${p.status==='Discontinued'?'<span style="color:var(--text3)">Ngừng</span>':'<span style="color:var(--green)">Active</span>'}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(p.cost_excl)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3);">${escH([p.base_colors,p.leather_colors].filter(Boolean).join(' / '))}</td>
+      <td class="num">${p.lead_days?p.lead_days+'d':'—'}</td>
+      <td>${neobaAddons.filter(a=>a.sku===p.sku).length||'—'}</td></tr>`).join('')
+    :'<tr><td colspan="8" class="empty-state">Chưa có catalog — admin import file Excel của NeoBa</td></tr>';
+}
+
+function openNeobaProduct(sku){
+  const p=neobaProducts.find(x=>(x.sku||'').toLowerCase()===String(sku).toLowerCase());
+  if(!p){toast('Không tìm thấy sản phẩm '+sku,'var(--amber)');return;}
+  const ads=neobaAddons.filter(a=>a.sku===p.sku);
+  const dims=[p.box_l,p.box_w,p.box_h].every(x=>x)?`${p.box_l}" × ${p.box_w}" × ${p.box_h}"`:'—';
+  const link=(u,t)=>u?`<a href="${escH(u)}" target="_blank" rel="noopener" style="color:var(--blue);">${t}</a>`:'—';
+  document.getElementById('nprod-title').textContent=`${p.sku} — ${p.name||''}`;
+  document.getElementById('nprod-body').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+    ${dl('Nhóm',escH(p.category))+dl('Trạng thái',escH(p.status))+dl('Cost (chưa VAT)',fmtUSD(p.cost_excl),'','var(--gold)')+dl('Hiệu lực giá',p.effective_date||'—')
+    +dl('Màu thân',escH(p.base_colors))+dl('Màu da',escH(p.leather_colors))+dl('Tính năng chuẩn',escH(p.features))+dl('MOQ',p.moq||'—')
+    +dl('Kích thước kiện',dims)+dl('Cân nặng',p.weight_lbs?p.weight_lbs+' lbs':'—')+dl('Pallet',p.per_pallet?p.per_pallet+' / pallet':'—')+dl('Lead time',p.lead_days?p.lead_days+' ngày':'—')
+    +dl('Bảo hành',escH(p.warranty))+dl('Chứng nhận',escH(p.certs))+dl('Điện áp',escH(p.voltage))+dl('Xuất xứ',escH(p.origin))
+    +dl('Điều kiện giá',escH(p.price_terms))+dl('Ảnh / Spec',link(p.image_url,'Ảnh')+' · '+link(p.spec_url,'Bản vẽ'))}</div>
+    <div class="section-title" style="margin:16px 0 8px;">➕ Add-on</div>
+    ${ads.length?ads.map(a=>`<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--card2);border-radius:6px;margin-bottom:4px;font-size:12px;"><span><b>${escH(a.code)}</b> — ${escH(a.name)}</span><span style="color:var(--gold);">+${fmtUSD(a.cost_excl)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:12px;">Không có add-on</div>'}`;
+  document.getElementById('nprod-chat').onclick=()=>{closeModal('m-neoba-prod');chatPrefill('@'+p.sku+' ');};
+  openModal('m-neoba-prod');
+}
+
+// ── Import Excel (template NeoBa v3) ──
+async function importNeobaExcel(input){
+  const f=input.files?.[0];input.value='';
+  if(!f)return;
+  try{
+    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
+    const cv=c=>{let v=c?.value;if(v&&typeof v==='object'){if(v instanceof Date)return v;if('result' in v)v=v.result;else if(v.richText)v=v.richText.map(t=>t.text).join('');else if(v.text)v=v.text;}return(v===undefined||v===null||v==='')?null:v;};
+    const str=v=>v==null?null:String(v).trim();
+    const dte=v=>v instanceof Date?v.toISOString().slice(0,10):(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}/.test(v)?v.slice(0,10):null);
+    // Settings trong file → so với Portal
+    const stS=wb.getWorksheet('Settings');
+    if(stS){
+      const basis=String(cv(stS.getCell('B3'))||'').startsWith('Incl')?'incl':'excl';
+      const rate=num(cv(stS.getCell('B4')));
+      if((basis!==portalSettings.neoba_price_basis||Math.abs(rate-num(portalSettings.neoba_vat_rate))>1e-9)&&
+         confirm(`File dùng: giá ${basis==='incl'?'ĐÃ':'CHƯA'} gồm VAT, VAT ${(rate*100).toFixed(0)}%.\nPortal đang: ${portalSettings.neoba_price_basis==='incl'?'ĐÃ':'CHƯA'} VAT, ${(num(portalSettings.neoba_vat_rate)*100).toFixed(0)}%.\n\nOK = cập nhật Portal theo file. Huỷ = giữ cài đặt Portal.`)){
+        portalSettings.neoba_price_basis=basis;portalSettings.neoba_vat_rate=rate;
+        await sb.from('portal_settings').upsert([{key:'neoba_price_basis',value:basis},{key:'neoba_vat_rate',value:rate}],{onConflict:'key'});
+      }
+    }
+    const rate=num(portalSettings.neoba_vat_rate),incl=portalSettings.neoba_price_basis==='incl';
+    const toExcl=v=>v==null?null:(incl?num(v)/(1+rate):num(v));
+    const pmS=wb.getWorksheet('Product Master');
+    if(!pmS)throw new Error('Không thấy sheet "Product Master" — hãy dùng đúng template NeoBa v3');
+    const prods=[];
+    for(let r=6;r<=pmS.rowCount;r++){
+      const row=pmS.getRow(r),sku=str(cv(row.getCell(2)));
+      if(!sku)continue;
+      const ci=cv(row.getCell(9));
+      prods.push({sku,category:str(cv(row.getCell(3))),name:str(cv(row.getCell(4))),status:str(cv(row.getCell(5)))||'Active',
+        base_colors:str(cv(row.getCell(6))),leather_colors:str(cv(row.getCell(7))),features:str(cv(row.getCell(8))),
+        cost_input:ci==null?null:num(ci),cost_excl:toExcl(ci),effective_date:dte(cv(row.getCell(12))),moq:cv(row.getCell(13))==null?null:num(cv(row.getCell(13))),
+        box_l:cv(row.getCell(14))==null?null:num(cv(row.getCell(14))),box_w:cv(row.getCell(15))==null?null:num(cv(row.getCell(15))),box_h:cv(row.getCell(16))==null?null:num(cv(row.getCell(16))),
+        weight_lbs:cv(row.getCell(18))==null?null:num(cv(row.getCell(18))),per_pallet:cv(row.getCell(19))==null?null:num(cv(row.getCell(19))),lead_days:cv(row.getCell(20))==null?null:num(cv(row.getCell(20))),
+        warranty:str(cv(row.getCell(21))),certs:str(cv(row.getCell(22))),voltage:str(cv(row.getCell(23))),origin:str(cv(row.getCell(24))),
+        price_terms:str(cv(row.getCell(25))),image_url:str(cv(row.getCell(26))),spec_url:str(cv(row.getCell(27))),updated_at:new Date().toISOString()});
+    }
+    const adS=wb.getWorksheet('Add-ons'),adds=[];
+    if(adS)for(let r=6;r<=adS.rowCount;r++){
+      const row=adS.getRow(r),code=str(cv(row.getCell(1)));
+      if(!code)continue;
+      const ci=cv(row.getCell(4));
+      adds.push({code,sku:str(cv(row.getCell(2))),name:str(cv(row.getCell(3))),cost_input:ci==null?null:num(ci),cost_excl:toExcl(ci),
+        status:str(cv(row.getCell(7)))||'Active',notes:str(cv(row.getCell(8))),updated_at:new Date().toISOString()});
+    }
+    if(!prods.length){toast('File không có sản phẩm nào (cột SKU trống)','var(--amber)');return;}
+    if(!confirm(`Import ${prods.length} sản phẩm + ${adds.length} add-on?\nSKU trùng sẽ được CẬP NHẬT giá/thông số (PO cũ giữ giá đã chốt).`))return;
+    let e1=await sb.from('neoba_products').upsert(prods,{onConflict:'sku'});
+    if(e1.error)throw e1.error;
+    if(adds.length){const e2=await sb.from('neoba_addons').upsert(adds,{onConflict:'code'});if(e2.error)throw e2.error;}
+    await loadNeoba();renderNbCatalog();
+    toast(`✅ Đã import ${prods.length} sản phẩm, ${adds.length} add-on`,'var(--green)');
+  }catch(e){console.error(e);toast('Lỗi import: '+(e.message||e),'var(--red)');}
+}
+
+// ── PO builder ──
+let _npo={orderId:null,lines:[],vat:0.08,ded:true};
+function openNeobaPO(orderId){
+  const o=allOrders.find(x=>String(x.id)===String(orderId));if(!o)return;
+  if(!neobaProducts.length){toast('Chưa có catalog NeoBa — import file Excel trước (tab NeoBa)','var(--amber)');return;}
+  _npo={orderId:o.id,
+    lines:(o.neoba_lines||[]).map(l=>({...l,addons:[...(l.addons||[])]})),
+    vat:o.neoba_vat_rate!=null?num(o.neoba_vat_rate):num(portalSettings.neoba_vat_rate),
+    ded:o.neoba_vat_deductible!=null?!!o.neoba_vat_deductible:portalSettings.neoba_vat_deductible!==false};
+  if(!_npo.lines.length)_npo.lines.push({sku:'',name:'',color:'',qty:1,unit_cost:0,addons:[]});
+  document.getElementById('npo-title').textContent=`${o.invoice_no} — ${o.business_name||''}`;
+  document.getElementById('npo-fr-est').value=o.neoba_freight_est??'';
+  document.getElementById('npo-fr-act').value=o.neoba_freight_actual??'';
+  document.getElementById('npo-dep').value=o.neoba_deposit_pct??50;
+  document.getElementById('npo-vat-info').textContent=`VAT ${(_npo.vat*100).toFixed(0)}% · ${_npo.ded?'được khấu trừ → Gap tính trên giá chưa VAT':'không khấu trừ → Gap tính trên giá đã VAT'}`;
+  npoRender();openModal('m-neoba-po');
+}
+function npoAdd(){_npo.lines.push({sku:'',name:'',color:'',qty:1,unit_cost:0,addons:[]});npoRender();}
+function npoDel(i){_npo.lines.splice(i,1);if(!_npo.lines.length)npoAdd();else npoRender();}
+function npoSet(i,k,v,noRender){
+  const l=_npo.lines[i];
+  if(k==='sku'){const p=neobaProducts.find(x=>x.sku===v);l.sku=v;l.name=p?.name||'';l.unit_cost=num(p?.cost_excl);l.addons=[];l.color=l.color||[p?.base_colors,p?.leather_colors].filter(Boolean).join(' / ');}
+  else if(k==='qty')l.qty=Math.max(0,num(v));else l[k]=v;
+  if(noRender)npoTotals();else npoRender();
+}
+function npoToggleAddon(i,code,on){
+  const l=_npo.lines[i],a=neobaAddons.find(x=>x.code===code);
+  l.addons=(l.addons||[]).filter(x=>x.code!==code);
+  if(on&&a)l.addons.push({code:a.code,name:a.name,cost:num(a.cost_excl)});
+  npoTotals();
+}
+function npoRender(){
+  document.getElementById('npo-lines').innerHTML=_npo.lines.map((l,i)=>{
+    const ads=neobaAddons.filter(a=>a.sku===l.sku&&a.status!=='Discontinued');
+    return`<div class="npo-line">
+      <select onchange="npoSet(${i},'sku',this.value)"><option value="">— Chọn SKU —</option>${neobaProducts.filter(p=>p.status!=='Discontinued'||p.sku===l.sku).map(p=>`<option value="${escH(p.sku)}" ${p.sku===l.sku?'selected':''}>${escH(p.sku)} — ${escH(p.name)}</option>`).join('')}</select>
+      <input type="text" placeholder="Màu thân & da" value="${escH(l.color)}" oninput="npoSet(${i},'color',this.value,true)">
+      <input type="number" min="1" step="1" value="${l.qty}" oninput="npoSet(${i},'qty',this.value,true)" title="Số lượng">
+      <div class="npo-sum" id="npo-sum-${i}"></div>
+      <button class="btn btn-ghost btn-sm" onclick="npoDel(${i})" style="padding:4px 8px;">✕</button>
+      ${ads.length?`<div class="npo-adds">${ads.map(a=>`<label><input type="checkbox" ${(l.addons||[]).some(x=>x.code===a.code)?'checked':''} onchange="npoToggleAddon(${i},'${escH(a.code)}',this.checked)"> ${escH(a.name)} (+${fmtUSD(a.cost_excl)})</label>`).join('')}</div>`:''}
+    </div>`;}).join('');
+  npoTotals();
+}
+function npoCalcLines(){return _npo.lines.map(l=>({...l,addons_unit:(l.addons||[]).reduce((s,a)=>s+num(a.cost),0)}));}
+function npoTotals(){
+  const lines=npoCalcLines();
+  lines.forEach((l,i)=>{const el=document.getElementById('npo-sum-'+i);if(el)el.textContent=l.sku?fmtUSD(num(l.qty)*(num(l.unit_cost)+l.addons_unit)):'';});
+  const t=neobaTotals(lines,document.getElementById('npo-fr-est').value,document.getElementById('npo-fr-act').value,_npo.vat);
+  const dep=num(document.getElementById('npo-dep').value);
+  document.getElementById('npo-totals').innerHTML=`
+    <div>Hàng (chưa VAT)</div><div class="t">${fmtUSD(t.sub)}</div>
+    <div>Cước vận chuyển (${document.getElementById('npo-fr-act').value!==''?'thực tế':'ước tính'})</div><div class="t">${fmtUSD(t.fr)}</div>
+    <div>VAT ${(_npo.vat*100).toFixed(0)}%</div><div class="t">${fmtUSD(t.vat)}</div>
+    <div style="color:var(--gold);font-weight:600;">Tổng phải trả NeoBa (đã VAT)</div><div class="t" style="color:var(--gold);">${fmtUSD(t.incl)}</div>
+    <div>Cọc ${dep}%</div><div class="t">${fmtUSD(t.incl*dep/100)}</div>
+    <div style="color:var(--text3);">Cost dùng tính Price Gap (${_npo.ded?'chưa VAT':'đã VAT'})</div><div class="t" style="color:var(--text3);">${fmtUSD(_npo.ded?t.excl:t.incl)}</div>`;
+}
+async function npoSave(){
+  const lines=npoCalcLines().filter(l=>l.sku);
+  if(!lines.length){toast('Chọn ít nhất 1 sản phẩm','var(--amber)');return;}
+  if(lines.some(l=>!(num(l.qty)>0))){toast('Số lượng phải > 0','var(--amber)');return;}
+  const frEst=document.getElementById('npo-fr-est').value,frAct=document.getElementById('npo-fr-act').value;
+  const t=neobaTotals(lines,frEst,frAct,_npo.vat);
+  const data={vendor:'NEOBA',vendor_manual:true,
+    neoba_lines:lines.map(l=>({sku:l.sku,name:l.name,color:l.color||'',qty:num(l.qty),unit_cost:num(l.unit_cost),addons:l.addons||[],addons_unit:l.addons_unit})),
+    neoba_freight_est:frEst===''?null:num(frEst),neoba_freight_actual:frAct===''?null:num(frAct),
+    neoba_deposit_pct:num(document.getElementById('npo-dep').value),
+    neoba_vat_rate:_npo.vat,neoba_vat_deductible:_npo.ded,
+    neoba_payable:Math.round(t.incl*100)/100,
+    cost_price:Math.round((_npo.ded?t.excl:t.incl)*100)/100};
+  const o=allOrders.find(x=>String(x.id)===String(_npo.orderId));
+  data.price_gap=priceGapOf({...o,...data});
+  const{error}=await sb.from('vendor_orders').update(data).eq('id',_npo.orderId);
+  if(error){toast('Lỗi lưu PO: '+error.message+' (đã chạy neoba-schema.sql chưa?)','var(--red)');return;}
+  Object.assign(o,data);
+  await sb.from('notifications').insert({type:'po',order_id:parseInt(o.id),is_read:false,audience:'neoba',
+    message:`📑 PO ${o.invoice_no} đã được cập nhật — tổng ${fmtUSD(data.neoba_payable)} (đã VAT), cọc ${data.neoba_deposit_pct}%`});
+  closeModal('m-neoba-po');renderOrders();renderDashboard();renderNbDebt();
+  if(_ovId==o.id)_renderOrderView(o);
+  toast('✅ Đã lưu PO NeoBa','var(--green)');
+}
+
+// ── Thanh toán ──
+function openNeobaPay(orderId){
+  const o=allOrders.find(x=>String(x.id)===String(orderId));if(!o)return;
+  document.getElementById('npay-order').value=o.id;
+  document.getElementById('npay-title').textContent=o.invoice_no;
+  document.getElementById('npay-kind').value=paidOf(o)>0?'balance':'deposit';
+  document.getElementById('npay-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('npay-ref').value='';document.getElementById('npay-note').value='';
+  npayDefault();openModal('m-neoba-pay');
+}
+function npayDefault(){
+  const o=allOrders.find(x=>String(x.id)===document.getElementById('npay-order').value);if(!o)return;
+  const k=document.getElementById('npay-kind').value,pay=num(o.neoba_payable),paid=paidOf(o);
+  document.getElementById('npay-amt').value=k==='deposit'?Math.max(0,pay*num(o.neoba_deposit_pct)/100-paid).toFixed(2)
+    :k==='balance'?Math.max(0,pay-paid).toFixed(2):'';
+}
+async function npaySave(){
+  const oid=document.getElementById('npay-order').value,amt=parseFloat(document.getElementById('npay-amt').value);
+  const kind=document.getElementById('npay-kind').value;
+  if(isNaN(amt)||amt===0){toast('Nhập số tiền','var(--amber)');return;}
+  if(kind!=='adjustment'&&amt<0){toast('Chỉ dòng "Điều chỉnh" được âm','var(--amber)');return;}
+  const note=document.getElementById('npay-note').value.trim();
+  if(kind==='adjustment'&&!note){toast('Điều chỉnh cần ghi lý do','var(--amber)');return;}
+  const row={order_id:parseInt(oid),kind,amount:amt,paid_at:document.getElementById('npay-date').value||null,
+    ref:document.getElementById('npay-ref').value.trim()||null,note:note||null,created_by:currentUser.id};
+  const{data,error}=await sb.from('neoba_payments').insert(row).select().single();
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  neobaPayments.push(data);
+  const o=allOrders.find(x=>String(x.id)===oid);
+  await sb.from('notifications').insert({type:'payment',order_id:parseInt(oid),is_read:false,audience:'neoba',
+    message:`💳 Maison đã thanh toán ${fmtUSD(amt)} (${{deposit:'cọc',balance:'phần còn lại',adjustment:'điều chỉnh'}[kind]}) cho đơn ${o?.invoice_no||oid}`});
+  closeModal('m-neoba-pay');renderOrders();renderDashboard();renderNbDebt();
+  if(_ovId==oid)_renderOrderView(o);
+  toast('✅ Đã ghi nhận thanh toán','var(--green)');
+}
+async function deleteNeobaPay(id,orderId){
+  if(!confirm('Xoá dòng thanh toán này?'))return;
+  const{error}=await sb.from('neoba_payments').delete().eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  neobaPayments=neobaPayments.filter(p=>p.id!==id);
+  renderOrders();renderDashboard();renderNbDebt();
+  const o=allOrders.find(x=>String(x.id)===String(orderId));if(o&&_ovId==orderId)_renderOrderView(o);
+}
+
+// ── Khối NeoBa trong modal chi tiết đơn ──
+function neobaFinanceBrief(o){
+  const pay=num(o.neoba_payable),paid=paidOf(o);
+  return dl('Tổng PO (đã VAT)',fmtUSD(pay),'','var(--gold)')+dl('Cọc yêu cầu',`${num(o.neoba_deposit_pct)}% = ${fmtUSD(pay*num(o.neoba_deposit_pct)/100)}`)
+    +dl('Đã thanh toán',fmtUSD(paid),'','var(--green)')+dl('Còn lại',fmtUSD(Math.max(0,pay-paid)),'',pay-paid>0.005?'var(--red)':'var(--text3)')
+    +dl('Trạng thái TT',payStatusOf(o));
+}
+function renderOvNeoba(o){
+  const box=document.getElementById('ov-neoba');if(!box)return;
+  const resale=isResale(o);
+  const inv=document.getElementById('ov-inv-btn');if(inv)inv.style.display=hideMargin(o)?'none':'';
+  document.getElementById('ov-chat-btn').innerHTML=(resale&&hasNeobaAccess())
+    ?`<button class="btn btn-ghost btn-sm" onclick="chatAboutOrder(_ovId)">💬 Trao đổi</button>`:'';
+  if(!resale){box.innerHTML='';return;}
+  const lines=o.neoba_lines||[],pay=num(o.neoba_payable),paid=paidOf(o);
+  const t=neobaTotals(lines.map(l=>({...l})),o.neoba_freight_est,o.neoba_freight_actual,num(o.neoba_vat_rate));
+  const pays=neobaPayments.filter(p=>String(p.order_id)===String(o.id));
+  const kindLbl={deposit:'Cọc',balance:'Còn lại',adjustment:'Điều chỉnh'};
+  box.innerHTML=`<div class="divider"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <div class="section-title" style="margin:0;">🏭 PO NeoBa</div>
+      ${isAdm()?`<div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="openNeobaPO('${o.id}')">✏️ ${lines.length?'Sửa':'Soạn'} PO</button><button class="btn btn-gold btn-sm" onclick="openNeobaPay('${o.id}')">+ Thanh toán</button></div>`:''}
+    </div>
+    ${lines.length?`<div class="tw"><table><thead><tr><th>SKU</th><th>Sản phẩm / màu / add-on</th><th class="num">SL</th><th class="num">Đơn giá</th><th class="num">Thành tiền</th></tr></thead><tbody>
+      ${lines.map(l=>`<tr><td class="bold"><a style="color:var(--green);cursor:pointer;" data-sku="${escH(l.sku)}" onclick="openNeobaProduct(this.dataset.sku)">${escH(l.sku)}</a></td>
+        <td>${escH(l.name)}<div style="font-size:11px;color:var(--text3);">${escH(l.color)}${(l.addons||[]).length?' · + '+l.addons.map(a=>escH(a.name)).join(', '):''}</div></td>
+        <td class="num">${l.qty}</td><td class="num">${fmtUSD(num(l.unit_cost)+num(l.addons_unit))}</td><td class="num">${fmtUSD(num(l.qty)*(num(l.unit_cost)+num(l.addons_unit)))}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:4px 24px;max-width:420px;margin:10px 0 0 auto;font-size:12px;">
+      <span>Hàng (chưa VAT)</span><b style="text-align:right;">${fmtUSD(t.sub)}</b>
+      <span>Cước (${o.neoba_freight_actual!=null?'thực tế':'ước tính'})</span><b style="text-align:right;">${fmtUSD(t.fr)}</b>
+      <span>VAT ${(num(o.neoba_vat_rate)*100).toFixed(0)}%</span><b style="text-align:right;">${fmtUSD(t.vat)}</b>
+      <span style="color:var(--gold);">Tổng phải trả</span><b style="text-align:right;color:var(--gold);">${fmtUSD(pay)}</b>
+      <span>Đã trả</span><b style="text-align:right;color:var(--green);">${fmtUSD(paid)}</b>
+      <span>Còn lại</span><b style="text-align:right;color:${pay-paid>0.005?'var(--red)':'var(--text3)'};">${fmtUSD(Math.max(0,pay-paid))}</b></div>`
+    :'<div style="color:var(--text3);font-size:12px;">Chưa có PO'+(isAdm()?' — bấm “Soạn PO” để chọn sản phẩm từ catalog.':'.')+'</div>'}
+    ${pays.length?`<div class="section-title" style="margin:14px 0 6px;">💳 Lịch sử thanh toán</div>`+pays.map(p=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--card2);border-radius:6px;margin-bottom:4px;font-size:12px;">
+        <span>${p.paid_at||'—'} · <b>${kindLbl[p.kind]||p.kind}</b>${p.ref?' · '+escH(p.ref):''}${p.note?' · '+escH(p.note):''}</span>
+        <span style="display:flex;gap:8px;align-items:center;"><b style="color:${num(p.amount)<0?'var(--red)':'var(--green)'};">${fmtUSD(p.amount)}</b>${isAdm()?`<button class="btn btn-ghost btn-sm" style="padding:0 6px;color:var(--red);" onclick="deleteNeobaPay(${p.id},'${o.id}')">✕</button>`:''}</span></div>`).join(''):''}`;
+}
+
+// ── Công nợ ──
+function debtRows(){
+  return allOrders.filter(o=>isResale(o)&&(o.status!=='cancelled'||Math.abs(paidOf(o))>0.005));
+}
+function renderNbDebt(){
+  const body=document.getElementById('nb-debt-body');if(!body)return;
+  const rows=debtRows();
+  const sumPay=rows.reduce((s,o)=>s+(o.status==='cancelled'?0:num(o.neoba_payable)),0),sumPaid=rows.reduce((s,o)=>s+paidOf(o),0);
+  const owe=sumPay-sumPaid;
+  const gap=rows.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+priceGapOf(o),0);
+  document.getElementById('nb-debt-kpis').innerHTML=isAdm()
+    ?`<div class="kpi"><div class="kpi-label">Tổng PO</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(sumPay)}</div><div class="kpi-sub">${rows.length} đơn</div></div>
+      <div class="kpi"><div class="kpi-label">Đã trả NeoBa</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(sumPaid)}</div></div>
+      <div class="kpi"><div class="kpi-label">Còn phải trả</div><div class="kpi-val" style="color:var(--red)">${fmtUSD(Math.max(0,owe))}</div><div class="kpi-sub">${owe<-0.005?'Đã trả dư '+fmtUSD(-owe):''}</div></div>
+      <div class="kpi gold"><div class="kpi-label">Lãi Maison (Price Gap)</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(gap)}</div><div class="kpi-sub">đơn chưa huỷ</div></div>`
+    :`<div class="kpi"><div class="kpi-label">Tổng PO</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(sumPay)}</div></div>
+      <div class="kpi"><div class="kpi-label">Đã nhận thanh toán</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(sumPaid)}</div></div>
+      <div class="kpi"><div class="kpi-label">Còn phải thu</div><div class="kpi-val" style="color:var(--amber)">${fmtUSD(Math.max(0,owe))}</div></div>`;
+  body.innerHTML=rows.length?rows.map(o=>{
+    const pay=num(o.neoba_payable),paid=paidOf(o),dep=pay*num(o.neoba_deposit_pct)/100,can=o.status==='cancelled';
+    return`<tr style="cursor:pointer;${can?'opacity:.7;':''}" onclick="openOrderFromChat('${o.id}')">
+      <td class="bold">${o.invoice_no||'—'}${can?' <span style="color:var(--red);font-size:10px;">HUỶ</span>':''}</td><td>${escH(o.business_name)}</td><td>${statusBadge(o.status)}</td>
+      <td class="num" style="color:var(--gold);">${fmtUSD(pay)}</td><td class="num">${fmtUSD(dep)}</td><td class="num" style="color:var(--green);">${fmtUSD(paid)}</td>
+      <td class="num" style="color:${pay-paid>0.005?'var(--red)':'var(--text3)'};">${fmtUSD(can?paid:Math.max(0,pay-paid))}</td><td>${can&&paid>0?'Đơn huỷ — cần tất toán / hoàn cọc':payStatusOf(o)}</td>
+      ${isAdm()?`<td class="num">${can?'—':fmtUSD(priceGapOf(o))}</td>`:''}</tr>`;}).join('')
+    :`<tr><td colspan="9" class="empty-state">Chưa có đơn NeoBa</td></tr>`;
+}
+async function exportNeobaDebt(){
+  const rows=debtRows();if(!rows.length){toast('Không có dữ liệu','var(--amber)');return;}
+  const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Công nợ NeoBa');
+  const heads=['Invoice','Khách','Trạng thái đơn','Tổng PO (đã VAT)','Cọc yêu cầu','Đã trả','Còn lại','Thanh toán'];
+  ws.addRow(heads);
+  rows.forEach(o=>{const pay=num(o.neoba_payable),paid=paidOf(o);
+    ws.addRow([o.invoice_no,o.business_name,o.status,pay,pay*num(o.neoba_deposit_pct)/100,paid,o.status==='cancelled'?paid:Math.max(0,pay-paid),payStatusOf(o)]);});
+  const n=rows.length+1;
+  ws.addRow(['TỔNG','','',{formula:`SUM(D2:D${n})`},{formula:`SUM(E2:E${n})`},{formula:`SUM(F2:F${n})`},{formula:`SUM(G2:G${n})`},'']);
+  ws.getRow(1).eachCell(c=>{c.font={name:'Arial',bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F3A5F'}};});
+  ws.getRow(n+1).font={name:'Arial',bold:true};
+  [14,28,16,16,14,14,14,28].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  for(let c=4;c<=7;c++)ws.getColumn(c).numFmt='$#,##0.00';
+  ws.views=[{state:'frozen',ySplit:1}];
+  const buf=await wb.xlsx.writeBuffer();
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf]));a.download='cong-no-neoba-'+new Date().toISOString().slice(0,10)+'.xlsx';a.click();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CHAT Maison ↔ NeoBa — #/@ mã đơn hoặc SKU → link; tìm kiếm; ghim
+// ══════════════════════════════════════════════════════════════════════════
+let chatMsgs=[],_chatShowPins=false,_acItems=[],_acSel=0,_acRange=null;
+const chatReadKey=()=>'maison_chat_read_'+(currentUser?.id||'');
+function chatLastRead(){try{return parseInt(localStorage.getItem(chatReadKey()))||0;}catch(e){return 0;}}
+function chatSetRead(id){try{localStorage.setItem(chatReadKey(),String(id));}catch(e){}}
+const chatActive=()=>document.getElementById('view-chat')?.classList.contains('active');
+
+async function loadChat(){
+  if(!hasNeobaAccess())return;
+  const{data,error}=await sb.from('chat_messages').select('*').eq('channel','neoba').order('created_at',{ascending:true}).limit(1500);
+  if(error)console.error('loadChat:',error);
+  chatMsgs=data||[];renderChat();updateChatBadge();
+}
+function updateChatBadge(){
+  const b=document.getElementById('chat-badge');if(!b)return;
+  const lr=chatLastRead();
+  const n=chatMsgs.filter(m=>m.id>lr&&m.sender_id!==currentUser?.id).length;
+  b.textContent=n;b.style.display=n&&!chatActive()?'inline':'none';
+}
+function markChatRead(){if(chatMsgs.length)chatSetRead(Math.max(...chatMsgs.map(m=>m.id)));updateChatBadge();}
+function enterChat(){
+  renderChat(true);markChatRead();
+  setTimeout(()=>document.getElementById('chat-input')?.focus(),50);
+}
+function chatPrefill(txt){
+  nav('chat');
+  const ta=document.getElementById('chat-input');ta.value=txt;ta.focus();
+}
+function chatAboutOrder(id){
+  const o=allOrders.find(x=>String(x.id)===String(id));if(!o)return;
+  closeOrderView();chatPrefill('#'+o.invoice_no+' ');
+}
+function openOrderFromChat(id){
+  const o=allOrders.find(x=>String(x.id)===String(id));
+  if(!o){toast('Không có quyền xem / không tìm thấy đơn','var(--amber)');return;}
+  _currentFilteredList=allOrders.slice();openOrderView(id);
+}
+function resolveToken(tok){
+  const t=tok.toLowerCase();
+  const o=allOrders.find(x=>(x.invoice_no||'').toLowerCase()===t);
+  if(o)return{type:'order',id:o.id,o};
+  const p=neobaProducts.find(x=>(x.sku||'').toLowerCase()===t);
+  if(p)return{type:'product',sku:p.sku,p};
+  return null;
+}
+function hl(s,q){
+  s=escH(s);if(!q)return s;
+  const qe=escH(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return s.replace(new RegExp('('+qe+')','gi'),'<mark>$1</mark>');
+}
+const TOKEN_RE=/([#@])([A-Za-z0-9][A-Za-z0-9._\-]*[A-Za-z0-9])/g;
+function chatBodyHtml(body,q){
+  let out='',last=0,m;TOKEN_RE.lastIndex=0;
+  while((m=TOKEN_RE.exec(body))){
+    out+=hl(body.slice(last,m.index),q);
+    const r=resolveToken(m[2]);
+    if(r?.type==='order')out+=`<a class="chat-link ord" title="${escH(r.o.business_name||'')}" onclick="openOrderFromChat('${r.id}')">🧾 ${escH(m[1]+m[2])}</a>`;
+    else if(r?.type==='product')out+=`<a class="chat-link prd" title="${escH(r.p.name||'')}" data-sku="${escH(r.sku)}" onclick="openNeobaProduct(this.dataset.sku)">📦 ${escH(m[1]+m[2])}</a>`;
+    else out+=hl(m[0],q);
+    last=m.index+m[0].length;
+  }
+  return(out+hl(body.slice(last),q)).replace(/\n/g,'<br>');
+}
+function chatMatches(m,q){
+  q=q.toLowerCase();
+  if((m.body||'').toLowerCase().includes(q)||(m.sender_name||'').toLowerCase().includes(q))return true;
+  TOKEN_RE.lastIndex=0;let t;
+  while((t=TOKEN_RE.exec(m.body||''))){
+    const r=resolveToken(t[2]);
+    if(r?.type==='order'&&[r.o.business_name,r.o.customer_name].some(x=>(x||'').toLowerCase().includes(q)))return true;
+    if(r?.type==='product'&&(r.p.name||'').toLowerCase().includes(q))return true;
+  }
+  return false;
+}
+function renderChat(forceBottom){
+  const list=document.getElementById('chat-list');if(!list)return;
+  const q=(document.getElementById('chat-search')?.value||'').trim();
+  const pins=chatMsgs.filter(m=>m.pinned).sort((a,b)=>new Date(b.pinned_at||0)-new Date(a.pinned_at||0));
+  document.getElementById('chat-pin-n').textContent=pins.length;
+  const pb=document.getElementById('chat-pins');
+  if(pins.length){
+    const show=_chatShowPins?pins:pins.slice(0,1);
+    pb.style.display='block';
+    pb.innerHTML=show.map(m=>`<div class="chat-pin-item" onclick="chatJump(${m.id})">📌 <b>${escH(m.sender_name)}</b><span class="snip">${escH((m.body||'').replace(/\s+/g,' ').slice(0,140))}</span>
+      <button class="btn btn-ghost btn-sm" style="padding:0 6px;" onclick="event.stopPropagation();chatTogglePin(${m.id})" title="Bỏ ghim">✕</button></div>`).join('')
+      +(!_chatShowPins&&pins.length>1?`<div style="font-size:11px;color:var(--text3);cursor:pointer;" onclick="toggleChatPins()">+ ${pins.length-1} tin ghim khác</div>`:'');
+  }else pb.style.display='none';
+  const near=list.scrollHeight-list.scrollTop-list.clientHeight<120;
+  const msgs=q?chatMsgs.filter(m=>chatMatches(m,q)):chatMsgs;
+  let html='',day='';
+  if(!msgs.length)html=`<div class="empty-state" style="margin:auto;"><div class="ei">💬</div><p>${q?'Không có tin nhắn khớp':'Chưa có tin nhắn — gõ # hoặc @ để gắn mã đơn / SKU'}</p></div>`;
+  msgs.forEach(m=>{
+    const d=new Date(m.created_at),dk=d.toLocaleDateString('vi-VN');
+    if(dk!==day){day=dk;html+=`<div class="chat-day">${dk}</div>`;}
+    const me=m.sender_id===currentUser?.id;
+    html+=`<div class="chat-msg${me?' me':''}${m.pinned?' pinned':''}" id="cm-${m.id}">
+      <div class="chat-act"><button title="${m.pinned?'Bỏ ghim':'Ghim'}" onclick="chatTogglePin(${m.id})">${m.pinned?'📍':'📌'}</button>${(me||isAdm())?`<button title="Xoá" onclick="chatDelete(${m.id})">🗑</button>`:''}</div>
+      <div class="chat-meta"><b>${escH(m.sender_name||'—')}</b><span>${m.sender_role==='admin'?'Maison':'NeoBa'}</span><span>${d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}</span>${m.pinned?'<span>📌</span>':''}</div>
+      <div class="chat-body">${chatBodyHtml(m.body||'',q)}</div></div>`;
+  });
+  list.innerHTML=html;
+  if(forceBottom===true||(near&&!q))list.scrollTop=list.scrollHeight;
+}
+function toggleChatPins(){_chatShowPins=!_chatShowPins;renderChat();}
+function chatJump(id){
+  const s=document.getElementById('chat-search');if(s&&s.value){s.value='';renderChat();}
+  const el=document.getElementById('cm-'+id);if(!el)return;
+  el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');
+}
+async function chatTogglePin(id){
+  const m=chatMsgs.find(x=>x.id===id);if(!m)return;
+  const upd=m.pinned?{pinned:false,pinned_by:null,pinned_at:null}:{pinned:true,pinned_by:currentProfile.full_name,pinned_at:new Date().toISOString()};
+  const{error}=await sb.from('chat_messages').update(upd).eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  Object.assign(m,upd);renderChat();
+}
+async function chatDelete(id){
+  if(!confirm('Xoá tin nhắn này?'))return;
+  const{error}=await sb.from('chat_messages').delete().eq('id',id);
+  if(error){toast('Lỗi: '+error.message,'var(--red)');return;}
+  chatMsgs=chatMsgs.filter(m=>m.id!==id);renderChat();
+}
+async function sendChat(){
+  const ta=document.getElementById('chat-input'),body=ta.value.trim();
+  if(!body)return;
+  ta.value='';ta.style.height='';chatAcClose();
+  const{data,error}=await sb.from('chat_messages').insert({channel:'neoba',sender_id:currentUser.id,sender_name:currentProfile.full_name||currentUser.email,
+    sender_role:isAdm()?'admin':'neoba',body}).select().single();
+  if(error){ta.value=body;toast('Lỗi gửi: '+error.message+' (đã chạy neoba-schema.sql chưa?)','var(--red)');return;}
+  if(!chatMsgs.some(m=>m.id===data.id))chatMsgs.push(data);
+  renderChat(true);markChatRead();
+}
+// realtime
+function chatRealtime(payload){
+  if(!hasNeobaAccess())return;
+  const{eventType:ev,new:n,old:o}=payload;
+  if(ev==='INSERT'){
+    if(n.channel!=='neoba'||chatMsgs.some(m=>m.id===n.id))return;
+    chatMsgs.push(n);renderChat();
+    if(chatActive())markChatRead();
+    else{updateChatBadge();if(n.sender_id!==currentUser.id)toast(`💬 ${n.sender_name}: ${(n.body||'').slice(0,60)}`,'var(--gold)');}
+  }else if(ev==='UPDATE'){const m=chatMsgs.find(x=>x.id===n.id);if(m){Object.assign(m,n);renderChat();}}
+  else if(ev==='DELETE'){chatMsgs=chatMsgs.filter(m=>m.id!==o.id);renderChat();}
+}
+// autocomplete # / @
+function chatAcClose(){const el=document.getElementById('chat-ac');if(el){el.style.display='none';el.innerHTML='';}_acItems=[];_acRange=null;}
+function chatAcUpdate(){
+  const ta=document.getElementById('chat-input'),pos=ta.selectionStart;
+  const m=/(^|\s)([#@])([A-Za-z0-9._\-]*)$/.exec(ta.value.slice(0,pos));
+  if(!m){chatAcClose();return;}
+  const sym=m[2],q=m[3].toLowerCase();
+  _acRange={start:pos-q.length-1,end:pos,sym};
+  const ords=allOrders.filter(o=>!q||[o.invoice_no,o.business_name,o.customer_name].some(x=>(x||'').toLowerCase().includes(q)))
+    .slice(0,6).map(o=>({code:o.invoice_no,icon:'🧾',label:o.invoice_no,sub:o.business_name||''}));
+  const prods=neobaProducts.filter(p=>!q||[p.sku,p.name].some(x=>(x||'').toLowerCase().includes(q)))
+    .slice(0,6).map(p=>({code:p.sku,icon:'📦',label:p.sku,sub:p.name||''}));
+  _acItems=sym==='#'?[...ords,...prods]:[...prods,...ords];_acSel=0;
+  const el=document.getElementById('chat-ac');
+  if(!_acItems.length){chatAcClose();return;}
+  el.innerHTML=_acItems.map((it,i)=>`<div class="it${i===0?' sel':''}" data-i="${i}" onmousedown="event.preventDefault();chatAcPick(${i})">${it.icon} <b>${escH(it.label)}</b><small>${escH(it.sub)}</small></div>`).join('');
+  el.style.display='block';
+}
+function chatAcPick(i){
+  const it=_acItems[i];if(!it||!_acRange)return;
+  const ta=document.getElementById('chat-input'),ins=_acRange.sym+it.code+' ';
+  ta.value=ta.value.slice(0,_acRange.start)+ins+ta.value.slice(_acRange.end);
+  const p=_acRange.start+ins.length;ta.setSelectionRange(p,p);ta.focus();chatAcClose();
+}
+function chatAcMove(d){
+  _acSel=(_acSel+d+_acItems.length)%_acItems.length;
+  document.querySelectorAll('#chat-ac .it').forEach((e,i)=>{e.classList.toggle('sel',i===_acSel);if(i===_acSel)e.scrollIntoView({block:'nearest'});});
+}
+(function initChatInput(){
+  const ta=document.getElementById('chat-input');if(!ta)return;
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,120)+'px';chatAcUpdate();});
+  ta.addEventListener('click',chatAcUpdate);
+  ta.addEventListener('blur',()=>setTimeout(chatAcClose,150));
+  ta.addEventListener('keydown',e=>{
+    const open=_acItems.length&&document.getElementById('chat-ac').style.display!=='none';
+    if(open){
+      if(e.key==='ArrowDown'){e.preventDefault();chatAcMove(1);return;}
+      if(e.key==='ArrowUp'){e.preventDefault();chatAcMove(-1);return;}
+      if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();chatAcPick(_acSel);return;}
+      if(e.key==='Escape'){e.preventDefault();chatAcClose();return;}
+    }
+    if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat();}
+  });
+})();
+
+function neobaDashKpis(active){
+  const rs=active.filter(isResale);
+  if(!hasNeobaAccess()||!rs.length)return'';
+  const pay=rs.reduce((x,o)=>x+num(o.neoba_payable),0),paid=rs.reduce((x,o)=>x+paidOf(o),0),owe=Math.max(0,pay-paid);
+  if(isAdm()){
+    const gap=rs.reduce((x,o)=>x+priceGapOf(o),0);
+    return`<div class="kpi gold" onclick="nav('neoba');nbTab('debt')"><div class="kpi-label">Lãi NeoBa (Price Gap)</div><div class="kpi-val" style="color:var(--gold)">${fmtUSD(gap)}</div><div class="kpi-sub">${rs.length} đơn mua đứt</div></div>
+      <div class="kpi" onclick="nav('neoba');nbTab('debt')"><div class="kpi-label">Còn phải trả NeoBa</div><div class="kpi-val" style="color:var(--red)">${fmtUSD(owe)}</div><div class="kpi-sub">đã trả ${fmtUSD(paid)}</div></div>`;
+  }
+  return`<div class="kpi" onclick="nav('neoba');nbTab('debt')"><div class="kpi-label">Đã nhận thanh toán</div><div class="kpi-val" style="color:var(--green)">${fmtUSD(paid)}</div></div>
+    <div class="kpi" onclick="nav('neoba');nbTab('debt')"><div class="kpi-label">Còn phải thu</div><div class="kpi-val" style="color:var(--amber)">${fmtUSD(owe)}</div></div>`;
+}
 
 // ══ INIT ══
 (async()=>{
