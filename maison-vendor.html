@@ -1101,7 +1101,7 @@ async function loadAll(){
   // chung Promise.all (nếu không, allOrders rỗng lúc chúng chạy → bỏ qua fetch,
   // để allPhotos/allFiles trống suốt phiên đăng nhập).
   await loadOrders();
-  await Promise.all([loadPhotos(),loadFiles(),loadNotifs(),isNeobaOnlyUser()?Promise.resolve():loadBatches(),loadNeoba(),
+  await Promise.all([loadPhotos(),loadFiles(),loadNotifs(),(isNeobaOnlyUser()||(!isAdm()&&!currentProfile?.vendor_access?.length))?Promise.resolve():loadBatches(),loadNeoba(),
     currentProfile?.role==='admin'?loadAccounts():Promise.resolve()]);
   renderDashboard();renderOrders();renderNotifs();
   if(currentProfile?.role==='admin')renderAccounts();
@@ -1110,10 +1110,10 @@ async function loadAll(){
 }
 
 async function loadOrders(){
+  // Non-admin KHÔNG có quyền vendor nào → không thấy đơn nào (trước đây danh sách rỗng = thấy TẤT CẢ)
+  if(currentProfile?.role!=='admin'&&!currentProfile?.vendor_access?.length){allOrders=[];return;}
   let q=sb.from('vendor_orders').select('*').order('order_date',{ascending:false});
-  if(currentProfile?.role!=='admin'&&currentProfile?.vendor_access?.length){
-    q=q.in('vendor',currentProfile.vendor_access);
-  }
+  if(currentProfile?.role!=='admin')q=q.in('vendor',currentProfile.vendor_access);
   const{data}=await q;
   allOrders=data||[];
 }
